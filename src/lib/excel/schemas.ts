@@ -43,7 +43,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,
-    orgFilterField: "영업조직(팀)",
+    orgFilterField: "영업조직팀",
   },
   {
     fileType: "teamContribution",
@@ -51,7 +51,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,
-    orgFilterField: "영업조직(팀)",
+    orgFilterField: "영업조직팀",
   },
   {
     fileType: "profitabilityAnalysis",
@@ -59,7 +59,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,
-    orgFilterField: "영업조직(팀)",
+    orgFilterField: "영업조직팀",
   },
   {
     fileType: "receivableAging",

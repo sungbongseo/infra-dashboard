@@ -18,12 +18,13 @@ export function FileUploader() {
   const [progress, setProgress] = useState(0);
 
   const {
-    orgCodes,
+    orgNames,
     uploadedFiles,
     addUploadedFile,
     updateUploadedFile,
     setOrganizations,
     setOrgCodes,
+    setOrgNames,
     setSalesList,
     setCollectionList,
     setOrderList,
@@ -69,7 +70,7 @@ export function FileUploader() {
         const buffer = await file.arrayBuffer();
         setProgress(40);
 
-        const result = parseExcelFile(buffer, file.name, orgCodes.size > 0 ? orgCodes : undefined);
+        const result = parseExcelFile(buffer, file.name, orgNames.size > 0 ? orgNames : undefined);
         setProgress(80);
 
         // Store parsed data
@@ -77,8 +78,31 @@ export function FileUploader() {
           case "organization": {
             const orgs = result.data as any[];
             setOrganizations(orgs);
-            const codes = new Set(orgs.map((o: any) => o.영업조직));
+            const codes = new Set(orgs.map((o: any) => String(o.영업조직).trim()));
             setOrgCodes(codes);
+            const names = new Set(orgs.map((o: any) => String(o.영업조직명).trim()));
+            setOrgNames(names);
+            // Re-filter already-loaded data against new org names
+            const store = useDataStore.getState();
+            const byName = (row: any) => names.has(String(row.영업조직 || "").trim());
+            const byTeam = (row: any) => names.has(String(row.영업조직팀 || "").trim());
+            if (store.salesList.length > 0)
+              setSalesList(store.salesList.filter(byName));
+            if (store.collectionList.length > 0)
+              setCollectionList(store.collectionList.filter(byName));
+            if (store.orderList.length > 0)
+              setOrderList(store.orderList.filter(byName));
+            if (store.orgProfit.length > 0)
+              setOrgProfit(store.orgProfit.filter(byTeam));
+            if (store.teamContribution.length > 0)
+              setTeamContribution(store.teamContribution.filter(byTeam));
+            if (store.profitabilityAnalysis.length > 0)
+              setProfitabilityAnalysis(store.profitabilityAnalysis.filter(byTeam));
+            if (store.receivableAging.size > 0) {
+              store.receivableAging.forEach((records, source) => {
+                setReceivableAging(source, records.filter(byName));
+              });
+            }
             break;
           }
           case "salesList":
@@ -119,7 +143,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgCodes, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging, setCustomerLedger]
+    [orgNames, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging, setCustomerLedger]
   );
 
   const handleDrop = useCallback(

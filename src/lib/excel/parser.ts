@@ -264,7 +264,7 @@ function parseCustomerLedger(data: unknown[][]): CustomerLedgerRecord[] {
 export function parseExcelFile(
   buffer: ArrayBuffer,
   fileName: string,
-  orgCodes?: Set<string>
+  orgNames?: Set<string>
 ): ParseResult {
   const schema = detectFileType(fileName);
   if (!schema) {
@@ -311,11 +311,11 @@ export function parseExcelFile(
   }
 
   // Apply org filter if available and applicable
-  if (orgCodes && orgCodes.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
+  if (orgNames && orgNames.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
     const field = schema.orgFilterField;
     parsed = parsed.filter((row: any) => {
-      const orgValue = row[field] || row["영업조직"] || row["영업조직팀"];
-      return orgValue && orgCodes.has(String(orgValue));
+      const orgValue = String(row[field] || "").trim();
+      return orgValue !== "" && orgNames.has(orgValue);
     });
   }
 

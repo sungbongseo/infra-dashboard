@@ -15,6 +15,7 @@ import type {
 interface DataState {
   organizations: Organization[];
   orgCodes: Set<string>;
+  orgNames: Set<string>;
   salesList: SalesRecord[];
   collectionList: CollectionRecord[];
   orderList: OrderRecord[];
@@ -29,6 +30,7 @@ interface DataState {
 
   setOrganizations: (orgs: Organization[]) => void;
   setOrgCodes: (codes: Set<string>) => void;
+  setOrgNames: (names: Set<string>) => void;
   setSalesList: (data: SalesRecord[]) => void;
   setCollectionList: (data: CollectionRecord[]) => void;
   setOrderList: (data: OrderRecord[]) => void;
@@ -47,6 +49,7 @@ interface DataState {
 export const useDataStore = create<DataState>((set) => ({
   organizations: [],
   orgCodes: new Set(),
+  orgNames: new Set(),
   salesList: [],
   collectionList: [],
   orderList: [],
@@ -61,6 +64,7 @@ export const useDataStore = create<DataState>((set) => ({
 
   setOrganizations: (orgs) => set({ organizations: orgs }),
   setOrgCodes: (codes) => set({ orgCodes: codes }),
+  setOrgNames: (names) => set({ orgNames: names }),
   setSalesList: (data) => set({ salesList: data }),
   setCollectionList: (data) => set({ collectionList: data }),
   setOrderList: (data) => set({ orderList: data }),
@@ -85,6 +89,7 @@ export const useDataStore = create<DataState>((set) => ({
     set({
       organizations: [],
       orgCodes: new Set(),
+      orgNames: new Set(),
       salesList: [],
       collectionList: [],
       orderList: [],
