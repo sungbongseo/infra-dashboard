@@ -1,4 +1,19 @@
 import { create } from "zustand";
+
+// Infra 사업본부 기본 담당조직명 (조직 파일 미업로드 시에도 필터링 적용)
+export const DEFAULT_INFRA_ORG_NAMES = new Set([
+  "Infra사업본부",
+  "건축사업부",
+  "건자재팀",
+  "광주사무소",
+  "대전사무소",
+  "대구사무소",
+  "부산지점_INF",
+  "해외사업팀_INF",
+  "해외사업팀_베트남",
+  "전략구매혁신팀",
+]);
+
 import type {
   SalesRecord,
   CollectionRecord,
@@ -49,7 +64,7 @@ interface DataState {
 export const useDataStore = create<DataState>((set) => ({
   organizations: [],
   orgCodes: new Set(),
-  orgNames: new Set(),
+  orgNames: new Set(DEFAULT_INFRA_ORG_NAMES),
   salesList: [],
   collectionList: [],
   orderList: [],
@@ -89,7 +104,7 @@ export const useDataStore = create<DataState>((set) => ({
     set({
       organizations: [],
       orgCodes: new Set(),
-      orgNames: new Set(),
+      orgNames: new Set(DEFAULT_INFRA_ORG_NAMES),
       salesList: [],
       collectionList: [],
       orderList: [],
