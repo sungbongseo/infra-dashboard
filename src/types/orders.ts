@@ -1,0 +1,32 @@
+export interface OrderRecord {
+  No: number;
+  수주번호: string;
+  순번: number;
+  수주일: string;
+  납품요청일: string;
+  판매처: string;
+  판매처명: string;
+  영업그룹: string;
+  영업담당자: string;
+  영업담당자명: string;
+  판매지역: string;
+  수주유형: string;
+  수주유형명: string;
+  영업조직: string;
+  유통경로: string;
+  거래구분: string;
+  품목: string;
+  품목명: string;
+  규격: string;
+  판매수량: number;
+  판매단가: number;
+  판매금액: number;
+  환율: number;
+  장부단가: number;
+  장부금액: number;
+  부가세: number;
+  총금액: number;
+  대분류: string;
+  중분류: string;
+  소분류: string;
+}
