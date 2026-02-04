@@ -31,6 +31,7 @@ export function KpiCard({
   compact = true,
 }: KpiCardProps) {
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
+  const hasTooltip = description || formula || benchmark;
 
   const formattedValue =
     format === "currency"
@@ -47,15 +48,32 @@ export function KpiCard({
             <div className="space-y-1">
               <div className="flex items-center gap-1.5">
                 <p className="text-sm font-medium text-muted-foreground">{title}</p>
-                {(description || formula) && (
-                  <Tooltip>
+                {hasTooltip && (
+                  <Tooltip delayDuration={0}>
                     <TooltipTrigger asChild>
-                      <Info className="h-3.5 w-3.5 text-muted-foreground/60 cursor-help" />
+                      <button type="button" className="inline-flex items-center justify-center">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-primary transition-colors cursor-help" />
+                      </button>
                     </TooltipTrigger>
-                    <TooltipContent side="top" className="max-w-xs">
-                      {formula && <p className="font-mono text-xs mb-1">{formula}</p>}
-                      {description && <p className="text-xs">{description}</p>}
-                      {benchmark && <p className="text-xs text-muted-foreground mt-1">{benchmark}</p>}
+                    <TooltipContent side="bottom" sideOffset={8} className="max-w-sm p-3 z-[60]">
+                      {formula && (
+                        <div className="mb-2">
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 산출 로직</p>
+                          <p className="font-mono text-xs bg-muted/50 rounded px-2 py-1 whitespace-pre-line">{formula}</p>
+                        </div>
+                      )}
+                      {description && (
+                        <div className="mb-2">
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📖 해석</p>
+                          <p className="text-xs leading-relaxed">{description}</p>
+                        </div>
+                      )}
+                      {benchmark && (
+                        <div className="pt-1.5 border-t">
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-0.5">🎯 기준</p>
+                          <p className="text-xs">{benchmark}</p>
+                        </div>
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 )}

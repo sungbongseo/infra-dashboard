@@ -57,3 +57,13 @@ export const RISK_COLORS = {
   medium: "hsl(38, 92%, 50%)",
   high: "hsl(0, 84.2%, 60.2%)",
 };
+
+// Org filter helpers
+export function filterByOrg<T extends Record<string, any>>(
+  data: T[],
+  orgNames: Set<string>,
+  field: string = "영업조직"
+): T[] {
+  if (orgNames.size === 0) return data;
+  return data.filter(row => orgNames.has(String(row[field] || "").trim()));
+}
