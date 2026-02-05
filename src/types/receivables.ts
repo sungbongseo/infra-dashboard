@@ -19,6 +19,7 @@ export interface ReceivableAgingRecord {
   month6: AgingAmounts; // 6개월
   overdue: AgingAmounts; // 6개월 이전
   합계: AgingAmounts;
+  여신한도: number;
 }
 
 export type AgingSourceName =
@@ -45,6 +46,28 @@ export interface CustomerLedgerRecord {
   전표번호: string;
   비용센터: string;
   프로젝트명: string;
+}
+
+export type CreditStatus = "danger" | "warning" | "normal";
+
+export interface CreditUtilization {
+  판매처: string;
+  판매처명: string;
+  영업조직: string;
+  담당자: string;
+  총미수금: number;
+  여신한도: number;
+  사용률: number;
+  상태: CreditStatus;
+}
+
+export interface CreditSummaryByOrg {
+  org: string;
+  totalLimit: number;
+  totalUsed: number;
+  utilizationRate: number;
+  dangerCount: number;
+  warningCount: number;
 }
 
 export type RiskGrade = "high" | "medium" | "low";

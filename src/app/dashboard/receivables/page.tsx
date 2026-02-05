@@ -6,7 +6,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Badge } from "@/components/ui/badge";
-import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments } from "@/lib/analysis/aging";
+import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments, calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
 import {
   BarChart,
   Bar,
@@ -17,7 +17,8 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { CreditCard, AlertTriangle, Shield, Users } from "lucide-react";
+import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge } from "lucide-react";
+import { Cell, ReferenceLine } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, CHART_COLORS } from "@/lib/utils";
 
@@ -49,6 +50,14 @@ export default function ReceivablesPage() {
   const byOrg = useMemo(() => calcAgingByOrg(filteredAgingMap), [filteredAgingMap]);
   const byPerson = useMemo(() => calcAgingByPerson(allRecords), [allRecords]);
   const risks = useMemo(() => calcRiskAssessments(allRecords), [allRecords]);
+
+  const creditUtilizations = useMemo(() => calcCreditUtilization(allRecords), [allRecords]);
+  const creditByOrg = useMemo(() => calcCreditSummaryByOrg(allRecords), [allRecords]);
+
+  const creditTotalLimit = useMemo(() => creditUtilizations.reduce((s, c) => s + c.여신한도, 0), [creditUtilizations]);
+  const creditTotalUsed = useMemo(() => creditUtilizations.reduce((s, c) => s + c.총미수금, 0), [creditUtilizations]);
+  const creditAvgRate = creditTotalLimit > 0 ? (creditTotalUsed / creditTotalLimit) * 100 : 0;
+  const creditDangerCount = creditUtilizations.filter((c) => c.상태 === "danger").length;
 
   const highRiskCount = risks.filter((r) => r.riskGrade === "high").length;
   const mediumRiskCount = risks.filter((r) => r.riskGrade === "medium").length;
@@ -82,6 +91,7 @@ export default function ReceivablesPage() {
         <TabsList>
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
+          <TabsTrigger value="credit">여신 관리</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -229,6 +239,125 @@ export default function ReceivablesPage() {
                           variant={r.riskGrade === "high" ? "destructive" : r.riskGrade === "medium" ? "warning" : "success"}
                         >
                           {r.riskGrade === "high" ? "고위험" : r.riskGrade === "medium" ? "주의" : "양호"}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        <TabsContent value="credit" className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="총 여신한도"
+              value={creditTotalLimit}
+              format="currency"
+              icon={<Landmark className="h-5 w-5" />}
+              formula="SUM(여신한도가 설정된 거래처의 여신한도)"
+              description="여신한도가 부여된 전체 거래처의 한도 합계입니다."
+              benchmark="총 매출액 대비 적정 수준 유지"
+            />
+            <KpiCard
+              title="총 사용액"
+              value={creditTotalUsed}
+              format="currency"
+              icon={<TrendingUp className="h-5 w-5" />}
+              formula="SUM(여신한도 설정 거래처의 미수금 합계)"
+              description="여신한도가 설정된 거래처들의 총 미수금 잔액입니다."
+              benchmark="총 여신한도의 70% 이내가 양호"
+            />
+            <KpiCard
+              title="평균 사용률"
+              value={creditAvgRate}
+              format="percent"
+              icon={<Gauge className="h-5 w-5" />}
+              formula="총 사용액 / 총 여신한도 x 100"
+              description="전체 여신한도 대비 사용 비율입니다. 높을수록 여신 여력이 부족합니다."
+              benchmark="70% 미만 양호, 80% 이상 주의, 100% 이상 위험"
+            />
+            <KpiCard
+              title="한도초과 거래처"
+              value={creditDangerCount}
+              format="number"
+              icon={<Ban className="h-5 w-5" />}
+              formula="여신 사용률 100% 이상 거래처 수"
+              description="미수금이 여신한도를 초과한 거래처 수입니다. 즉각적인 여신 관리 조치가 필요합니다."
+              benchmark="0건이 이상적"
+            />
+          </div>
+
+          <ChartCard
+            title="조직별 여신 사용률"
+            formula="조직별 SUM(미수금) / SUM(여신한도) x 100\n빨간선 = 100% 한도 기준"
+            description="각 조직의 여신한도 대비 미수금 사용 비율입니다. 100%를 초과하면 한도 초과 상태입니다."
+            benchmark="80% 미만 양호(녹색), 80~100% 주의(노란색), 100% 이상 위험(빨간색)"
+          >
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={creditByOrg} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, (max: number) => Math.max(max * 1.1, 110)]} />
+                  <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
+                  <RechartsTooltip
+                    formatter={(value: any) => `${Number(value).toFixed(1)}%`}
+                    labelFormatter={(label) => `조직: ${label}`}
+                  />
+                  <ReferenceLine x={100} stroke="hsl(0, 84%, 50%)" strokeDasharray="3 3" strokeWidth={2} label={{ value: "100%", position: "top", fontSize: 10 }} />
+                  <Bar dataKey="utilizationRate" name="사용률" radius={[0, 4, 4, 0]}>
+                    {creditByOrg.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={
+                          entry.utilizationRate >= 100
+                            ? "hsl(0, 84%, 50%)"
+                            : entry.utilizationRate >= 80
+                            ? "hsl(45, 93%, 47%)"
+                            : CHART_COLORS[2]
+                        }
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          <ChartCard
+            title="거래처별 여신 사용률"
+            formula="거래처별 총미수금 / 여신한도 x 100\n사용률 내림차순 정렬"
+            description="거래처별 여신한도 대비 미수금 비율입니다. 위험(빨강)은 한도 초과, 주의(노랑)는 80% 이상입니다."
+            benchmark="사용률 80% 미만이 양호, 한도초과(100%+) 거래처는 즉시 조치"
+          >
+            <div className="h-[500px] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b text-left">
+                    <th className="py-2 px-2 font-medium">거래처</th>
+                    <th className="py-2 px-2 font-medium">조직</th>
+                    <th className="py-2 px-2 font-medium">담당자</th>
+                    <th className="py-2 px-2 font-medium text-right">여신한도</th>
+                    <th className="py-2 px-2 font-medium text-right">미수금</th>
+                    <th className="py-2 px-2 font-medium text-right">사용률</th>
+                    <th className="py-2 px-2 font-medium">상태</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {creditUtilizations.map((c, i) => (
+                    <tr key={i} className="border-b border-muted/50 hover:bg-muted/30">
+                      <td className="py-1.5 px-2 truncate max-w-[150px]" title={c.판매처명}>{c.판매처명 || c.판매처}</td>
+                      <td className="py-1.5 px-2 truncate max-w-[80px]">{c.영업조직}</td>
+                      <td className="py-1.5 px-2 truncate max-w-[60px]">{c.담당자}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(c.여신한도, true)}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(c.총미수금, true)}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums font-medium">{c.사용률.toFixed(1)}%</td>
+                      <td className="py-1.5 px-2">
+                        <Badge
+                          variant={c.상태 === "danger" ? "destructive" : c.상태 === "warning" ? "warning" : "success"}
+                        >
+                          {c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "주의" : "양호"}
                         </Badge>
                       </td>
                     </tr>

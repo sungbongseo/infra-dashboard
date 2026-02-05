@@ -51,6 +51,7 @@ export interface PerformanceScore {
   orderScore: number;
   profitScore: number;
   collectionScore: number;
+  receivableScore: number;
   totalScore: number;
   rank: number;
   percentile: number;

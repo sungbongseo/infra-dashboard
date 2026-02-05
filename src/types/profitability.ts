@@ -37,6 +37,36 @@ export interface TeamContributionRecord {
   판매관리비: PlanActualDiff;
   영업이익: PlanActualDiff;
   영업이익율: PlanActualDiff;
+  // 판관변동 비용항목 (9개)
+  판관변동_노무비: PlanActualDiff;
+  판관변동_복리후생비: PlanActualDiff;
+  판관변동_소모품비: PlanActualDiff;
+  판관변동_수도광열비: PlanActualDiff;
+  판관변동_수선비: PlanActualDiff;
+  판관변동_외주가공비: PlanActualDiff;
+  판관변동_운반비: PlanActualDiff;
+  판관변동_지급수수료: PlanActualDiff;
+  판관변동_견본비: PlanActualDiff;
+  // 판관고정 비용항목 (3개)
+  판관고정_노무비: PlanActualDiff;
+  판관고정_감가상각비: PlanActualDiff;
+  판관고정_기타경비: PlanActualDiff;
+  // 제조변동 비용항목 (14개)
+  제조변동_원재료비: PlanActualDiff;
+  제조변동_부재료비: PlanActualDiff;
+  변동_상품매입: PlanActualDiff;
+  제조변동_노무비: PlanActualDiff;
+  제조변동_복리후생비: PlanActualDiff;
+  제조변동_소모품비: PlanActualDiff;
+  제조변동_수도광열비: PlanActualDiff;
+  제조변동_수선비: PlanActualDiff;
+  제조변동_연료비: PlanActualDiff;
+  제조변동_외주가공비: PlanActualDiff;
+  제조변동_운반비: PlanActualDiff;
+  제조변동_전력비: PlanActualDiff;
+  제조변동_견본비: PlanActualDiff;
+  제조변동_지급수수료: PlanActualDiff;
+  // 합계
   변동비합계: PlanActualDiff;
   공헌이익: PlanActualDiff;
   공헌이익율: PlanActualDiff;

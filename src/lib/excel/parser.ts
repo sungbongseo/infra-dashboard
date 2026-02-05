@@ -197,9 +197,39 @@ function parseTeamContribution(data: unknown[][]): TeamContributionRecord[] {
     판매관리비: parsePlanActualDiff(row, 19),
     영업이익: parsePlanActualDiff(row, 22),
     영업이익율: parsePlanActualDiff(row, 25),
-    변동비합계: parsePlanActualDiff(row, 109),
-    공헌이익: parsePlanActualDiff(row, 112),
-    공헌이익율: parsePlanActualDiff(row, 115 - 2),
+    // 판관변동 비용항목 (9개)
+    판관변동_노무비: parsePlanActualDiff(row, 28),
+    판관변동_복리후생비: parsePlanActualDiff(row, 31),
+    판관변동_소모품비: parsePlanActualDiff(row, 34),
+    판관변동_수도광열비: parsePlanActualDiff(row, 37),
+    판관변동_수선비: parsePlanActualDiff(row, 40),
+    판관변동_외주가공비: parsePlanActualDiff(row, 43),
+    판관변동_운반비: parsePlanActualDiff(row, 46),
+    판관변동_지급수수료: parsePlanActualDiff(row, 49),
+    판관변동_견본비: parsePlanActualDiff(row, 52),
+    // 판관고정 비용항목 (3개)
+    판관고정_노무비: parsePlanActualDiff(row, 55),
+    판관고정_감가상각비: parsePlanActualDiff(row, 58),
+    판관고정_기타경비: parsePlanActualDiff(row, 61),
+    // 제조변동 비용항목 (14개)
+    제조변동_원재료비: parsePlanActualDiff(row, 64),
+    제조변동_부재료비: parsePlanActualDiff(row, 67),
+    변동_상품매입: parsePlanActualDiff(row, 70),
+    제조변동_노무비: parsePlanActualDiff(row, 73),
+    제조변동_복리후생비: parsePlanActualDiff(row, 76),
+    제조변동_소모품비: parsePlanActualDiff(row, 79),
+    제조변동_수도광열비: parsePlanActualDiff(row, 82),
+    제조변동_수선비: parsePlanActualDiff(row, 85),
+    제조변동_연료비: parsePlanActualDiff(row, 88),
+    제조변동_외주가공비: parsePlanActualDiff(row, 91),
+    제조변동_운반비: parsePlanActualDiff(row, 94),
+    제조변동_전력비: parsePlanActualDiff(row, 97),
+    제조변동_견본비: parsePlanActualDiff(row, 100),
+    제조변동_지급수수료: parsePlanActualDiff(row, 103),
+    // 합계
+    변동비합계: parsePlanActualDiff(row, 106),
+    공헌이익: parsePlanActualDiff(row, 109),
+    공헌이익율: parsePlanActualDiff(row, 112),
   }));
 }
 
@@ -239,6 +269,7 @@ function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
     month6: parseAgingAmounts(row, 21),
     overdue: parseAgingAmounts(row, 24),
     합계: parseAgingAmounts(row, 27),
+    여신한도: num(row[30]),
   }));
 }
 

@@ -1,4 +1,4 @@
-import type { ReceivableAgingRecord, RiskGrade, AgingRiskAssessment } from "@/types";
+import type { ReceivableAgingRecord, RiskGrade, AgingRiskAssessment, CreditUtilization, CreditSummaryByOrg, CreditStatus } from "@/types";
 
 export interface AgingSummary {
   month1: number;
@@ -77,4 +77,71 @@ export function calcRiskAssessments(records: ReceivableAgingRecord[]): AgingRisk
       riskGrade: assessRisk(r),
     };
   }).filter(r => r.총미수금 !== 0).sort((a, b) => b.총미수금 - a.총미수금);
+}
+
+/** 거래처별 여신한도 대비 미수금 비율 계산 */
+export function calcCreditUtilization(records: ReceivableAgingRecord[]): CreditUtilization[] {
+  // 판매처 기준으로 그룹핑
+  const grouped = new Map<string, ReceivableAgingRecord[]>();
+  for (const r of records) {
+    const key = r.판매처;
+    if (!key) continue;
+    const arr = grouped.get(key) || [];
+    arr.push(r);
+    grouped.set(key, arr);
+  }
+
+  const results: CreditUtilization[] = [];
+  for (const [판매처, recs] of Array.from(grouped.entries())) {
+    const first = recs[0];
+    const 총미수금 = recs.reduce((sum, r) => sum + r.합계.장부금액, 0);
+    // 여신한도는 거래처 단위이므로 같은 값 → 첫 번째 레코드에서 취득
+    const 여신한도 = first.여신한도;
+    // 여신한도가 0이거나 없는 경우 제외
+    if (!여신한도 || 여신한도 === 0) continue;
+
+    const 사용률 = (총미수금 / 여신한도) * 100;
+    let 상태: CreditStatus = "normal";
+    if (사용률 >= 100) 상태 = "danger";
+    else if (사용률 >= 80) 상태 = "warning";
+
+    results.push({
+      판매처,
+      판매처명: first.판매처명,
+      영업조직: first.영업조직,
+      담당자: first.담당자,
+      총미수금,
+      여신한도,
+      사용률,
+      상태,
+    });
+  }
+
+  return results.sort((a, b) => b.사용률 - a.사용률);
+}
+
+/** 조직별 여신 현황 요약 */
+export function calcCreditSummaryByOrg(records: ReceivableAgingRecord[]): CreditSummaryByOrg[] {
+  const utilizations = calcCreditUtilization(records);
+
+  const orgMap = new Map<string, { totalLimit: number; totalUsed: number; dangerCount: number; warningCount: number }>();
+  for (const u of utilizations) {
+    const org = u.영업조직;
+    if (!org) continue;
+    const entry = orgMap.get(org) || { totalLimit: 0, totalUsed: 0, dangerCount: 0, warningCount: 0 };
+    entry.totalLimit += u.여신한도;
+    entry.totalUsed += u.총미수금;
+    if (u.상태 === "danger") entry.dangerCount++;
+    if (u.상태 === "warning") entry.warningCount++;
+    orgMap.set(org, entry);
+  }
+
+  return Array.from(orgMap.entries()).map(([org, data]) => ({
+    org,
+    totalLimit: data.totalLimit,
+    totalUsed: data.totalUsed,
+    utilizationRate: data.totalLimit > 0 ? (data.totalUsed / data.totalLimit) * 100 : 0,
+    dangerCount: data.dangerCount,
+    warningCount: data.warningCount,
+  })).sort((a, b) => b.utilizationRate - a.utilizationRate);
 }
