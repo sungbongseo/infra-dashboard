@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments, calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
@@ -23,7 +25,7 @@ import {
 import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge, Clock, RefreshCw } from "lucide-react";
 import { Cell, ReferenceLine } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { AgingRiskAssessment } from "@/types";
@@ -45,17 +47,24 @@ const DSO_LABELS: Record<string, string> = {
 
 export default function ReceivablesPage() {
   const { receivableAging, salesList, teamContribution, orgNames } = useDataStore();
+  const isLoading = useDataStore((s) => s.isLoading);
+  const { selectedOrgs, dateRange } = useFilterStore();
+
+  const effectiveOrgNames = useMemo(() => {
+    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
+    return orgNames;
+  }, [selectedOrgs, orgNames]);
 
   const filteredAgingMap = useMemo(() => {
     const filtered = new Map<string, any[]>();
     for (const [key, records] of Array.from(receivableAging.entries())) {
-      const filteredRecords = filterByOrg(records, orgNames, "영업조직");
+      const filteredRecords = filterByOrg(records, effectiveOrgNames, "영업조직");
       if (filteredRecords.length > 0) {
         filtered.set(key, filteredRecords);
       }
     }
     return filtered;
-  }, [receivableAging, orgNames]);
+  }, [receivableAging, effectiveOrgNames]);
 
   const allRecords = useMemo(() => {
     const all: any[] = [];
@@ -97,12 +106,12 @@ export default function ReceivablesPage() {
 
   // DSO/CCC 분석
   const filteredSales = useMemo(
-    () => filterByOrg(salesList, orgNames, "영업조직"),
-    [salesList, orgNames]
+    () => filterByDateRange(filterByOrg(salesList, effectiveOrgNames, "영업조직"), dateRange, "매출일"),
+    [salesList, effectiveOrgNames, dateRange]
   );
   const filteredTeamContrib = useMemo(
-    () => filterByOrg(teamContribution, orgNames, "영업조직팀"),
-    [teamContribution, orgNames]
+    () => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"),
+    [teamContribution, effectiveOrgNames]
   );
 
   const dsoMetrics = useMemo(
@@ -299,6 +308,7 @@ export default function ReceivablesPage() {
     [byOrg]
   );
 
+  if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
 
   return (
@@ -361,13 +371,13 @@ export default function ReceivablesPage() {
             description="조직별 미수채권의 연령 분포를 보여줍니다. 빨간색 계열(장기)이 많을수록 채권 건전성이 낮습니다."
             benchmark="3개월 이상 비율 20% 미만이면 양호, 6개월+ 비중이 높으면 대손 위험"
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={agingStackedData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="org" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                   <Legend />
                   {/* 안전(녹색) → 주의(황색) → 위험(적색) 순차 그라데이션 */}
                   <Bar dataKey="1개월" stackId="a" fill="hsl(142, 76%, 36%)" />
@@ -422,13 +432,13 @@ export default function ReceivablesPage() {
             description="담당자별 총 미수금 상위 15명입니다. 특정 담당자에 미수금이 집중되어 있다면 채권 관리 강화가 필요합니다."
             benchmark="담당자 1인당 미수금이 총 미수금의 20% 이상이면 집중도 과다"
           >
-            <div className="h-[500px]">
+            <div className="h-80 md:h-[500px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={byPerson.slice(0, 15)} layout="vertical" margin={{ left: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis type="category" dataKey="person" tick={{ fontSize: 10 }} width={55} />
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                   <Bar dataKey="total" fill={CHART_COLORS[3]} name="미수금" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -496,13 +506,14 @@ export default function ReceivablesPage() {
             description="각 조직의 여신한도 대비 미수금 사용 비율입니다. 100%를 초과하면 한도 초과 상태입니다."
             benchmark="80% 미만 양호(녹색), 80~100% 주의(노란색), 100% 이상 위험(빨간색)"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={creditByOrg} layout="vertical" margin={{ left: 80 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, (max: number) => Math.max(max * 1.1, 110)]} />
                   <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any) => `${Number(value).toFixed(1)}%`}
                     labelFormatter={(label) => `조직: ${label}`}
                   />
@@ -533,7 +544,7 @@ export default function ReceivablesPage() {
             benchmark="사용률 80% 미만이 양호, 한도초과(100%+) 거래처는 즉시 조치"
             action={<ExportButton data={creditExportData} fileName="여신사용률" />}
           >
-            <div className="h-[500px] overflow-auto">
+            <div className="h-80 md:h-[500px] overflow-auto">
               <table className="w-full text-sm">
                 <thead className="sticky top-0 bg-background">
                   <tr className="border-b text-left">
@@ -630,7 +641,7 @@ export default function ReceivablesPage() {
             description="각 조직의 매출채권 평균 회수 소요일입니다. DSO가 낮을수록 현금 회수가 빠르며 운전자본 관리가 효율적입니다."
             benchmark="업종 평균 DSO 45일 기준, 30일 미만이면 최상위 수준"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={dsoChartData} layout="vertical" margin={{ left: 80 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -641,6 +652,7 @@ export default function ReceivablesPage() {
                   />
                   <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any) => [`${value}일`, "DSO"]}
                     labelFormatter={(label) => `조직: ${label}`}
                   />

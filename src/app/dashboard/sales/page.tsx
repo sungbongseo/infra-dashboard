@@ -2,8 +2,10 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcTopCustomers, calcItemSales, calcSalesByType } from "@/lib/analysis/kpi";
 import {
   Bar,
@@ -24,13 +26,23 @@ import {
 import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 
 export default function SalesAnalysisPage() {
   const { salesList, orgNames } = useDataStore();
+  const isLoading = useDataStore((s) => s.isLoading);
+  const { selectedOrgs, dateRange } = useFilterStore();
 
-  const filteredSales = useMemo(() => filterByOrg(salesList, orgNames), [salesList, orgNames]);
+  const effectiveOrgNames = useMemo(() => {
+    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
+    return orgNames;
+  }, [selectedOrgs, orgNames]);
+
+  const filteredSales = useMemo(() => {
+    const byOrg = filterByOrg(salesList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "매출일");
+  }, [salesList, effectiveOrgNames, dateRange]);
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
   const itemSales = useMemo(() => calcItemSales(filteredSales), [filteredSales]);
@@ -76,6 +88,7 @@ export default function SalesAnalysisPage() {
     return (topCustomers[0].amount / totalSalesAmount) * 100;
   }, [topCustomers, totalSalesAmount]);
 
+  if (isLoading) return <PageSkeleton />;
   if (filteredSales.length === 0) return <EmptyState />;
 
   return (
@@ -136,14 +149,14 @@ export default function SalesAnalysisPage() {
             benchmark="상위 20% 거래처가 80% 매출 차지 시 전형적 파레토 분포"
             action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={paretoData}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
-                  <RechartsTooltip formatter={(value: any, name: any) =>
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any, name: any) =>
                     name === "cumPercent" ? `${Number(value).toFixed(1)}%` : formatCurrency(Number(value))
                   } />
                   <Legend />
@@ -165,7 +178,7 @@ export default function SalesAnalysisPage() {
             description="품목별 매출 규모를 면적으로 시각화합니다. 큰 면적일수록 매출 비중이 높은 품목입니다."
             benchmark="특정 품목 의존도가 50% 이상이면 리스크 분산 필요"
           >
-            <div className="h-[500px]">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <Treemap
                   data={treemapData}
@@ -200,7 +213,7 @@ export default function SalesAnalysisPage() {
             description="내수와 수출 매출의 구성 비율을 보여줍니다. 수출 비중이 높을수록 환율 리스크가 커집니다."
             benchmark="내수/수출 균형 유지가 안정적"
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -216,7 +229,7 @@ export default function SalesAnalysisPage() {
                       <Cell key={i} fill={CHART_COLORS[i]} />
                     ))}
                   </Pie>
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
             </div>

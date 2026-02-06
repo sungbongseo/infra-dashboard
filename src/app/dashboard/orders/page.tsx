@@ -2,9 +2,11 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import {
   BarChart,
   Bar,
@@ -22,15 +24,31 @@ import {
 } from "recharts";
 import { ShoppingCart, TrendingUp, Clock, Package, ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, extractMonth, CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 
 export default function OrdersAnalysisPage() {
   const { orderList, salesList, collectionList, orgNames } = useDataStore();
+  const isLoading = useDataStore((s) => s.isLoading);
+  const { selectedOrgs, dateRange } = useFilterStore();
 
-  const filteredOrders = useMemo(() => filterByOrg(orderList, orgNames), [orderList, orgNames]);
-  const filteredSales = useMemo(() => filterByOrg(salesList, orgNames), [salesList, orgNames]);
-  const filteredCollections = useMemo(() => filterByOrg(collectionList, orgNames), [collectionList, orgNames]);
+  const effectiveOrgNames = useMemo(() => {
+    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
+    return orgNames;
+  }, [selectedOrgs, orgNames]);
+
+  const filteredOrders = useMemo(() => {
+    const byOrg = filterByOrg(orderList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "수주일");
+  }, [orderList, effectiveOrgNames, dateRange]);
+  const filteredSales = useMemo(() => {
+    const byOrg = filterByOrg(salesList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "매출일");
+  }, [salesList, effectiveOrgNames, dateRange]);
+  const filteredCollections = useMemo(() => {
+    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "수금일");
+  }, [collectionList, effectiveOrgNames, dateRange]);
 
   const monthlyOrders = useMemo(() => {
     const map = new Map<string, { month: string; 수주금액: number; 수주건수: number }>();
@@ -152,6 +170,7 @@ export default function OrdersAnalysisPage() {
     }));
   }, [pipelineStages]);
 
+  if (isLoading) return <PageSkeleton />;
   if (filteredOrders.length === 0) return <EmptyState />;
 
   return (
@@ -211,14 +230,14 @@ export default function OrdersAnalysisPage() {
             description="월별 수주 건수와 금액 추이입니다. 건수 대비 금액이 높으면 대형 건이 포함된 것입니다."
             benchmark="수주 금액이 매출 대비 동등하거나 높으면 양호"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={monthlyOrders}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-                  <RechartsTooltip formatter={(value: any, name: any) =>
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any, name: any) =>
                     name === "수주건수" ? `${value}건` : formatCurrency(Number(value))
                   } />
                   <Legend />
@@ -236,7 +255,7 @@ export default function OrdersAnalysisPage() {
             formula="SUM(장부금액) GROUP BY 수주유형명"
             description="수주유형별 금액 구성 비율입니다. 내수/수출/프로젝트 등 유형별 비중을 확인합니다."
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
@@ -252,7 +271,7 @@ export default function OrdersAnalysisPage() {
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -264,13 +283,13 @@ export default function OrdersAnalysisPage() {
             description="수주일부터 납품요청일까지의 기간 분포입니다. 리드타임이 짧을수록 납품 압박이 클 수 있습니다."
             benchmark="30일 이내가 일반적, 90일 이상은 장기 프로젝트"
           >
-            <div className="h-72">
+            <div className="h-56 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={leadTimes}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="bin" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 11 }} />
-                  <RechartsTooltip formatter={(value: any) => `${value}건`} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => `${value}건`} />
                   <Bar dataKey="count" fill={CHART_COLORS[2]} name="건수" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -284,7 +303,7 @@ export default function OrdersAnalysisPage() {
             formula="SUM(장부금액) GROUP BY 영업조직"
             description="영업조직별 수주 금액 순위입니다. 특정 조직에 수주가 집중될 경우 리스크 분산이 필요합니다."
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={orgOrders.slice(0, 10)}
@@ -299,8 +318,8 @@ export default function OrdersAnalysisPage() {
                   />
                   <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any) => formatCurrency(Number(value))}
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
                   />
                   <Bar dataKey="amount" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} name="수주액" />
                 </BarChart>
@@ -314,7 +333,7 @@ export default function OrdersAnalysisPage() {
             description="월별 수주금액과 매출금액을 비교합니다. 갭이 양수이면 수주잔고가 쌓이고, 음수이면 과거 수주분을 소화하는 것입니다."
             benchmark="갭이 일정하게 양수이면 파이프라인 건전"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={monthlyGap}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -331,10 +350,10 @@ export default function OrdersAnalysisPage() {
                     tickFormatter={(v) => `${v.toFixed(0)}%`}
                   />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any, name: any) =>
                       name === "전환율" ? `${Number(value).toFixed(1)}%` : formatCurrency(Number(value))
                     }
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
                   />
                   <Legend />
                   <Bar yAxisId="left" dataKey="수주" fill={CHART_COLORS[1]} name="수주" radius={[4, 4, 0, 0]} />
@@ -391,7 +410,7 @@ export default function OrdersAnalysisPage() {
             description="Order-to-Cash 전체 프로세스의 각 단계별 금액과 전환 비율을 시각화합니다. 단계별로 금액이 감소하는 퍼널 형태로, 병목 구간을 파악할 수 있습니다."
             benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C 프로세스"
           >
-            <div className="h-72">
+            <div className="h-56 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={funnelData}
@@ -411,12 +430,12 @@ export default function OrdersAnalysisPage() {
                     width={70}
                   />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any, name: any) => {
                       if (name === "금액") return formatCurrency(Number(value));
                       return value;
                     }}
                     labelFormatter={(label) => `단계: ${label}`}
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
                   />
                   <Bar
                     dataKey="금액"
@@ -453,7 +472,7 @@ export default function OrdersAnalysisPage() {
             description="월별 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 표시합니다. 전환율과 수금율이 안정적으로 높으면 O2C 프로세스가 건전합니다."
             benchmark="전환율/수금율 80% 이상 안정 유지가 양호"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={monthlyConversion}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -471,11 +490,11 @@ export default function OrdersAnalysisPage() {
                     domain={[0, (dataMax: number) => Math.max(120, Math.ceil(dataMax / 10) * 10)]}
                   />
                   <RechartsTooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any, name: any) => {
                       if (name === "전환율" || name === "수금율") return `${Number(value).toFixed(1)}%`;
                       return formatCurrency(Number(value));
                     }}
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
                   />
                   <Legend />
                   <Bar

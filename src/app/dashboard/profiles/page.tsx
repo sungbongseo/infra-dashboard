@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -28,17 +30,33 @@ import {
 } from "recharts";
 import { Users, Trophy, TrendingUp, Star, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, formatPercent, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { ReceivableAgingRecord } from "@/types";
 
 export default function ProfilesPage() {
   const { salesList, orderList, collectionList, teamContribution, receivableAging, orgNames } = useDataStore();
+  const isLoading = useDataStore((s) => s.isLoading);
+  const { selectedOrgs, dateRange } = useFilterStore();
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
 
-  const filteredSales = useMemo(() => filterByOrg(salesList, orgNames), [salesList, orgNames]);
-  const filteredOrders = useMemo(() => filterByOrg(orderList, orgNames), [orderList, orgNames]);
-  const filteredCollections = useMemo(() => filterByOrg(collectionList, orgNames), [collectionList, orgNames]);
-  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, orgNames, "영업조직팀"), [teamContribution, orgNames]);
+  const effectiveOrgNames = useMemo(() => {
+    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
+    return orgNames;
+  }, [selectedOrgs, orgNames]);
+
+  const filteredSales = useMemo(() => {
+    const byOrg = filterByOrg(salesList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "매출일");
+  }, [salesList, effectiveOrgNames, dateRange]);
+  const filteredOrders = useMemo(() => {
+    const byOrg = filterByOrg(orderList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "수주일");
+  }, [orderList, effectiveOrgNames, dateRange]);
+  const filteredCollections = useMemo(() => {
+    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
+    return filterByDateRange(byOrg, dateRange, "수금일");
+  }, [collectionList, effectiveOrgNames, dateRange]);
+  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"), [teamContribution, effectiveOrgNames]);
 
   // 미수채권연령: Map의 모든 values를 flat()하여 단일 배열로 + orgNames 필터
   const allAgingRecords: ReceivableAgingRecord[] = useMemo(() => {
@@ -46,8 +64,8 @@ export default function ProfilesPage() {
     for (const records of Array.from(receivableAging.values())) {
       allRecords.push(...records);
     }
-    return filterByOrg(allRecords, orgNames, "영업조직");
-  }, [receivableAging, orgNames]);
+    return filterByOrg(allRecords, effectiveOrgNames, "영업조직");
+  }, [receivableAging, effectiveOrgNames]);
 
   const hasAgingData = allAgingRecords.length > 0;
 
@@ -124,6 +142,7 @@ export default function ProfilesPage() {
     return result;
   }, [selected]);
 
+  if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
 
   const formulaText = hasAgingData
@@ -257,7 +276,7 @@ export default function ProfilesPage() {
             description={descText}
             benchmark="총점 70점 이상 우수, 50~70점 보통, 50점 미만 개선 필요"
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <RadarChart data={radarData}>
                   <PolarGrid className="stroke-muted" />
@@ -265,7 +284,7 @@ export default function ProfilesPage() {
                   <PolarRadiusAxis angle={30} domain={[0, axisMax]} tick={{ fontSize: 10 }} />
                   <Radar name="개인" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
                   <Radar name="조직평균" dataKey="avg" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.1} strokeDasharray="5 5" />
-                  <RechartsTooltip formatter={(v: any) => `${Number(v).toFixed(1)}점`} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${Number(v).toFixed(1)}점`} />
                   <Legend />
                 </RadarChart>
               </ResponsiveContainer>
@@ -281,13 +300,13 @@ export default function ProfilesPage() {
             description="총 점수 기준 상위 20명의 랭킹입니다. 선택된 사원은 강조 표시됩니다. 전체 조직 내 상대적 위치를 파악할 수 있습니다."
             benchmark="상위 20% = 핵심 인재, 하위 20% = 코칭 필요"
           >
-            <div className="h-[500px]">
+            <div className="h-80 md:h-[500px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={rankingData} layout="vertical" margin={{ left: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
                   <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
-                  <RechartsTooltip formatter={(v: any) => `${v}점`} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${v}점`} />
                   <Bar dataKey="score" name="총점" radius={[0, 4, 4, 0]}>
                     {rankingData.map((entry, i) => (
                       <Cell key={i} fill={entry.isSelected ? CHART_COLORS[3] : CHART_COLORS[0]} />
@@ -423,7 +442,7 @@ export default function ProfilesPage() {
                   </div>
 
                   {/* 우측: 파이 차트 */}
-                  <div className="h-80">
+                  <div className="h-64 md:h-80">
                     {customerPieData.length > 0 ? (
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
@@ -443,6 +462,7 @@ export default function ProfilesPage() {
                             ))}
                           </Pie>
                           <RechartsTooltip
+                            {...TOOLTIP_STYLE}
                             formatter={(value: any, name: any, props: any) => {
                               const amt = props.payload?.amount;
                               return amt ? [`${value}% (${formatCurrency(amt, true)})`, name] : [`${value}%`, name];

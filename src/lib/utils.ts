@@ -58,6 +58,19 @@ export const RISK_COLORS = {
   high: "hsl(0, 84.2%, 60.2%)",
 };
 
+/** Recharts 공통 tooltip 스타일 */
+export const TOOLTIP_STYLE = {
+  contentStyle: {
+    borderRadius: 8,
+    border: "1px solid hsl(var(--border))",
+    backgroundColor: "hsl(var(--card))",
+    color: "hsl(var(--card-foreground))",
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+    fontSize: 12,
+  },
+  labelStyle: { fontWeight: 600 },
+};
+
 // Date utilities
 export function extractMonth(dateStr: string): string {
   if (!dateStr) return "";

@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import {
   BarChart,
   Bar,
@@ -30,7 +32,7 @@ import {
 } from "recharts";
 import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, formatPercent, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcCostStructure,
   calcOrgRatioMetrics,
@@ -106,11 +108,18 @@ function getHeatmapBg(rate: number): string {
 
 export default function ProfitabilityPage() {
   const { orgProfit, teamContribution, profitabilityAnalysis, receivableAging, salesList, orgNames } = useDataStore();
+  const isLoading = useDataStore((s) => s.isLoading);
+  const { selectedOrgs, dateRange } = useFilterStore();
 
-  const filteredOrgProfit = useMemo(() => filterByOrg(orgProfit, orgNames, "영업조직팀"), [orgProfit, orgNames]);
-  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, orgNames, "영업조직팀"), [teamContribution, orgNames]);
-  const filteredProfAnalysis = useMemo(() => filterByOrg(profitabilityAnalysis, orgNames, "영업조직팀"), [profitabilityAnalysis, orgNames]);
-  const filteredSales = useMemo(() => filterByOrg(salesList, orgNames), [salesList, orgNames]);
+  const effectiveOrgNames = useMemo(() => {
+    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
+    return orgNames;
+  }, [selectedOrgs, orgNames]);
+
+  const filteredOrgProfit = useMemo(() => filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"), [orgProfit, effectiveOrgNames]);
+  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"), [teamContribution, effectiveOrgNames]);
+  const filteredProfAnalysis = useMemo(() => filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀"), [profitabilityAnalysis, effectiveOrgNames]);
+  const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
   const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
 
   const hasData = filteredOrgProfit.length > 0;
@@ -358,6 +367,7 @@ export default function ProfitabilityPage() {
   const opRate = totalSales > 0 ? (totalOP / totalSales) * 100 : 0;
   const gpRate = totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
 
+  if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
 
   const costKeys = ["원재료비", "상품매입", "외주가공비", "운반비", "지급수수료", "노무비", "기타변동비", "고정비"] as const;
@@ -425,7 +435,7 @@ export default function ProfitabilityPage() {
             benchmark="매출총이익율 30%↑ 양호, 영업이익율 10%↑ 양호"
           >
             <ErrorBoundary>
-              <div className="h-80">
+              <div className="h-64 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={waterfallData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -467,7 +477,7 @@ export default function ProfitabilityPage() {
             description="조직별 수익성을 다차원으로 비교합니다. 우상단(고매출+고수익)이 가장 이상적입니다."
             benchmark="우상단: 핵심조직 | 좌상단: 고수익저매출 | 우하단: 고매출저수익"
           >
-            <div className="h-96">
+            <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -515,13 +525,13 @@ export default function ProfitabilityPage() {
               benchmark="상위 20% 담당자가 80% 공헌이익 기여가 전형적"
               className="xl:col-span-2"
             >
-              <div className="h-[500px]">
+              <div className="h-80 md:h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={contribRanking} layout="vertical" margin={{ left: 60 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
-                    <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                    <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                     <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={[0, 4, 4, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -533,7 +543,7 @@ export default function ProfitabilityPage() {
               formula="조직 공헌이익 / 전체 공헌이익 × 100"
               description="조직별 공헌이익 기여 비율입니다. 특정 조직 편중 시 리스크 분산이 필요합니다."
             >
-              <div className="h-[300px]">
+              <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -550,7 +560,7 @@ export default function ProfitabilityPage() {
                         <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                       ))}
                     </Pie>
-                    <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                    <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -563,13 +573,13 @@ export default function ProfitabilityPage() {
             description="담당자별 공헌이익율 순위입니다. 공헌이익율이 높을수록 변동비 효율이 좋습니다."
             benchmark="공헌이익율 20% 이상이면 양호"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={contribRanking}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-                  <RechartsTooltip formatter={(value: any) => `${Number(value).toFixed(1)}%`} />
+                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => `${Number(value).toFixed(1)}%`} />
                   <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
                   <Bar dataKey="공헌이익율" name="공헌이익율" radius={[4, 4, 0, 0]}>
                     {contribRanking.map((entry, i) => (
@@ -593,13 +603,14 @@ export default function ProfitabilityPage() {
               benchmark="원재료비 비중 30%↑: 자체생산형, 상품매입 30%↑: 구매직납형"
               className="xl:col-span-2"
             >
-              <div className="h-[500px]">
+              <div className="h-80 md:h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={costBarData} layout="vertical" margin={{ left: 50 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                     <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={50} />
                     <RechartsTooltip
+                      {...TOOLTIP_STYLE}
                       formatter={(value: any, name: any) => [formatCurrency(Number(value)), String(name)]}
                       labelFormatter={(label) => `담당: ${label}`}
                     />
@@ -624,7 +635,7 @@ export default function ProfitabilityPage() {
               formula="원재료비율 30%↑: 자체생산 | 상품매입 30%↑: 구매직납 | 외주비율 20%↑: 외주의존 | 나머지: 혼합"
               description="담당자의 비용 구조를 4가지 프로파일로 분류한 분포입니다."
             >
-              <div className="h-[300px]">
+              <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -640,7 +651,7 @@ export default function ProfitabilityPage() {
                         <Cell key={i} fill={entry.fill} />
                       ))}
                     </Pie>
-                    <RechartsTooltip />
+                    <RechartsTooltip {...TOOLTIP_STYLE} />
                     <Legend wrapperStyle={{ fontSize: 12 }} />
                   </PieChart>
                 </ResponsiveContainer>
@@ -738,7 +749,7 @@ export default function ProfitabilityPage() {
                 </div>
               }
             >
-              <div className="h-[420px]">
+              <div className="h-72 md:h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <RadarChart data={radarData}>
                     <PolarGrid />
@@ -757,6 +768,7 @@ export default function ProfitabilityPage() {
                     ))}
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     <RechartsTooltip
+                      {...TOOLTIP_STYLE}
                       formatter={(value: any, name: any, props: any) => {
                         const rawKey = `_raw_${name}`;
                         const rawValue = props?.payload?.[rawKey];
@@ -880,7 +892,7 @@ export default function ProfitabilityPage() {
                 benchmark="양수: 이익 품목, 음수: 손실 품목"
               >
                 <ErrorBoundary>
-                  <div className="h-[500px]">
+                  <div className="h-80 md:h-[500px]">
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
                         data={productProfitability.slice(0, 15).map((p) => ({
@@ -986,7 +998,7 @@ export default function ProfitabilityPage() {
             benchmark="기준선: 영업이익율 5% | 리스크 점수 40"
           >
             <ErrorBoundary>
-              <div className="h-96">
+              <div className="h-72 md:h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />

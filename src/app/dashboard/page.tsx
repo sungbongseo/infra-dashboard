@@ -21,11 +21,11 @@ import {
 } from "recharts";
 import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange } from "@/lib/utils";
-import { CHART_COLORS } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 
 export default function OverviewPage() {
-  const { salesList, orderList, collectionList, orgProfit, orgNames } = useDataStore();
+  const { salesList, orderList, collectionList, orgProfit, orgNames, isLoading } = useDataStore();
   const { selectedOrgs, dateRange } = useFilterStore();
 
   // Use filterStore.selectedOrgs if set, otherwise fall back to dataStore.orgNames
@@ -54,8 +54,6 @@ export default function OverviewPage() {
     [orgProfit, effectiveOrgNames]
   );
 
-  const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
-
   const kpis = useMemo(
     () => calcOverviewKpis(filteredSales, filteredOrders, filteredCollections, filteredOrgProfit),
     [filteredSales, filteredOrders, filteredCollections, filteredOrgProfit]
@@ -79,6 +77,9 @@ export default function OverviewPage() {
   const contributionMarginRate = useMemo(() => calcContributionMarginRate(filteredOrgProfit), [filteredOrgProfit]);
   const grossProfitMargin = useMemo(() => calcGrossProfitMargin(filteredOrgProfit), [filteredOrgProfit]);
 
+  const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
+
+  if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
 
   return (
@@ -225,7 +226,7 @@ export default function OverviewPage() {
             title="월별 매출/수주/수금 추이"
             description="월별 금액 추이 비교"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={trends}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -236,7 +237,7 @@ export default function OverviewPage() {
                   />
                   <RechartsTooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                    {...TOOLTIP_STYLE}
                   />
                   <Legend />
                   <Bar dataKey="매출" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
@@ -260,7 +261,7 @@ export default function OverviewPage() {
             title="영업조직별 매출 순위"
             description="조직별 매출액 기준 정렬"
           >
-            <div className="h-80">
+            <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
                   data={orgRanking.slice(0, 10)}
@@ -276,7 +277,7 @@ export default function OverviewPage() {
                   <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
                   <RechartsTooltip
                     formatter={(value: any) => formatCurrency(Number(value))}
-                    contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                    {...TOOLTIP_STYLE}
                   />
                   <Bar dataKey="sales" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} name="매출액" />
                 </BarChart>
@@ -291,7 +292,7 @@ export default function OverviewPage() {
               description="매출액 계획 vs 실적 비교"
               formula="달성율 = 실적 / 계획 × 100"
             >
-              <div className="h-72">
+              <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={filteredOrgProfit.slice(0, 10)}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -299,7 +300,7 @@ export default function OverviewPage() {
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                     <RechartsTooltip
                       formatter={(value: any) => formatCurrency(Number(value))}
-                      contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                      {...TOOLTIP_STYLE}
                     />
                     <Legend />
                     <Bar dataKey="매출액.계획" fill={CHART_COLORS[5]} name="계획" radius={[4, 4, 0, 0]} />

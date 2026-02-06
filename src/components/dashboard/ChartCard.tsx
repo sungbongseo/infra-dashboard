@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { AnalysisTooltip } from "./AnalysisTooltip";
+import { ErrorBoundary } from "./ErrorBoundary";
 
 interface ChartCardProps {
   title: string;
@@ -27,7 +28,9 @@ export function ChartCard({ title, formula, description, benchmark, children, cl
           {action}
         </div>
       </CardHeader>
-      <CardContent>{children}</CardContent>
+      <CardContent>
+        <ErrorBoundary>{children}</ErrorBoundary>
+      </CardContent>
     </Card>
   );
 }
