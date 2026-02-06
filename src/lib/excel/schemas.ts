@@ -69,12 +69,6 @@ export const FILE_SCHEMAS: FileSchema[] = [
     subHeaderRow: 1,
     orgFilterField: "영업조직",
   },
-  {
-    fileType: "customerLedger",
-    pattern: /거래처원장/,
-    headerRow: 0,
-    hasMergedHeader: false,
-  },
 ];
 
 export function detectFileType(fileName: string): FileSchema | null {

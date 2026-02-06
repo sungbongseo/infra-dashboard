@@ -13,7 +13,7 @@ export type FileType =
   | "teamContribution"
   | "profitabilityAnalysis"
   | "receivableAging"
-  | "customerLedger";
+;
 
 export interface UploadedFile {
   id: string;

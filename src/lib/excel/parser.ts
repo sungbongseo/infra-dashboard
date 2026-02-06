@@ -6,7 +6,6 @@ import type {
   OrgProfitRecord,
   ProfitabilityAnalysisRecord,
   ReceivableAgingRecord,
-  CustomerLedgerRecord,
   PlanActualDiff,
   AgingAmounts,
 } from "@/types";
@@ -203,25 +202,6 @@ function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
   }));
 }
 
-function parseCustomerLedger(data: unknown[][]): CustomerLedgerRecord[] {
-  return data.slice(1).filter(r => r[0]).map((row) => ({
-    거래처: str(row[0]),
-    거래처명: str(row[1]),
-    계정코드: str(row[2]),
-    계정명: str(row[3]),
-    회계일: str(row[6]),
-    적요: str(row[8]),
-    차변: num(row[9]),
-    대변: num(row[10]),
-    잔액: num(row[11]),
-    환종: str(row[12]),
-    거래금액: num(row[13]),
-    전표번호: str(row[15]),
-    비용센터: str(row[18]),
-    프로젝트명: str(row[20]),
-  }));
-}
-
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function parseExcelFile(
@@ -337,9 +317,6 @@ export function parseExcelFile(
       break;
     case "receivableAging":
       parsed = parseReceivableAging(rawData);
-      break;
-    case "customerLedger":
-      parsed = parseCustomerLedger(rawData);
       break;
     default:
       throw new Error(`파서 미구현: ${schema.fileType}`);

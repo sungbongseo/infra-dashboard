@@ -22,7 +22,6 @@ import type {
   TeamContributionRecord,
   ProfitabilityAnalysisRecord,
   ReceivableAgingRecord,
-  CustomerLedgerRecord,
   Organization,
   UploadedFile,
 } from "@/types";
@@ -38,7 +37,6 @@ interface DataState {
   teamContribution: TeamContributionRecord[];
   profitabilityAnalysis: ProfitabilityAnalysisRecord[];
   receivableAging: Map<string, ReceivableAgingRecord[]>;
-  customerLedger: CustomerLedgerRecord[];
   uploadedFiles: UploadedFile[];
   isLoading: boolean;
   loadingProgress: { fileName: string; progress: number } | null;
@@ -53,7 +51,6 @@ interface DataState {
   setTeamContribution: (data: TeamContributionRecord[]) => void;
   setProfitabilityAnalysis: (data: ProfitabilityAnalysisRecord[]) => void;
   setReceivableAging: (source: string, data: ReceivableAgingRecord[]) => void;
-  setCustomerLedger: (data: CustomerLedgerRecord[]) => void;
   addUploadedFile: (file: UploadedFile) => void;
   updateUploadedFile: (id: string, updates: Partial<UploadedFile>) => void;
   setIsLoading: (loading: boolean) => void;
@@ -72,7 +69,6 @@ export const useDataStore = create<DataState>((set) => ({
   teamContribution: [],
   profitabilityAnalysis: [],
   receivableAging: new Map(),
-  customerLedger: [],
   uploadedFiles: [],
   isLoading: false,
   loadingProgress: null,
@@ -92,7 +88,6 @@ export const useDataStore = create<DataState>((set) => ({
       next.set(source, data);
       return { receivableAging: next };
     }),
-  setCustomerLedger: (data) => set({ customerLedger: data }),
   addUploadedFile: (file) => set((s) => ({ uploadedFiles: [...s.uploadedFiles, file] })),
   updateUploadedFile: (id, updates) =>
     set((s) => ({
@@ -112,7 +107,6 @@ export const useDataStore = create<DataState>((set) => ({
       teamContribution: [],
       profitabilityAnalysis: [],
       receivableAging: new Map(),
-      customerLedger: [],
       uploadedFiles: [],
     }),
 }));

@@ -31,23 +31,6 @@ export type AgingSourceName =
   | "전략구매혁신팀"
   | "해외사업팀";
 
-export interface CustomerLedgerRecord {
-  거래처: string;
-  거래처명: string;
-  계정코드: string;
-  계정명: string;
-  회계일: string;
-  적요: string;
-  차변: number;
-  대변: number;
-  잔액: number;
-  환종: string;
-  거래금액: number;
-  전표번호: string;
-  비용센터: string;
-  프로젝트명: string;
-}
-
 export type CreditStatus = "danger" | "warning" | "normal";
 
 export interface CreditUtilization {

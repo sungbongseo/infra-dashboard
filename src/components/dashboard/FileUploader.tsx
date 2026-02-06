@@ -32,7 +32,6 @@ export function FileUploader() {
     setTeamContribution,
     setProfitabilityAnalysis,
     setReceivableAging,
-    setCustomerLedger,
     clearAllData,
   } = useDataStore();
 
@@ -152,9 +151,6 @@ export function FileUploader() {
           case "receivableAging":
             setReceivableAging(result.sourceName || file.name, result.data as any[]);
             break;
-          case "customerLedger":
-            setCustomerLedger(result.data as any[]);
-            break;
         }
 
         setProgress(100);
@@ -175,7 +171,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging, setCustomerLedger]
+    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging]
   );
 
   const handleDrop = useCallback(
