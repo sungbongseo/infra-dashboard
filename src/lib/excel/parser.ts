@@ -1,11 +1,9 @@
 import * as XLSX from "xlsx";
 import type {
   Organization,
-  SalesRecord,
   CollectionRecord,
   OrderRecord,
   OrgProfitRecord,
-  TeamContributionRecord,
   ProfitabilityAnalysisRecord,
   ReceivableAgingRecord,
   CustomerLedgerRecord,
@@ -19,6 +17,8 @@ export interface ParseResult {
   data: unknown[];
   rowCount: number;
   sourceName?: string;
+  warnings: string[];
+  skippedRows: number;
 }
 
 function num(v: unknown): number {
@@ -48,6 +48,33 @@ function parseAgingAmounts(row: unknown[], startIdx: number): AgingAmounts {
   };
 }
 
+/** Row-level safe parser: catches individual row errors and collects warnings */
+function safeParseRows<T>(
+  data: unknown[][],
+  skipRows: number,
+  parser: (row: unknown[]) => T,
+  warnings: string[],
+  fileType: string,
+): { parsed: T[]; skipped: number } {
+  let skipped = 0;
+  const parsed: T[] = [];
+  const rows = data.slice(skipRows).filter(r => r[0]);
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      parsed.push(parser(rows[i]));
+    } catch (e: any) {
+      skipped++;
+      if (skipped <= 5) {
+        warnings.push(`[${fileType}] ${i + skipRows + 1}행 파싱 실패: ${e.message || "알 수 없는 오류"}`);
+      }
+    }
+  }
+  if (skipped > 5) {
+    warnings.push(`[${fileType}] ... 외 ${skipped - 5}행 추가 실패`);
+  }
+  return { parsed, skipped };
+}
+
 function parseOrganization(data: unknown[][]): Organization[] {
   return data.slice(1).filter(r => r[0]).map((row) => ({
     영업조직: str(row[0]),
@@ -56,55 +83,6 @@ function parseOrganization(data: unknown[][]): Organization[] {
     시작일: str(row[3]),
     종료일: str(row[4]),
     통합조직여부: str(row[5]),
-  }));
-}
-
-function parseSalesList(data: unknown[][]): SalesRecord[] {
-  return data.slice(1).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    공장: str(row[1]),
-    매출번호: str(row[2]),
-    매출일: str(row[3]),
-    세무분류: str(row[4]),
-    세무구분: str(row[5]),
-    거래처소분류: str(row[6]),
-    매출처: str(row[7]),
-    매출처명: str(row[8]),
-    수금처: str(row[9]),
-    수금처명: str(row[10]),
-    납품처: str(row[11]),
-    납품처명: str(row[12]),
-    결제조건: str(row[13]),
-    수금예정일: str(row[14]),
-    // row[15]: 결제통화 (미사용 필드, 명시적 스킵)
-    매출상태: str(row[16]),
-    매출유형: str(row[17]),
-    품목: str(row[21]),
-    품목명: str(row[22]),
-    규격: str(row[23]),
-    대분류: str(row[25]),
-    중분류: str(row[26]),
-    소분류: str(row[27]),
-    단위: str(row[28]),
-    수량: num(row[30]),
-    거래통화: str(row[31]),
-    환율: num(row[32]),
-    판매단가: num(row[35]),
-    판매금액: num(row[36]),
-    장부단가: num(row[37]),
-    장부금액: num(row[38]),
-    부가세: num(row[39]),
-    총금액: num(row[40]),
-    영업조직: str(row[42]),
-    유통경로: str(row[43]),
-    제품군: str(row[44]),
-    사업부: str(row[46]),
-    영업그룹: str(row[47]),
-    영업담당자: str(row[48]),
-    영업담당자명: str(row[49]),
-    수주번호: str(row[57]),
-    수주유형: str(row[76]),
-    출고일: str(row[64]),
   }));
 }
 
@@ -184,56 +162,6 @@ function parseOrgProfit(data: unknown[][]): OrgProfitRecord[] {
   }));
 }
 
-function parseTeamContribution(data: unknown[][]): TeamContributionRecord[] {
-  return data.slice(2).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    영업그룹: str(row[1]),
-    영업조직팀: str(row[2]),
-    영업담당사번: str(row[3]),
-    매출액: parsePlanActualDiff(row, 4),
-    실적매출원가: parsePlanActualDiff(row, 7),
-    매출총이익: parsePlanActualDiff(row, 10),
-    매출총이익율: parsePlanActualDiff(row, 13),
-    판관변동_직접판매운반비: parsePlanActualDiff(row, 16),
-    판매관리비: parsePlanActualDiff(row, 19),
-    영업이익: parsePlanActualDiff(row, 22),
-    영업이익율: parsePlanActualDiff(row, 25),
-    // 판관변동 비용항목 (9개)
-    판관변동_노무비: parsePlanActualDiff(row, 28),
-    판관변동_복리후생비: parsePlanActualDiff(row, 31),
-    판관변동_소모품비: parsePlanActualDiff(row, 34),
-    판관변동_수도광열비: parsePlanActualDiff(row, 37),
-    판관변동_수선비: parsePlanActualDiff(row, 40),
-    판관변동_외주가공비: parsePlanActualDiff(row, 43),
-    판관변동_운반비: parsePlanActualDiff(row, 46),
-    판관변동_지급수수료: parsePlanActualDiff(row, 49),
-    판관변동_견본비: parsePlanActualDiff(row, 52),
-    // 판관고정 비용항목 (3개)
-    판관고정_노무비: parsePlanActualDiff(row, 55),
-    판관고정_감가상각비: parsePlanActualDiff(row, 58),
-    판관고정_기타경비: parsePlanActualDiff(row, 61),
-    // 제조변동 비용항목 (14개)
-    제조변동_원재료비: parsePlanActualDiff(row, 64),
-    제조변동_부재료비: parsePlanActualDiff(row, 67),
-    변동_상품매입: parsePlanActualDiff(row, 70),
-    제조변동_노무비: parsePlanActualDiff(row, 73),
-    제조변동_복리후생비: parsePlanActualDiff(row, 76),
-    제조변동_소모품비: parsePlanActualDiff(row, 79),
-    제조변동_수도광열비: parsePlanActualDiff(row, 82),
-    제조변동_수선비: parsePlanActualDiff(row, 85),
-    제조변동_연료비: parsePlanActualDiff(row, 88),
-    제조변동_외주가공비: parsePlanActualDiff(row, 91),
-    제조변동_운반비: parsePlanActualDiff(row, 94),
-    제조변동_전력비: parsePlanActualDiff(row, 97),
-    제조변동_견본비: parsePlanActualDiff(row, 100),
-    제조변동_지급수수료: parsePlanActualDiff(row, 103),
-    // 합계
-    변동비합계: parsePlanActualDiff(row, 106),
-    공헌이익: parsePlanActualDiff(row, 109),
-    공헌이익율: parsePlanActualDiff(row, 112),
-  }));
-}
-
 function parseProfitabilityAnalysis(data: unknown[][]): ProfitabilityAnalysisRecord[] {
   return data.slice(2).filter(r => r[0]).map((row) => ({
     No: num(row[0]),
@@ -293,30 +221,77 @@ function parseCustomerLedger(data: unknown[][]): CustomerLedgerRecord[] {
   }));
 }
 
+const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+
 export function parseExcelFile(
   buffer: ArrayBuffer,
   fileName: string,
   orgNames?: Set<string>
 ): ParseResult {
+  const warnings: string[] = [];
+
+  // File size validation
+  if (buffer.byteLength > MAX_FILE_SIZE) {
+    throw new Error(`파일 크기 초과: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB (최대 50MB)`);
+  }
+
   const schema = detectFileType(fileName);
   if (!schema) {
     throw new Error(`인식할 수 없는 파일: ${fileName}`);
   }
 
-  const workbook = XLSX.read(buffer, { type: "array" });
+  // Workbook validation
+  let workbook: XLSX.WorkBook;
+  try {
+    workbook = XLSX.read(buffer, { type: "array" });
+  } catch (e: any) {
+    throw new Error(`엑셀 파일 읽기 실패: ${e.message || "파일이 손상되었거나 올바른 엑셀 형식이 아닙니다"}`);
+  }
+
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    throw new Error("엑셀 파일에 시트가 없습니다");
+  }
+
   const sheetName = workbook.SheetNames[0];
   const sheet = workbook.Sheets[sheetName];
+  if (!sheet) {
+    throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
+  }
+
   const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+  const minRows = schema.hasMergedHeader ? 3 : 2; // header + at least 1 data row
+  if (rawData.length < minRows) {
+    throw new Error(`데이터가 부족합니다: ${rawData.length}행 (최소 ${minRows}행 필요)`);
+  }
 
   let parsed: unknown[];
+  let skippedRows = 0;
 
+  // Row-level safe parsing for complex types, direct parsing for simple types
   switch (schema.fileType) {
     case "organization":
       parsed = parseOrganization(rawData);
       break;
-    case "salesList":
-      parsed = parseSalesList(rawData);
+    case "salesList": {
+      const r = safeParseRows(rawData, 1, (row) => ({
+        No: num(row[0]), 공장: str(row[1]), 매출번호: str(row[2]), 매출일: str(row[3]),
+        세무분류: str(row[4]), 세무구분: str(row[5]), 거래처소분류: str(row[6]),
+        매출처: str(row[7]), 매출처명: str(row[8]), 수금처: str(row[9]), 수금처명: str(row[10]),
+        납품처: str(row[11]), 납품처명: str(row[12]), 결제조건: str(row[13]),
+        수금예정일: str(row[14]), 매출상태: str(row[16]), 매출유형: str(row[17]),
+        품목: str(row[21]), 품목명: str(row[22]), 규격: str(row[23]),
+        대분류: str(row[25]), 중분류: str(row[26]), 소분류: str(row[27]),
+        단위: str(row[28]), 수량: num(row[30]), 거래통화: str(row[31]),
+        환율: num(row[32]), 판매단가: num(row[35]), 판매금액: num(row[36]),
+        장부단가: num(row[37]), 장부금액: num(row[38]), 부가세: num(row[39]),
+        총금액: num(row[40]), 영업조직: str(row[42]), 유통경로: str(row[43]),
+        제품군: str(row[44]), 사업부: str(row[46]), 영업그룹: str(row[47]),
+        영업담당자: str(row[48]), 영업담당자명: str(row[49]), 수주번호: str(row[57]),
+        수주유형: str(row[76]), 출고일: str(row[64]),
+      }), warnings, "매출리스트");
+      parsed = r.parsed; skippedRows = r.skipped;
       break;
+    }
     case "collectionList":
       parsed = parseCollectionList(rawData);
       break;
@@ -326,9 +301,36 @@ export function parseExcelFile(
     case "orgProfit":
       parsed = parseOrgProfit(rawData);
       break;
-    case "teamContribution":
-      parsed = parseTeamContribution(rawData);
+    case "teamContribution": {
+      // teamContribution has wide rows (index up to 112), use safe parsing
+      const r = safeParseRows(rawData, 2, (row) => ({
+        No: num(row[0]), 영업그룹: str(row[1]), 영업조직팀: str(row[2]),
+        영업담당사번: str(row[3]),
+        매출액: parsePlanActualDiff(row, 4), 실적매출원가: parsePlanActualDiff(row, 7),
+        매출총이익: parsePlanActualDiff(row, 10), 매출총이익율: parsePlanActualDiff(row, 13),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 16),
+        판매관리비: parsePlanActualDiff(row, 19), 영업이익: parsePlanActualDiff(row, 22),
+        영업이익율: parsePlanActualDiff(row, 25),
+        판관변동_노무비: parsePlanActualDiff(row, 28), 판관변동_복리후생비: parsePlanActualDiff(row, 31),
+        판관변동_소모품비: parsePlanActualDiff(row, 34), 판관변동_수도광열비: parsePlanActualDiff(row, 37),
+        판관변동_수선비: parsePlanActualDiff(row, 40), 판관변동_외주가공비: parsePlanActualDiff(row, 43),
+        판관변동_운반비: parsePlanActualDiff(row, 46), 판관변동_지급수수료: parsePlanActualDiff(row, 49),
+        판관변동_견본비: parsePlanActualDiff(row, 52),
+        판관고정_노무비: parsePlanActualDiff(row, 55), 판관고정_감가상각비: parsePlanActualDiff(row, 58),
+        판관고정_기타경비: parsePlanActualDiff(row, 61),
+        제조변동_원재료비: parsePlanActualDiff(row, 64), 제조변동_부재료비: parsePlanActualDiff(row, 67),
+        변동_상품매입: parsePlanActualDiff(row, 70), 제조변동_노무비: parsePlanActualDiff(row, 73),
+        제조변동_복리후생비: parsePlanActualDiff(row, 76), 제조변동_소모품비: parsePlanActualDiff(row, 79),
+        제조변동_수도광열비: parsePlanActualDiff(row, 82), 제조변동_수선비: parsePlanActualDiff(row, 85),
+        제조변동_연료비: parsePlanActualDiff(row, 88), 제조변동_외주가공비: parsePlanActualDiff(row, 91),
+        제조변동_운반비: parsePlanActualDiff(row, 94), 제조변동_전력비: parsePlanActualDiff(row, 97),
+        제조변동_견본비: parsePlanActualDiff(row, 100), 제조변동_지급수수료: parsePlanActualDiff(row, 103),
+        변동비합계: parsePlanActualDiff(row, 106), 공헌이익: parsePlanActualDiff(row, 109),
+        공헌이익율: parsePlanActualDiff(row, 112),
+      }), warnings, "팀원별공헌이익");
+      parsed = r.parsed; skippedRows = r.skipped;
       break;
+    }
     case "profitabilityAnalysis":
       parsed = parseProfitabilityAnalysis(rawData);
       break;
@@ -345,16 +347,27 @@ export function parseExcelFile(
   // Apply org filter if available and applicable
   if (orgNames && orgNames.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
     const field = schema.orgFilterField;
+    const beforeCount = parsed.length;
     parsed = parsed.filter((row: any) => {
       const orgValue = String(row[field] || "").trim();
       return orgValue !== "" && orgNames.has(orgValue);
     });
+    const filtered = beforeCount - parsed.length;
+    if (filtered > 0) {
+      warnings.push(`조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지)`);
+    }
+  }
+
+  if (skippedRows > 0) {
+    warnings.push(`총 ${skippedRows}행 파싱 실패 (전체 대비 ${((skippedRows / (parsed.length + skippedRows)) * 100).toFixed(1)}%)`);
   }
 
   const result: ParseResult = {
     fileType: schema.fileType,
     data: parsed,
     rowCount: parsed.length,
+    warnings,
+    skippedRows,
   };
 
   if (schema.fileType === "receivableAging") {

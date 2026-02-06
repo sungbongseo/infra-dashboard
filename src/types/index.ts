@@ -23,6 +23,8 @@ export interface UploadedFile {
   rowCount: number;
   status: "parsing" | "ready" | "error";
   errorMessage?: string;
+  warnings?: string[];
+  skippedRows?: number;
 }
 
 export interface DateRange {

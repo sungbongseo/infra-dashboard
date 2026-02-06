@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileSpreadsheet, Trash2, CheckCircle, AlertCircle, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Trash2, CheckCircle, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { parseExcelFile } from "@/lib/excel/parser";
 import { detectFileType } from "@/lib/excel/schemas";
@@ -38,6 +38,21 @@ export function FileUploader() {
 
   const processFile = useCallback(
     async (file: File) => {
+      // File size check (50MB)
+      if (file.size > 50 * 1024 * 1024) {
+        const fileId = crypto.randomUUID();
+        addUploadedFile({
+          id: fileId,
+          fileName: file.name,
+          fileType: "organization",
+          uploadedAt: new Date(),
+          rowCount: 0,
+          status: "error",
+          errorMessage: `파일 크기 초과: ${(file.size / 1024 / 1024).toFixed(1)}MB (최대 50MB)`,
+        });
+        return;
+      }
+
       const schema = detectFileType(file.name);
       if (!schema) {
         const fileId = crypto.randomUUID();
@@ -48,20 +63,31 @@ export function FileUploader() {
           uploadedAt: new Date(),
           rowCount: 0,
           status: "error",
-          errorMessage: "인식할 수 없는 파일 형식",
+          errorMessage: "인식할 수 없는 파일 형식입니다. 파일명에 '매출리스트', '수주리스트' 등의 키워드가 포함되어야 합니다.",
         });
         return;
       }
 
-      const fileId = crypto.randomUUID();
-      addUploadedFile({
-        id: fileId,
-        fileName: file.name,
-        fileType: schema.fileType,
-        uploadedAt: new Date(),
-        rowCount: 0,
-        status: "parsing",
-      });
+      // Duplicate file detection
+      const existing = uploadedFiles.find(
+        (f) => f.fileName === file.name && f.status === "ready"
+      );
+      if (existing) {
+        // Remove old entry before re-uploading
+        updateUploadedFile(existing.id, { status: "parsing" });
+      }
+
+      const fileId = existing?.id || crypto.randomUUID();
+      if (!existing) {
+        addUploadedFile({
+          id: fileId,
+          fileName: file.name,
+          fileType: schema.fileType,
+          uploadedAt: new Date(),
+          rowCount: 0,
+          status: "parsing",
+        });
+      }
 
       setParsing(file.name);
       setProgress(10);
@@ -132,7 +158,12 @@ export function FileUploader() {
         }
 
         setProgress(100);
-        updateUploadedFile(fileId, { status: "ready", rowCount: result.rowCount });
+        updateUploadedFile(fileId, {
+          status: "ready",
+          rowCount: result.rowCount,
+          warnings: result.warnings.length > 0 ? result.warnings : undefined,
+          skippedRows: result.skippedRows > 0 ? result.skippedRows : undefined,
+        });
       } catch (err: any) {
         updateUploadedFile(fileId, {
           status: "error",
@@ -143,7 +174,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging, setCustomerLedger]
+    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging, setCustomerLedger]
   );
 
   const handleDrop = useCallback(
@@ -187,7 +218,7 @@ export function FileUploader() {
           <Upload className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">엑셀 파일 업로드</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            파일을 드래그 앤 드롭하거나 클릭하여 선택하세요
+            파일을 드래그 앤 드롭하거나 클릭하여 선택하세요 (최대 50MB)
           </p>
           <p className="text-xs text-muted-foreground mb-4">
             먼저 &apos;infra 사업본부 담당조직.xlsx&apos; 파일을 업로드하면 조직 필터링이 적용됩니다
@@ -246,40 +277,64 @@ export function FileUploader() {
 }
 
 function FileRow({ file }: { file: UploadedFile }) {
+  const hasWarnings = file.warnings && file.warnings.length > 0;
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50">
-      <div className="flex items-center gap-3">
-        <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
-        <div>
-          <p className="text-sm font-medium">{file.fileName}</p>
-          <p className="text-xs text-muted-foreground">
-            {file.uploadedAt.toLocaleString("ko-KR")}
-          </p>
+    <div className="space-y-1">
+      <div className="flex items-center justify-between py-2 px-3 rounded-md bg-muted/50">
+        <div className="flex items-center gap-3">
+          <FileSpreadsheet className="h-4 w-4 text-emerald-600" />
+          <div>
+            <p className="text-sm font-medium">{file.fileName}</p>
+            <p className="text-xs text-muted-foreground">
+              {file.uploadedAt.toLocaleString("ko-KR")}
+              {file.skippedRows ? ` · ${file.skippedRows}행 스킵` : ""}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {file.rowCount > 0 && `${file.rowCount.toLocaleString()}행`}
+          </span>
+          {file.status === "ready" && !hasWarnings && (
+            <Badge variant="success" className="gap-1">
+              <CheckCircle className="h-3 w-3" />
+              완료
+            </Badge>
+          )}
+          {file.status === "ready" && hasWarnings && (
+            <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
+              <AlertTriangle className="h-3 w-3" />
+              경고
+            </Badge>
+          )}
+          {file.status === "parsing" && (
+            <Badge variant="secondary" className="gap-1">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              파싱중
+            </Badge>
+          )}
+          {file.status === "error" && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertCircle className="h-3 w-3" />
+              오류
+            </Badge>
+          )}
         </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-muted-foreground">
-          {file.rowCount > 0 && `${file.rowCount.toLocaleString()}행`}
-        </span>
-        {file.status === "ready" && (
-          <Badge variant="success" className="gap-1">
-            <CheckCircle className="h-3 w-3" />
-            완료
-          </Badge>
-        )}
-        {file.status === "parsing" && (
-          <Badge variant="secondary" className="gap-1">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            파싱중
-          </Badge>
-        )}
-        {file.status === "error" && (
-          <Badge variant="destructive" className="gap-1">
-            <AlertCircle className="h-3 w-3" />
-            오류
-          </Badge>
-        )}
-      </div>
+      {/* Warning details */}
+      {hasWarnings && (
+        <div className="ml-10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded">
+          {file.warnings!.map((w, i) => (
+            <p key={i}>{w}</p>
+          ))}
+        </div>
+      )}
+      {/* Error details */}
+      {file.status === "error" && file.errorMessage && (
+        <div className="ml-10 px-3 py-1.5 text-xs text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30 rounded">
+          {file.errorMessage}
+        </div>
+      )}
     </div>
   );
 }
