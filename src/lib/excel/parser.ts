@@ -18,6 +18,7 @@ export interface ParseResult {
   rowCount: number;
   sourceName?: string;
   warnings: string[];
+  filterInfo?: string;
   skippedRows: number;
 }
 
@@ -221,7 +222,7 @@ function parseCustomerLedger(data: unknown[][]): CustomerLedgerRecord[] {
   }));
 }
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
 export function parseExcelFile(
   buffer: ArrayBuffer,
@@ -232,7 +233,7 @@ export function parseExcelFile(
 
   // File size validation
   if (buffer.byteLength > MAX_FILE_SIZE) {
-    throw new Error(`파일 크기 초과: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB (최대 50MB)`);
+    throw new Error(`파일 크기 초과: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB (최대 100MB)`);
   }
 
   const schema = detectFileType(fileName);
@@ -345,6 +346,7 @@ export function parseExcelFile(
   }
 
   // Apply org filter if available and applicable
+  let filterInfo: string | undefined;
   if (orgNames && orgNames.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
     const field = schema.orgFilterField;
     const beforeCount = parsed.length;
@@ -354,7 +356,7 @@ export function parseExcelFile(
     });
     const filtered = beforeCount - parsed.length;
     if (filtered > 0) {
-      warnings.push(`조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지)`);
+      filterInfo = `조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지)`;
     }
   }
 
@@ -367,6 +369,7 @@ export function parseExcelFile(
     data: parsed,
     rowCount: parsed.length,
     warnings,
+    filterInfo,
     skippedRows,
   };
 

@@ -38,8 +38,8 @@ export function FileUploader() {
 
   const processFile = useCallback(
     async (file: File) => {
-      // File size check (50MB)
-      if (file.size > 50 * 1024 * 1024) {
+      // File size check (100MB)
+      if (file.size > 100 * 1024 * 1024) {
         const fileId = crypto.randomUUID();
         addUploadedFile({
           id: fileId,
@@ -48,7 +48,7 @@ export function FileUploader() {
           uploadedAt: new Date(),
           rowCount: 0,
           status: "error",
-          errorMessage: `파일 크기 초과: ${(file.size / 1024 / 1024).toFixed(1)}MB (최대 50MB)`,
+          errorMessage: `파일 크기 초과: ${(file.size / 1024 / 1024).toFixed(1)}MB (최대 100MB)`,
         });
         return;
       }
@@ -162,6 +162,7 @@ export function FileUploader() {
           status: "ready",
           rowCount: result.rowCount,
           warnings: result.warnings.length > 0 ? result.warnings : undefined,
+          filterInfo: result.filterInfo,
           skippedRows: result.skippedRows > 0 ? result.skippedRows : undefined,
         });
       } catch (err: any) {
@@ -218,7 +219,7 @@ export function FileUploader() {
           <Upload className="h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-lg font-semibold mb-2">엑셀 파일 업로드</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            파일을 드래그 앤 드롭하거나 클릭하여 선택하세요 (최대 50MB)
+            파일을 드래그 앤 드롭하거나 클릭하여 선택하세요 (최대 100MB)
           </p>
           <p className="text-xs text-muted-foreground mb-4">
             먼저 &apos;infra 사업본부 담당조직.xlsx&apos; 파일을 업로드하면 조직 필터링이 적용됩니다
@@ -287,6 +288,7 @@ function FileRow({ file }: { file: UploadedFile }) {
             <p className="text-sm font-medium">{file.fileName}</p>
             <p className="text-xs text-muted-foreground">
               {file.uploadedAt.toLocaleString("ko-KR")}
+              {file.filterInfo ? ` · ${file.filterInfo}` : ""}
               {file.skippedRows ? ` · ${file.skippedRows}행 스킵` : ""}
             </p>
           </div>
@@ -321,7 +323,7 @@ function FileRow({ file }: { file: UploadedFile }) {
           )}
         </div>
       </div>
-      {/* Warning details */}
+      {/* Actual parsing warnings (not filter info) */}
       {hasWarnings && (
         <div className="ml-10 px-3 py-1.5 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 rounded">
           {file.warnings!.map((w, i) => (

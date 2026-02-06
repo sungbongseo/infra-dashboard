@@ -24,6 +24,7 @@ export interface UploadedFile {
   status: "parsing" | "ready" | "error";
   errorMessage?: string;
   warnings?: string[];
+  filterInfo?: string;
   skippedRows?: number;
 }
 
