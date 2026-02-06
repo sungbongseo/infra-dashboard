@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import type { OrgProfitRecord, PlanActualDiff } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -105,6 +106,19 @@ export function filterByOrg<T extends Record<string, any>>(
   return data.filter(row => orgNames.has(String(row[field] || "").trim()));
 }
 
+/** orgProfit 계층 소계 행 제거 - 영업조직팀이 판매사업본부/판매사업부와 동일한 소계 행 제외 */
+export function filterOrgProfitLeafOnly<T extends Record<string, any>>(data: T[]): T[] {
+  return data.filter(r => {
+    const team = String(r.영업조직팀 || "").trim();
+    const hq = String(r.판매사업본부 || "").trim();
+    const div = String(r.판매사업부 || "").trim();
+    if (!team) return false;
+    if (hq && team === hq) return false;   // 사업본부 소계 제외
+    if (div && team === div) return false;  // 사업부 소계 제외
+    return true;
+  });
+}
+
 // Date range filter helper
 // dateRange: { from: "YYYY-MM", to: "YYYY-MM" }
 // dateField: the field name in the record that contains the date (e.g. "매출일", "수금일", "수주일")
@@ -121,4 +135,85 @@ export function filterByDateRange<T extends Record<string, any>>(
     if (!month) return false;
     return month >= from && month <= to;
   });
+}
+
+// ─── OrgProfit 동일 조직 합산 ──────────────────────────────────────
+
+/** PlanActualDiff 두 값 합산 */
+function addPAD(a: PlanActualDiff, b: PlanActualDiff): PlanActualDiff {
+  return {
+    계획: a.계획 + b.계획,
+    실적: a.실적 + b.실적,
+    차이: a.차이 + b.차이,
+  };
+}
+
+/** 비율 PlanActualDiff 재계산 (분자/분모 기반) */
+function calcRatioPAD(numerator: PlanActualDiff, denominator: PlanActualDiff): PlanActualDiff {
+  const 계획 = denominator.계획 !== 0 ? (numerator.계획 / denominator.계획) * 100 : 0;
+  const 실적 = denominator.실적 !== 0 ? (numerator.실적 / denominator.실적) * 100 : 0;
+  return { 계획, 실적, 차이: 실적 - 계획 };
+}
+
+/**
+ * 동일 영업조직팀 이름의 OrgProfitRecord를 합산합니다.
+ * SAP 대체/반제 전표로 인해 같은 조직이 여러 행으로 분리되는 문제를 해결합니다.
+ * - 금액 필드(매출액, 매출원가, 매출총이익 등): 단순 합산
+ * - 비율 필드(매출원가율, 매출총이익율 등): 합산된 금액 기반 재계산
+ */
+export function aggregateOrgProfit(data: OrgProfitRecord[]): OrgProfitRecord[] {
+  if (data.length === 0) return data;
+
+  const map = new Map<string, OrgProfitRecord>();
+
+  for (const row of data) {
+    const key = row.영업조직팀;
+    const existing = map.get(key);
+
+    if (!existing) {
+      // 첫 번째 행: 깊은 복사하여 저장
+      map.set(key, {
+        No: row.No,
+        판매사업본부: row.판매사업본부,
+        판매사업부: row.판매사업부,
+        영업조직팀: row.영업조직팀,
+        매출액: { ...row.매출액 },
+        실적매출원가: { ...row.실적매출원가 },
+        매출총이익: { ...row.매출총이익 },
+        판관변동_직접판매운반비: { ...row.판관변동_직접판매운반비 },
+        판관변동_운반비: { ...row.판관변동_운반비 },
+        판매관리비: { ...row.판매관리비 },
+        영업이익: { ...row.영업이익 },
+        공헌이익: { ...row.공헌이익 },
+        // 비율은 나중에 재계산하므로 임시값
+        매출원가율: { ...row.매출원가율 },
+        매출총이익율: { ...row.매출총이익율 },
+        판관비율: { ...row.판관비율 },
+        영업이익율: { ...row.영업이익율 },
+        공헌이익율: { ...row.공헌이익율 },
+      });
+    } else {
+      // 같은 영업조직팀 행 합산
+      existing.매출액 = addPAD(existing.매출액, row.매출액);
+      existing.실적매출원가 = addPAD(existing.실적매출원가, row.실적매출원가);
+      existing.매출총이익 = addPAD(existing.매출총이익, row.매출총이익);
+      existing.판관변동_직접판매운반비 = addPAD(existing.판관변동_직접판매운반비, row.판관변동_직접판매운반비);
+      existing.판관변동_운반비 = addPAD(existing.판관변동_운반비, row.판관변동_운반비);
+      existing.판매관리비 = addPAD(existing.판매관리비, row.판매관리비);
+      existing.영업이익 = addPAD(existing.영업이익, row.영업이익);
+      existing.공헌이익 = addPAD(existing.공헌이익, row.공헌이익);
+    }
+  }
+
+  // 비율 필드 재계산
+  const results = Array.from(map.values());
+  for (const r of results) {
+    r.매출원가율 = calcRatioPAD(r.실적매출원가, r.매출액);
+    r.매출총이익율 = calcRatioPAD(r.매출총이익, r.매출액);
+    r.판관비율 = calcRatioPAD(r.판매관리비, r.매출액);
+    r.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
+    r.공헌이익율 = calcRatioPAD(r.공헌이익, r.매출액);
+  }
+
+  return results;
 }

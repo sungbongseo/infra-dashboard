@@ -63,7 +63,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
   },
   {
     fileType: "profitabilityAnalysis",
-    pattern: /수담당자.*수익성\s*분석/,
+    pattern: /(담당자|거래처|품목).*(수익성|분석)|수익성.*분석/i,
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,

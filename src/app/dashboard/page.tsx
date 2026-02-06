@@ -27,7 +27,7 @@ import {
 } from "recharts";
 import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 
 export default function OverviewPage() {
@@ -56,10 +56,11 @@ export default function OverviewPage() {
     return filterByDateRange(byOrg, dateRange, "수금일");
   }, [collectionList, effectiveOrgNames, dateRange]);
 
-  const filteredOrgProfit = useMemo(
-    () => filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"),
-    [orgProfit, effectiveOrgNames]
-  );
+  const filteredOrgProfit = useMemo(() => {
+    const filtered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
+    const leafOnly = filterOrgProfitLeafOnly(filtered);
+    return aggregateOrgProfit(leafOnly);
+  }, [orgProfit, effectiveOrgNames]);
 
   // Flatten receivableAging Map → array, filtered by org
   const flattenedAging = useMemo(() => {

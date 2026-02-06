@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
-import type { OrgProfitRecord } from "@/types";
+
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -37,7 +37,7 @@ import {
 } from "recharts";
 import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcCostStructure,
   calcOrgRatioMetrics,
@@ -133,8 +133,19 @@ export default function ProfitabilityPage() {
     return orgNames;
   }, [selectedOrgs, orgNames]);
 
-  const filteredOrgProfit = useMemo(() => filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"), [orgProfit, effectiveOrgNames]);
-  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"), [teamContribution, effectiveOrgNames]);
+  const filteredOrgProfit = useMemo(() => {
+    const filtered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
+    const leafOnly = filterOrgProfitLeafOnly(filtered);
+    return aggregateOrgProfit(leafOnly);
+  }, [orgProfit, effectiveOrgNames]);
+  const filteredTeamContribution = useMemo(() => {
+    const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
+    // 소계 행 제거: 영업담당사번이 비어있는 행은 조직 소계
+    return orgFiltered.filter((r: any) => {
+      const person = String(r.영업담당사번 || "").trim();
+      return person !== "";
+    });
+  }, [teamContribution, effectiveOrgNames]);
   const filteredProfAnalysis = useMemo(() => {
     const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
     // 필터 후 유효 매출이 없으면 전체 데이터 사용 (fallback)
@@ -241,16 +252,22 @@ export default function ProfitabilityPage() {
   // ─── 기여도 분석 데이터 ──────────────────────────────
   const contribRanking = useMemo(() =>
     [...filteredTeamContribution]
+      .filter((r) => (r.공헌이익?.실적 || 0) !== 0 || (r.매출액?.실적 || 0) !== 0)
       .sort((a, b) => (b.공헌이익?.실적 || 0) - (a.공헌이익?.실적 || 0))
-      .slice(0, 15)
-      .map((r) => ({
-        name: `${r.영업담당사번}`,
-        displayName: `${r.영업조직팀?.split('_')[0] || r.영업조직팀 || ''}_${r.영업담당사번}`.substring(0, 12),
-        org: r.영업조직팀,
-        사번: r.영업담당사번,
-        공헌이익: r.공헌이익?.실적 || 0,
-        공헌이익율: r.공헌이익율?.실적 || 0,
-      })),
+      .map((r) => {
+        const org = (r.영업조직팀 || "").trim();
+        const person = (r.영업담당사번 || "").trim();
+        return {
+          name: person,
+          displayName: person
+            ? `${org}_${person}`.substring(0, 15)
+            : org.substring(0, 15),
+          org: r.영업조직팀,
+          사번: r.영업담당사번,
+          공헌이익: r.공헌이익?.실적 || 0,
+          공헌이익율: r.공헌이익율?.실적 || 0,
+        };
+      }),
     [filteredTeamContribution]
   );
 
@@ -286,7 +303,7 @@ export default function ProfitabilityPage() {
       .sort((a, b) => Math.abs(b.매출액) - Math.abs(a.매출액))
       .slice(0, 20)
       .map((r) => ({
-        name: `${r.org?.split('_')[0] || r.org || ''}_${r.id}`.substring(0, 12),
+        name: r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15),
         사번: r.id,
         조직: r.org,
         원재료비: r.원재료비,
@@ -390,28 +407,9 @@ export default function ProfitabilityPage() {
   );
 
   // ─── 수익성 x 리스크 크로스 분석 ──────────────────────────────
-  // orgProfit 조직별 집계 (중복 제거)
-  const uniqueOrgProfit = useMemo(() => {
-    const orgMap = new Map<string, OrgProfitRecord>();
-    for (const r of filteredOrgProfit) {
-      const org = r.영업조직팀;
-      if (!org) continue;
-      const existing = orgMap.get(org);
-      if (!existing) {
-        orgMap.set(org, r);
-      } else {
-        // 동일 조직의 여러 레코드가 있으면 매출액 기준으로 더 큰 것 선택
-        if (Math.abs(r.매출액.실적) > Math.abs(existing.매출액.실적)) {
-          orgMap.set(org, r);
-        }
-      }
-    }
-    return Array.from(orgMap.values());
-  }, [filteredOrgProfit]);
-
   const profitRiskData = useMemo(
-    () => calcProfitRiskMatrix(uniqueOrgProfit, allReceivableRecords, filteredSales),
-    [uniqueOrgProfit, allReceivableRecords, filteredSales]
+    () => calcProfitRiskMatrix(filteredOrgProfit, allReceivableRecords, filteredSales),
+    [filteredOrgProfit, allReceivableRecords, filteredSales]
   );
 
   const quadrantSummary = useMemo(
@@ -622,16 +620,16 @@ export default function ProfitabilityPage() {
             <ChartCard
               title="담당자별 공헌이익 랭킹"
               formula="공헌이익 = 매출액 - 변동비"
-              description="담당자별 공헌이익 기여 순위입니다. 공헌이익은 고정비 부담 전 수익을 나타냅니다."
+              description={`담당자별 공헌이익 기여 순위입니다. 전체 ${contribRanking.length}명 표시.`}
               benchmark="상위 20% 담당자가 80% 공헌이익 기여가 전형적"
               className="xl:col-span-2"
             >
-              <div className="h-80 md:h-[500px]">
+              <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={contribRanking} layout="vertical" margin={{ left: 75 }}>
+                  <BarChart data={contribRanking} layout="vertical" margin={{ left: 90 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                    <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={70} />
+                    <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
                     <RechartsTooltip
                       content={({ payload }) => {
                         if (!payload || payload.length === 0) return null;
@@ -639,9 +637,10 @@ export default function ProfitabilityPage() {
                         if (!d) return null;
                         return (
                           <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
-                            <p className="font-semibold mb-1">사번: {d.사번}</p>
+                            <p className="font-semibold mb-1">{d.사번}</p>
                             <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
                             <p>공헌이익: {formatCurrency(d.공헌이익)}</p>
+                            <p>공헌이익율: {d.공헌이익율.toFixed(1)}%</p>
                           </div>
                         );
                       }}
@@ -693,15 +692,15 @@ export default function ProfitabilityPage() {
           <ChartCard
             title="담당자별 공헌이익율"
             formula="공헌이익율 = 공헌이익 / 매출액 × 100"
-            description="담당자별 공헌이익율 순위입니다. 공헌이익율이 높을수록 변동비 효율이 좋습니다."
+            description="담당자별 공헌이익율 비교. 공헌이익율이 높을수록 변동비 효율이 좋습니다."
             benchmark="공헌이익율 20% 이상이면 양호"
           >
-            <div className="h-64 md:h-80">
+            <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={contribRanking}>
+                <BarChart data={[...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율)} layout="vertical" margin={{ left: 90 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="displayName" tick={{ fontSize: 9 }} angle={-45} textAnchor="end" height={60} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                  <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
                   <RechartsTooltip
                     content={({ payload }) => {
                       if (!payload || payload.length === 0) return null;
@@ -709,16 +708,17 @@ export default function ProfitabilityPage() {
                       if (!d) return null;
                       return (
                         <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
-                          <p className="font-semibold mb-1">사번: {d.사번}</p>
+                          <p className="font-semibold mb-1">{d.사번}</p>
                           <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
                           <p>공헌이익율: {d.공헌이익율.toFixed(1)}%</p>
+                          <p>공헌이익: {formatCurrency(d.공헌이익)}</p>
                         </div>
                       );
                     }}
                   />
-                  <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
-                  <Bar dataKey="공헌이익율" name="공헌이익율" radius={[4, 4, 0, 0]}>
-                    {contribRanking.map((entry, i) => (
+                  <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
+                  <Bar dataKey="공헌이익율" name="공헌이익율" radius={[0, 4, 4, 0]}>
+                    {[...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율).map((entry, i) => (
                       <Cell key={i} fill={entry.공헌이익율 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />
                     ))}
                   </Bar>
@@ -833,7 +833,7 @@ export default function ProfitabilityPage() {
                 <tbody>
                   {costEfficiency.map((r, i) => (
                     <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="p-2 font-mono text-xs">{`${r.org?.split('_')[0] || r.org || ''}_${r.id}`.substring(0, 15)}</td>
+                      <td className="p-2 font-mono text-xs">{r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15)}</td>
                       <td className="p-2 text-xs">{r.org}</td>
                       <td className="p-2">
                         <span
