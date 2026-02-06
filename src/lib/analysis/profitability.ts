@@ -70,7 +70,7 @@ export function calcProductProfitability(
       operatingProfit: v.operatingProfit,
       operatingMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
     }))
-    .sort((a, b) => b.sales - a.sales);
+    .sort((a, b) => b.grossProfit - a.grossProfit);
 }
 
 /**

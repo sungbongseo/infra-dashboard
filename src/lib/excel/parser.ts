@@ -162,25 +162,7 @@ function parseOrgProfit(data: unknown[][]): OrgProfitRecord[] {
   }));
 }
 
-function parseProfitabilityAnalysis(data: unknown[][]): ProfitabilityAnalysisRecord[] {
-  return data.slice(2).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    영업조직팀: str(row[1]),
-    영업담당사번: str(row[2]),
-    매출거래처: str(row[3]),
-    품목: str(row[4]),
-    제품내수매출: parsePlanActualDiff(row, 5),
-    제품수출매출: parsePlanActualDiff(row, 8),
-    매출수량: parsePlanActualDiff(row, 11),
-    환산수량: parsePlanActualDiff(row, 14),
-    매출액: parsePlanActualDiff(row, 17),
-    실적매출원가: parsePlanActualDiff(row, 20),
-    매출총이익: parsePlanActualDiff(row, 23),
-    판매관리비: parsePlanActualDiff(row, 26),
-    판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
-    영업이익: parsePlanActualDiff(row, 32),
-  }));
-}
+// parseProfitabilityAnalysis는 parseExcelFile 내부에서 safeParseRows로 처리
 
 function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
   return data.slice(2).filter(r => r[0]).map((row) => ({
@@ -312,9 +294,27 @@ export function parseExcelFile(
       parsed = r.parsed; skippedRows = r.skipped;
       break;
     }
-    case "profitabilityAnalysis":
-      parsed = parseProfitabilityAnalysis(rawData);
+    case "profitabilityAnalysis": {
+      const r = safeParseRows<ProfitabilityAnalysisRecord>(rawData, 2, (row) => ({
+        No: num(row[0]),
+        영업조직팀: str(row[1]),
+        영업담당사번: str(row[2]),
+        매출거래처: str(row[3]),
+        품목: str(row[4]),
+        제품내수매출: parsePlanActualDiff(row, 5),
+        제품수출매출: parsePlanActualDiff(row, 8),
+        매출수량: parsePlanActualDiff(row, 11),
+        환산수량: parsePlanActualDiff(row, 14),
+        매출액: parsePlanActualDiff(row, 17),
+        실적매출원가: parsePlanActualDiff(row, 20),
+        매출총이익: parsePlanActualDiff(row, 23),
+        판매관리비: parsePlanActualDiff(row, 26),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
+        영업이익: parsePlanActualDiff(row, 32),
+      }), warnings, "수익성분석");
+      parsed = r.parsed; skippedRows = r.skipped;
       break;
+    }
     case "receivableAging":
       parsed = parseReceivableAging(rawData);
       break;

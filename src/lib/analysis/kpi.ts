@@ -177,8 +177,8 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
         r.판관변동_노무비.실적 +
         r.판관고정_노무비.실적 +
         r.제조변동_노무비.실적;
+      // 판관고정_노무비는 노무비에 포함되므로 고정비에서 제외 (이중집계 방지)
       const 고정비 =
-        r.판관고정_노무비.실적 +
         r.판관고정_감가상각비.실적 +
         r.판관고정_기타경비.실적;
       const 기타변동비 =
@@ -251,6 +251,7 @@ export interface HeatmapMetric {
   actual: number;
   achievementRate: number;
   gap: number;
+  isCostItem: boolean;
 }
 
 export interface PlanVsActualHeatmapRow {
@@ -259,30 +260,31 @@ export interface PlanVsActualHeatmapRow {
 }
 
 export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanVsActualHeatmapRow[] {
-  const metricKeys: { key: keyof OrgProfitRecord; label: string }[] = [
-    { key: "매출액", label: "매출액" },
-    { key: "실적매출원가", label: "매출원가" },
-    { key: "매출총이익", label: "매출총이익" },
-    { key: "판매관리비", label: "판관비" },
-    { key: "영업이익", label: "영업이익" },
-    { key: "공헌이익", label: "공헌이익" },
+  const metricKeys: { key: keyof OrgProfitRecord; label: string; isCostItem: boolean }[] = [
+    { key: "매출액", label: "매출액", isCostItem: false },
+    { key: "실적매출원가", label: "매출원가", isCostItem: true },
+    { key: "매출총이익", label: "매출총이익", isCostItem: false },
+    { key: "판매관리비", label: "판관비", isCostItem: true },
+    { key: "영업이익", label: "영업이익", isCostItem: false },
+    { key: "공헌이익", label: "공헌이익", isCostItem: false },
   ];
 
   return orgProfitData
     .filter((r) => r.영업조직팀 && r.매출액.실적 !== 0)
     .map((r) => ({
       org: r.영업조직팀,
-      metrics: metricKeys.map(({ key, label }) => {
+      metrics: metricKeys.map(({ key, label, isCostItem }) => {
         const field = r[key] as { 계획: number; 실적: number; 차이: number };
         const plan = field.계획;
         const actual = field.실적;
-        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? 999 : 0;
+        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? Infinity : 0;
         return {
           name: label,
           plan,
           actual,
           achievementRate,
           gap: actual - plan,
+          isCostItem,
         };
       }),
     }));

@@ -122,6 +122,22 @@ function calcOrgSales(sales: SalesRecord[]): Map<string, number> {
  * 조직명 매칭: orgProfit의 영업조직팀과 receivableAging/sales의 영업조직은
  * 동일한 조직을 가리키지만 필드명이 다를 수 있으므로 이름 기반 매칭
  */
+/**
+ * Map에서 정확히 일치하는 키를 먼저 찾고,
+ * 없으면 키가 name을 포함하거나 name이 키를 포함하는 경우를 찾는다.
+ * (예: "건자재팀" ↔ "건자재" 매칭)
+ */
+function fuzzyGet<T>(map: Map<string, T>, name: string): T | undefined {
+  const exact = map.get(name);
+  if (exact !== undefined) return exact;
+  const entries = Array.from(map.entries());
+  for (let i = 0; i < entries.length; i++) {
+    const [key, val] = entries[i];
+    if (key.includes(name) || name.includes(key)) return val;
+  }
+  return undefined;
+}
+
 export function calcProfitRiskMatrix(
   orgProfit: OrgProfitRecord[],
   receivableAging: ReceivableAgingRecord[],
@@ -136,10 +152,9 @@ export function calcProfitRiskMatrix(
       const name = r.영업조직팀;
       const profitMargin = r.영업이익율.실적;
 
-      // 조직명으로 리스크/매출 데이터 매칭
-      // orgProfit의 "영업조직팀"과 receivableAging의 "영업조직"을 매칭
-      const riskData = riskScores.get(name);
-      const salesTotal = orgSalesMap.get(name);
+      // 조직명으로 리스크/매출 데이터 매칭 (fuzzy: "영업조직팀" ↔ "영업조직" 유사매칭)
+      const riskData = fuzzyGet(riskScores, name);
+      const salesTotal = fuzzyGet(orgSalesMap, name);
 
       const riskScore = riskData?.riskScore ?? 0;
       const receivables = riskData?.receivables ?? 0;
