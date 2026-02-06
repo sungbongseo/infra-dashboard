@@ -76,6 +76,7 @@ function parseSalesList(data: unknown[][]): SalesRecord[] {
     납품처명: str(row[12]),
     결제조건: str(row[13]),
     수금예정일: str(row[14]),
+    // row[15]: 결제통화 (미사용 필드, 명시적 스킵)
     매출상태: str(row[16]),
     매출유형: str(row[17]),
     품목: str(row[21]),

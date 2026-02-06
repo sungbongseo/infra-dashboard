@@ -58,6 +58,30 @@ export const RISK_COLORS = {
   high: "hsl(0, 84.2%, 60.2%)",
 };
 
+// Date utilities
+export function extractMonth(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = String(dateStr).trim();
+  if (d.includes("-")) return d.substring(0, 7);
+  if (d.includes("/")) {
+    const parts = d.split("/");
+    if (parts.length >= 2) {
+      return `${parts[0]}-${parts[1].padStart(2, "0")}`;
+    }
+    return "";
+  }
+  if (d.length === 8 && /^\d{8}$/.test(d)) return `${d.substring(0, 4)}-${d.substring(4, 6)}`;
+  // Excel serial number
+  const serial = Number(d);
+  if (!isNaN(serial) && serial > 40000 && serial < 100000) {
+    const date = new Date((serial - 25569) * 86400 * 1000);
+    if (!isNaN(date.getTime())) {
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
 // Org filter helpers
 export function filterByOrg<T extends Record<string, any>>(
   data: T[],
@@ -66,4 +90,22 @@ export function filterByOrg<T extends Record<string, any>>(
 ): T[] {
   if (orgNames.size === 0) return data;
   return data.filter(row => orgNames.has(String(row[field] || "").trim()));
+}
+
+// Date range filter helper
+// dateRange: { from: "YYYY-MM", to: "YYYY-MM" }
+// dateField: the field name in the record that contains the date (e.g. "매출일", "수금일", "수주일")
+export function filterByDateRange<T extends Record<string, any>>(
+  data: T[],
+  dateRange: { from: string; to: string } | null,
+  dateField: string
+): T[] {
+  if (!dateRange || !dateRange.from || !dateRange.to) return data;
+  const from = dateRange.from; // "YYYY-MM"
+  const to = dateRange.to;     // "YYYY-MM"
+  return data.filter(row => {
+    const month = extractMonth(String(row[dateField] || ""));
+    if (!month) return false;
+    return month >= from && month <= to;
+  });
 }

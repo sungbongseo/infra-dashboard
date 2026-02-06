@@ -19,9 +19,13 @@ import {
   Legend,
   ComposedChart,
   Line,
+  ReferenceLine,
 } from "recharts";
+import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 
 export default function SalesAnalysisPage() {
   const { salesList, orgNames } = useDataStore();
@@ -31,6 +35,11 @@ export default function SalesAnalysisPage() {
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
   const itemSales = useMemo(() => calcItemSales(filteredSales), [filteredSales]);
   const salesByType = useMemo(() => calcSalesByType(filteredSales), [filteredSales]);
+
+  const topCustomersExport = useMemo(
+    () => topCustomers.map((c) => ({ 거래처코드: c.code, 거래처명: c.name, 매출액: c.amount })),
+    [topCustomers]
+  );
 
   const paretoData = useMemo(() => {
     const total = topCustomers.reduce((s, c) => s + c.amount, 0);
@@ -58,6 +67,15 @@ export default function SalesAnalysisPage() {
     [itemSales]
   );
 
+  // KPI 데이터
+  const totalSalesAmount = useMemo(() => filteredSales.reduce((s, r) => s + r.장부금액, 0), [filteredSales]);
+  const uniqueCustomers = useMemo(() => new Set(filteredSales.map(r => r.매출처).filter(Boolean)).size, [filteredSales]);
+  const avgPerTransaction = filteredSales.length > 0 ? totalSalesAmount / filteredSales.length : 0;
+  const top1Share = useMemo(() => {
+    if (topCustomers.length === 0 || totalSalesAmount === 0) return 0;
+    return (topCustomers[0].amount / totalSalesAmount) * 100;
+  }, [topCustomers, totalSalesAmount]);
+
   if (filteredSales.length === 0) return <EmptyState />;
 
   return (
@@ -65,6 +83,42 @@ export default function SalesAnalysisPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">매출 분석</h2>
         <p className="text-muted-foreground">거래처/품목별 매출 상세 분석</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <KpiCard
+          title="총 매출액"
+          value={totalSalesAmount}
+          format="currency"
+          icon={<DollarSign className="h-5 w-5" />}
+          formula="SUM(매출리스트.장부금액)"
+          description="필터링된 조직의 전체 매출 합계입니다."
+        />
+        <KpiCard
+          title="거래처 수"
+          value={uniqueCustomers}
+          format="number"
+          icon={<Users className="h-5 w-5" />}
+          formula="DISTINCT COUNT(매출처)"
+          description="매출이 발생한 고유 거래처 수입니다."
+        />
+        <KpiCard
+          title="건당 평균"
+          value={avgPerTransaction}
+          format="currency"
+          icon={<BarChart3 className="h-5 w-5" />}
+          formula="총 매출액 / 매출 건수"
+          description="매출 건당 평균 금액입니다."
+        />
+        <KpiCard
+          title="Top1 거래처 비중"
+          value={top1Share}
+          format="percent"
+          icon={<Target className="h-5 w-5" />}
+          formula="Top1 거래처 매출 / 총매출 × 100"
+          description="최대 거래처의 매출 집중도입니다. 높을수록 의존도가 큽니다."
+          benchmark="20% 이내 안정, 30% 초과 시 리스크"
+        />
       </div>
 
       <Tabs defaultValue="customer" className="space-y-4">
@@ -80,6 +134,7 @@ export default function SalesAnalysisPage() {
             formula="누적비율 = 누적매출 / 총매출 × 100"
             description="거래처를 매출액 기준으로 정렬하여 누적 비율을 계산합니다. A등급(~80%), B등급(80~95%), C등급(95~100%)으로 분류합니다."
             benchmark="상위 20% 거래처가 80% 매출 차지 시 전형적 파레토 분포"
+            action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
           >
             <div className="h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -94,6 +149,9 @@ export default function SalesAnalysisPage() {
                   <Legend />
                   <Bar yAxisId="left" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[4, 4, 0, 0]} />
                   <Line yAxisId="right" type="monotone" dataKey="cumPercent" stroke={CHART_COLORS[4]} strokeWidth={2} name="누적비율" dot={{ r: 3 }} />
+                  {/* ABC 등급 경계선 */}
+                  <ReferenceLine yAxisId="right" y={80} stroke="hsl(142, 76%, 36%)" strokeDasharray="5 5" strokeWidth={1.5} label={{ value: "A (80%)", position: "right", fontSize: 10, fill: "hsl(142, 76%, 36%)" }} />
+                  <ReferenceLine yAxisId="right" y={95} stroke="hsl(38, 92%, 50%)" strokeDasharray="5 5" strokeWidth={1.5} label={{ value: "B (95%)", position: "right", fontSize: 10, fill: "hsl(38, 92%, 50%)" }} />
                 </ComposedChart>
               </ResponsiveContainer>
             </div>

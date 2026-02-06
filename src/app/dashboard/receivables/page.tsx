@@ -5,8 +5,11 @@ import { useDataStore } from "@/stores/dataStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { DataTable } from "@/components/dashboard/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments, calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
+import { calcDSOByOrg, calcOverallDSO } from "@/lib/analysis/dso";
+import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
 import {
   BarChart,
   Bar,
@@ -17,13 +20,31 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge } from "lucide-react";
+import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge, Clock, RefreshCw } from "lucide-react";
 import { Cell, ReferenceLine } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, CHART_COLORS } from "@/lib/utils";
+import { ExportButton } from "@/components/dashboard/ExportButton";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { AgingRiskAssessment } from "@/types";
+import type { CCCMetric } from "@/lib/analysis/ccc";
+
+const DSO_COLORS: Record<string, string> = {
+  excellent: "hsl(142, 76%, 36%)",
+  good: "hsl(188, 94%, 42%)",
+  fair: "hsl(45, 93%, 47%)",
+  poor: "hsl(0, 84%, 50%)",
+};
+
+const DSO_LABELS: Record<string, string> = {
+  excellent: "우수",
+  good: "양호",
+  fair: "보통",
+  poor: "주의",
+};
 
 export default function ReceivablesPage() {
-  const { receivableAging, orgNames } = useDataStore();
+  const { receivableAging, salesList, teamContribution, orgNames } = useDataStore();
 
   const filteredAgingMap = useMemo(() => {
     const filtered = new Map<string, any[]>();
@@ -46,6 +67,7 @@ export default function ReceivablesPage() {
 
   const hasData = allRecords.length > 0;
 
+  // 기존 분석
   const summary = useMemo(() => calcAgingSummary(allRecords), [allRecords]);
   const byOrg = useMemo(() => calcAgingByOrg(filteredAgingMap), [filteredAgingMap]);
   const byPerson = useMemo(() => calcAgingByPerson(allRecords), [allRecords]);
@@ -58,6 +80,205 @@ export default function ReceivablesPage() {
   const creditTotalUsed = useMemo(() => creditUtilizations.reduce((s, c) => s + c.총미수금, 0), [creditUtilizations]);
   const creditAvgRate = creditTotalLimit > 0 ? (creditTotalUsed / creditTotalLimit) * 100 : 0;
   const creditDangerCount = creditUtilizations.filter((c) => c.상태 === "danger").length;
+
+  const creditExportData = useMemo(
+    () =>
+      creditUtilizations.map((c) => ({
+        거래처: c.판매처명 || c.판매처,
+        조직: c.영업조직,
+        담당자: c.담당자,
+        여신한도: c.여신한도,
+        미수금: c.총미수금,
+        사용률: `${c.사용률.toFixed(1)}%`,
+        상태: c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "주의" : "양호",
+      })),
+    [creditUtilizations]
+  );
+
+  // DSO/CCC 분석
+  const filteredSales = useMemo(
+    () => filterByOrg(salesList, orgNames, "영업조직"),
+    [salesList, orgNames]
+  );
+  const filteredTeamContrib = useMemo(
+    () => filterByOrg(teamContribution, orgNames, "영업조직팀"),
+    [teamContribution, orgNames]
+  );
+
+  const dsoMetrics = useMemo(
+    () => calcDSOByOrg(allRecords, filteredSales),
+    [allRecords, filteredSales]
+  );
+  const overallDSO = useMemo(
+    () => calcOverallDSO(allRecords, filteredSales),
+    [allRecords, filteredSales]
+  );
+  const cccMetrics = useMemo(
+    () => calcCCCByOrg(dsoMetrics, filteredTeamContrib),
+    [dsoMetrics, filteredTeamContrib]
+  );
+  const cccAnalysis = useMemo(
+    () => calcCCCAnalysis(cccMetrics),
+    [cccMetrics]
+  );
+
+  const dsoChartData = useMemo(
+    () =>
+      dsoMetrics.map((d) => ({
+        org: d.org,
+        dso: d.dso,
+        classification: d.classification,
+      })),
+    [dsoMetrics]
+  );
+
+  const cccExportData = useMemo(
+    () =>
+      cccMetrics.map((m) => ({
+        조직: m.org,
+        "DSO(일)": m.dso,
+        "DPO(일)": m.dpo,
+        "CCC(일)": m.ccc,
+        등급: DSO_LABELS[m.classification] || m.classification,
+        권장사항: m.recommendation,
+      })),
+    [cccMetrics]
+  );
+
+  const cccColumns = useMemo<ColumnDef<CCCMetric, any>[]>(
+    () => [
+      {
+        accessorKey: "org",
+        header: "조직",
+        cell: ({ getValue }) => (
+          <span className="font-medium">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: "dso",
+        header: () => <span className="block text-right">DSO (일)</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums font-medium">
+            {getValue<number>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "dpo",
+        header: () => <span className="block text-right">DPO (일)</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums">
+            {getValue<number>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "ccc",
+        header: () => <span className="block text-right">CCC (일)</span>,
+        cell: ({ getValue }) => {
+          const ccc = getValue<number>();
+          return (
+            <span
+              className={`block text-right tabular-nums font-bold ${
+                ccc < 0
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : ccc > 60
+                  ? "text-red-600 dark:text-red-400"
+                  : ""
+              }`}
+            >
+              {ccc}
+            </span>
+          );
+        },
+      },
+      {
+        accessorKey: "classification",
+        header: "등급",
+        cell: ({ getValue }) => {
+          const cls = getValue<string>();
+          return (
+            <Badge
+              variant={
+                cls === "excellent"
+                  ? "success"
+                  : cls === "good"
+                  ? "default"
+                  : cls === "fair"
+                  ? "warning"
+                  : "destructive"
+              }
+            >
+              {DSO_LABELS[cls] || cls}
+            </Badge>
+          );
+        },
+      },
+      {
+        accessorKey: "recommendation",
+        header: "권장사항",
+        cell: ({ getValue }) => (
+          <span className="text-xs text-muted-foreground line-clamp-2 max-w-[300px]">
+            {getValue<string>()}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
+  const riskColumns = useMemo<ColumnDef<AgingRiskAssessment, any>[]>(
+    () => [
+      {
+        accessorKey: "판매처명",
+        header: "거래처",
+        cell: ({ row }) => (
+          <span className="truncate max-w-[180px] block" title={row.original.판매처명}>
+            {row.original.판매처명 || row.original.판매처}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "총미수금",
+        header: () => <span className="block text-right">미수금</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums">
+            {formatCurrency(getValue<number>(), true)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "연체비율",
+        header: () => <span className="block text-right">연체비율</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums">
+            {getValue<number>().toFixed(1)}%
+          </span>
+        ),
+      },
+      {
+        accessorKey: "riskGrade",
+        header: "등급",
+        cell: ({ getValue }) => {
+          const grade = getValue<string>();
+          return (
+            <Badge
+              variant={
+                grade === "high"
+                  ? "destructive"
+                  : grade === "medium"
+                  ? "warning"
+                  : "success"
+              }
+            >
+              {grade === "high" ? "고위험" : grade === "medium" ? "주의" : "양호"}
+            </Badge>
+          );
+        },
+      },
+    ],
+    []
+  );
 
   const highRiskCount = risks.filter((r) => r.riskGrade === "high").length;
   const mediumRiskCount = risks.filter((r) => r.riskGrade === "medium").length;
@@ -92,6 +313,7 @@ export default function ReceivablesPage() {
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
           <TabsTrigger value="credit">여신 관리</TabsTrigger>
+          <TabsTrigger value="dso">DSO/CCC</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -147,11 +369,12 @@ export default function ReceivablesPage() {
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
                   <Legend />
-                  <Bar dataKey="1개월" stackId="a" fill={CHART_COLORS[1]} />
-                  <Bar dataKey="2개월" stackId="a" fill={CHART_COLORS[5]} />
-                  <Bar dataKey="3개월" stackId="a" fill={CHART_COLORS[6]} />
-                  <Bar dataKey="4개월" stackId="a" fill={CHART_COLORS[3]} />
-                  <Bar dataKey="5개월" stackId="a" fill={CHART_COLORS[4]} />
+                  {/* 안전(녹색) → 주의(황색) → 위험(적색) 순차 그라데이션 */}
+                  <Bar dataKey="1개월" stackId="a" fill="hsl(142, 76%, 36%)" />
+                  <Bar dataKey="2개월" stackId="a" fill="hsl(80, 60%, 45%)" />
+                  <Bar dataKey="3개월" stackId="a" fill="hsl(45, 93%, 47%)" />
+                  <Bar dataKey="4개월" stackId="a" fill="hsl(30, 90%, 50%)" />
+                  <Bar dataKey="5개월" stackId="a" fill="hsl(15, 85%, 50%)" />
                   <Bar dataKey="6개월" stackId="a" fill="hsl(0, 70%, 55%)" />
                   <Bar dataKey="6개월+" stackId="a" fill="hsl(0, 84%, 40%)" radius={[4, 4, 0, 0]} />
                 </BarChart>
@@ -218,34 +441,12 @@ export default function ReceivablesPage() {
             description="연령×금액 기준으로 거래처를 리스크 등급으로 분류합니다. 고위험 거래처는 즉각 조치가 필요합니다."
             benchmark="고위험 0건, 주의 총 미수금의 10% 이내가 이상적"
           >
-            <div className="h-96 overflow-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b text-left">
-                    <th className="py-2 px-2 font-medium">거래처</th>
-                    <th className="py-2 px-2 font-medium text-right">미수금</th>
-                    <th className="py-2 px-2 font-medium text-right">연체비율</th>
-                    <th className="py-2 px-2 font-medium">등급</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {risks.slice(0, 20).map((r, i) => (
-                    <tr key={i} className="border-b border-muted/50 hover:bg-muted/30">
-                      <td className="py-1.5 px-2 truncate max-w-[150px]" title={r.판매처명}>{r.판매처명 || r.판매처}</td>
-                      <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(r.총미수금, true)}</td>
-                      <td className="py-1.5 px-2 text-right tabular-nums">{r.연체비율.toFixed(1)}%</td>
-                      <td className="py-1.5 px-2">
-                        <Badge
-                          variant={r.riskGrade === "high" ? "destructive" : r.riskGrade === "medium" ? "warning" : "success"}
-                        >
-                          {r.riskGrade === "high" ? "고위험" : r.riskGrade === "medium" ? "주의" : "양호"}
-                        </Badge>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              data={risks}
+              columns={riskColumns}
+              searchPlaceholder="거래처 검색..."
+              defaultPageSize={20}
+            />
           </ChartCard>
         </TabsContent>
 
@@ -330,6 +531,7 @@ export default function ReceivablesPage() {
             formula="거래처별 총미수금 / 여신한도 x 100\n사용률 내림차순 정렬"
             description="거래처별 여신한도 대비 미수금 비율입니다. 위험(빨강)은 한도 초과, 주의(노랑)는 80% 이상입니다."
             benchmark="사용률 80% 미만이 양호, 한도초과(100%+) 거래처는 즉시 조치"
+            action={<ExportButton data={creditExportData} fileName="여신사용률" />}
           >
             <div className="h-[500px] overflow-auto">
               <table className="w-full text-sm">
@@ -365,6 +567,110 @@ export default function ReceivablesPage() {
                 </tbody>
               </table>
             </div>
+          </ChartCard>
+        </TabsContent>
+
+        <TabsContent value="dso" className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="평균 DSO"
+              value={overallDSO}
+              format="number"
+              icon={<Clock className="h-5 w-5" />}
+              formula="(총 미수금 / 월평균 매출액) × 30"
+              description="매출채권 평균 회수 소요일입니다. 매출 발생 후 현금으로 회수되기까지 걸리는 평균 일수를 의미합니다."
+              benchmark="30일 미만 우수, 30~45일 양호, 45~60일 보통, 60일 초과 주의"
+            />
+            <KpiCard
+              title="평균 CCC"
+              value={cccAnalysis.avgCCC}
+              format="number"
+              icon={<RefreshCw className="h-5 w-5" />}
+              formula="CCC = DSO + DIO - DPO\n(DIO=0: 재고 데이터 미보유)"
+              description="현금전환주기입니다. 원재료 구매부터 매출 대금 회수까지의 총 소요일수입니다. 낮을수록 현금 회전이 빠릅니다."
+              benchmark="0일 미만 우수, 0~30일 양호, 30~60일 보통, 60일 초과 주의"
+            />
+            <KpiCard
+              title="평균 DPO"
+              value={cccAnalysis.avgDPO}
+              format="number"
+              icon={<Landmark className="h-5 w-5" />}
+              formula="매출원가율 기반 업종 평균 추정\n80%↑=45일, 60~80%=35일, 60%↓=30일"
+              description="매입채무 결제 소요일 추정치입니다. 매출원가율 기반으로 업종 특성을 반영하여 추정합니다."
+              benchmark="DPO가 길수록 운전자본 관리에 유리 (단, 거래 관계 고려)"
+            />
+            <KpiCard
+              title="분석 조직 수"
+              value={dsoMetrics.length}
+              format="number"
+              icon={<Users className="h-5 w-5" />}
+              description="DSO/CCC 분석이 가능한 조직 수입니다. 미수금 및 매출 데이터가 모두 존재하는 조직만 포함됩니다."
+            />
+          </div>
+
+          {filteredSales.length === 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                매출 데이터가 업로드되지 않아 DSO를 정확하게 계산할 수 없습니다. 매출목록 엑셀 파일을 업로드하면 조직별 DSO 분석이 가능합니다.
+              </p>
+            </div>
+          )}
+
+          {filteredTeamContrib.length === 0 && filteredSales.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                팀기여도 데이터가 업로드되지 않아 DPO/CCC를 추정할 수 없습니다. 팀기여도 엑셀 파일을 업로드하면 CCC 분석이 가능합니다.
+              </p>
+            </div>
+          )}
+
+          <ChartCard
+            title="조직별 DSO (매출채권 회수일)"
+            formula="DSO = (조직별 미수금 합계 / 조직별 월평균 매출) × 30\n색상: 녹색(우수 <30일), 파랑(양호 30~45일), 노랑(보통 45~60일), 빨강(주의 >60일)"
+            description="각 조직의 매출채권 평균 회수 소요일입니다. DSO가 낮을수록 현금 회수가 빠르며 운전자본 관리가 효율적입니다."
+            benchmark="업종 평균 DSO 45일 기준, 30일 미만이면 최상위 수준"
+          >
+            <div className="h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dsoChartData} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    type="number"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => `${v}일`}
+                  />
+                  <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
+                  <RechartsTooltip
+                    formatter={(value: any) => [`${value}일`, "DSO"]}
+                    labelFormatter={(label) => `조직: ${label}`}
+                  />
+                  <ReferenceLine x={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "top", fontSize: 10 }} />
+                  <Bar dataKey="dso" name="DSO" radius={[0, 4, 4, 0]}>
+                    {dsoChartData.map((entry, index) => (
+                      <Cell
+                        key={index}
+                        fill={DSO_COLORS[entry.classification] || CHART_COLORS[0]}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          <ChartCard
+            title="조직별 CCC 상세 분석"
+            formula="CCC = DSO - DPO (DIO=0)\nDSO: 매출채권 회수일\nDPO: 매입채무 결제일 (추정)\nCCC: 현금전환주기"
+            description="조직별 현금전환주기(CCC)를 분석합니다. CCC가 음수이면 매입 결제 전에 매출을 회수하는 우수한 상태입니다."
+            benchmark="CCC 0일 미만 우수, 30일 이내 양호"
+            action={<ExportButton data={cccExportData} fileName="CCC분석" />}
+          >
+            <DataTable
+              data={cccMetrics}
+              columns={cccColumns}
+              searchPlaceholder="조직 검색..."
+              defaultPageSize={20}
+            />
           </ChartCard>
         </TabsContent>
       </Tabs>

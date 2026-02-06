@@ -1,4 +1,5 @@
 import type { SalesRecord, CollectionRecord, OrderRecord, OrgProfitRecord, TeamContributionRecord } from "@/types";
+import { extractMonth } from "@/lib/utils";
 
 export interface OverviewKpis {
   totalSales: number;
@@ -45,25 +46,6 @@ export interface MonthlyTrend {
   매출: number;
   수주: number;
   수금: number;
-}
-
-function extractMonth(dateStr: string): string {
-  if (!dateStr) return "";
-  const d = String(dateStr);
-  // Handle various date formats: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD, Excel serial
-  if (d.includes("-")) return d.substring(0, 7);
-  if (d.includes("/")) {
-    const parts = d.split("/");
-    return `${parts[0]}-${parts[1].padStart(2, "0")}`;
-  }
-  if (d.length === 8) return `${d.substring(0, 4)}-${d.substring(4, 6)}`;
-  // Excel serial number
-  const serial = Number(d);
-  if (!isNaN(serial) && serial > 40000) {
-    const date = new Date((serial - 25569) * 86400 * 1000);
-    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-  }
-  return "";
 }
 
 export function calcMonthlyTrends(
@@ -185,32 +167,33 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
     .filter((r) => r.매출액.실적 !== 0)
     .map((r) => {
       const sales = Math.abs(r.매출액.실적);
-      const 원재료비 = Math.abs(r.제조변동_원재료비.실적) + Math.abs(r.제조변동_부재료비.실적);
-      const 상품매입 = Math.abs(r.변동_상품매입.실적);
-      const 외주가공비 = Math.abs(r.판관변동_외주가공비.실적) + Math.abs(r.제조변동_외주가공비.실적);
-      const 운반비 = Math.abs(r.판관변동_운반비.실적) + Math.abs(r.제조변동_운반비.실적);
-      const 지급수수료 = Math.abs(r.판관변동_지급수수료.실적) + Math.abs(r.제조변동_지급수수료.실적);
+      // Math.abs 제거: 환불/역분개 시 음수 비용이 자연스럽게 차감됨
+      const 원재료비 = r.제조변동_원재료비.실적 + r.제조변동_부재료비.실적;
+      const 상품매입 = r.변동_상품매입.실적;
+      const 외주가공비 = r.판관변동_외주가공비.실적 + r.제조변동_외주가공비.실적;
+      const 운반비 = r.판관변동_운반비.실적 + r.제조변동_운반비.실적;
+      const 지급수수료 = r.판관변동_지급수수료.실적 + r.제조변동_지급수수료.실적;
       const 노무비 =
-        Math.abs(r.판관변동_노무비.실적) +
-        Math.abs(r.판관고정_노무비.실적) +
-        Math.abs(r.제조변동_노무비.실적);
+        r.판관변동_노무비.실적 +
+        r.판관고정_노무비.실적 +
+        r.제조변동_노무비.실적;
       const 고정비 =
-        Math.abs(r.판관고정_노무비.실적) +
-        Math.abs(r.판관고정_감가상각비.실적) +
-        Math.abs(r.판관고정_기타경비.실적);
+        r.판관고정_노무비.실적 +
+        r.판관고정_감가상각비.실적 +
+        r.판관고정_기타경비.실적;
       const 기타변동비 =
-        Math.abs(r.판관변동_복리후생비.실적) +
-        Math.abs(r.판관변동_소모품비.실적) +
-        Math.abs(r.판관변동_수도광열비.실적) +
-        Math.abs(r.판관변동_수선비.실적) +
-        Math.abs(r.판관변동_견본비.실적) +
-        Math.abs(r.제조변동_복리후생비.실적) +
-        Math.abs(r.제조변동_소모품비.실적) +
-        Math.abs(r.제조변동_수도광열비.실적) +
-        Math.abs(r.제조변동_수선비.실적) +
-        Math.abs(r.제조변동_연료비.실적) +
-        Math.abs(r.제조변동_전력비.실적) +
-        Math.abs(r.제조변동_견본비.실적);
+        r.판관변동_복리후생비.실적 +
+        r.판관변동_소모품비.실적 +
+        r.판관변동_수도광열비.실적 +
+        r.판관변동_수선비.실적 +
+        r.판관변동_견본비.실적 +
+        r.제조변동_복리후생비.실적 +
+        r.제조변동_소모품비.실적 +
+        r.제조변동_수도광열비.실적 +
+        r.제조변동_수선비.실적 +
+        r.제조변동_연료비.실적 +
+        r.제조변동_전력비.실적 +
+        r.제조변동_견본비.실적;
 
       const 원재료비율 = sales > 0 ? (원재료비 / sales) * 100 : 0;
       const 상품매입비율 = sales > 0 ? (상품매입 / sales) * 100 : 0;
@@ -303,4 +286,55 @@ export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanV
         };
       }),
     }));
+}
+
+// ─── 고급 KPI 함수 ──────────────────────────────────────────────────
+
+// Forecast accuracy: 100 - |실적 - 계획| / |계획| * 100
+// Clamped to 0-100
+export function calcForecastAccuracy(orgProfit: OrgProfitRecord[]): number {
+  if (orgProfit.length === 0) return 0;
+  const totalPlan = orgProfit.reduce((s, r) => s + r.매출액.계획, 0);
+  const totalActual = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
+  if (totalPlan === 0) return 0;
+  const accuracy = 100 - Math.abs((totalActual - totalPlan) / totalPlan) * 100;
+  return Math.max(0, Math.min(accuracy, 100));
+}
+
+// Collection efficiency: Collections / (Opening Receivables + Sales) × 100
+export function calcCollectionEfficiency(
+  totalSales: number,
+  totalCollections: number,
+  totalReceivables: number
+): number {
+  const potential = totalReceivables + totalSales;
+  if (potential <= 0) return 0;
+  return (totalCollections / potential) * 100;
+}
+
+// Operating leverage: actual margin / plan margin × 100
+export function calcOperatingLeverage(orgProfit: OrgProfitRecord[]): number {
+  if (orgProfit.length === 0) return 0;
+  const actualMargin = orgProfit.reduce((s, r) => s + r.영업이익율.실적, 0) / orgProfit.length;
+  const planMargin = orgProfit.reduce((s, r) => s + r.영업이익율.계획, 0) / orgProfit.length;
+  if (planMargin === 0) return 0;
+  return (actualMargin / planMargin) * 100;
+}
+
+// Contribution margin rate
+export function calcContributionMarginRate(orgProfit: OrgProfitRecord[]): number {
+  if (orgProfit.length === 0) return 0;
+  const totalSales = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
+  const totalContrib = orgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
+  if (totalSales === 0) return 0;
+  return (totalContrib / totalSales) * 100;
+}
+
+// Gross profit margin
+export function calcGrossProfitMargin(orgProfit: OrgProfitRecord[]): number {
+  if (orgProfit.length === 0) return 0;
+  const totalSales = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
+  const totalGross = orgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
+  if (totalSales === 0) return 0;
+  return (totalGross / totalSales) * 100;
 }

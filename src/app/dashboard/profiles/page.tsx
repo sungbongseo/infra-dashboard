@@ -104,10 +104,12 @@ export default function ProfilesPage() {
   const customerPieData = useMemo(() => {
     if (!selected || selected.topCustomers.length === 0) return [];
     const top5 = selected.topCustomers.slice(0, 5);
-    const topShare = top5.reduce((sum, c) => sum + c.share, 0);
+    // share는 0~1 범위의 소수. 1 초과인 경우 이미 백분율이므로 보정
+    const normalizeShare = (s: number) => (s > 1 ? s / 100 : s);
+    const topShare = top5.reduce((sum, c) => sum + normalizeShare(c.share), 0);
     const result = top5.map((c, i) => ({
       name: c.name,
-      value: Math.round(c.share * 1000) / 10,
+      value: Math.round(normalizeShare(c.share) * 1000) / 10,
       amount: c.amount,
       fill: CHART_COLORS[i % CHART_COLORS.length],
     }));
@@ -363,7 +365,7 @@ export default function ProfilesPage() {
                     <div className="space-y-1 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">최대 거래처 비중</span>
-                        <span className="font-medium">{formatPercent(selected.topCustomerShare * 100)}</span>
+                        <span className="font-medium">{formatPercent((selected.topCustomerShare > 1 ? selected.topCustomerShare : selected.topCustomerShare * 100))}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">활성 거래처 수</span>
@@ -403,7 +405,7 @@ export default function ProfilesPage() {
                           <div key={i} className="space-y-1">
                             <div className="flex justify-between text-xs">
                               <span className="truncate max-w-[180px]">{c.name}</span>
-                              <span className="font-medium ml-2">{formatPercent(c.share * 100)}</span>
+                              <span className="font-medium ml-2">{formatPercent((c.share > 1 ? c.share : c.share * 100))}</span>
                             </div>
                             <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                               <div

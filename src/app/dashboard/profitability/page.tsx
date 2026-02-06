@@ -5,6 +5,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import {
   BarChart,
   Bar,
@@ -25,8 +26,9 @@ import {
   PolarGrid,
   PolarAngleAxis,
   PolarRadiusAxis,
+  ReferenceLine,
 } from "recharts";
-import { TrendingUp, Target } from "lucide-react";
+import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatPercent, filterByOrg, CHART_COLORS } from "@/lib/utils";
 import {
@@ -35,6 +37,16 @@ import {
   calcPlanVsActualHeatmap,
 } from "@/lib/analysis/kpi";
 import type { CostProfileType } from "@/lib/analysis/kpi";
+import {
+  calcProductProfitability,
+  calcCustomerProfitability,
+} from "@/lib/analysis/profitability";
+import {
+  calcProfitRiskMatrix,
+  calcQuadrantSummary,
+} from "@/lib/analysis/profitRiskMatrix";
+import type { ProfitRiskData } from "@/lib/analysis/profitRiskMatrix";
+import { Card, CardContent } from "@/components/ui/card";
 
 const COST_BAR_COLORS: Record<string, string> = {
   원재료비: "hsl(221.2, 83.2%, 53.3%)",
@@ -64,6 +76,20 @@ const RADAR_COLORS = [
   CHART_COLORS[6],
 ];
 
+const QUADRANT_COLORS: Record<ProfitRiskData["quadrant"], string> = {
+  star: "hsl(142.1, 76.2%, 36.3%)",        // green
+  cash_cow: "hsl(221.2, 83.2%, 53.3%)",    // blue
+  problem_child: "hsl(43.3, 96.4%, 56.3%)", // yellow/amber
+  dog: "hsl(346.8, 77.2%, 49.8%)",          // red
+};
+
+const QUADRANT_ICONS: Record<ProfitRiskData["quadrant"], React.ReactNode> = {
+  star: <Star className="h-4 w-4" />,
+  cash_cow: <Shield className="h-4 w-4" />,
+  problem_child: <AlertTriangle className="h-4 w-4" />,
+  dog: <ShieldAlert className="h-4 w-4" />,
+};
+
 function getHeatmapColor(rate: number): string {
   if (rate >= 100) return "bg-emerald-500/80 text-white";
   if (rate >= 80) return "bg-amber-400/80 text-gray-900";
@@ -79,14 +105,17 @@ function getHeatmapBg(rate: number): string {
 }
 
 export default function ProfitabilityPage() {
-  const { orgProfit, teamContribution, orgNames } = useDataStore();
+  const { orgProfit, teamContribution, profitabilityAnalysis, receivableAging, salesList, orgNames } = useDataStore();
 
   const filteredOrgProfit = useMemo(() => filterByOrg(orgProfit, orgNames, "영업조직팀"), [orgProfit, orgNames]);
   const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, orgNames, "영업조직팀"), [teamContribution, orgNames]);
+  const filteredProfAnalysis = useMemo(() => filterByOrg(profitabilityAnalysis, orgNames, "영업조직팀"), [profitabilityAnalysis, orgNames]);
+  const filteredSales = useMemo(() => filterByOrg(salesList, orgNames), [salesList, orgNames]);
+  const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
 
   const hasData = filteredOrgProfit.length > 0;
 
-  // ─── 손익 현황 데이터 ──────────────────────────────
+  // ─── 손익 Waterfall 데이터 ──────────────────────────────
   const waterfallData = useMemo(() => {
     if (filteredOrgProfit.length === 0) return [];
     const totals = filteredOrgProfit.reduce(
@@ -100,14 +129,63 @@ export default function ProfitabilityPage() {
       }),
       { 매출액: 0, 매출원가: 0, 매출총이익: 0, 판관비: 0, 영업이익: 0, 공헌이익: 0 }
     );
-    return [
-      { name: "매출액", value: totals.매출액, fill: CHART_COLORS[0] },
-      { name: "매출원가", value: -totals.매출원가, fill: CHART_COLORS[4] },
-      { name: "매출총이익", value: totals.매출총이익, fill: CHART_COLORS[1] },
-      { name: "판관비", value: -totals.판관비, fill: CHART_COLORS[3] },
-      { name: "영업이익", value: totals.영업이익, fill: CHART_COLORS[0] },
-      { name: "공헌이익", value: totals.공헌이익, fill: CHART_COLORS[2] },
-    ];
+
+    // Waterfall: 각 항목의 base(투명 영역)와 value(색상 영역)를 계산
+    // 매출액(시작) → -매출원가(감소) → =매출총이익(소계) → -판관비(감소) → =영업이익(소계)
+    const items: Array<{
+      name: string;
+      base: number;
+      value: number;
+      fill: string;
+      type: "start" | "decrease" | "subtotal";
+    }> = [];
+
+    // 매출액: 바닥에서 시작
+    items.push({
+      name: "매출액",
+      base: 0,
+      value: totals.매출액,
+      fill: CHART_COLORS[0],
+      type: "start",
+    });
+
+    // 매출원가: 매출액에서 감소
+    items.push({
+      name: "매출원가",
+      base: totals.매출총이익, // 매출액 - 매출원가 = 매출총이익이 바닥
+      value: totals.매출원가,
+      fill: CHART_COLORS[4],
+      type: "decrease",
+    });
+
+    // 매출총이익: 소계 (바닥에서 시작)
+    items.push({
+      name: "매출총이익",
+      base: 0,
+      value: totals.매출총이익,
+      fill: CHART_COLORS[1],
+      type: "subtotal",
+    });
+
+    // 판관비: 매출총이익에서 감소
+    items.push({
+      name: "판관비",
+      base: totals.영업이익, // 매출총이익 - 판관비 = 영업이익이 바닥
+      value: totals.판관비,
+      fill: CHART_COLORS[3],
+      type: "decrease",
+    });
+
+    // 영업이익: 소계 (바닥에서 시작)
+    items.push({
+      name: "영업이익",
+      base: 0,
+      value: totals.영업이익,
+      fill: totals.영업이익 >= 0 ? CHART_COLORS[0] : CHART_COLORS[4],
+      type: "subtotal",
+    });
+
+    return items;
   }, [filteredOrgProfit]);
 
   // ─── 조직 수익성 데이터 ──────────────────────────────
@@ -134,6 +212,20 @@ export default function ProfitabilityPage() {
       })),
     [filteredTeamContribution]
   );
+
+  // ─── 조직별 공헌이익 파이 데이터 ──────────────────────────────
+  const orgContribPie = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of filteredOrgProfit) {
+      const org = r.영업조직팀;
+      if (!org) continue;
+      map.set(org, (map.get(org) || 0) + r.공헌이익.실적);
+    }
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .filter((d) => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [filteredOrgProfit]);
 
   // ─── 비용 구조 데이터 ──────────────────────────────
   const costStructure = useMemo(
@@ -221,7 +313,11 @@ export default function ProfitabilityPage() {
       const entry: Record<string, string | number> = { metric: m };
       for (const org of radarOrgs) {
         const found = orgRatioMetrics.find((r) => r.org === org);
-        entry[org] = found ? Math.abs(found[m]) : 0;
+        // 음수 값은 레이더 차트에서 0으로 표시 (Math.abs 제거 - 손실이 이익으로 표시되는 버그 수정)
+        const rawValue = found ? found[m] : 0;
+        entry[org] = Math.max(rawValue, 0);
+        // 실제 값은 _raw_ 접두사로 저장 (툴팁용)
+        entry[`_raw_${org}`] = rawValue;
       }
       return entry;
     });
@@ -230,6 +326,28 @@ export default function ProfitabilityPage() {
   const heatmapData = useMemo(
     () => calcPlanVsActualHeatmap(filteredOrgProfit),
     [filteredOrgProfit]
+  );
+
+  // ─── 제품/거래처 수익성 분석 (ProfitabilityAnalysisRecord 활용) ──────
+  const productProfitability = useMemo(
+    () => calcProductProfitability(filteredProfAnalysis),
+    [filteredProfAnalysis]
+  );
+
+  const customerProfitability = useMemo(
+    () => calcCustomerProfitability(filteredProfAnalysis),
+    [filteredProfAnalysis]
+  );
+
+  // ─── 수익성 x 리스크 크로스 분석 ──────────────────────────────
+  const profitRiskData = useMemo(
+    () => calcProfitRiskMatrix(filteredOrgProfit, allReceivableRecords, filteredSales),
+    [filteredOrgProfit, allReceivableRecords, filteredSales]
+  );
+
+  const quadrantSummary = useMemo(
+    () => calcQuadrantSummary(profitRiskData),
+    [profitRiskData]
   );
 
   // ─── KPI 합계 ──────────────────────────────
@@ -259,6 +377,8 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="contrib">기여도 분석</TabsTrigger>
           <TabsTrigger value="cost" disabled={filteredTeamContribution.length === 0}>비용 구조</TabsTrigger>
           <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>
+          <TabsTrigger value="product" disabled={filteredProfAnalysis.length === 0}>제품 수익성</TabsTrigger>
+          <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성x리스크</TabsTrigger>
         </TabsList>
 
         {/* ────────── 손익 현황 ────────── */}
@@ -304,21 +424,38 @@ export default function ProfitabilityPage() {
             description="매출에서 각 비용을 차감하여 최종 영업이익까지의 흐름을 보여줍니다. 음수 항목은 비용을 의미합니다."
             benchmark="매출총이익율 30%↑ 양호, 영업이익율 10%↑ 양호"
           >
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={waterfallData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(Math.abs(v), true)} />
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Math.abs(Number(value)))} />
-                  <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                    {waterfallData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <ErrorBoundary>
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={waterfallData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <RechartsTooltip
+                      content={({ payload }) => {
+                        if (!payload || payload.length === 0) return null;
+                        const d = payload[0]?.payload;
+                        if (!d) return null;
+                        return (
+                          <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
+                            <p className="font-semibold mb-1">{d.name}</p>
+                            <p>{d.type === "decrease" ? "(-) " : ""}{formatCurrency(d.value)}</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    {/* 투명 base 영역 */}
+                    <Bar dataKey="base" stackId="waterfall" fill="transparent" />
+                    {/* 실제 값 영역 */}
+                    <Bar dataKey="value" stackId="waterfall" radius={[4, 4, 0, 0]}>
+                      {waterfallData.map((entry, i) => (
+                        <Cell key={i} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ErrorBoundary>
           </ChartCard>
         </TabsContent>
 
@@ -335,7 +472,13 @@ export default function ProfitabilityPage() {
                 <ScatterChart>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis dataKey="x" name="매출액" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                  <YAxis dataKey="y" name="영업이익율" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                  <YAxis
+                    dataKey="y"
+                    name="영업이익율"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => `${v}%`}
+                    domain={[(min: number) => Math.floor(Math.min(min, 0) - 5), (max: number) => Math.ceil(max + 5)]}
+                  />
                   <ZAxis dataKey="z" range={[50, 400]} />
                   <RechartsTooltip
                     content={({ payload }) => {
@@ -350,6 +493,7 @@ export default function ProfitabilityPage() {
                       );
                     }}
                   />
+                  <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" strokeWidth={1} label={{ value: "손익분기", position: "left", fontSize: 10, fill: "hsl(0, 0%, 50%)" }} />
                   <Scatter data={bubbleData} fill={CHART_COLORS[0]}>
                     {bubbleData.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
@@ -363,20 +507,75 @@ export default function ProfitabilityPage() {
 
         {/* ────────── 기여도 분석 ────────── */}
         <TabsContent value="contrib" className="space-y-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            <ChartCard
+              title="담당자별 공헌이익 랭킹"
+              formula="공헌이익 = 매출액 - 변동비"
+              description="담당자별 공헌이익 기여 순위입니다. 공헌이익은 고정비 부담 전 수익을 나타냅니다."
+              benchmark="상위 20% 담당자가 80% 공헌이익 기여가 전형적"
+              className="xl:col-span-2"
+            >
+              <div className="h-[500px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={contribRanking} layout="vertical" margin={{ left: 60 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
+                    <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                    <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+
+            <ChartCard
+              title="조직별 공헌이익 비중"
+              formula="조직 공헌이익 / 전체 공헌이익 × 100"
+              description="조직별 공헌이익 기여 비율입니다. 특정 조직 편중 시 리스크 분산이 필요합니다."
+            >
+              <div className="h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={orgContribPie}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(1)}%`}
+                    >
+                      {orgContribPie.map((_, i) => (
+                        <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          </div>
+
           <ChartCard
-            title="담당자별 공헌이익 랭킹"
-            formula="공헌이익 = 매출액 - 변동비"
-            description="담당자별 공헌이익 기여 순위입니다. 공헌이익은 고정비 부담 전 수익을 나타냅니다."
-            benchmark="상위 20% 담당자가 80% 공헌이익 기여가 전형적"
+            title="담당자별 공헌이익율"
+            formula="공헌이익율 = 공헌이익 / 매출액 × 100"
+            description="담당자별 공헌이익율 순위입니다. 공헌이익율이 높을수록 변동비 효율이 좋습니다."
+            benchmark="공헌이익율 20% 이상이면 양호"
           >
-            <div className="h-[500px]">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={contribRanking} layout="vertical" margin={{ left: 60 }}>
+                <BarChart data={contribRanking}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                  <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
-                  <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} />
-                  <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={[0, 4, 4, 0]} />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                  <RechartsTooltip formatter={(value: any) => `${Number(value).toFixed(1)}%`} />
+                  <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
+                  <Bar dataKey="공헌이익율" name="공헌이익율" radius={[4, 4, 0, 0]}>
+                    {contribRanking.map((entry, i) => (
+                      <Cell key={i} fill={entry.공헌이익율 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -557,7 +756,15 @@ export default function ProfitabilityPage() {
                       />
                     ))}
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    <RechartsTooltip formatter={(value: any) => `${Number(value).toFixed(1)}%`} />
+                    <RechartsTooltip
+                      formatter={(value: any, name: any, props: any) => {
+                        const rawKey = `_raw_${name}`;
+                        const rawValue = props?.payload?.[rawKey];
+                        const actual = rawValue !== undefined ? Number(rawValue) : Number(value);
+                        const suffix = actual < 0 ? " (손실)" : "";
+                        return `${actual.toFixed(1)}%${suffix}`;
+                      }}
+                    />
                   </RadarChart>
                 </ResponsiveContainer>
               </div>
@@ -628,6 +835,286 @@ export default function ProfitabilityPage() {
                 </div>
               </div>
             </ChartCard>
+          </div>
+        </TabsContent>
+
+        {/* ────────── 제품 수익성 ────────── */}
+        <TabsContent value="product" className="space-y-6">
+          {filteredProfAnalysis.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <KpiCard
+                  title="분석 품목 수"
+                  value={productProfitability.length}
+                  format="number"
+                  icon={<Package className="h-5 w-5" />}
+                  formula="품목별 그룹핑 후 고유 품목 수"
+                  description="수익성 분석 대상 품목의 총 수입니다."
+                />
+                <KpiCard
+                  title="최고 수익 품목"
+                  value={productProfitability.length > 0 ? productProfitability[0].grossProfit : 0}
+                  format="currency"
+                  icon={<TrendingUp className="h-5 w-5" />}
+                  formula="품목별 매출총이익 1위"
+                  description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%)` : "데이터 없음"}
+                />
+                <KpiCard
+                  title="평균 매출총이익율"
+                  value={
+                    productProfitability.length > 0
+                      ? productProfitability.reduce((s, p) => s + p.grossMargin, 0) / productProfitability.length
+                      : 0
+                  }
+                  format="percent"
+                  formula="각 품목 매출총이익율의 산술 평균"
+                  description="전체 품목의 평균 매출총이익율입니다. 30% 이상이면 양호합니다."
+                  benchmark="30% 이상 양호"
+                />
+              </div>
+
+              <ChartCard
+                title="품목별 매출총이익 Top 15"
+                formula="매출총이익 = 매출액 - 매출원가"
+                description="매출총이익 기준 상위 15개 품목입니다. 수평 막대 차트로 이익 규모를 비교합니다."
+                benchmark="양수: 이익 품목, 음수: 손실 품목"
+              >
+                <ErrorBoundary>
+                  <div className="h-[500px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={productProfitability.slice(0, 15).map((p) => ({
+                          name: p.product.length > 15 ? p.product.substring(0, 15) + "..." : p.product,
+                          fullName: p.product,
+                          매출총이익: p.grossProfit,
+                          매출총이익율: p.grossMargin,
+                          매출액: p.sales,
+                        }))}
+                        layout="vertical"
+                        margin={{ left: 80 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                        <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                        <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={75} />
+                        <RechartsTooltip
+                          content={({ payload }) => {
+                            if (!payload || payload.length === 0) return null;
+                            const d = payload[0]?.payload;
+                            if (!d) return null;
+                            return (
+                              <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
+                                <p className="font-semibold mb-1">{d.fullName}</p>
+                                <p>매출액: {formatCurrency(d.매출액)}</p>
+                                <p>매출총이익: {formatCurrency(d.매출총이익)}</p>
+                                <p>매출총이익율: {formatPercent(d.매출총이익율)}</p>
+                              </div>
+                            );
+                          }}
+                        />
+                        <Bar dataKey="매출총이익" name="매출총이익" radius={[0, 4, 4, 0]}>
+                          {productProfitability.slice(0, 15).map((p, i) => (
+                            <Cell key={i} fill={p.grossProfit >= 0 ? CHART_COLORS[1] : CHART_COLORS[4]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </ErrorBoundary>
+              </ChartCard>
+
+              <ChartCard
+                title="거래처별 수익성 분석"
+                formula="매출총이익율 = 매출총이익 / 매출액 x 100"
+                description="거래처별 매출, 이익율, 취급 품목 수를 종합적으로 비교합니다."
+                benchmark="매출총이익율 30%↑ 양호 | 영업이익율 10%↑ 양호"
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">거래처</th>
+                        <th className="text-right p-2 font-medium">매출액</th>
+                        <th className="text-right p-2 font-medium">매출총이익</th>
+                        <th className="text-right p-2 font-medium">매출총이익율</th>
+                        <th className="text-right p-2 font-medium">영업이익</th>
+                        <th className="text-right p-2 font-medium">영업이익율</th>
+                        <th className="text-center p-2 font-medium">품목 수</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customerProfitability.slice(0, 20).map((c, i) => (
+                        <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
+                          <td className="p-2 text-xs font-medium truncate max-w-[200px]" title={c.customer}>
+                            {c.customer}
+                          </td>
+                          <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.sales, true)}</td>
+                          <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.grossProfit, true)}</td>
+                          <td className={`p-2 text-right font-mono text-xs ${c.grossMargin >= 30 ? "text-emerald-600" : c.grossMargin < 0 ? "text-red-500" : ""}`}>
+                            {formatPercent(c.grossMargin)}
+                          </td>
+                          <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.operatingProfit, true)}</td>
+                          <td className={`p-2 text-right font-mono text-xs ${c.operatingMargin >= 10 ? "text-emerald-600" : c.operatingMargin < 0 ? "text-red-500" : ""}`}>
+                            {formatPercent(c.operatingMargin)}
+                          </td>
+                          <td className="p-2 text-center text-xs">{c.productCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </ChartCard>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/10 p-12 text-center">
+              <Package className="h-12 w-12 text-muted-foreground/50" />
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">수익성 분석 데이터 없음</h3>
+                <p className="text-xs text-muted-foreground">
+                  손익분석 파일을 업로드하면 품목별/거래처별 수익성 분석을 확인할 수 있습니다.
+                </p>
+              </div>
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ────────── 수익성 x 리스크 ────────── */}
+        <TabsContent value="risk" className="space-y-6">
+          <ChartCard
+            title="수익성 x 리스크 매트릭스"
+            formula="X축: 영업이익율(%), Y축: 리스크 점수(0~100)"
+            description="조직별 수익성과 미수금 리스크를 2차원으로 비교합니다. 우하단(고수익+저리스크)이 가장 이상적입니다."
+            benchmark="기준선: 영업이익율 5% | 리스크 점수 40"
+          >
+            <ErrorBoundary>
+              <div className="h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis
+                      dataKey="profitMargin"
+                      name="영업이익율"
+                      type="number"
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(v) => `${v}%`}
+                      label={{ value: "영업이익율 (%)", position: "insideBottom", offset: -10, fontSize: 11 }}
+                    />
+                    <YAxis
+                      dataKey="riskScore"
+                      name="리스크 점수"
+                      type="number"
+                      tick={{ fontSize: 11 }}
+                      domain={[0, 100]}
+                      label={{ value: "리스크 점수", angle: -90, position: "insideLeft", offset: 10, fontSize: 11 }}
+                    />
+                    <ZAxis dataKey="sales" range={[60, 400]} />
+                    <RechartsTooltip
+                      content={({ payload }) => {
+                        if (!payload || payload.length === 0) return null;
+                        const d = payload[0]?.payload as ProfitRiskData | undefined;
+                        if (!d) return null;
+                        const quadrantLabel: Record<ProfitRiskData["quadrant"], string> = {
+                          star: "스타 (고수익/저리스크)",
+                          cash_cow: "안정형 (저수익/저리스크)",
+                          problem_child: "주의 (고수익/고리스크)",
+                          dog: "위험 (저수익/고리스크)",
+                        };
+                        return (
+                          <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
+                            <p className="font-semibold mb-1">{d.name}</p>
+                            <p>영업이익율: {formatPercent(d.profitMargin)}</p>
+                            <p>리스크 점수: {d.riskScore.toFixed(1)}</p>
+                            <p>매출: {formatCurrency(d.sales, true)}</p>
+                            <p>미수금: {formatCurrency(d.receivables, true)}</p>
+                            <p className="mt-1 pt-1 border-t text-xs text-muted-foreground">
+                              분류: {quadrantLabel[d.quadrant]}
+                            </p>
+                          </div>
+                        );
+                      }}
+                    />
+                    {/* 기준선: 영업이익율 5% */}
+                    <ReferenceLine
+                      x={5}
+                      stroke="hsl(0, 0%, 50%)"
+                      strokeDasharray="4 4"
+                      strokeWidth={1}
+                      label={{ value: "이익율 5%", position: "top", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
+                    />
+                    {/* 기준선: 리스크 점수 40 */}
+                    <ReferenceLine
+                      y={40}
+                      stroke="hsl(0, 0%, 50%)"
+                      strokeDasharray="4 4"
+                      strokeWidth={1}
+                      label={{ value: "리스크 40", position: "right", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
+                    />
+                    <Scatter data={profitRiskData} fill={CHART_COLORS[0]}>
+                      {profitRiskData.map((d, i) => (
+                        <Cell key={i} fill={QUADRANT_COLORS[d.quadrant]} />
+                      ))}
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </ErrorBoundary>
+          </ChartCard>
+
+          {/* 사분면 요약 카드 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quadrantSummary.map((q) => {
+              const bgColors: Record<string, string> = {
+                star: "border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20",
+                cash_cow: "border-blue-500/30 bg-blue-50 dark:bg-blue-950/20",
+                problem_child: "border-amber-500/30 bg-amber-50 dark:bg-amber-950/20",
+                dog: "border-red-500/30 bg-red-50 dark:bg-red-950/20",
+              };
+              const textColors: Record<string, string> = {
+                star: "text-emerald-700 dark:text-emerald-400",
+                cash_cow: "text-blue-700 dark:text-blue-400",
+                problem_child: "text-amber-700 dark:text-amber-400",
+                dog: "text-red-700 dark:text-red-400",
+              };
+              return (
+                <Card key={q.name} className={`border ${bgColors[q.name] || ""}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={textColors[q.name] || ""}>
+                        {QUADRANT_ICONS[q.name as ProfitRiskData["quadrant"]]}
+                      </span>
+                      <h4 className={`text-sm font-semibold ${textColors[q.name] || ""}`}>
+                        {q.koreanName}
+                      </h4>
+                      <span className="ml-auto text-lg font-bold">{q.count}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-1">
+                      매출 합계: {formatCurrency(q.totalSales, true)}
+                    </p>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      {q.recommendation}
+                    </p>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* 범례 */}
+          <div className="flex flex-wrap items-center gap-4 px-2 text-xs text-muted-foreground">
+            <span className="font-medium">사분면 범례:</span>
+            {([
+              { key: "star", label: "스타 (고수익/저리스크)" },
+              { key: "cash_cow", label: "안정형 (저수익/저리스크)" },
+              { key: "problem_child", label: "주의 (고수익/고리스크)" },
+              { key: "dog", label: "위험 (저수익/고리스크)" },
+            ] as const).map(({ key, label }) => (
+              <span key={key} className="flex items-center gap-1">
+                <span
+                  className="inline-block w-3 h-3 rounded-full"
+                  style={{ backgroundColor: QUADRANT_COLORS[key] }}
+                />
+                {label}
+              </span>
+            ))}
           </div>
         </TabsContent>
       </Tabs>
