@@ -6,32 +6,42 @@ import { Info } from "lucide-react";
 import { formatCurrency, formatPercent, formatNumber, calcChangeRate, getChangeColor, getChangeArrow } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
+import { ResponsiveContainer, AreaChart, Area } from "recharts";
 
 interface KpiCardProps {
   title: string;
   value: number;
   previousValue?: number;
+  sparklineData?: number[];
   format: "currency" | "percent" | "number";
   description?: string;
   formula?: string;
   benchmark?: string;
   icon?: React.ReactNode;
   compact?: boolean;
+  onClick?: () => void;
 }
 
 export function KpiCard({
   title,
   value,
   previousValue,
+  sparklineData,
   format,
   description,
   formula,
   benchmark,
   icon,
   compact = true,
+  onClick,
 }: KpiCardProps) {
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
   const hasTooltip = description || formula || benchmark;
+
+  // Sparkline: convert number[] to chart data points
+  const sparkChartData = sparklineData && sparklineData.length >= 2
+    ? sparklineData.map((v, i) => ({ i, v }))
+    : null;
 
   const formattedValue =
     format === "currency"
@@ -42,10 +52,13 @@ export function KpiCard({
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-      <Card className="relative overflow-hidden">
+      <Card
+        className={cn("relative overflow-hidden", onClick && "cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow")}
+        onClick={onClick}
+      >
         <CardContent className="p-5">
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1 min-w-0">
               <div className="flex items-center gap-1.5">
                 <p className="text-sm font-medium text-muted-foreground">{title}</p>
                 {hasTooltip && (
@@ -79,6 +92,28 @@ export function KpiCard({
                 )}
               </div>
               <p className="text-2xl font-bold tracking-tight">{formattedValue}</p>
+              {sparkChartData && (
+                <div className="h-8 w-full mt-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={sparkChartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
+                      <defs>
+                        <linearGradient id={`sparkGrad-${title.replace(/\s/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0.2} />
+                          <stop offset="100%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <Area
+                        type="monotone"
+                        dataKey="v"
+                        stroke="hsl(221.2, 83.2%, 53.3%)"
+                        strokeWidth={1.5}
+                        fill={`url(#sparkGrad-${title.replace(/\s/g, "")})`}
+                        isAnimationActive={false}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              )}
               {changeRate !== null && (
                 <p className={cn("text-xs font-medium", getChangeColor(changeRate))}>
                   {getChangeArrow(changeRate)} {Math.abs(changeRate).toFixed(1)}%

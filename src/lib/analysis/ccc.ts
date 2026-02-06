@@ -19,6 +19,61 @@ export interface CCCAnalysis {
   metrics: CCCMetric[];
 }
 
+export interface DPOEstimationDetail {
+  org: string;
+  dpo: number;
+  profileType: string;
+  cogsRatio: number;
+  원재료비율: number;
+  상품매입비율: number;
+  외주비율: number;
+}
+
+/**
+ * 5-level DPO estimation based on cost profile
+ * 원가 구조(비용 프로파일)에 따라 DPO를 추정
+ * 구매 패턴에 따라 결제 주기가 다르기 때문에 비용 프로파일이 DPO를 결정
+ */
+function estimateDPOFromProfile(
+  cogsRatio: number,
+  원재료비율: number,
+  상품매입비율: number,
+  외주비율: number
+): { dpo: number; profileType: string } {
+  // Level 1: 구매직납형 (상품매입 비중 높음) - 짧은 DPO (구매 즉시 판매)
+  if (상품매입비율 >= 30) return { dpo: 25, profileType: "구매직납형" };
+  // Level 2: 자체생산형 (원재료 비중 높음) - 중간 DPO
+  if (원재료비율 >= 30) return { dpo: 35, profileType: "자체생산형" };
+  // Level 3: 외주의존형 (외주가공 비중 높음) - 긴 DPO
+  if (외주비율 >= 20) return { dpo: 45, profileType: "외주의존형" };
+  // Level 4: 고원가율 혼합형 (COGS 80%+)
+  if (cogsRatio >= 0.8) return { dpo: 50, profileType: "고원가율 혼합형" };
+  // Level 5: 저원가율 혼합형 (서비스/컨설팅 성격)
+  return { dpo: 30, profileType: "저원가율 혼합형" };
+}
+
+/**
+ * TeamContributionRecord에서 원가 프로파일 비율 계산
+ * 원재료비 = 제조변동_원재료비.실적 + 제조변동_부재료비.실적
+ * 상품매입 = 변동_상품매입.실적
+ * 외주가공비 = 판관변동_외주가공비.실적 + 제조변동_외주가공비.실적
+ */
+function calcCostProfileRatios(
+  rawMaterial: number,
+  productPurchase: number,
+  outsourcing: number,
+  totalCOGS: number
+): { 원재료비율: number; 상품매입비율: number; 외주비율: number } {
+  if (totalCOGS <= 0) {
+    return { 원재료비율: 0, 상품매입비율: 0, 외주비율: 0 };
+  }
+  return {
+    원재료비율: (rawMaterial / totalCOGS) * 100,
+    상품매입비율: (productPurchase / totalCOGS) * 100,
+    외주비율: (outsourcing / totalCOGS) * 100,
+  };
+}
+
 /**
  * CCC 등급 분류
  * < 0: excellent (우수) - 매입 결제 전에 매출 회수 완료
@@ -63,56 +118,90 @@ function getRecommendation(classification: CCCClassification, ccc: number, dso: 
 export function estimateDPO(teamContrib: TeamContributionRecord[]): number {
   if (teamContrib.length === 0) return 0;
 
-  // 전체 매출액과 매출원가 합산
+  // 전체 매출액, 매출원가, 비용 프로파일 합산
   let totalRevenue = 0;
   let totalCOGS = 0;
+  let totalRawMaterial = 0;
+  let totalProductPurchase = 0;
+  let totalOutsourcing = 0;
 
   for (const tc of teamContrib) {
     totalRevenue += tc.매출액.실적;
     totalCOGS += tc.실적매출원가.실적;
+    totalRawMaterial += tc.제조변동_원재료비.실적 + tc.제조변동_부재료비.실적;
+    totalProductPurchase += tc.변동_상품매입.실적;
+    totalOutsourcing += tc.판관변동_외주가공비.실적 + tc.제조변동_외주가공비.실적;
   }
 
-  // 매출원가율 계산
-  const cogsRatio = totalRevenue > 0 ? totalCOGS / totalRevenue : 0;
-
-  // 매입채무 데이터가 없으므로, 매출원가율 기반으로 DPO 추정
-  // 매출원가율이 높으면 원자재/상품 매입 비중이 높아 DPO가 길어지는 경향
-  // 기본 DPO 30일 + 매출원가율에 따른 가중치
   if (totalCOGS <= 0) return 0;
 
-  // 업종 특성 반영: 인프라/건설/건자재 업종의 일반적 DPO 범위 30~60일
-  // 매출원가율 80% 이상: 45일, 60~80%: 35일, 60% 미만: 30일
-  if (cogsRatio >= 0.8) return 45;
-  if (cogsRatio >= 0.6) return 35;
-  return 30;
+  const cogsRatio = totalRevenue > 0 ? totalCOGS / totalRevenue : 0;
+  const { 원재료비율, 상품매입비율, 외주비율 } = calcCostProfileRatios(
+    totalRawMaterial,
+    totalProductPurchase,
+    totalOutsourcing,
+    totalCOGS
+  );
+
+  return estimateDPOFromProfile(cogsRatio, 원재료비율, 상품매입비율, 외주비율).dpo;
 }
 
 /**
  * 조직별 DPO 추정
  * 각 조직(영업조직팀)의 매출원가율 기반으로 개별 DPO 추정
  */
-function estimateDPOByOrg(teamContrib: TeamContributionRecord[]): Map<string, number> {
-  const orgData = new Map<string, { revenue: number; cogs: number }>();
+interface OrgCostProfile {
+  revenue: number;
+  cogs: number;
+  rawMaterial: number;
+  productPurchase: number;
+  outsourcing: number;
+}
+
+function buildOrgCostProfiles(
+  teamContrib: TeamContributionRecord[]
+): Map<string, OrgCostProfile> {
+  const orgData = new Map<string, OrgCostProfile>();
 
   for (const tc of teamContrib) {
     const org = (tc.영업조직팀 || "").trim();
     if (!org) continue;
-    const entry = orgData.get(org) || { revenue: 0, cogs: 0 };
+    const entry = orgData.get(org) || {
+      revenue: 0,
+      cogs: 0,
+      rawMaterial: 0,
+      productPurchase: 0,
+      outsourcing: 0,
+    };
     entry.revenue += tc.매출액.실적;
     entry.cogs += tc.실적매출원가.실적;
+    entry.rawMaterial += tc.제조변동_원재료비.실적 + tc.제조변동_부재료비.실적;
+    entry.productPurchase += tc.변동_상품매입.실적;
+    entry.outsourcing += tc.판관변동_외주가공비.실적 + tc.제조변동_외주가공비.실적;
     orgData.set(org, entry);
   }
 
+  return orgData;
+}
+
+function estimateDPOByOrg(teamContrib: TeamContributionRecord[]): Map<string, number> {
+  const orgProfiles = buildOrgCostProfiles(teamContrib);
+
   const dpoMap = new Map<string, number>();
-  for (const [org, data] of Array.from(orgData.entries())) {
+  for (const [org, data] of Array.from(orgProfiles.entries())) {
     if (data.cogs <= 0) {
       dpoMap.set(org, 0);
       continue;
     }
     const cogsRatio = data.revenue > 0 ? data.cogs / data.revenue : 0;
-    if (cogsRatio >= 0.8) dpoMap.set(org, 45);
-    else if (cogsRatio >= 0.6) dpoMap.set(org, 35);
-    else dpoMap.set(org, 30);
+    const { 원재료비율, 상품매입비율, 외주비율 } = calcCostProfileRatios(
+      data.rawMaterial,
+      data.productPurchase,
+      data.outsourcing,
+      data.cogs
+    );
+    const { dpo } = estimateDPOFromProfile(cogsRatio, 원재료비율, 상품매입비율, 외주비율);
+    dpoMap.set(org, dpo);
   }
 
   return dpoMap;
@@ -188,4 +277,56 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
     avgDPO: Math.round(totalDPO / count),
     metrics: cccMetrics,
   };
+}
+
+/**
+ * 조직별 DPO 추정 상세 - 비용 프로파일 유형과 추정 DPO를 투명하게 반환
+ * 대시보드에서 DPO 추정 근거를 표시하기 위한 함수
+ */
+export function estimateDPODetailed(
+  teamContrib: TeamContributionRecord[]
+): DPOEstimationDetail[] {
+  const orgProfiles = buildOrgCostProfiles(teamContrib);
+  const results: DPOEstimationDetail[] = [];
+
+  for (const [org, data] of Array.from(orgProfiles.entries())) {
+    if (data.cogs <= 0) {
+      results.push({
+        org,
+        dpo: 0,
+        profileType: "데이터 없음",
+        cogsRatio: 0,
+        원재료비율: 0,
+        상품매입비율: 0,
+        외주비율: 0,
+      });
+      continue;
+    }
+
+    const cogsRatio = data.revenue > 0 ? data.cogs / data.revenue : 0;
+    const { 원재료비율, 상품매입비율, 외주비율 } = calcCostProfileRatios(
+      data.rawMaterial,
+      data.productPurchase,
+      data.outsourcing,
+      data.cogs
+    );
+    const { dpo, profileType } = estimateDPOFromProfile(
+      cogsRatio,
+      원재료비율,
+      상품매입비율,
+      외주비율
+    );
+
+    results.push({
+      org,
+      dpo,
+      profileType,
+      cogsRatio: Math.round(cogsRatio * 1000) / 1000,
+      원재료비율: Math.round(원재료비율 * 10) / 10,
+      상품매입비율: Math.round(상품매입비율 * 10) / 10,
+      외주비율: Math.round(외주비율 * 10) / 10,
+    });
+  }
+
+  return results.sort((a, b) => b.dpo - a.dpo);
 }

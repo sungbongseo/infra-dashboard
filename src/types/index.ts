@@ -13,6 +13,9 @@ export type FileType =
   | "teamContribution"
   | "profitabilityAnalysis"
   | "receivableAging"
+  | "orgCustomerProfit"      // C1: 303
+  | "hqCustomerItemProfit"   // C2: 304
+  | "customerItemDetail"     // C3: 100
 ;
 
 export interface UploadedFile {

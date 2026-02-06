@@ -1,14 +1,16 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Upload, FileSpreadsheet, Trash2, CheckCircle, AlertCircle, AlertTriangle, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, Trash2, CheckCircle, AlertCircle, AlertTriangle, Loader2, Database } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
 import { parseExcelFile } from "@/lib/excel/parser";
 import { detectFileType } from "@/lib/excel/schemas";
+import { saveDataset, saveAgingData, saveOrgFilter, saveUploadedFiles, clearAllDB, hasStoredData } from "@/lib/db";
+import type { StoredUploadedFile } from "@/lib/db";
 import type { UploadedFile } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +18,9 @@ export function FileUploader() {
   const [isDragging, setIsDragging] = useState(false);
   const [parsing, setParsing] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [dbHasData, setDbHasData] = useState(false);
+  const [restoredFromDB, setRestoredFromDB] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   const {
     orgNames,
@@ -31,9 +36,43 @@ export function FileUploader() {
     setOrgProfit,
     setTeamContribution,
     setProfitabilityAnalysis,
+    setOrgCustomerProfit,
+    setHqCustomerItemProfit,
+    setCustomerItemDetail,
     setReceivableAging,
     clearAllData,
   } = useDataStore();
+
+  const storeIsEmpty = uploadedFiles.length === 0;
+
+  // Check if IndexedDB has stored data on mount
+  useEffect(() => {
+    hasStoredData()
+      .then((has) => setDbHasData(has))
+      .catch(() => setDbHasData(false));
+  }, []);
+
+  // Handle restore from IndexedDB
+  const handleRestore = useCallback(async () => {
+    setRestoring(true);
+    try {
+      await useDataStore.getState().restoreFromDB();
+      setRestoredFromDB(true);
+      setDbHasData(false);
+    } catch (err) {
+      console.error("IndexedDB 복원 실패:", err);
+    } finally {
+      setRestoring(false);
+    }
+  }, []);
+
+  // Handle clear all data including IndexedDB
+  const handleClearAll = useCallback(() => {
+    clearAllData();
+    clearAllDB().catch((err) => console.error("IndexedDB 초기화 실패:", err));
+    setDbHasData(false);
+    setRestoredFromDB(false);
+  }, [clearAllData]);
 
   const processFile = useCallback(
     async (file: File) => {
@@ -123,6 +162,12 @@ export function FileUploader() {
               setTeamContribution(store.teamContribution.filter(byTeam));
             if (store.profitabilityAnalysis.length > 0)
               setProfitabilityAnalysis(store.profitabilityAnalysis.filter(byTeam));
+            if (store.orgCustomerProfit.length > 0)
+              setOrgCustomerProfit(store.orgCustomerProfit.filter(byTeam));
+            if (store.hqCustomerItemProfit.length > 0)
+              setHqCustomerItemProfit(store.hqCustomerItemProfit.filter(byTeam));
+            if (store.customerItemDetail.length > 0)
+              setCustomerItemDetail(store.customerItemDetail.filter(byTeam));
             if (store.receivableAging.size > 0) {
               store.receivableAging.forEach((records, source) => {
                 setReceivableAging(source, records.filter(byName));
@@ -148,6 +193,15 @@ export function FileUploader() {
           case "profitabilityAnalysis":
             setProfitabilityAnalysis(result.data as any[]);
             break;
+          case "orgCustomerProfit":
+            setOrgCustomerProfit(result.data as any[]);
+            break;
+          case "hqCustomerItemProfit":
+            setHqCustomerItemProfit(result.data as any[]);
+            break;
+          case "customerItemDetail":
+            setCustomerItemDetail(result.data as any[]);
+            break;
           case "receivableAging":
             setReceivableAging(result.sourceName || file.name, result.data as any[]);
             break;
@@ -161,6 +215,55 @@ export function FileUploader() {
           filterInfo: result.filterInfo,
           skippedRows: result.skippedRows > 0 ? result.skippedRows : undefined,
         });
+
+        // Save to IndexedDB (fire-and-forget)
+        switch (result.fileType) {
+          case "organization": {
+            const store = useDataStore.getState();
+            saveOrgFilter(
+              Array.from(store.orgNames),
+              Array.from(store.orgCodes)
+            ).catch((e) => console.error("IndexedDB 조직필터 저장 실패:", e));
+            break;
+          }
+          case "salesList":
+          case "collectionList":
+          case "orderList":
+          case "orgProfit":
+          case "teamContribution":
+          case "profitabilityAnalysis":
+          case "orgCustomerProfit":
+          case "hqCustomerItemProfit":
+          case "customerItemDetail":
+            saveDataset(result.fileType, result.data as any[]).catch((e) =>
+              console.error("IndexedDB 데이터셋 저장 실패:", e)
+            );
+            break;
+          case "receivableAging":
+            saveAgingData(result.sourceName || file.name, result.data as any[]).catch((e) =>
+              console.error("IndexedDB 에이징 저장 실패:", e)
+            );
+            break;
+        }
+
+        // Save uploaded files list to IndexedDB (fire-and-forget)
+        const currentFiles = useDataStore.getState().uploadedFiles;
+        const storedFiles: StoredUploadedFile[] = currentFiles
+          .filter((f) => f.status === "ready" || f.status === "error")
+          .map((f) => ({
+            id: f.id,
+            fileName: f.fileName,
+            fileType: f.fileType,
+            uploadedAt: f.uploadedAt,
+            rowCount: f.rowCount,
+            status: f.status,
+            warnings: f.warnings,
+            filterInfo: f.filterInfo,
+            skippedRows: f.skippedRows,
+          }));
+        saveUploadedFiles(storedFiles).catch((e) =>
+          console.error("IndexedDB 파일목록 저장 실패:", e)
+        );
       } catch (err: any) {
         updateUploadedFile(fileId, {
           status: "error",
@@ -171,7 +274,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setReceivableAging]
+    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setReceivableAging]
   );
 
   const handleDrop = useCallback(
@@ -235,6 +338,47 @@ export function FileUploader() {
         </CardContent>
       </Card>
 
+      {/* Restore from IndexedDB */}
+      {dbHasData && storeIsEmpty && !restoredFromDB && (
+        <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30">
+          <CardContent className="flex items-center justify-between py-4">
+            <div className="flex items-center gap-3">
+              <Database className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <div>
+                <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
+                  이전에 저장된 데이터가 있습니다
+                </p>
+                <p className="text-xs text-blue-600 dark:text-blue-400">
+                  파일을 다시 업로드하지 않고 복원할 수 있습니다
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRestore}
+              disabled={restoring}
+              className="border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
+            >
+              {restoring ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <Database className="h-3.5 w-3.5 mr-1" />
+              )}
+              데이터 복원
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Restored from IndexedDB info */}
+      {restoredFromDB && (
+        <div className="flex items-center gap-2 px-3 py-2 text-xs text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/30 rounded-md border border-blue-200 dark:border-blue-800">
+          <Database className="h-3.5 w-3.5 flex-shrink-0" />
+          IndexedDB에서 데이터가 복원되었습니다. 새 파일을 업로드하면 기존 데이터를 덮어씁니다.
+        </div>
+      )}
+
       {/* Parsing Progress */}
       {parsing && (
         <Card>
@@ -254,7 +398,7 @@ export function FileUploader() {
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base">업로드된 파일</CardTitle>
-              <Button variant="outline" size="sm" onClick={clearAllData}>
+              <Button variant="outline" size="sm" onClick={handleClearAll}>
                 <Trash2 className="h-3.5 w-3.5 mr-1" />
                 전체 초기화
               </Button>

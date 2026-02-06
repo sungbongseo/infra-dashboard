@@ -38,6 +38,14 @@ export const FILE_SCHEMAS: FileSchema[] = [
     orgFilterField: "영업조직",
   },
   {
+    fileType: "orgCustomerProfit",
+    pattern: /조직별\s*거래처별\s*손익/,
+    headerRow: 0,
+    hasMergedHeader: true,
+    subHeaderRow: 1,
+    orgFilterField: "영업조직팀",
+  },
+  {
     fileType: "orgProfit",
     pattern: /조직별\s*손익/,
     headerRow: 0,
@@ -56,6 +64,22 @@ export const FILE_SCHEMAS: FileSchema[] = [
   {
     fileType: "profitabilityAnalysis",
     pattern: /수담당자.*수익성\s*분석/,
+    headerRow: 0,
+    hasMergedHeader: true,
+    subHeaderRow: 1,
+    orgFilterField: "영업조직팀",
+  },
+  {
+    fileType: "hqCustomerItemProfit",
+    pattern: /본부\s*거래처\s*품목\s*손익|거래처\s*품목\s*손익/,
+    headerRow: 0,
+    hasMergedHeader: true,
+    subHeaderRow: 1,
+    orgFilterField: "영업조직팀",
+  },
+  {
+    fileType: "customerItemDetail",
+    pattern: /거래처별.*품목별\s*손익|100\s*거래처/,
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,

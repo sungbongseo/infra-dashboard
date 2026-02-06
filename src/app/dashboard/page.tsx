@@ -1,16 +1,22 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useEffect } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
+import { useAlertStore } from "@/stores/alertStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { calcOverviewKpis, calcMonthlyTrends, calcOrgRanking, calcForecastAccuracy, calcCollectionEfficiency, calcOperatingLeverage, calcContributionMarginRate, calcGrossProfitMargin } from "@/lib/analysis/kpi";
+import { calcOverviewKpis, calcMonthlyTrends, calcOrgRanking, calcForecastAccuracy, calcCollectionEfficiency, calcOperatingLeverage, calcContributionMarginRate, calcGrossProfitMargin, calcCollectionRateDetail } from "@/lib/analysis/kpi";
+import { calcSalesForecast } from "@/lib/analysis/forecast";
+import { generateInsights, type InsightSeverity } from "@/lib/analysis/insightGenerator";
+import { calcOverallDSO } from "@/lib/analysis/dso";
+import { estimateDPO } from "@/lib/analysis/ccc";
 import {
   BarChart,
   Bar,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -19,14 +25,15 @@ import {
   ComposedChart,
   Legend,
 } from "recharts";
-import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3 } from "lucide-react";
+import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 
 export default function OverviewPage() {
-  const { salesList, orderList, collectionList, orgProfit, orgNames, isLoading } = useDataStore();
-  const { selectedOrgs, dateRange } = useFilterStore();
+  const { salesList, orderList, collectionList, orgProfit, teamContribution, receivableAging, orgNames, isLoading } = useDataStore();
+  const { selectedOrgs, dateRange, comparisonRange } = useFilterStore();
+  const evaluate = useAlertStore((s) => s.evaluate);
 
   // Use filterStore.selectedOrgs if set, otherwise fall back to dataStore.orgNames
   const effectiveOrgNames = useMemo(() => {
@@ -54,9 +61,17 @@ export default function OverviewPage() {
     [orgProfit, effectiveOrgNames]
   );
 
+  // Flatten receivableAging Map → array, filtered by org
+  const flattenedAging = useMemo(() => {
+    const all: import("@/types").ReceivableAgingRecord[] = [];
+    receivableAging.forEach((records) => all.push(...records));
+    if (effectiveOrgNames.size === 0) return all;
+    return all.filter((r) => effectiveOrgNames.has(r.영업조직));
+  }, [receivableAging, effectiveOrgNames]);
+
   const kpis = useMemo(
-    () => calcOverviewKpis(filteredSales, filteredOrders, filteredCollections, filteredOrgProfit),
-    [filteredSales, filteredOrders, filteredCollections, filteredOrgProfit]
+    () => calcOverviewKpis(filteredSales, filteredOrders, filteredCollections, filteredOrgProfit, flattenedAging),
+    [filteredSales, filteredOrders, filteredCollections, filteredOrgProfit, flattenedAging]
   );
 
   const trends = useMemo(
@@ -77,7 +92,87 @@ export default function OverviewPage() {
   const contributionMarginRate = useMemo(() => calcContributionMarginRate(filteredOrgProfit), [filteredOrgProfit]);
   const grossProfitMargin = useMemo(() => calcGrossProfitMargin(filteredOrgProfit), [filteredOrgProfit]);
 
+  const collectionRateDetail = useMemo(
+    () => calcCollectionRateDetail(filteredSales, filteredCollections),
+    [filteredSales, filteredCollections]
+  );
+
+  const forecast = useMemo(
+    () => filteredSales.length > 0 ? calcSalesForecast(filteredSales, 3) : null,
+    [filteredSales]
+  );
+
+  // ─── Executive Insight Generation ─────────────────────────────
+  const overallDso = useMemo(() => {
+    if (flattenedAging.length === 0 || filteredSales.length === 0) return undefined;
+    return calcOverallDSO(flattenedAging, filteredSales);
+  }, [flattenedAging, filteredSales]);
+
+  const overallCcc = useMemo(() => {
+    if (overallDso === undefined) return undefined;
+    const dpo = estimateDPO(teamContribution);
+    return overallDso - dpo;
+  }, [overallDso, teamContribution]);
+
+  const insights = useMemo(
+    () =>
+      generateInsights({
+        kpis,
+        dso: overallDso,
+        ccc: overallCcc,
+        forecastAccuracy,
+        contributionMarginRate,
+      }),
+    [kpis, overallDso, overallCcc, forecastAccuracy, contributionMarginRate]
+  );
+
+  // ─── Comparison period data (YoY/MoM) ───────────────────────────
+  const compSales = useMemo(() => {
+    if (!comparisonRange) return [];
+    const byOrg = filterByOrg(salesList, effectiveOrgNames);
+    return filterByDateRange(byOrg, comparisonRange, "매출일");
+  }, [salesList, effectiveOrgNames, comparisonRange]);
+
+  const compOrders = useMemo(() => {
+    if (!comparisonRange) return [];
+    const byOrg = filterByOrg(orderList, effectiveOrgNames);
+    return filterByDateRange(byOrg, comparisonRange, "수주일");
+  }, [orderList, effectiveOrgNames, comparisonRange]);
+
+  const compCollections = useMemo(() => {
+    if (!comparisonRange) return [];
+    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
+    return filterByDateRange(byOrg, comparisonRange, "수금일");
+  }, [collectionList, effectiveOrgNames, comparisonRange]);
+
+  const compKpis = useMemo(() => {
+    if (!comparisonRange) return null;
+    return calcOverviewKpis(compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging);
+  }, [comparisonRange, compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging]);
+
+  // ─── Sparkline data (last 6 months from trends) ────────────────
+  const sparklines = useMemo(() => {
+    const sorted = [...trends].sort((a, b) => a.month.localeCompare(b.month));
+    const recent = sorted.slice(-6);
+    return {
+      sales: recent.map((t) => t.매출),
+      orders: recent.map((t) => t.수주),
+      collections: recent.map((t) => t.수금),
+    };
+  }, [trends]);
+
   const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
+
+  // ─── Alert evaluation ──────────────────────────────────────────
+  useEffect(() => {
+    if (hasData) {
+      evaluate({
+        collectionRate: kpis.collectionRate,
+        operatingProfitRate: kpis.operatingProfitRate,
+        salesPlanAchievement: kpis.salesPlanAchievement,
+      });
+    }
+  }, [kpis, hasData, evaluate]);
 
   if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
@@ -89,6 +184,46 @@ export default function OverviewPage() {
         <p className="text-muted-foreground">인프라 사업본부 영업 현황 요약</p>
       </div>
 
+      {/* Executive Insight Summary */}
+      {insights.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {insights.slice(0, 4).map((insight) => {
+            const styles: Record<InsightSeverity, string> = {
+              critical: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
+              warning: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
+              positive: "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800",
+              neutral: "bg-gray-50 dark:bg-gray-800/30 border-gray-200 dark:border-gray-700",
+            };
+            const iconColors: Record<InsightSeverity, string> = {
+              critical: "text-red-600 dark:text-red-400",
+              warning: "text-amber-600 dark:text-amber-400",
+              positive: "text-green-600 dark:text-green-400",
+              neutral: "text-gray-500 dark:text-gray-400",
+            };
+            return (
+              <div
+                key={insight.id}
+                className={`rounded-lg border p-3 ${styles[insight.severity]}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  {insight.severity === "critical" || insight.severity === "warning" ? (
+                    <AlertCircle className={`h-4 w-4 flex-shrink-0 ${iconColors[insight.severity]}`} />
+                  ) : (
+                    <CheckCircle2 className={`h-4 w-4 flex-shrink-0 ${iconColors[insight.severity]}`} />
+                  )}
+                  <span className={`text-sm font-semibold ${iconColors[insight.severity]}`}>
+                    {insight.title}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed ml-6">
+                  {insight.message}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       <Tabs defaultValue="core-kpi" className="space-y-4">
         <TabsList>
           <TabsTrigger value="core-kpi">핵심 지표</TabsTrigger>
@@ -97,10 +232,12 @@ export default function OverviewPage() {
 
         <TabsContent value="core-kpi" className="space-y-6">
           {/* KPI Cards - Row 1 */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <KpiCard
               title="총 매출액"
               value={kpis.totalSales}
+              previousValue={compKpis?.totalSales}
+              sparklineData={sparklines.sales}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
               formula="SUM(매출리스트.장부금액)"
@@ -109,6 +246,8 @@ export default function OverviewPage() {
             <KpiCard
               title="총 수주액"
               value={kpis.totalOrders}
+              previousValue={compKpis?.totalOrders}
+              sparklineData={sparklines.orders}
               format="currency"
               icon={<ShoppingCart className="h-5 w-5" />}
               formula="SUM(수주리스트.장부금액)"
@@ -117,6 +256,7 @@ export default function OverviewPage() {
             <KpiCard
               title="수주잔고"
               value={kpis.totalOrders - kpis.totalSales > 0 ? kpis.totalOrders - kpis.totalSales : 0}
+              previousValue={compKpis ? (compKpis.totalOrders - compKpis.totalSales > 0 ? compKpis.totalOrders - compKpis.totalSales : 0) : undefined}
               format="currency"
               icon={<Package className="h-5 w-5" />}
               formula="총수주액 - 총매출액"
@@ -124,16 +264,27 @@ export default function OverviewPage() {
               benchmark="매출 대비 50% 이상이면 양호한 파이프라인"
             />
             <KpiCard
-              title="수금율"
-              value={kpis.collectionRate}
+              title="수금율 (총)"
+              value={collectionRateDetail.totalCollectionRate}
+              previousValue={compKpis?.collectionRate}
+              sparklineData={sparklines.collections}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
               formula="총수금액 / 총매출액 × 100"
-              description={kpis.collectionRate > 100
+              description={collectionRateDetail.totalCollectionRate > 100
                 ? "100% 초과는 전기 이월 미수금 수금 또는 선수금 포함 시 발생합니다."
-                : "총 매출 대비 수금된 비율입니다."
+                : "총 매출 대비 수금된 비율입니다 (선수금 포함)."
               }
               benchmark="80% 이상이면 양호"
+            />
+            <KpiCard
+              title="수금율 (순수)"
+              value={collectionRateDetail.netCollectionRate}
+              format="percent"
+              icon={<Wallet className="h-5 w-5" />}
+              formula="(총수금액 - 선수금) / 총매출액 × 100"
+              description={`선수금 ${formatCurrency(collectionRateDetail.prepaymentAmount)}을 제외한 순수 수금율입니다.`}
+              benchmark="선수금 제외 시 실질 수금 성과 파악 가능"
             />
           </div>
           {/* KPI Cards - Row 2 */}
@@ -141,14 +292,19 @@ export default function OverviewPage() {
             <KpiCard
               title="미수금 합계"
               value={kpis.totalReceivables}
+              previousValue={compKpis?.totalReceivables}
               format="currency"
               icon={<CreditCard className="h-5 w-5" />}
-              formula="총매출액 - 총수금액"
-              description="아직 회수되지 않은 매출채권 잔액입니다."
+              formula={flattenedAging.length > 0 ? "SUM(미수금에이징.합계.장부금액)" : "총매출액 - 총수금액"}
+              description={flattenedAging.length > 0
+                ? "미수금 에이징 데이터 기반 정확 산출입니다."
+                : "에이징 데이터 미업로드 시 매출-수금 차감으로 추정합니다."
+              }
             />
             <KpiCard
               title="영업이익율"
               value={kpis.operatingProfitRate}
+              previousValue={compKpis?.operatingProfitRate}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
               formula="영업이익 / 매출액 × 100"
@@ -158,6 +314,7 @@ export default function OverviewPage() {
             <KpiCard
               title="매출 계획 달성율"
               value={kpis.salesPlanAchievement}
+              previousValue={compKpis?.salesPlanAchievement}
               format="percent"
               icon={<Target className="h-5 w-5" />}
               formula="매출실적 / 매출계획 × 100"
@@ -166,6 +323,7 @@ export default function OverviewPage() {
             <KpiCard
               title="수주 건수"
               value={filteredOrders.length}
+              previousValue={compKpis ? compOrders.length : undefined}
               format="number"
               icon={<ShoppingCart className="h-5 w-5" />}
               description="분석 기간 내 총 수주 건수입니다."
@@ -253,6 +411,31 @@ export default function OverviewPage() {
               </ResponsiveContainer>
             </div>
           </ChartCard>
+
+          {forecast && forecast.points.length > 3 && (
+            <ChartCard
+              title="매출 추이 및 예측"
+              formula={`y = ${formatCurrency(forecast.stats.slope, true)}/월 + ${formatCurrency(forecast.stats.intercept, true)} (R² = ${forecast.stats.r2.toFixed(2)})`}
+              description={`추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"} (월평균 ${forecast.stats.avgGrowthRate.toFixed(1)}% 성장)`}
+            >
+              <div className="h-64 md:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={forecast.points}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <RechartsTooltip formatter={(v: any) => v != null ? formatCurrency(Number(v)) : "–"} {...TOOLTIP_STYLE} />
+                    <Legend />
+                    <Bar dataKey="actual" name="실적" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                    <Line type="monotone" dataKey="movingAvg3" name="3개월 이동평균" stroke={CHART_COLORS[3]} strokeWidth={1.5} dot={false} connectNulls />
+                    <Line type="monotone" dataKey="forecast" name="예측" stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls />
+                    <Area type="monotone" dataKey="upperBound" name="상한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.1} connectNulls />
+                    <Area type="monotone" dataKey="lowerBound" name="하한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.05} connectNulls />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )}
         </TabsContent>
 
         <TabsContent value="org-analysis" className="space-y-6">

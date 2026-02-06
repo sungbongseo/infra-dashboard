@@ -4,6 +4,7 @@ import { Moon, Sun, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/stores/uiStore";
 import { useDataStore } from "@/stores/dataStore";
+import { AlertPanel } from "@/components/dashboard/AlertPanel";
 
 export function Header() {
   const { darkMode, toggleDarkMode, toggleSidebar, sidebarOpen } = useUIStore();
@@ -30,6 +31,7 @@ export function Header() {
             데이터: {readyCount}개 파일 로드됨
           </span>
         )}
+        <AlertPanel />
         <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>

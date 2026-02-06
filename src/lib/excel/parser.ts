@@ -5,6 +5,9 @@ import type {
   OrderRecord,
   OrgProfitRecord,
   ProfitabilityAnalysisRecord,
+  OrgCustomerProfitRecord,
+  HqCustomerItemProfitRecord,
+  CustomerItemDetailRecord,
   ReceivableAgingRecord,
   PlanActualDiff,
   AgingAmounts,
@@ -315,6 +318,75 @@ export function parseExcelFile(
       parsed = r.parsed; skippedRows = r.skipped;
       break;
     }
+    case "orgCustomerProfit": {
+      const r = safeParseRows<OrgCustomerProfitRecord>(rawData, 2, (row) => ({
+        No: num(row[0]),
+        영업조직팀: str(row[1]),
+        거래처대분류: str(row[2]),
+        거래처중분류: str(row[3]),
+        거래처소분류: str(row[4]),
+        매출거래처: str(row[5]),
+        매출거래처명: str(row[6]),
+        매출액: parsePlanActualDiff(row, 7),
+        실적매출원가: parsePlanActualDiff(row, 10),
+        매출총이익: parsePlanActualDiff(row, 13),
+        판매관리비: parsePlanActualDiff(row, 16),
+        영업이익: parsePlanActualDiff(row, 19),
+        매출총이익율: parsePlanActualDiff(row, 22),
+        영업이익율: parsePlanActualDiff(row, 25),
+      }), warnings, "조직별거래처별손익");
+      parsed = r.parsed; skippedRows = r.skipped;
+      break;
+    }
+    case "hqCustomerItemProfit": {
+      const r = safeParseRows<HqCustomerItemProfitRecord>(rawData, 2, (row) => ({
+        No: num(row[0]),
+        영업조직팀: str(row[1]),
+        매출거래처: str(row[2]),
+        매출거래처명: str(row[3]),
+        품목: str(row[4]),
+        품목명: str(row[5]),
+        매출수량: parsePlanActualDiff(row, 6),
+        매출액: parsePlanActualDiff(row, 9),
+        실적매출원가: parsePlanActualDiff(row, 12),
+        매출총이익: parsePlanActualDiff(row, 15),
+        판매관리비: parsePlanActualDiff(row, 18),
+        영업이익: parsePlanActualDiff(row, 21),
+        매출총이익율: parsePlanActualDiff(row, 24),
+        영업이익율: parsePlanActualDiff(row, 27),
+      }), warnings, "본부거래처품목손익");
+      parsed = r.parsed; skippedRows = r.skipped;
+      break;
+    }
+    case "customerItemDetail": {
+      const r = safeParseRows<CustomerItemDetailRecord>(rawData, 2, (row) => ({
+        No: num(row[0]),
+        영업조직팀: str(row[1]),
+        영업담당사번: str(row[2]),
+        매출거래처: str(row[3]),
+        매출거래처명: str(row[4]),
+        품목: str(row[5]),
+        품목명: str(row[6]),
+        거래처대분류: str(row[7]),
+        거래처중분류: str(row[8]),
+        거래처소분류: str(row[9]),
+        제품군: str(row[10]),
+        제품내수매출: parsePlanActualDiff(row, 11),
+        제품수출매출: parsePlanActualDiff(row, 14),
+        매출수량: parsePlanActualDiff(row, 17),
+        환산수량: parsePlanActualDiff(row, 20),
+        매출액: parsePlanActualDiff(row, 23),
+        실적매출원가: parsePlanActualDiff(row, 26),
+        매출총이익: parsePlanActualDiff(row, 29),
+        판매관리비: parsePlanActualDiff(row, 32),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 35),
+        영업이익: parsePlanActualDiff(row, 38),
+        매출총이익율: parsePlanActualDiff(row, 41),
+        영업이익율: parsePlanActualDiff(row, 44),
+      }), warnings, "거래처별품목별손익");
+      parsed = r.parsed; skippedRows = r.skipped;
+      break;
+    }
     case "receivableAging":
       parsed = parseReceivableAging(rawData);
       break;
@@ -355,4 +427,73 @@ export function parseExcelFile(
   }
 
   return result;
+}
+
+// ── Data Quality Metrics ──────────────────────────────────────
+
+export interface DataQualityMetrics {
+  fileType: string;
+  totalRows: number;
+  parsedRows: number;
+  skippedRows: number;
+  parseSuccessRate: number; // parsedRows / totalRows * 100
+  nullFieldCounts: Record<string, number>; // field name → count of null/empty values
+  completenessRate: number; // average field fill rate
+}
+
+/**
+ * 파싱된 데이터에 대해 품질 지표를 계산합니다.
+ * PlanActualDiff 타입 필드(객체)는 존재 여부로 판별하고,
+ * 일반 필드는 null/undefined/빈문자열/NaN을 빈 값으로 처리합니다.
+ */
+export function calcDataQualityMetrics(
+  data: any[],
+  fileType: string,
+  requiredFields: string[]
+): DataQualityMetrics {
+  if (data.length === 0) {
+    return {
+      fileType,
+      totalRows: 0,
+      parsedRows: 0,
+      skippedRows: 0,
+      parseSuccessRate: 100,
+      nullFieldCounts: {},
+      completenessRate: 100,
+    };
+  }
+
+  const nullFieldCounts: Record<string, number> = {};
+  for (const field of requiredFields) {
+    nullFieldCounts[field] = 0;
+  }
+
+  for (const row of data) {
+    for (const field of requiredFields) {
+      const val = row[field];
+      // PlanActualDiff 객체 필드: 존재하고 객체이면 유효
+      if (val !== null && val !== undefined && typeof val === "object") {
+        continue;
+      }
+      // 일반 필드: null, undefined, 빈문자열, NaN은 빈 값
+      if (val === undefined || val === null || val === "" || (typeof val === "number" && isNaN(val))) {
+        nullFieldCounts[field] = (nullFieldCounts[field] || 0) + 1;
+      }
+    }
+  }
+
+  const totalFieldChecks = data.length * requiredFields.length;
+  const totalNulls = Object.values(nullFieldCounts).reduce((s, n) => s + n, 0);
+  const completenessRate =
+    totalFieldChecks > 0 ? ((totalFieldChecks - totalNulls) / totalFieldChecks) * 100 : 100;
+
+  return {
+    fileType,
+    totalRows: data.length,
+    parsedRows: data.length,
+    skippedRows: 0,
+    parseSuccessRate: 100,
+    nullFieldCounts,
+    completenessRate,
+  };
 }

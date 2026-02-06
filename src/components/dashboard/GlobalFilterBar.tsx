@@ -3,20 +3,25 @@
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
+import type { ComparisonPreset } from "@/stores/filterStore";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as Popover from "@radix-ui/react-popover";
 import * as Checkbox from "@radix-ui/react-checkbox";
-import { Filter, X, Building2, Calendar, Check } from "lucide-react";
+import { Filter, X, Building2, Calendar, Check, GitCompareArrows } from "lucide-react";
 
 export function GlobalFilterBar() {
   const orgNames = useDataStore((s) => s.orgNames);
   const {
     selectedOrgs,
     dateRange,
+    comparisonRange,
+    comparisonPreset,
     setSelectedOrgs,
     setDateRange,
+    setComparisonRange,
+    applyComparisonPreset,
     resetFilters,
   } = useFilterStore();
 
@@ -24,13 +29,24 @@ export function GlobalFilterBar() {
 
   const orgList = useMemo(() => Array.from(orgNames).sort(), [orgNames]);
 
+  const [compPopoverOpen, setCompPopoverOpen] = useState(false);
+
   // Count active filters
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedOrgs.length > 0) count++;
     if (dateRange) count++;
+    if (comparisonRange) count++;
     return count;
-  }, [selectedOrgs, dateRange]);
+  }, [selectedOrgs, dateRange, comparisonRange]);
+
+  const COMPARISON_PRESETS: { value: ComparisonPreset; label: string }[] = [
+    { value: null, label: "비교 없음" },
+    { value: "prev_month", label: "전월 대비" },
+    { value: "prev_quarter", label: "전분기 대비" },
+    { value: "prev_year", label: "전년 동기" },
+    { value: "custom", label: "사용자 지정" },
+  ];
 
   const handleOrgToggle = (org: string) => {
     if (selectedOrgs.includes(org)) {
@@ -185,6 +201,89 @@ export function GlobalFilterBar() {
         />
       </div>
 
+      {/* Comparison period */}
+      <div className="h-6 w-px bg-border" />
+      <Popover.Root open={compPopoverOpen} onOpenChange={setCompPopoverOpen}>
+        <Popover.Trigger asChild>
+          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+            <GitCompareArrows className="h-3.5 w-3.5" />
+            <span>
+              {comparisonPreset === "prev_month" ? "전월" :
+               comparisonPreset === "prev_quarter" ? "전분기" :
+               comparisonPreset === "prev_year" ? "전년" :
+               comparisonPreset === "custom" ? "사용자지정" : "비교기간"}
+            </span>
+          </Button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            className="z-50 w-72 rounded-lg border bg-popover p-3 shadow-md animate-in fade-in-0 zoom-in-95"
+            sideOffset={5}
+            align="start"
+          >
+            <p className="text-xs font-medium text-muted-foreground mb-2">비교 기간 프리셋</p>
+            <div className="space-y-1">
+              {COMPARISON_PRESETS.map((p) => (
+                <button
+                  key={p.value ?? "none"}
+                  className={`w-full text-left px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    comparisonPreset === p.value
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent"
+                  }`}
+                  onClick={() => {
+                    applyComparisonPreset(p.value);
+                    if (p.value !== "custom") setCompPopoverOpen(false);
+                  }}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {comparisonPreset === "custom" && (
+              <div className="mt-3 pt-3 border-t space-y-2">
+                <p className="text-xs text-muted-foreground">비교 기간 직접 입력</p>
+                <div className="flex items-center gap-1.5">
+                  <input
+                    type="month"
+                    value={comparisonRange?.from || ""}
+                    onChange={(e) =>
+                      setComparisonRange({
+                        from: e.target.value,
+                        to: comparisonRange?.to || e.target.value,
+                      })
+                    }
+                    className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                  <span className="text-xs text-muted-foreground">~</span>
+                  <input
+                    type="month"
+                    value={comparisonRange?.to || ""}
+                    onChange={(e) =>
+                      setComparisonRange({
+                        from: comparisonRange?.from || e.target.value,
+                        to: e.target.value,
+                      })
+                    }
+                    className="h-7 flex-1 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                  />
+                </div>
+              </div>
+            )}
+            {comparisonRange && !dateRange && (
+              <p className="mt-2 text-[10px] text-amber-600 dark:text-amber-400">
+                기간 필터를 먼저 설정하면 프리셋이 자동 계산됩니다
+              </p>
+            )}
+            {comparisonRange && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                비교: {comparisonRange.from || "?"} ~ {comparisonRange.to || "?"}
+              </p>
+            )}
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+
       {/* Reset button */}
       {activeFilterCount > 0 && (
         <>
@@ -218,6 +317,17 @@ export function GlobalFilterBar() {
           기간: {dateRange.from || "?"} ~ {dateRange.to || "?"}
           <button
             onClick={() => setDateRange(null)}
+            className="ml-0.5 hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      )}
+      {comparisonRange && (comparisonRange.from || comparisonRange.to) && (
+        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+          비교: {comparisonRange.from || "?"} ~ {comparisonRange.to || "?"}
+          <button
+            onClick={() => applyComparisonPreset(null)}
             className="ml-0.5 hover:text-foreground"
           >
             <X className="h-3 w-3" />

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments, calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
 import { calcDSOByOrg, calcOverallDSO } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
+import { calcPrepaymentSummary, calcOrgPrepayments, calcMonthlyPrepayments } from "@/lib/analysis/prepayment";
 import {
   BarChart,
   Bar,
@@ -21,8 +22,10 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
+  ComposedChart,
+  Line,
 } from "recharts";
-import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge, Clock, RefreshCw } from "lucide-react";
+import { CreditCard, AlertTriangle, Shield, Users, Landmark, TrendingUp, Ban, Gauge, Clock, RefreshCw, Wallet, Building2, Percent } from "lucide-react";
 import { Cell, ReferenceLine } from "recharts";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
@@ -46,7 +49,7 @@ const DSO_LABELS: Record<string, string> = {
 };
 
 export default function ReceivablesPage() {
-  const { receivableAging, salesList, teamContribution, orgNames } = useDataStore();
+  const { receivableAging, salesList, collectionList, teamContribution, orgNames } = useDataStore();
   const isLoading = useDataStore((s) => s.isLoading);
   const { selectedOrgs, dateRange } = useFilterStore();
 
@@ -113,6 +116,20 @@ export default function ReceivablesPage() {
     () => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"),
     [teamContribution, effectiveOrgNames]
   );
+
+  // 선수금 분석
+  const filteredCollections = useMemo(
+    () => filterByDateRange(filterByOrg(collectionList, effectiveOrgNames, "영업조직"), dateRange, "수금일"),
+    [collectionList, effectiveOrgNames, dateRange]
+  );
+
+  const prepaymentSummary = useMemo(() => {
+    const totalSales = filteredSales.reduce((s, r) => s + r.장부금액, 0);
+    return calcPrepaymentSummary(filteredCollections, totalSales);
+  }, [filteredCollections, filteredSales]);
+
+  const orgPrepayments = useMemo(() => calcOrgPrepayments(filteredCollections), [filteredCollections]);
+  const monthlyPrepayments = useMemo(() => calcMonthlyPrepayments(filteredCollections), [filteredCollections]);
 
   const dsoMetrics = useMemo(
     () => calcDSOByOrg(allRecords, filteredSales),
@@ -324,6 +341,7 @@ export default function ReceivablesPage() {
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
           <TabsTrigger value="credit">여신 관리</TabsTrigger>
           <TabsTrigger value="dso">DSO/CCC</TabsTrigger>
+          <TabsTrigger value="prepayment">선수금</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -683,6 +701,115 @@ export default function ReceivablesPage() {
               searchPlaceholder="조직 검색..."
               defaultPageSize={20}
             />
+          </ChartCard>
+        </TabsContent>
+
+        <TabsContent value="prepayment" className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="총 선수금"
+              value={prepaymentSummary.totalPrepayment}
+              format="currency"
+              icon={<Wallet className="h-5 w-5" />}
+              formula="SUM(수금목록의 선수금액)"
+              description="거래처로부터 미리 받은 선수금 총액입니다. 향후 매출로 인식될 예정인 금액입니다."
+              benchmark="매출 대비 적정 비율 유지 필요"
+            />
+            <KpiCard
+              title="장부 선수금"
+              value={prepaymentSummary.totalBookPrepayment}
+              format="currency"
+              icon={<Landmark className="h-5 w-5" />}
+              formula="SUM(수금목록의 장부선수금액)"
+              description="회계 장부에 기록된 선수금 총액입니다. 통화 환산 차이로 선수금액과 차이가 발생할 수 있습니다."
+              benchmark="선수금액과 장부선수금액 차이가 크면 환율 변동 점검"
+            />
+            <KpiCard
+              title="매출 대비 비중"
+              value={prepaymentSummary.prepaymentToSalesRatio}
+              format="percent"
+              icon={<Percent className="h-5 w-5" />}
+              formula="총 선수금 / 총 매출액 × 100"
+              description="매출액 대비 선수금 비율입니다. 높을수록 선수금 의존도가 높으며, 향후 이행 의무가 큰 상태입니다."
+              benchmark="10% 미만 양호, 20% 이상 시 이행 리스크 점검"
+            />
+            <KpiCard
+              title="해당 조직 수"
+              value={prepaymentSummary.orgCount}
+              format="number"
+              icon={<Building2 className="h-5 w-5" />}
+              description="선수금이 발생한 조직 수입니다."
+            />
+          </div>
+
+          {filteredCollections.length === 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                수금 데이터가 업로드되지 않아 선수금 분석을 수행할 수 없습니다. 수금목록 엑셀 파일을 업로드하면 선수금 분석이 가능합니다.
+              </p>
+            </div>
+          )}
+
+          <ChartCard
+            title="조직별 선수금 현황"
+            formula="SUM(선수금액) GROUP BY 영업조직\nTOP 10 기준 내림차순 정렬"
+            description="조직별 선수금 상위 10개 조직입니다. 특정 조직에 선수금이 집중되어 있다면 이행 리스크를 점검해야 합니다."
+            benchmark="단일 조직 선수금이 전체의 30% 이상이면 집중도 과다"
+          >
+            <div className="h-80 md:h-[500px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orgPrepayments.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
+                  <RechartsTooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(value: any, name: any) => [
+                      formatCurrency(Number(value)),
+                      name === "prepayment" ? "선수금" : "장부선수금",
+                    ]}
+                    labelFormatter={(label) => `조직: ${label}`}
+                  />
+                  <Legend formatter={(value) => (value === "prepayment" ? "선수금" : "장부선수금")} />
+                  <Bar dataKey="prepayment" name="prepayment" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          <ChartCard
+            title="월별 선수금 추이"
+            formula="SUM(선수금액) GROUP BY 수금월\nBar = 선수금, Line = 장부선수금"
+            description="월별 선수금 발생 추이입니다. 선수금과 장부선수금의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."
+            benchmark="월별 변동폭이 크면 계절성 또는 대형 프로젝트 영향 확인"
+          >
+            <div className="h-72 md:h-96">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={monthlyPrepayments}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <RechartsTooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(value: any, name: any) => [
+                      formatCurrency(Number(value)),
+                      name === "prepayment" ? "선수금" : "장부선수금",
+                    ]}
+                  />
+                  <Legend formatter={(value) => (value === "prepayment" ? "선수금" : "장부선수금")} />
+                  <Bar dataKey="prepayment" name="prepayment" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                  <Line
+                    type="monotone"
+                    dataKey="bookPrepayment"
+                    name="bookPrepayment"
+                    stroke={CHART_COLORS[3]}
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
           </ChartCard>
         </TabsContent>
       </Tabs>

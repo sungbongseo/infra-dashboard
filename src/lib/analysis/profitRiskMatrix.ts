@@ -53,9 +53,9 @@ function classifyRiskGrade(riskScore: number): ProfitRiskData["riskGrade"] {
 
 /**
  * 조직별 리스크 점수 계산
- * 미수금 장기화 비중(month4~overdue)을 기반으로 0-100 점수 산출
+ * 미수금 장기화 비중(month3~overdue)을 기반으로 0-100 점수 산출
  *
- * 리스크 점수 = (4개월 이상 장기미수금 / 총 미수금) * 100
+ * 리스크 점수 = (3개월(90일) 이상 장기미수금 / 총 미수금) * 100
  * 미수금이 0이면 리스크 0
  */
 function calcOrgRiskScores(
@@ -74,8 +74,9 @@ function calcOrgRiskScores(
     const entry = orgMap.get(org) || { total: 0, longTerm: 0 };
 
     const total = r.합계.장부금액;
-    // 4개월 이상 장기 미수금 (month4 + month5 + month6 + overdue)
+    // SAP FI-AR 표준: month3(90일) 이상 장기 미수금
     const longTerm =
+      r.month3.장부금액 +
       r.month4.장부금액 +
       r.month5.장부금액 +
       r.month6.장부금액 +

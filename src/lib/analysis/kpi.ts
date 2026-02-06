@@ -1,4 +1,4 @@
-import type { SalesRecord, CollectionRecord, OrderRecord, OrgProfitRecord, TeamContributionRecord } from "@/types";
+import type { SalesRecord, CollectionRecord, OrderRecord, OrgProfitRecord, TeamContributionRecord, ReceivableAgingRecord } from "@/types";
 import { extractMonth } from "@/lib/utils";
 
 export interface OverviewKpis {
@@ -15,13 +15,16 @@ export function calcOverviewKpis(
   sales: SalesRecord[],
   orders: OrderRecord[],
   collections: CollectionRecord[],
-  orgProfit: OrgProfitRecord[]
+  orgProfit: OrgProfitRecord[],
+  receivableAging?: ReceivableAgingRecord[]
 ): OverviewKpis {
   const totalSales = sales.reduce((sum, r) => sum + r.장부금액, 0);
   const totalOrders = orders.reduce((sum, r) => sum + r.장부금액, 0);
   const totalCollection = collections.reduce((sum, r) => sum + r.장부수금액, 0);
   const collectionRate = totalSales > 0 ? (totalCollection / totalSales) * 100 : 0;
-  const totalReceivables = totalSales - totalCollection;
+  const totalReceivables = receivableAging && receivableAging.length > 0
+    ? receivableAging.reduce((sum, r) => sum + r.합계.장부금액, 0)
+    : totalSales - totalCollection;
 
   const opSum = orgProfit.reduce((sum, r) => sum + r.영업이익.실적, 0);
   const salesSum = orgProfit.reduce((sum, r) => sum + r.매출액.실적, 0);
@@ -131,6 +134,51 @@ export function calcSalesByType(sales: SalesRecord[]) {
   const domestic = sales.filter(r => r.수주유형 !== "수출" && r.거래통화 === "KRW").reduce((s, r) => s + r.장부금액, 0);
   const exported = sales.filter(r => r.수주유형 === "수출" || r.거래통화 !== "KRW").reduce((s, r) => s + r.장부금액, 0);
   return { domestic, exported };
+}
+
+// ─── 비용 구조 음수 매출 경고 (E1) ──────────────────────────────────
+
+/**
+ * 매출액이 음수인 행(반품/환불/대변전표) 수를 반환.
+ * 비용구조 분석에서 이 행들은 제외되므로, UI에서 경고 표시용으로 사용.
+ */
+export function countNegativeSalesRows(teamContribData: TeamContributionRecord[]): number {
+  return teamContribData.filter((r) => r.매출액.실적 < 0).length;
+}
+
+// ─── 수금율 선수금 분리 표시 (E3) ───────────────────────────────────
+
+export interface CollectionRateDetail {
+  totalCollectionRate: number;   // 총 수금율 (선수금 포함)
+  netCollectionRate: number;     // 순수 수금율 (선수금 제외)
+  totalCollection: number;
+  prepaymentAmount: number;
+  netCollection: number;
+  totalSales: number;
+}
+
+/**
+ * 수금율을 선수금 포함/제외 기준으로 분리 계산.
+ * - totalCollectionRate: 장부수금액 / 장부매출액 × 100 (선수금 포함)
+ * - netCollectionRate: (장부수금액 - 장부선수금액) / 장부매출액 × 100 (선수금 제외)
+ */
+export function calcCollectionRateDetail(
+  sales: SalesRecord[],
+  collections: CollectionRecord[]
+): CollectionRateDetail {
+  const totalSales = sales.reduce((sum, r) => sum + r.장부금액, 0);
+  const totalCollection = collections.reduce((sum, r) => sum + r.장부수금액, 0);
+  const prepaymentAmount = collections.reduce((sum, r) => sum + r.장부선수금액, 0);
+  const netCollection = totalCollection - prepaymentAmount;
+
+  return {
+    totalCollectionRate: totalSales > 0 ? (totalCollection / totalSales) * 100 : 0,
+    netCollectionRate: totalSales > 0 ? (netCollection / totalSales) * 100 : 0,
+    totalCollection,
+    prepaymentAmount,
+    netCollection,
+    totalSales,
+  };
 }
 
 // ─── 비용 구조 프로파일링 ───────────────────────────────────────────

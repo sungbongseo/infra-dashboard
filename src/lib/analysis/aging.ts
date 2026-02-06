@@ -1,5 +1,13 @@
 import type { ReceivableAgingRecord, RiskGrade, AgingRiskAssessment, CreditUtilization, CreditSummaryByOrg, CreditStatus } from "@/types";
 
+// SAP FI-AR 표준: 90일(month3) 이상 = 연체
+export const RISK_THRESHOLDS = {
+  HIGH_OVERDUE_RATIO: 0.5,
+  MEDIUM_OVERDUE_RATIO: 0.2,
+  HIGH_OVERDUE_AMOUNT: 100_000_000,  // 1억원
+  MEDIUM_OVERDUE_AMOUNT: 50_000_000,  // 5천만원
+} as const;
+
 export interface AgingSummary {
   month1: number;
   month2: number;
@@ -57,16 +65,18 @@ export function calcAgingByPerson(records: ReceivableAgingRecord[]) {
 export function assessRisk(record: ReceivableAgingRecord): RiskGrade {
   const total = record.합계.장부금액;
   if (total === 0) return "low";
-  const overdueRatio = (record.month4.장부금액 + record.month5.장부금액 + record.month6.장부금액 + record.overdue.장부금액) / total;
-  if (overdueRatio > 0.5 || record.overdue.장부금액 > 100_000_000) return "high";
-  if (overdueRatio > 0.2 || record.month3.장부금액 > 50_000_000) return "medium";
+  // SAP FI-AR 표준: month3(90일) 이상을 연체로 판정
+  const overdueAmt = record.month3.장부금액 + record.month4.장부금액 + record.month5.장부금액 + record.month6.장부금액 + record.overdue.장부금액;
+  const overdueRatio = overdueAmt / total;
+  if (overdueRatio > RISK_THRESHOLDS.HIGH_OVERDUE_RATIO || record.overdue.장부금액 > RISK_THRESHOLDS.HIGH_OVERDUE_AMOUNT) return "high";
+  if (overdueRatio > RISK_THRESHOLDS.MEDIUM_OVERDUE_RATIO || overdueAmt > RISK_THRESHOLDS.MEDIUM_OVERDUE_AMOUNT) return "medium";
   return "low";
 }
 
 export function calcRiskAssessments(records: ReceivableAgingRecord[]): AgingRiskAssessment[] {
   return records.map((r) => {
     const total = r.합계.장부금액;
-    const overdueAmt = r.month4.장부금액 + r.month5.장부금액 + r.month6.장부금액 + r.overdue.장부금액;
+    const overdueAmt = r.month3.장부금액 + r.month4.장부금액 + r.month5.장부금액 + r.month6.장부금액 + r.overdue.장부금액;
     return {
       판매처: r.판매처,
       판매처명: r.판매처명,

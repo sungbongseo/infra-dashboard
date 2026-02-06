@@ -30,6 +30,9 @@ import {
   PolarRadiusAxis,
   ReferenceLine,
   LabelList,
+  ComposedChart,
+  Line,
+  Area,
 } from "recharts";
 import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -48,6 +51,10 @@ import {
   calcProfitRiskMatrix,
   calcQuadrantSummary,
 } from "@/lib/analysis/profitRiskMatrix";
+import { calcVarianceAnalysis, calcVarianceSummary, calcOrgVarianceSummaries } from "@/lib/analysis/variance";
+import { calcOrgBreakeven, calcBreakevenChart } from "@/lib/analysis/breakeven";
+import { calcWhatIfScenario, calcScenarioSummary, calcSensitivity } from "@/lib/analysis/whatif";
+import type { ScenarioParams } from "@/lib/analysis/whatif";
 import type { ProfitRiskData } from "@/lib/analysis/profitRiskMatrix";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -388,6 +395,42 @@ export default function ProfitabilityPage() {
     [profitRiskData]
   );
 
+  // ─── 분산분석 (3-way Variance) ──────────────────────────────
+  const varianceItems = useMemo(() => calcVarianceAnalysis(filteredProfAnalysis), [filteredProfAnalysis]);
+  const varianceSummary = useMemo(() => calcVarianceSummary(varianceItems), [varianceItems]);
+  const orgVariances = useMemo(() => calcOrgVarianceSummaries(varianceItems), [varianceItems]);
+
+  // ─── 손익분기점 (Break-even / CVP) ──────────────────────────────
+  const orgBreakeven = useMemo(() => calcOrgBreakeven(filteredOrgProfit), [filteredOrgProfit]);
+
+  const bepChartData = useMemo(() => {
+    if (orgBreakeven.length === 0) return [];
+    const totalFixed = orgBreakeven.reduce((s, r) => s + r.fixedCosts, 0);
+    const totalSales = orgBreakeven.reduce((s, r) => s + r.sales, 0);
+    const totalVariable = orgBreakeven.reduce((s, r) => s + r.variableCosts, 0);
+    const varRatio = totalSales > 0 ? totalVariable / totalSales : 0;
+    return calcBreakevenChart(totalFixed, varRatio, totalSales * 1.3);
+  }, [orgBreakeven]);
+
+  // ─── 시나리오 분석 (What-If) ──────────────────────────────
+  const [scenarioParams, setScenarioParams] = useState<ScenarioParams>({
+    salesChangePercent: 0,
+    costRateChangePoints: 0,
+    sgaChangePercent: 0,
+  });
+  const scenarioResults = useMemo(
+    () => calcWhatIfScenario(filteredOrgProfit, scenarioParams),
+    [filteredOrgProfit, scenarioParams]
+  );
+  const scenarioSummary = useMemo(
+    () => calcScenarioSummary(scenarioResults),
+    [scenarioResults]
+  );
+  const sensitivityData = useMemo(
+    () => calcSensitivity(filteredOrgProfit, "sales", [-20, -15, -10, -5, 0, 5, 10, 15, 20]),
+    [filteredOrgProfit]
+  );
+
   // ─── KPI 합계 ──────────────────────────────
   const totalSales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
   const totalOP = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
@@ -418,6 +461,9 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>
           <TabsTrigger value="product" disabled={filteredProfAnalysis.length === 0}>제품 수익성</TabsTrigger>
           <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성x리스크</TabsTrigger>
+          <TabsTrigger value="variance" disabled={filteredProfAnalysis.length === 0}>분산분석</TabsTrigger>
+          <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
+          <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
         </TabsList>
 
         {/* ────────── 손익 현황 ────────── */}
@@ -1207,6 +1253,185 @@ export default function ProfitabilityPage() {
               </span>
             ))}
           </div>
+        </TabsContent>
+
+        {/* ────────── 분산분석 (3-Way Variance) ────────── */}
+        <TabsContent value="variance" className="space-y-6">
+          {/* Variance KPI Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard title="총 차이" value={varianceSummary.totalVariance} format="currency" icon={<TrendingUp className="h-5 w-5" />} formula="매출액 실적 - 매출액 계획" />
+            <KpiCard title="가격차이" value={varianceSummary.priceVariance} format="currency" icon={<Target className="h-5 w-5" />} formula="(실적단가 - 계획단가) × 실적수량" description="단가 변동에 의한 매출 차이" />
+            <KpiCard title="수량차이" value={varianceSummary.volumeVariance} format="currency" icon={<Package className="h-5 w-5" />} formula="(실적수량 - 계획수량) × 계획단가" description="판매량 변동에 의한 매출 차이" />
+            <KpiCard title="믹스차이" value={varianceSummary.mixVariance} format="currency" formula="총차이 - 가격차이 - 수량차이" description="제품 구성 변동에 의한 잔여 차이" />
+          </div>
+
+          {/* 3-Way Variance Bar Chart */}
+          <ChartCard title="3-Way Variance 분해" formula="총차이 = 가격차이 + 수량차이 + 믹스차이" description="SAP CO-PA 스타일 가격/수량/믹스 3-way 분산분석">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[
+                  { name: "가격차이", value: varianceSummary.priceVariance },
+                  { name: "수량차이", value: varianceSummary.volumeVariance },
+                  { name: "믹스차이", value: varianceSummary.mixVariance },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <RechartsTooltip formatter={(v: any) => formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                  <ReferenceLine y={0} stroke="#666" />
+                  <Bar dataKey="value" name="차이 금액" radius={[4, 4, 0, 0]}>
+                    {[varianceSummary.priceVariance, varianceSummary.volumeVariance, varianceSummary.mixVariance].map((val, i) => (
+                      <Cell key={i} fill={val >= 0 ? CHART_COLORS[0] : CHART_COLORS[6]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* Org-level Variance */}
+          <ChartCard title="조직별 분산 분석" description="조직별 가격/수량/믹스 차이 비교">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orgVariances.slice(0, 10)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="org" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <RechartsTooltip formatter={(v: any) => formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                  <Legend />
+                  <ReferenceLine y={0} stroke="#666" />
+                  <Bar dataKey="priceVariance" name="가격차이" fill={CHART_COLORS[0]} stackId="v" />
+                  <Bar dataKey="volumeVariance" name="수량차이" fill={CHART_COLORS[1]} stackId="v" />
+                  <Bar dataKey="mixVariance" name="믹스차이" fill={CHART_COLORS[3]} stackId="v" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        {/* ────────── 손익분기 (Break-even / CVP) ────────── */}
+        <TabsContent value="breakeven" className="space-y-6">
+          {/* BEP KPI Summary */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard title="BEP 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="고정비 / (1 - 변동비율)" description="손익분기점 매출액. 이 금액 이상 매출 시 이익 발생" />
+            <KpiCard title="안전한계율" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + (isFinite(r.safetyMarginRate) ? r.safetyMarginRate : 0), 0) / orgBreakeven.length : 0} format="percent" formula="(실적매출 - BEP매출) / 실적매출 × 100" description="현재 매출이 BEP를 얼마나 초과하는지. 높을수록 안전" benchmark="20% 이상 안전" />
+            <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="(매출 - 변동비) / 매출 × 100" description="매출 1원당 고정비 회수에 기여하는 비율" />
+            <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" description="BEP 분석이 가능한 조직 수" />
+          </div>
+
+          {/* BEP Chart */}
+          {bepChartData.length > 0 && (
+            <ChartCard title="손익분기점 도표" formula="BEP = 매출선과 총비용선의 교차점" description="SAP CO CVP Analysis 기반. 매출이 총비용을 초과하는 지점이 손익분기점">
+              <div className="h-64 md:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={bepChartData}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis dataKey="revenue" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "매출", position: "insideBottomRight", offset: -5, fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <RechartsTooltip formatter={(v: any) => formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                    <Legend />
+                    <Line type="monotone" dataKey="revenue" name="매출" stroke={CHART_COLORS[0]} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="totalCost" name="총비용" stroke={CHART_COLORS[6]} strokeWidth={2} dot={false} />
+                    <Area type="monotone" dataKey="fixedCost" name="고정비" fill={CHART_COLORS[5]} fillOpacity={0.2} stroke="none" />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          )}
+
+          {/* Org-level BEP comparison */}
+          <ChartCard title="조직별 손익분기점 비교" description="안전한계율이 높을수록 수익성이 안정적">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                  <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
+                  <RechartsTooltip formatter={(v: any) => `${Number(v).toFixed(1)}%`} {...TOOLTIP_STYLE} />
+                  <ReferenceLine x={0} stroke="#ef4444" strokeDasharray="3 3" />
+                  <ReferenceLine x={20} stroke="#22c55e" strokeDasharray="3 3" label={{ value: "안전선", fontSize: 10 }} />
+                  <Bar dataKey="safetyMarginRate" name="안전한계율" radius={[0, 4, 4, 0]}>
+                    {orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10).map((r, i) => (
+                      <Cell key={i} fill={r.safetyMarginRate >= 20 ? CHART_COLORS[0] : r.safetyMarginRate >= 0 ? CHART_COLORS[3] : CHART_COLORS[6]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        {/* ────────── 시나리오 분석 (What-If) ────────── */}
+        <TabsContent value="whatif" className="space-y-6">
+          {/* Scenario Sliders */}
+          <Card>
+            <CardContent className="pt-6 space-y-4">
+              <p className="text-sm font-medium text-muted-foreground mb-2">시나리오 파라미터 조정</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">매출 변동: {scenarioParams.salesChangePercent > 0 ? "+" : ""}{scenarioParams.salesChangePercent}%</label>
+                  <input type="range" min={-30} max={30} step={1} value={scenarioParams.salesChangePercent}
+                    onChange={(e) => setScenarioParams(p => ({ ...p, salesChangePercent: Number(e.target.value) }))}
+                    className="w-full accent-primary" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">원가율 변동: {scenarioParams.costRateChangePoints > 0 ? "+" : ""}{scenarioParams.costRateChangePoints}%p</label>
+                  <input type="range" min={-10} max={10} step={0.5} value={scenarioParams.costRateChangePoints}
+                    onChange={(e) => setScenarioParams(p => ({ ...p, costRateChangePoints: Number(e.target.value) }))}
+                    className="w-full accent-primary" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-medium">판관비 변동: {scenarioParams.sgaChangePercent > 0 ? "+" : ""}{scenarioParams.sgaChangePercent}%</label>
+                  <input type="range" min={-30} max={30} step={1} value={scenarioParams.sgaChangePercent}
+                    onChange={(e) => setScenarioParams(p => ({ ...p, sgaChangePercent: Number(e.target.value) }))}
+                    className="w-full accent-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Scenario KPIs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" />
+            <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" />
+            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" />
+            <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" />
+          </div>
+
+          {/* Base vs Scenario comparison bar */}
+          <ChartCard title="조직별 Base vs 시나리오 영업이익" description="기준(Base) 대비 시나리오 영업이익 비교">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={scenarioResults.slice(0, 10)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="org" tick={{ fontSize: 11 }} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <RechartsTooltip formatter={(v: any) => formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                  <Legend />
+                  <Bar dataKey="baseOperatingProfit" name="Base" fill={CHART_COLORS[5]} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="scenarioOperatingProfit" name="시나리오" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* Sensitivity chart */}
+          <ChartCard title="매출 변동 민감도 분석" formula="매출 변동률에 따른 영업이익 변화" description="Tornado 스타일 민감도 분석">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={sensitivityData}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="paramValue" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                  <RechartsTooltip formatter={(v: any, name: any) => name === "operatingMargin" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                  <Legend />
+                  <Bar dataKey="operatingProfit" name="영업이익" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
         </TabsContent>
       </Tabs>
     </div>
