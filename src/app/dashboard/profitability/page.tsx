@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
+import type { OrgProfitRecord } from "@/types";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -243,8 +244,10 @@ export default function ProfitabilityPage() {
       .sort((a, b) => (b.공헌이익?.실적 || 0) - (a.공헌이익?.실적 || 0))
       .slice(0, 15)
       .map((r) => ({
-        name: r.영업담당사번,
+        name: `${r.영업담당사번}`,
+        displayName: `${r.영업조직팀?.split('_')[0] || r.영업조직팀 || ''}_${r.영업담당사번}`.substring(0, 12),
         org: r.영업조직팀,
+        사번: r.영업담당사번,
         공헌이익: r.공헌이익?.실적 || 0,
         공헌이익율: r.공헌이익율?.실적 || 0,
       })),
@@ -283,7 +286,9 @@ export default function ProfitabilityPage() {
       .sort((a, b) => Math.abs(b.매출액) - Math.abs(a.매출액))
       .slice(0, 20)
       .map((r) => ({
-        name: r.id,
+        name: `${r.org?.split('_')[0] || r.org || ''}_${r.id}`.substring(0, 12),
+        사번: r.id,
+        조직: r.org,
         원재료비: r.원재료비,
         상품매입: r.상품매입,
         외주가공비: r.외주가공비,
@@ -385,9 +390,28 @@ export default function ProfitabilityPage() {
   );
 
   // ─── 수익성 x 리스크 크로스 분석 ──────────────────────────────
+  // orgProfit 조직별 집계 (중복 제거)
+  const uniqueOrgProfit = useMemo(() => {
+    const orgMap = new Map<string, OrgProfitRecord>();
+    for (const r of filteredOrgProfit) {
+      const org = r.영업조직팀;
+      if (!org) continue;
+      const existing = orgMap.get(org);
+      if (!existing) {
+        orgMap.set(org, r);
+      } else {
+        // 동일 조직의 여러 레코드가 있으면 매출액 기준으로 더 큰 것 선택
+        if (Math.abs(r.매출액.실적) > Math.abs(existing.매출액.실적)) {
+          orgMap.set(org, r);
+        }
+      }
+    }
+    return Array.from(orgMap.values());
+  }, [filteredOrgProfit]);
+
   const profitRiskData = useMemo(
-    () => calcProfitRiskMatrix(filteredOrgProfit, allReceivableRecords, filteredSales),
-    [filteredOrgProfit, allReceivableRecords, filteredSales]
+    () => calcProfitRiskMatrix(uniqueOrgProfit, allReceivableRecords, filteredSales),
+    [uniqueOrgProfit, allReceivableRecords, filteredSales]
   );
 
   const quadrantSummary = useMemo(
@@ -604,10 +628,10 @@ export default function ProfitabilityPage() {
             >
               <div className="h-80 md:h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={contribRanking} layout="vertical" margin={{ left: 60 }}>
+                  <BarChart data={contribRanking} layout="vertical" margin={{ left: 75 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
+                    <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={70} />
                     <RechartsTooltip
                       content={({ payload }) => {
                         if (!payload || payload.length === 0) return null;
@@ -615,7 +639,7 @@ export default function ProfitabilityPage() {
                         if (!d) return null;
                         return (
                           <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
-                            <p className="font-semibold mb-1">{d.name}</p>
+                            <p className="font-semibold mb-1">사번: {d.사번}</p>
                             <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
                             <p>공헌이익: {formatCurrency(d.공헌이익)}</p>
                           </div>
@@ -676,7 +700,7 @@ export default function ProfitabilityPage() {
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={contribRanking}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                  <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} />
+                  <XAxis dataKey="displayName" tick={{ fontSize: 9 }} angle={-45} textAnchor="end" height={60} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
                   <RechartsTooltip
                     content={({ payload }) => {
@@ -685,7 +709,7 @@ export default function ProfitabilityPage() {
                       if (!d) return null;
                       return (
                         <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
-                          <p className="font-semibold mb-1">{d.name}</p>
+                          <p className="font-semibold mb-1">사번: {d.사번}</p>
                           <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
                           <p>공헌이익율: {d.공헌이익율.toFixed(1)}%</p>
                         </div>
@@ -717,14 +741,26 @@ export default function ProfitabilityPage() {
             >
               <div className="h-80 md:h-[500px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={costBarData} layout="vertical" margin={{ left: 60 }}>
+                  <BarChart data={costBarData} layout="vertical" margin={{ left: 75 }}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                    <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={60} />
+                    <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={70} />
                     <RechartsTooltip
-                      {...TOOLTIP_STYLE}
-                      formatter={(value: any, name: any) => [formatCurrency(Number(value)), String(name)]}
-                      labelFormatter={(label) => `담당: ${label}`}
+                      content={({ payload }) => {
+                        if (!payload || payload.length === 0) return null;
+                        const data = payload[0]?.payload;
+                        return (
+                          <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
+                            <p className="font-semibold mb-1">사번: {data?.사번}</p>
+                            <p className="text-xs text-muted-foreground mb-2">조직: {data?.조직}</p>
+                            {payload.map((p: any, i: number) => (
+                              <p key={i} style={{ color: p.color }}>
+                                {p.name}: {formatCurrency(Number(p.value))}
+                              </p>
+                            ))}
+                          </div>
+                        );
+                      }}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
                     {costKeys.map((key) => (
@@ -797,7 +833,7 @@ export default function ProfitabilityPage() {
                 <tbody>
                   {costEfficiency.map((r, i) => (
                     <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
-                      <td className="p-2 font-mono text-xs">{r.id}</td>
+                      <td className="p-2 font-mono text-xs">{`${r.org?.split('_')[0] || r.org || ''}_${r.id}`.substring(0, 15)}</td>
                       <td className="p-2 text-xs">{r.org}</td>
                       <td className="p-2">
                         <span
