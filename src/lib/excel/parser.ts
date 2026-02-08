@@ -51,6 +51,28 @@ function parseAgingAmounts(row: unknown[], startIdx: number): AgingAmounts {
   };
 }
 
+/**
+ * SAP 리포트 병합 셀 처리: 영업조직팀 필드를 하위 행에 전파(fill-down)
+ * SAP 계층 리포트에서 영업조직팀은 소계 행에만 표시되고 하위 상세 행은 비어있으므로,
+ * 소계 행의 영업조직팀 값을 이후 비어있는 상세 행에 채워넣는다.
+ * "합계" 행은 제외하여 전체 합산 중복 방지.
+ */
+function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
+  records: T[],
+): T[] {
+  let currentOrg = "";
+  for (const rec of records) {
+    const org = rec.영업조직팀.trim();
+    if (org !== "" && org !== "합계") {
+      currentOrg = org;
+    } else if (org === "" && currentOrg !== "") {
+      rec.영업조직팀 = currentOrg;
+    }
+  }
+  // "합계" 행 제거 (전체 소계 → 조직별 상세와 중복)
+  return records.filter((r) => r.영업조직팀.trim() !== "합계");
+}
+
 /** Row-level safe parser: catches individual row errors and collects warnings */
 function safeParseRows<T>(
   data: unknown[][],
@@ -315,7 +337,9 @@ export function parseExcelFile(
         판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
         영업이익: parsePlanActualDiff(row, 32),
       }), warnings, "수익성분석");
-      parsed = r.parsed; skippedRows = r.skipped;
+      // SAP 계층 리포트: 영업조직팀이 소계 행에만 존재하므로 하위 행에 전파
+      parsed = fillDownHierarchicalOrg(r.parsed);
+      skippedRows = r.skipped;
       break;
     }
     case "orgCustomerProfit": {

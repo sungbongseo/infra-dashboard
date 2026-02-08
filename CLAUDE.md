@@ -109,6 +109,13 @@ Each dashboard page follows the same pattern:
 - `profitabilityAnalysis` fallback: if org filter leaves zero-valued data → use full dataset with warning
 - Recharts Pie label: typed as `(props: any)` to avoid PieLabelRenderProps incompatibility
 
+### SAP Hierarchical Report Handling
+
+- SAP-style Excel reports (e.g., 901 수익성분석) use merged cells where `영업조직팀` only appears on subtotal rows
+- `fillDownHierarchicalOrg()` in parser.ts propagates org name from subtotal rows to subsequent detail rows
+- Applied to `profitabilityAnalysis` file type; "합계" (grand total) rows are excluded to prevent double-counting
+- Without fill-down, org filter would remove all detail rows (empty org), leaving only subtotal rows with zero 실적 values
+
 ### Known Constraints
 
 - Map iteration: use `Array.from(map.entries())` instead of for-of (downlevelIteration not enabled in tsconfig)
