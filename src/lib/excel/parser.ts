@@ -135,17 +135,25 @@ function fillDownMultiLevel<T extends Record<string, any>>(
   });
 }
 
-/** Row-level safe parser: catches individual row errors and collects warnings */
+/** Row-level safe parser: catches individual row errors and collects warnings
+ * @param filterEmptyFirstCol true(기본값)=첫 번째 컬럼이 비어있는 행 제거 (플랫 데이터용)
+ *   false=완전히 빈 행만 제거 (계층형 SAP 보고서 - fill-down 전에 상세 행이 삭제되는 것 방지)
+ */
 function safeParseRows<T>(
   data: unknown[][],
   skipRows: number,
   parser: (row: unknown[]) => T,
   warnings: string[],
   fileType: string,
+  filterEmptyFirstCol: boolean = true,
 ): { parsed: T[]; skipped: number } {
   let skipped = 0;
   const parsed: T[] = [];
-  const rows = data.slice(skipRows).filter(r => r[0]);
+  const rows = filterEmptyFirstCol
+    ? data.slice(skipRows).filter(r => r[0])
+    : data.slice(skipRows).filter(r =>
+        r.some(cell => cell !== "" && cell !== null && cell !== undefined)
+      );
   for (let i = 0; i < rows.length; i++) {
     try {
       parsed.push(parser(rows[i]));
@@ -385,10 +393,12 @@ export function parseExcelFile(
       parsed = parseOrderList(rawData);
       break;
     case "orgProfit":
-      parsed = parseOrgProfit(rawData, warnings);
+      // 방어적 fill-down: 현재 행당 1개 조직 요약이라 no-op이지만, SAP 형식 변경 대비
+      parsed = fillDownHierarchicalOrg(parseOrgProfit(rawData, warnings));
       break;
     case "teamContribution": {
       // teamContribution has wide rows (index up to 112), use safe parsing
+      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows(rawData, 2, (row) => {
         // 합계 행 필터링: 영업담당사번이 없으면 제외
         const empNo = str(row[3]).trim();
@@ -433,12 +443,18 @@ export function parseExcelFile(
         }
 
         return record;
-      }, warnings, "팀원별공헌이익");
-      parsed = r.parsed.filter((r: any) => r.매출액.실적 !== 0); // 매출액 0 제외
+      }, warnings, "팀원별공헌이익", false);
+      // SAP 병합 셀 fill-down: 영업그룹/영업조직팀이 팀 단위로 병합되어 있을 수 있음
+      const filledTeam = fillDownMultiLevel(r.parsed, [
+        ["영업그룹"],
+        ["영업조직팀"],
+      ]);
+      parsed = filledTeam.filter((r: any) => r.매출액.실적 !== 0); // 매출액 0 제외
       skippedRows = r.skipped;
       break;
     }
     case "profitabilityAnalysis": {
+      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<ProfitabilityAnalysisRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[1]),
@@ -455,7 +471,7 @@ export function parseExcelFile(
         판매관리비: parsePlanActualDiff(row, 26),
         판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
         영업이익: parsePlanActualDiff(row, 32),
-      }), warnings, "수익성분석");
+      }), warnings, "수익성분석", false);
       // SAP 계층 리포트: 영업조직팀이 소계 행에만 존재하므로 하위 행에 전파
       parsed = fillDownHierarchicalOrg(r.parsed);
       skippedRows = r.skipped;
@@ -465,6 +481,7 @@ export function parseExcelFile(
       // 303 실제 컬럼: 0:No 1:판매사업본부 2:판매사업부 3:영업조직(팀) 4:거래처대분류
       // 5:거래처중분류 6:거래처소분류 7:판매거래처 8~10:매출액 11~13:실적매출원가
       // 14~16:매출총이익 17~19:판매관리비 20~22:영업이익 23+:판관비세부
+      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<OrgCustomerProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[3]),
@@ -480,7 +497,7 @@ export function parseExcelFile(
         영업이익: parsePlanActualDiff(row, 20),
         매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
-      }), warnings, "조직별거래처별손익");
+      }), warnings, "조직별거래처별손익", false);
       // SAP 다중 레벨 계층: 영업조직팀→거래처대분류→중분류→소분류→매출거래처
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
@@ -496,6 +513,7 @@ export function parseExcelFile(
       // 304 실제 컬럼: 0:No 1:판매사업본부 2:영업조직(팀) 3:판매사업부 4:매출거래처
       // 5:품목계정그룹 6:중분류코드 7:품목 8~10:매출수량 11~13:환산수량
       // 14~16:매출액 17~19:실적매출원가 20~22:매출총이익 23~25:판매관리비 26~28:영업이익
+      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<HqCustomerItemProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[2]),
@@ -511,7 +529,7 @@ export function parseExcelFile(
         영업이익: parsePlanActualDiff(row, 26),
         매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
-      }), warnings, "본부거래처품목손익");
+      }), warnings, "본부거래처품목손익", false);
       // SAP 다중 레벨 계층: 영업조직팀→매출거래처→품목
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
@@ -529,6 +547,7 @@ export function parseExcelFile(
       // 42~44:매출수량 45~47:매출액 48~50:실적매출원가 51~53:차이매출원가
       // 54~56:매입할인 57~59:원재료비 60~62:부재료비 63~65:상품매입
       // 66~68:매출총이익 69~71:판매관리비 72~74:직접판매운반비 75~77:영업이익
+      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<CustomerItemDetailRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[3]),
@@ -553,7 +572,7 @@ export function parseExcelFile(
         영업이익: parsePlanActualDiff(row, 75),
         매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
-      }), warnings, "거래처별품목별손익");
+      }), warnings, "거래처별품목별손익", false);
       // SAP 계층: 영업조직팀→매출거래처→품목
       // 거래처대분류/중분류/소분류는 행별 속성이지 계층 부모가 아님
       // (대분류 변경이 매출거래처 fill-down을 리셋하면 안 됨)
