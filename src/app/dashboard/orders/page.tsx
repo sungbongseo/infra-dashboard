@@ -196,40 +196,40 @@ export default function OrdersAnalysisPage() {
               value={totalOrders}
               format="currency"
               icon={<ShoppingCart className="h-5 w-5" />}
-              formula="SUM(수주리스트.장부금액)"
-              description="Infra 사업본부 담당 조직의 전체 수주 합계"
+              formula="수주 리스트의 모든 장부금액을 합산"
+              description="인프라 사업본부 담당 조직이 고객으로부터 주문받은 총 금액입니다. 수주는 매출이 발생하기 전 단계로, 향후 매출로 전환될 예정인 파이프라인입니다."
             />
             <KpiCard
-              title="수주→매출 전환율"
+              title="수주에서 매출 전환율"
               value={conversionRate}
               format="percent"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="총매출액 / 총수주액 x 100"
-              description="수주된 금액 중 실제 매출로 전환된 비율. 100% 초과 시 기수주 물량의 매출 반영"
-              benchmark="80~120% 범위가 정상"
+              formula="총 매출액 나누기 총 수주액, 곱하기 100"
+              description="수주한 금액 중 실제로 매출(출고/납품)로 전환된 비율입니다. 100%를 초과하면 이전 기간에 수주했던 물량이 금기에 매출로 반영된 것을 의미합니다."
+              benchmark="80~120% 범위가 정상적인 수준입니다"
             />
             <KpiCard
               title="미출고 수주잔"
               value={outstandingOrders > 0 ? outstandingOrders : 0}
               format="currency"
               icon={<Package className="h-5 w-5" />}
-              formula="총수주액 - 총매출액"
-              description="수주는 되었으나 아직 출고/매출 처리되지 않은 잔액"
+              formula="총 수주액 빼기 총 매출액"
+              description="고객이 주문했지만 아직 출고(납품)되지 않은 금액입니다. 이 금액이 크면 향후 매출로 전환될 여지가 많다는 뜻이지만, 납기 관리에 주의가 필요합니다."
             />
             <KpiCard
               title="수주 건수"
               value={filteredOrders.length}
               format="number"
               icon={<Clock className="h-5 w-5" />}
-              description="분석 기간 내 총 수주 건수"
+              description="분석 기간 내에 접수된 총 수주 건수입니다. 건수와 금액을 함께 보면 건당 평균 수주 규모를 파악할 수 있습니다."
             />
           </div>
 
           <ChartCard
             title="월별 수주 추이"
-            formula="수주건수: COUNT(*) by 월\n수주금액: SUM(장부금액) by 월"
-            description="월별 수주 건수와 금액 추이입니다. 건수 대비 금액이 높으면 대형 건이 포함된 것입니다."
-            benchmark="수주 금액이 매출 대비 동등하거나 높으면 양호"
+            formula="월별 수주 건수와 수주 금액(장부금액 합계)을 각각 집계"
+            description="매월 수주가 얼마나 들어왔는지 건수(선)와 금액(막대)으로 보여줍니다. 건수 대비 금액이 유난히 높은 달은 대형 수주가 포함된 것입니다."
+            benchmark="수주 금액이 매출 금액과 동등하거나 높으면 파이프라인이 양호한 상태입니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -253,8 +253,8 @@ export default function OrdersAnalysisPage() {
         <TabsContent value="analysis" className="space-y-6">
           <ChartCard
             title="수주유형별 분석"
-            formula="SUM(장부금액) GROUP BY 수주유형명"
-            description="수주유형별 금액 구성 비율입니다. 내수/수출/프로젝트 등 유형별 비중을 확인합니다."
+            formula="수주유형(내수/수출/프로젝트 등)별 장부금액 합계"
+            description="수주를 유형별로 나누어 금액 비중을 보여줍니다. 어떤 유형의 수주가 주력인지, 특정 유형에 지나치게 의존하고 있지는 않은지 확인할 수 있습니다."
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -280,9 +280,9 @@ export default function OrdersAnalysisPage() {
 
           <ChartCard
             title="납품 리드타임 분포"
-            formula="납품요청일 - 수주일 = 리드타임(일)"
-            description="수주일부터 납품요청일까지의 기간 분포입니다. 리드타임이 짧을수록 납품 압박이 클 수 있습니다."
-            benchmark="30일 이내가 일반적, 90일 이상은 장기 프로젝트"
+            formula="납품요청일 빼기 수주일 = 리드타임(일수)"
+            description="주문을 받은 날부터 납품을 요청받은 날까지 며칠이 걸리는지 구간별로 보여줍니다. 리드타임이 짧은 건이 많으면 긴급 납품 부담이 크고, 긴 건이 많으면 장기 프로젝트 비중이 높다는 뜻입니다."
+            benchmark="30일 이내가 일반적인 납품 기간이며, 90일 이상은 장기 프로젝트로 분류됩니다"
           >
             <div className="h-56 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -301,8 +301,8 @@ export default function OrdersAnalysisPage() {
         <TabsContent value="org" className="space-y-6">
           <ChartCard
             title="조직별 수주 비중"
-            formula="SUM(장부금액) GROUP BY 영업조직"
-            description="영업조직별 수주 금액 순위입니다. 특정 조직에 수주가 집중될 경우 리스크 분산이 필요합니다."
+            formula="영업조직별 장부금액 합계를 구한 뒤 금액 순으로 정렬"
+            description="영업조직별 수주 금액 순위를 보여줍니다. 특정 조직에 수주가 지나치게 집중되어 있다면 매출 리스크를 분산하는 전략이 필요합니다."
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -330,9 +330,9 @@ export default function OrdersAnalysisPage() {
 
           <ChartCard
             title="월별 수주 vs 매출 전환 갭"
-            formula="갭 = 수주금액 - 매출금액 (양수: 수주잔고 누적, 음수: 기수주 소진)"
-            description="월별 수주금액과 매출금액을 비교합니다. 갭이 양수이면 수주잔고가 쌓이고, 음수이면 과거 수주분을 소화하는 것입니다."
-            benchmark="갭이 일정하게 양수이면 파이프라인 건전"
+            formula="갭 = 수주금액 빼기 매출금액\n양수이면 수주잔고가 쌓이는 중, 음수이면 과거 수주를 소진하는 중"
+            description="매월 수주금액과 매출금액의 차이를 비교합니다. 갭이 양수이면 주문이 매출보다 많아 수주잔고가 늘어나는 것이고, 음수이면 과거에 받은 주문을 납품하며 잔고를 줄이고 있다는 뜻입니다."
+            benchmark="갭이 꾸준히 양수이면 매출 파이프라인이 건전한 상태입니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -377,39 +377,39 @@ export default function OrdersAnalysisPage() {
         <TabsContent value="pipeline" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <KpiCard
-              title="수주→매출 전환율"
+              title="수주에서 매출 전환율"
               value={orderToSalesRate}
               format="percent"
               icon={<ArrowRightLeft className="h-5 w-5" />}
-              formula="총매출액 / 총수주액 x 100"
-              description="수주 금액 대비 매출로 전환된 비율입니다. 100% 초과 시 이전 기간 수주의 매출 반영을 의미합니다."
-              benchmark="80~120%가 정상 범위"
+              formula="총 매출액 나누기 총 수주액, 곱하기 100"
+              description="수주한 금액이 실제 매출(출고/납품)로 얼마나 전환되었는지 보여줍니다. 100%를 초과하면 이전 기간 수주분이 금기 매출로 반영된 것입니다."
+              benchmark="80~120%가 정상 범위이며, 이 범위를 벗어나면 수주-매출 시차를 점검해야 합니다"
             />
             <KpiCard
-              title="매출→수금 수금율"
+              title="매출에서 수금 수금율"
               value={salesToCollectionRate}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="총수금액 / 총매출액 x 100"
-              description="매출 금액 대비 실제 수금된 비율입니다. 높을수록 현금흐름이 양호합니다."
-              benchmark="90% 이상이 양호, 80% 미만 주의"
+              formula="총 수금액 나누기 총 매출액, 곱하기 100"
+              description="발생한 매출 중 실제로 현금 수금된 비율입니다. 이 비율이 높을수록 현금흐름이 양호하며, 낮으면 미수금이 쌓이고 있다는 의미입니다."
+              benchmark="90% 이상이면 양호, 80% 미만이면 수금 활동을 강화해야 합니다"
             />
             <KpiCard
               title="미수잔액"
               value={outstandingAmount}
               format="currency"
               icon={<AlertCircle className="h-5 w-5" />}
-              formula="MAX(0, 총매출액 - 총수금액)"
-              description="매출은 발생했으나 아직 수금되지 않은 잔액입니다."
-              benchmark="매출 대비 20% 이하가 양호"
+              formula="총 매출액 빼기 총 수금액 (0 미만이면 0으로 처리)"
+              description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 이 금액이 크면 현금 유동성에 부담을 줄 수 있습니다."
+              benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
             />
           </div>
 
           <ChartCard
-            title="O2C 퍼널 (수주 → 매출 → 수금)"
-            formula="수주금액 → 매출전환금액 → 수금완료금액 → 미수잔액"
-            description="Order-to-Cash 전체 프로세스의 각 단계별 금액과 전환 비율을 시각화합니다. 단계별로 금액이 감소하는 퍼널 형태로, 병목 구간을 파악할 수 있습니다."
-            benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C 프로세스"
+            title="O2C(주문-수금) 퍼널: 수주에서 매출, 수금까지"
+            formula="수주금액에서 매출전환금액, 수금완료금액, 미수잔액 순서로 표시"
+            description="O2C(주문-수금 프로세스)의 전체 흐름을 퍼널(깔때기) 형태로 보여줍니다. 수주에서 시작하여 매출 전환, 수금 완료까지 각 단계별 금액과 전환 비율을 확인할 수 있으며, 금액이 크게 줄어드는 구간이 병목입니다."
+            benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C(주문-수금) 프로세스입니다"
           >
             <div className="h-56 md:h-72">
               <ResponsiveContainer width="100%" height="100%">
@@ -468,10 +468,10 @@ export default function OrdersAnalysisPage() {
           </ChartCard>
 
           <ChartCard
-            title="월별 O2C 전환 추이"
-            formula="전환율 = 매출 / 수주 x 100\n수금율 = 수금 / 매출 x 100"
-            description="월별 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 표시합니다. 전환율과 수금율이 안정적으로 높으면 O2C 프로세스가 건전합니다."
-            benchmark="전환율/수금율 80% 이상 안정 유지가 양호"
+            title="월별 O2C(주문-수금) 전환 추이"
+            formula="전환율 = 매출 나누기 수주, 곱하기 100\n수금율 = 수금 나누기 매출, 곱하기 100"
+            description="매월 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 보여줍니다. 두 비율이 안정적으로 높게 유지되면 주문에서 수금까지의 흐름이 건전하다는 의미입니다."
+            benchmark="전환율과 수금율 모두 80% 이상으로 안정 유지되면 양호합니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -550,10 +550,10 @@ export default function OrdersAnalysisPage() {
 
         <TabsContent value="o2c-flow" className="space-y-6">
           <ChartCard
-            title="O2C 플로우 다이어그램"
-            formula="수주금액 → 매출전환(전환율%) → 수금완료(수금율%) / 미수잔액"
-            description="Order-to-Cash 흐름을 시각적으로 표현합니다. 수주에서 매출로 전환되고, 매출에서 수금 완료와 미수잔액으로 분기되는 과정을 보여줍니다. 화살표 굵기는 금액 비중을 반영합니다."
-            benchmark="전환율 80% 이상, 수금율 90% 이상이 양호"
+            title="O2C(주문-수금) 플로우 다이어그램"
+            formula="수주금액에서 매출전환(전환율%), 수금완료(수금율%), 미수잔액으로 분기"
+            description="주문에서 수금까지의 전체 흐름을 시각적으로 표현합니다. 수주가 매출로 전환되고, 매출이 수금 완료와 미수잔액으로 나뉘는 과정을 보여줍니다. 화살표가 굵을수록 해당 경로의 금액 비중이 큽니다."
+            benchmark="전환율 80% 이상, 수금율 90% 이상이면 양호한 O2C(주문-수금) 흐름입니다"
           >
             <O2CFlowDiagram stages={pipelineStages} salesToCollectionRate={salesToCollectionRate} />
           </ChartCard>
@@ -818,7 +818,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
             {/* 수주→매출 전환율 */}
             <circle cx="42" cy="245" r="5" fill={healthColor(convRate, 80)} />
             <text x="54" y="249" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              수주→매출 전환율: {convRate.toFixed(1)}%
+              수주-매출 전환율: {convRate.toFixed(1)}%
             </text>
             <text x="240" y="249" className="text-[10px] font-medium" fill={healthColor(convRate, 80)}>
               {convRate >= 80 ? "양호" : convRate >= 64 ? "주의" : "위험"}
@@ -827,7 +827,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
             {/* 매출→수금 수금율 */}
             <circle cx="42" cy="268" r="5" fill={healthColor(collRate, 90)} />
             <text x="54" y="272" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              매출→수금 수금율: {collRate.toFixed(1)}%
+              매출-수금 수금율: {collRate.toFixed(1)}%
             </text>
             <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, 90)}>
               {collRate >= 90 ? "양호" : collRate >= 72 ? "주의" : "위험"}

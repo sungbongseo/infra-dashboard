@@ -496,40 +496,42 @@ export default function ProfitabilityPage() {
               value={totalGP}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="매출액 - 매출원가"
-              description="매출에서 직접 원가를 차감한 이익. 제품/서비스의 기본 수익성을 나타냅니다."
+              formula="매출총이익 = 매출액 - 매출원가"
+              description="매출에서 제품을 만들거나 구매하는 데 든 직접 비용(매출원가)을 뺀 금액입니다. 제품이나 서비스 자체가 얼마나 수익을 내는지 보여주는 가장 기본적인 이익 지표입니다."
+              benchmark="제조업 평균 매출총이익은 매출의 20~30% 수준이며, 30% 이상이면 양호합니다"
             />
             <KpiCard
               title="매출총이익율"
               value={gpRate}
               format="percent"
-              formula="매출총이익 / 매출액 × 100"
-              description="매출 대비 매출총이익의 비율. 높을수록 원가 경쟁력이 좋습니다."
-              benchmark="30% 이상 양호"
+              formula="매출총이익율 = 매출총이익 나누기 매출액 곱하기 100"
+              description="매출 100원당 원가를 빼고 남는 이익의 비율입니다. 이 비율이 높을수록 원가 관리를 잘하고 있다는 의미이며, 가격 경쟁력과 원가 효율성을 동시에 보여줍니다."
+              benchmark="제조업 평균 20~30%, 30% 이상이면 원가 경쟁력 양호"
             />
             <KpiCard
               title="영업이익율"
               value={opRate}
               format="percent"
-              formula="영업이익 / 매출액 × 100"
-              description="영업활동으로 인한 이익률. 판관비까지 차감한 실질 수익성입니다."
-              benchmark="10% 이상 양호"
+              formula="영업이익율 = 영업이익 나누기 매출액 곱하기 100"
+              description="매출에서 원가와 판매관리비(인건비, 임차료 등)까지 모두 뺀 후 남는 이익의 비율입니다. 회사의 본업(영업활동)이 실제로 얼마나 돈을 버는지 보여주는 핵심 수익성 지표입니다."
+              benchmark="제조업 평균 5~10%, 10% 이상이면 양호한 수익 구조"
             />
             <KpiCard
               title="공헌이익"
               value={totalContrib}
               format="currency"
               icon={<Target className="h-5 w-5" />}
-              formula="매출액 - 변동비"
-              description="고정비 부담 전 수익으로, 각 조직/담당자가 기여하는 이익입니다."
+              formula="공헌이익 = 매출액 - 변동비"
+              description="매출에서 매출량에 비례하여 변하는 비용(변동비)만 뺀 금액입니다. 고정비(임차료, 인건비 등)를 부담하기 전에 각 조직이나 담당자가 회사에 기여하는 이익을 의미합니다. 조직별 성과 비교에 유용합니다."
+              benchmark="공헌이익이 양수여야 해당 조직이 고정비 회수에 기여하고 있는 것입니다"
             />
           </div>
 
           <ChartCard
             title="손익 Waterfall"
-            formula="매출액 - 매출원가 = 매출총이익 - 판관비 = 영업이익"
-            description="매출에서 각 비용을 차감하여 최종 영업이익까지의 흐름을 보여줍니다. 음수 항목은 비용을 의미합니다."
-            benchmark="매출총이익율 30%↑ 양호, 영업이익율 10%↑ 양호"
+            formula="매출액 - 매출원가 = 매출총이익, 매출총이익 - 판관비 = 영업이익"
+            description="매출에서 비용을 단계별로 차감하여 최종 영업이익이 되기까지의 흐름을 폭포(Waterfall) 형태로 보여줍니다. 각 막대의 감소 폭이 클수록 해당 비용 부담이 큰 것이며, 어느 단계에서 이익이 크게 줄어드는지 한눈에 파악할 수 있습니다."
+            benchmark="매출총이익율 30% 이상, 영업이익율 10% 이상이면 양호한 수익 구조"
           >
             <ErrorBoundary>
               <div className="h-64 md:h-80">
@@ -570,9 +572,9 @@ export default function ProfitabilityPage() {
         <TabsContent value="org" className="space-y-6">
           <ChartCard
             title="조직별 수익성 Matrix"
-            formula="X축: 매출액, Y축: 영업이익율, 크기: 매출총이익"
-            description="조직별 수익성을 다차원으로 비교합니다. 우상단(고매출+고수익)이 가장 이상적입니다."
-            benchmark="우상단: 핵심조직 | 좌상단: 고수익저매출 | 우하단: 고매출저수익"
+            formula="가로축 = 매출액, 세로축 = 영업이익율, 버블 크기 = 매출총이익"
+            description="각 조직의 매출 규모, 이익율, 총이익을 한 차트에서 3가지 차원으로 비교합니다. 오른쪽 위에 위치할수록 매출도 크고 이익율도 높은 핵심 조직입니다. 버블이 클수록 매출총이익이 큰 조직입니다."
+            benchmark="오른쪽 위: 핵심 조직(고매출, 고수익) | 왼쪽 위: 틈새 조직(저매출, 고수익) | 오른쪽 아래: 개선 필요(고매출, 저수익)"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -619,9 +621,9 @@ export default function ProfitabilityPage() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
             <ChartCard
               title="담당자별 공헌이익 랭킹"
-              formula="공헌이익 = 매출액 - 변동비"
-              description={`담당자별 공헌이익 기여 순위입니다. 전체 ${contribRanking.length}명 표시.`}
-              benchmark="상위 20% 담당자가 80% 공헌이익 기여가 전형적"
+              formula="공헌이익 = 매출액 - 변동비(원재료비, 외주비 등)"
+              description={`각 영업 담당자가 회사 고정비 회수에 얼마나 기여하는지를 공헌이익 금액 순으로 보여줍니다. 전체 ${contribRanking.length}명 중 상위 담당자일수록 회사 수익에 큰 기여를 하고 있습니다.`}
+              benchmark="일반적으로 상위 20% 담당자가 전체 공헌이익의 약 80%를 차지합니다 (파레토 법칙)"
               className="xl:col-span-2"
             >
               <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
@@ -653,8 +655,9 @@ export default function ProfitabilityPage() {
 
             <ChartCard
               title="조직별 공헌이익 비중"
-              formula="조직 공헌이익 / 전체 공헌이익 × 100"
-              description="조직별 공헌이익 기여 비율입니다. 특정 조직 편중 시 리스크 분산이 필요합니다."
+              formula="비중 = 해당 조직의 공헌이익 나누기 전체 공헌이익 곱하기 100"
+              description="전체 공헌이익 중 각 조직이 차지하는 비율을 원형 차트로 보여줍니다. 한 조직에 지나치게 편중되면 해당 조직 실적 부진 시 전체 수익에 큰 타격을 받으므로, 적절한 분산이 중요합니다."
+              benchmark="특정 조직 비중이 50%를 넘으면 수익 집중 리스크를 검토해야 합니다"
             >
               <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -691,9 +694,9 @@ export default function ProfitabilityPage() {
 
           <ChartCard
             title="담당자별 공헌이익율"
-            formula="공헌이익율 = 공헌이익 / 매출액 × 100"
-            description="담당자별 공헌이익율 비교. 공헌이익율이 높을수록 변동비 효율이 좋습니다."
-            benchmark="공헌이익율 20% 이상이면 양호"
+            formula="공헌이익율 = 공헌이익 나누기 매출액 곱하기 100"
+            description="각 담당자의 매출 100원당 변동비를 빼고 남는 이익 비율입니다. 공헌이익율이 높을수록 적은 매출로도 고정비 회수에 크게 기여하며, 변동비 관리를 효율적으로 하고 있다는 의미입니다."
+            benchmark="공헌이익율 20% 이상이면 양호, 음수인 경우 매출보다 변동비가 더 큰 적자 상태"
           >
             <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
               <ResponsiveContainer width="100%" height="100%">
@@ -734,9 +737,9 @@ export default function ProfitabilityPage() {
             {/* Stacked Bar Chart */}
             <ChartCard
               title="담당자별 비용 구성"
-              formula="각 비용항목 = 판관변동 + 제조변동 해당 항목 합산"
-              description="담당자별 매출원가를 구성하는 비용 항목의 절대금액을 보여줍니다. 비용 집중 영역을 파악할 수 있습니다."
-              benchmark="원재료비 비중 30%↑: 자체생산형, 상품매입 30%↑: 구매직납형"
+              formula="비용 구성 = 원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비"
+              description="각 담당자의 매출을 만들기 위해 들어간 비용을 8가지 항목으로 나누어 쌓아 보여줍니다. 어떤 비용이 가장 큰 비중을 차지하는지, 담당자별로 비용 구조가 어떻게 다른지 한눈에 비교할 수 있습니다."
+              benchmark="원재료비 비중 30% 이상이면 자체생산형, 상품매입 30% 이상이면 구매직납형 비용 구조"
               className="xl:col-span-2"
             >
               <div className="h-80 md:h-[500px]">
@@ -780,8 +783,9 @@ export default function ProfitabilityPage() {
             {/* Profile Distribution Pie */}
             <ChartCard
               title="프로파일 유형 분포"
-              formula="원재료비율 30%↑: 자체생산 | 상품매입 30%↑: 구매직납 | 외주비율 20%↑: 외주의존 | 나머지: 혼합"
-              description="담당자의 비용 구조를 4가지 프로파일로 분류한 분포입니다."
+              formula="원재료비율 30% 이상: 자체생산형, 상품매입 30% 이상: 구매직납형, 외주비율 20% 이상: 외주의존형, 그 외: 혼합형"
+              description="각 담당자의 비용 구조를 분석하여 4가지 유형으로 자동 분류한 결과입니다. 자체생산형은 원재료를 직접 가공하는 유형, 구매직납형은 완제품을 사서 파는 유형, 외주의존형은 외부 업체에 가공을 맡기는 유형입니다. 비용 유형별로 원가 절감 전략이 다릅니다."
+              benchmark="자체생산형은 원재료 단가 관리가, 구매직납형은 매입처 협상이, 외주의존형은 외주비 효율화가 핵심입니다"
             >
               <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
@@ -810,9 +814,9 @@ export default function ProfitabilityPage() {
           {/* Cost Efficiency Table */}
           <ChartCard
             title="비용 효율성 비교"
-            formula="각 비율 = 해당 비용 / 매출액 × 100"
-            description="담당자별 주요 비용 비율을 조직 평균과 비교합니다. 조직 평균 대비 높은 항목은 개선이 필요합니다."
-            benchmark="조직 평균 대비 +5%p 이상 차이 시 주의 필요"
+            formula="비용 비율 = 해당 비용 나누기 매출액 곱하기 100"
+            description="각 담당자의 원재료비율, 상품매입비율, 외주비율을 소속 조직의 평균값과 나란히 비교하는 표입니다. 조직 평균보다 크게 높은 항목(빨간색 표시)은 비용 절감이 필요한 영역이며, 원인 분석과 개선 조치가 필요합니다."
+            benchmark="조직 평균 대비 5%p(퍼센트포인트) 이상 높으면 주의가 필요합니다"
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -870,9 +874,9 @@ export default function ProfitabilityPage() {
             {/* Radar Chart */}
             <ChartCard
               title="조직별 비율 지표 레이더"
-              formula="5축: 매출원가율, 매출총이익율, 판관비율, 영업이익율, 공헌이익율"
-              description="각 조직의 수익 구조를 5가지 비율 지표로 다차원 비교합니다. 면적이 넓을수록 이익률이 높습니다."
-              benchmark="매출총이익율 30%↑, 영업이익율 10%↑, 공헌이익율 높을수록 양호"
+              formula="5개 축 = 매출원가율, 매출총이익율, 판관비율, 영업이익율, 공헌이익율"
+              description="각 조직의 손익 구조를 5가지 비율 지표로 거미줄 모양의 레이더 차트에 표시합니다. 이익 관련 축(매출총이익율, 영업이익율, 공헌이익율)이 바깥쪽에 있을수록 수익성이 좋고, 비용 관련 축(매출원가율, 판관비율)이 안쪽에 있을수록 효율적입니다. 조직 간 수익 구조 차이를 직관적으로 비교할 수 있습니다."
+              benchmark="매출총이익율 30% 이상, 영업이익율 10% 이상, 공헌이익율은 높을수록 양호"
               action={
                 <div className="flex flex-wrap gap-1">
                   {orgRatioMetrics.map((r) => (
@@ -933,9 +937,9 @@ export default function ProfitabilityPage() {
             {/* Heatmap */}
             <ChartCard
               title="계획 대비 실적 히트맵"
-              formula="달성률 = 실적 / 계획 × 100"
-              description="조직별 주요 손익 항목의 계획 대비 실적 달성률을 색상으로 표시합니다."
-              benchmark="녹색: 100%↑ 달성 | 노랑: 80~100% | 빨강: 80% 미만"
+              formula="달성률 = 실적 나누기 계획 곱하기 100"
+              description="각 조직의 매출, 이익 등 주요 손익 항목이 연초 계획 대비 몇 % 달성했는지를 색상으로 한눈에 보여줍니다. 수익 항목(매출, 이익)은 달성률이 높을수록 녹색, 비용 항목(원가, 판관비)은 달성률이 낮을수록(예산 절감) 녹색으로 표시됩니다."
+              benchmark="수익항목: 녹색 100% 이상 달성, 노랑 80~100%, 빨강 80% 미만 | 비용항목: 색상이 반대(낮을수록 좋음)"
             >
               <div className="overflow-x-auto">
                 {/* Header */}
@@ -1020,16 +1024,16 @@ export default function ProfitabilityPage() {
                   value={productProfitability.length}
                   format="number"
                   icon={<Package className="h-5 w-5" />}
-                  formula="품목별 그룹핑 후 고유 품목 수"
-                  description="수익성 분석 대상 품목의 총 수입니다."
+                  formula="동일 품목명으로 묶은 후 고유 품목 수 합계"
+                  description="현재 수익성 분석 대상이 되는 전체 품목(제품/상품)의 수입니다. 품목이 많을수록 매출 포트폴리오가 다양합니다."
                 />
                 <KpiCard
                   title="최고 수익 품목"
                   value={productProfitability.length > 0 ? productProfitability[0].grossProfit : 0}
                   format="currency"
                   icon={<TrendingUp className="h-5 w-5" />}
-                  formula="품목별 매출총이익 1위"
-                  description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%)` : "데이터 없음"}
+                  formula="전체 품목 중 매출총이익(매출 - 원가)이 가장 큰 품목"
+                  description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%). 이 품목이 전체 이익에 가장 크게 기여하고 있습니다.` : "데이터 없음"}
                 />
                 <KpiCard
                   title="가중평균 매출총이익율"
@@ -1039,17 +1043,17 @@ export default function ProfitabilityPage() {
                     return totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
                   })()}
                   format="percent"
-                  formula="전체 매출총이익 / 전체 매출액 × 100"
-                  description="매출 규모를 반영한 가중평균 매출총이익율입니다."
-                  benchmark="30% 이상 양호"
+                  formula="가중평균 = 전체 매출총이익 합계 나누기 전체 매출액 합계 곱하기 100"
+                  description="매출 규모가 큰 품목의 이익율이 더 많이 반영된 평균 이익율입니다. 단순 평균보다 실제 수익 구조를 더 정확하게 보여줍니다."
+                  benchmark="제조업 평균 20~30%, 30% 이상이면 양호한 제품 포트폴리오"
                 />
               </div>
 
               <ChartCard
                 title="품목별 매출총이익 Top 15"
                 formula="매출총이익 = 매출액 - 매출원가"
-                description="매출총이익 기준 상위 15개 품목입니다. 수평 막대 차트로 이익 규모를 비교합니다."
-                benchmark="양수: 이익 품목, 음수: 손실 품목"
+                description="매출총이익이 큰 순서대로 상위 15개 품목을 수평 막대로 보여줍니다. 녹색 막대는 이익을 내는 품목, 빨간색 막대는 원가가 매출보다 커서 손실이 발생하는 품목입니다. 손실 품목은 가격 인상이나 원가 절감 검토가 필요합니다."
+                benchmark="양수(녹색)는 이익 품목, 음수(빨간색)는 손실 품목으로 원가 구조 점검 필요"
               >
                 <ErrorBoundary>
                   <div className="h-80 md:h-[500px]">
@@ -1096,9 +1100,9 @@ export default function ProfitabilityPage() {
 
               <ChartCard
                 title="거래처별 수익성 분석"
-                formula="매출총이익율 = 매출총이익 / 매출액 x 100"
-                description="거래처별 매출, 이익율, 취급 품목 수를 종합적으로 비교합니다."
-                benchmark="매출총이익율 30%↑ 양호 | 영업이익율 10%↑ 양호"
+                formula="매출총이익율 = 매출총이익 나누기 매출액 곱하기 100"
+                description="각 거래처(고객사)별로 매출액, 매출총이익, 영업이익과 각각의 이익율, 취급 품목 수를 표로 정리합니다. 매출은 크지만 이익율이 낮은 거래처는 거래 조건 재협상이 필요하며, 이익율이 높은 거래처는 관계를 강화해야 합니다."
+                benchmark="매출총이익율 30% 이상 양호, 영업이익율 10% 이상 양호. 음수 이익율은 거래 손실 발생 중"
               >
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -1153,9 +1157,9 @@ export default function ProfitabilityPage() {
         <TabsContent value="risk" className="space-y-6">
           <ChartCard
             title="수익성 x 리스크 매트릭스"
-            formula="X축: 영업이익율(%), Y축: 리스크 점수(0~100)"
-            description="조직별 수익성과 미수금 리스크를 2차원으로 비교합니다. 우하단(고수익+저리스크)이 가장 이상적입니다."
-            benchmark="기준선: 영업이익율 5% | 리스크 점수 40"
+            formula="가로축 = 영업이익율(%), 세로축 = 미수금 리스크 점수(0~100점)"
+            description="각 조직의 수익성(영업이익율)과 미수금 회수 리스크를 동시에 비교하는 2차원 분석입니다. 오른쪽 아래에 위치할수록 수익은 높고 리스크는 낮은 이상적인 조직입니다. 리스크 점수는 미수금 잔액, 장기 미수 비율, 매출 대비 미수금 비율 등을 종합하여 산출합니다."
+            benchmark="영업이익율 5% 기준선과 리스크 점수 40점 기준선으로 4개 사분면(스타, 안정형, 주의, 위험)으로 분류"
           >
             <ErrorBoundary>
               <div className="h-72 md:h-96">
@@ -1295,14 +1299,14 @@ export default function ProfitabilityPage() {
         <TabsContent value="variance" className="space-y-6">
           {/* Variance KPI Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="총 차이" value={varianceSummary.totalVariance} format="currency" icon={<TrendingUp className="h-5 w-5" />} formula="매출액 실적 - 매출액 계획" />
-            <KpiCard title="가격차이" value={varianceSummary.priceVariance} format="currency" icon={<Target className="h-5 w-5" />} formula="(실적단가 - 계획단가) × 실적수량" description="단가 변동에 의한 매출 차이" />
-            <KpiCard title="수량차이" value={varianceSummary.volumeVariance} format="currency" icon={<Package className="h-5 w-5" />} formula="(실적수량 - 계획수량) × 계획단가" description="판매량 변동에 의한 매출 차이" />
-            <KpiCard title="믹스차이" value={varianceSummary.mixVariance} format="currency" formula="총차이 - 가격차이 - 수량차이" description="제품 구성 변동에 의한 잔여 차이" />
+            <KpiCard title="총 차이" value={varianceSummary.totalVariance} format="currency" icon={<TrendingUp className="h-5 w-5" />} formula="총 차이 = 매출액 실적 - 매출액 계획" description="계획 대비 실제 매출이 얼마나 차이 나는지 보여줍니다. 양수면 계획 초과 달성, 음수면 계획 미달입니다." />
+            <KpiCard title="가격차이" value={varianceSummary.priceVariance} format="currency" icon={<Target className="h-5 w-5" />} formula="가격차이 = (실적단가 - 계획단가) 곱하기 실적수량" description="판매 단가가 계획보다 높거나 낮아서 발생한 매출 차이입니다. 양수면 단가 인상 효과, 음수면 단가 하락으로 인한 매출 감소입니다." benchmark="가격차이가 음수이면 시장 가격 하락 또는 할인 판매가 원인일 수 있습니다" />
+            <KpiCard title="수량차이" value={varianceSummary.volumeVariance} format="currency" icon={<Package className="h-5 w-5" />} formula="수량차이 = (실적수량 - 계획수량) 곱하기 계획단가" description="판매 수량이 계획보다 많거나 적어서 발생한 매출 차이입니다. 양수면 판매량 증가 효과, 음수면 판매 부진으로 인한 매출 감소입니다." benchmark="수량차이가 음수이면 영업력 강화나 마케팅 전략 점검이 필요합니다" />
+            <KpiCard title="믹스차이" value={varianceSummary.mixVariance} format="currency" formula="믹스차이 = 총차이 - 가격차이 - 수량차이" description="제품 구성(판매 비중)이 변해서 발생한 나머지 차이입니다. 고수익 제품 비중이 늘면 양수, 저수익 제품 비중이 늘면 음수가 됩니다." benchmark="믹스차이가 음수이면 저수익 제품 판매 비중이 늘어난 것이므로 제품 포트폴리오 점검이 필요합니다" />
           </div>
 
           {/* 3-Way Variance Bar Chart */}
-          <ChartCard title="3-Way Variance 분해" formula="총차이 = 가격차이 + 수량차이 + 믹스차이" description="SAP CO-PA 스타일 가격/수량/믹스 3-way 분산분석">
+          <ChartCard title="3-Way 분산분석 분해" formula="총 차이 = 가격차이 + 수량차이 + 믹스차이" description="계획 대비 실적의 총 차이를 가격, 수량, 제품 구성(믹스) 3가지 원인으로 분해하여 보여줍니다. 어떤 요인이 매출 차이의 주된 원인인지 파악할 수 있어, 정확한 개선 방향을 수립하는 데 도움이 됩니다." benchmark="가장 큰 차이를 보이는 요인부터 우선적으로 개선 전략을 수립해야 합니다">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={[
@@ -1326,7 +1330,7 @@ export default function ProfitabilityPage() {
           </ChartCard>
 
           {/* Org-level Variance */}
-          <ChartCard title="조직별 분산 분석" description="조직별 가격/수량/믹스 차이 비교">
+          <ChartCard title="조직별 분산 분석" formula="각 조직의 가격차이 + 수량차이 + 믹스차이를 누적 막대로 표시" description="조직별로 매출 차이의 원인을 가격, 수량, 믹스로 나누어 비교합니다. 어떤 조직이 어떤 원인으로 계획을 초과했거나 미달했는지 한눈에 파악할 수 있습니다. 누적 막대가 위로 갈수록 계획 초과, 아래로 갈수록 미달입니다." benchmark="조직마다 주된 차이 원인이 다르므로, 조직별 맞춤 개선 전략이 필요합니다">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={orgVariances.slice(0, 10)}>
@@ -1349,15 +1353,15 @@ export default function ProfitabilityPage() {
         <TabsContent value="breakeven" className="space-y-6">
           {/* BEP KPI Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="BEP 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="고정비 / (1 - 변동비율)" description="손익분기점 매출액. 이 금액 이상 매출 시 이익 발생" />
-            <KpiCard title="안전한계율" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + (isFinite(r.safetyMarginRate) ? r.safetyMarginRate : 0), 0) / orgBreakeven.length : 0} format="percent" formula="(실적매출 - BEP매출) / 실적매출 × 100" description="현재 매출이 BEP를 얼마나 초과하는지. 높을수록 안전" benchmark="20% 이상 안전" />
-            <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="(매출 - 변동비) / 매출 × 100" description="매출 1원당 고정비 회수에 기여하는 비율" />
-            <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" description="BEP 분석이 가능한 조직 수" />
+            <KpiCard title="손익분기점(BEP) 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="BEP 매출 = 고정비 나누기 (1 - 변동비율)" description="손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다." benchmark="실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다" />
+            <KpiCard title="안전한계율" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + (isFinite(r.safetyMarginRate) ? r.safetyMarginRate : 0), 0) / orgBreakeven.length : 0} format="percent" formula="안전한계율 = (실적매출 - BEP매출) 나누기 실적매출 곱하기 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
+            <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="공헌이익률 = (매출 - 변동비) 나누기 매출 곱하기 100" description="매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다." benchmark="공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다" />
+            <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" description="손익분기점(BEP) 분석이 가능한 조직의 수입니다. 매출과 비용 데이터가 모두 있는 조직만 분석 대상에 포함됩니다." />
           </div>
 
           {/* BEP Chart */}
           {bepChartData.length > 0 && (
-            <ChartCard title="손익분기점 도표" formula="BEP = 매출선과 총비용선의 교차점" description="SAP CO CVP Analysis 기반. 매출이 총비용을 초과하는 지점이 손익분기점">
+            <ChartCard title="손익분기점 도표" formula="손익분기점 = 매출선과 총비용선이 만나는 지점" description="가로축(매출)이 커질수록 매출선(파란선)과 총비용선(빨간선)이 어디서 만나는지 보여줍니다. 두 선이 만나는 교차점이 바로 손익분기점(BEP)이며, 이 지점을 넘어서면 이익이 발생합니다. 아래쪽 영역은 고정비를 나타냅니다." benchmark="매출선이 총비용선 위에 있으면 이익 구간, 아래에 있으면 손실 구간입니다">
               <div className="h-64 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={bepChartData}>
@@ -1376,7 +1380,7 @@ export default function ProfitabilityPage() {
           )}
 
           {/* Org-level BEP comparison */}
-          <ChartCard title="조직별 손익분기점 비교" description="안전한계율이 높을수록 수익성이 안정적">
+          <ChartCard title="조직별 손익분기점 비교" formula="안전한계율 = (실적매출 - BEP매출) 나누기 실적매출 곱하기 100" description="각 조직의 안전한계율을 수평 막대로 비교합니다. 안전한계율이 높을수록(녹색 영역) 매출이 줄어도 이익을 유지할 수 있어 안정적입니다. 빨간색 기준선(0%) 아래이면 현재 적자 상태, 녹색 안전선(20%) 이상이면 안전한 수익 구조입니다." benchmark="안전한계율 20% 이상(녹색 기준선): 안전, 0~20%: 주의, 0% 미만: 적자 상태">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
@@ -1428,14 +1432,14 @@ export default function ProfitabilityPage() {
 
           {/* Scenario KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" />
-            <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" />
-            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" />
-            <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" />
+            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" formula="시나리오 매출 = 기준 매출 곱하기 (1 + 매출 변동률)" description="위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다." />
+            <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" formula="시나리오 영업이익 = 시나리오 매출 - 시나리오 원가 - 시나리오 판관비" description="매출, 원가율, 판관비를 모두 변동시켰을 때의 예상 영업이익입니다. 기준 대비 얼마나 이익이 늘거나 줄어드는지 보여줍니다." />
+            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" formula="시나리오 영업이익율 = 시나리오 영업이익 나누기 시나리오 매출 곱하기 100" description="시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다." />
+            <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" description="시나리오 분석 대상이 되는 조직의 수입니다." />
           </div>
 
           {/* Base vs Scenario comparison bar */}
-          <ChartCard title="조직별 Base vs 시나리오 영업이익" description="기준(Base) 대비 시나리오 영업이익 비교">
+          <ChartCard title="조직별 Base vs 시나리오 영업이익" formula="회색 막대 = 기준(Base) 영업이익, 파란 막대 = 시나리오 영업이익" description="각 조직의 현재 영업이익(Base)과 시나리오 적용 후 예상 영업이익을 나란히 비교합니다. 두 막대 차이가 클수록 해당 시나리오 변수에 민감한 조직이며, 시나리오 막대가 더 크면 개선 효과, 더 작으면 악화 효과입니다." benchmark="시나리오 막대가 Base보다 크면 긍정적 효과, 작으면 부정적 효과입니다">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={scenarioResults.slice(0, 10)}>
@@ -1452,7 +1456,7 @@ export default function ProfitabilityPage() {
           </ChartCard>
 
           {/* Sensitivity chart */}
-          <ChartCard title="매출 변동 민감도 분석" formula="매출 변동률에 따른 영업이익 변화" description="Tornado 스타일 민감도 분석">
+          <ChartCard title="매출 변동 민감도 분석" formula="매출이 -20%에서 +20%까지 변할 때 영업이익과 영업이익율의 변화" description="매출이 일정 비율로 증가하거나 감소할 때 영업이익(막대)과 영업이익율(꺾은선)이 어떻게 변하는지 보여줍니다. 막대와 꺾은선의 기울기가 가파를수록 매출 변동에 민감한 수익 구조입니다. 매출 감소 시 영업이익이 급격히 줄어드는 구간을 주의해야 합니다." benchmark="매출 10% 감소 시에도 영업이익이 양수이면 비교적 안전한 수익 구조입니다">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={sensitivityData}>

@@ -138,33 +138,35 @@ export default function SalesAnalysisPage() {
           value={totalSalesAmount}
           format="currency"
           icon={<DollarSign className="h-5 w-5" />}
-          formula="SUM(매출리스트.장부금액)"
-          description="필터링된 조직의 전체 매출 합계입니다."
+          formula="매출리스트의 모든 장부금액을 합산"
+          description="선택한 영업조직의 전체 매출 금액 합계입니다. 이 페이지의 모든 분석은 이 금액을 기준으로 산출됩니다."
         />
         <KpiCard
           title="거래처 수"
           value={uniqueCustomers}
           format="number"
           icon={<Users className="h-5 w-5" />}
-          formula="DISTINCT COUNT(매출처)"
-          description="매출이 발생한 고유 거래처 수입니다."
+          formula="중복 없이 매출처 수를 세기"
+          description="실제로 매출이 발생한 고유 거래처(고객사)의 수입니다. 거래처 수가 많을수록 매출 기반이 다양하고, 특정 거래처에 대한 의존도가 낮아집니다."
+          benchmark="거래처 수가 전기 대비 증가하면 신규 고객 확보 성과 양호"
         />
         <KpiCard
           title="건당 평균"
           value={avgPerTransaction}
           format="currency"
           icon={<BarChart3 className="h-5 w-5" />}
-          formula="총 매출액 / 매출 건수"
-          description="매출 건당 평균 금액입니다."
+          formula="총 매출액 나누기 매출 건수"
+          description="매출 1건당 평균 거래 금액입니다. 건당 평균이 높으면 대형 프로젝트 위주의 영업, 낮으면 소규모 거래 위주의 영업 패턴을 의미합니다."
+          benchmark="업종 평균 건당 금액 대비 높으면 고부가가치 영업 구조"
         />
         <KpiCard
           title="Top1 거래처 비중"
           value={top1Share}
           format="percent"
           icon={<Target className="h-5 w-5" />}
-          formula="Top1 거래처 매출 / 총매출 × 100"
-          description="최대 거래처의 매출 집중도입니다. 높을수록 의존도가 큽니다."
-          benchmark="20% 이내 안정, 30% 초과 시 리스크"
+          formula="1위 거래처 매출 나누기 총매출 곱하기 100"
+          description="매출 1위 거래처가 전체 매출에서 차지하는 비율입니다. 이 수치가 높으면 해당 거래처에 대한 의존도가 크므로, 거래처 이탈 시 매출 급감 위험이 있습니다."
+          benchmark="20% 이내이면 안정적 분산, 30% 초과 시 집중 리스크 경고"
         />
       </div>
 
@@ -183,9 +185,9 @@ export default function SalesAnalysisPage() {
         <TabsContent value="customer" className="space-y-6">
           <ChartCard
             title="거래처별 매출 (ABC 분석)"
-            formula="누적비율 = 누적매출 / 총매출 × 100"
-            description="거래처를 매출액 기준으로 정렬하여 누적 비율을 계산합니다. A등급(~80%), B등급(80~95%), C등급(95~100%)으로 분류합니다."
-            benchmark="상위 20% 거래처가 80% 매출 차지 시 전형적 파레토 분포"
+            formula="누적 비율: 누적 매출 나누기 총 매출 곱하기 100"
+            description="거래처를 매출액이 큰 순서대로 나열하고, 누적 비율에 따라 A등급(상위 80%까지), B등급(80~95%), C등급(95~100%)으로 분류합니다. 소수의 핵심 거래처가 대부분의 매출을 차지하는 '파레토 법칙'을 확인할 수 있습니다."
+            benchmark="상위 20% 거래처가 매출의 80%를 차지하면 전형적인 파레토 분포 (80:20 법칙)"
             action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
           >
             <div className="h-72 md:h-96">
@@ -213,9 +215,9 @@ export default function SalesAnalysisPage() {
         <TabsContent value="item" className="space-y-6">
           <ChartCard
             title="품목별 매출 비중"
-            formula="SUM(장부금액) GROUP BY 품목명"
-            description="품목별 매출 규모를 면적으로 시각화합니다. 큰 면적일수록 매출 비중이 높은 품목입니다."
-            benchmark="특정 품목 의존도가 50% 이상이면 리스크 분산 필요"
+            formula="품목별로 장부금액을 합산하여 비교"
+            description="각 품목의 매출 규모를 면적(네모칸) 크기로 보여줍니다. 면적이 클수록 해당 품목의 매출 비중이 높습니다. 상위 20개 품목을 표시하며, 어떤 제품이 매출을 주도하는지 한눈에 파악할 수 있습니다."
+            benchmark="특정 품목이 전체 매출의 50% 이상이면 제품 다각화 필요"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -248,9 +250,9 @@ export default function SalesAnalysisPage() {
         <TabsContent value="type" className="space-y-6">
           <ChartCard
             title="내수/수출 비중"
-            formula="SUM(장부금액) GROUP BY 수주유형(내수/수출)"
-            description="내수와 수출 매출의 구성 비율을 보여줍니다. 수출 비중이 높을수록 환율 리스크가 커집니다."
-            benchmark="내수/수출 균형 유지가 안정적"
+            formula="내수와 수출 유형별로 장부금액을 각각 합산"
+            description="전체 매출 중 내수(국내 판매)와 수출(해외 판매)의 비율을 도넛 차트로 보여줍니다. 수출 비중이 높으면 환율 변동에 따라 실적이 크게 흔들릴 수 있으므로 환리스크 관리가 중요합니다."
+            benchmark="내수와 수출이 적절히 분산되면 안정적, 한쪽 비중이 80% 이상이면 편중 주의"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -279,9 +281,9 @@ export default function SalesAnalysisPage() {
           {/* 결제조건별 매출 분포 */}
           <ChartCard
             title="결제조건별 매출 분포"
-            formula="SUM(판매금액) GROUP BY 결제조건"
-            description="결제조건별 매출 분포를 보여줍니다. 특정 결제조건에 대한 매출 집중도를 파악할 수 있습니다."
-            benchmark="결제조건 다양화로 리스크 분산 권장"
+            formula="결제조건별로 판매금액을 합산하여 비교"
+            description="현금, 30일, 60일 등 결제조건별 매출 분포를 보여줍니다. 장기 결제조건에 매출이 집중되면 현금 회수가 늦어져 자금 부담이 커질 수 있습니다."
+            benchmark="현금 및 30일 이내 결제 비중이 50% 이상이면 현금흐름 양호"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -306,9 +308,9 @@ export default function SalesAnalysisPage() {
           {/* 유통경로별 매출 */}
           <ChartCard
             title="유통경로별 매출"
-            formula="SUM(판매금액) GROUP BY 유통경로"
-            description="유통경로별 매출 비중을 보여줍니다. 특정 채널 의존도가 높을 경우 채널 다변화를 고려해야 합니다."
-            benchmark="단일 채널 의존도 50% 이하 권장"
+            formula="유통경로별로 판매금액을 합산하여 비교"
+            description="직판, 대리점, 온라인 등 유통경로별 매출 비중을 보여줍니다. 특정 채널에 매출이 편중되면 해당 채널 문제 발생 시 전체 매출에 큰 타격을 받을 수 있습니다."
+            benchmark="단일 채널 의존도 50% 이하가 바람직하며, 채널 다변화 권장"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -362,9 +364,9 @@ export default function SalesAnalysisPage() {
           {/* 제품군별 월별 트렌드 */}
           <ChartCard
             title="제품군별 월별 트렌드"
-            formula="SUM(판매금액) GROUP BY 제품군, MONTH(매출일)"
-            description="제품군별 월별 매출 추이를 보여줍니다. 상위 5개 제품군을 표시하고 나머지는 기타로 집계합니다."
-            benchmark="계절성 패턴 및 제품군별 성장/하락 추이 파악"
+            formula="제품군별, 월별로 판매금액을 합산 (상위 5개 + 기타)"
+            description="주요 제품군의 월별 매출 변화를 누적 막대 차트로 보여줍니다. 상위 5개 제품군은 개별 표시하고 나머지는 '기타'로 묶습니다. 특정 제품군의 계절적 패턴이나 성장/하락 추세를 파악할 수 있습니다."
+            benchmark="특정 제품군이 지속 하락하면 시장 변화 대응 전략 수립 필요"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -433,9 +435,9 @@ export default function SalesAnalysisPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <ChartCard
                   title="RFM 세그먼트 분포 (거래처 수)"
-                  formula="고객별 R/F/M 5분위수 → 세그먼트 분류 → COUNT"
-                  description="Recency(최근성), Frequency(빈도), Monetary(금액)를 5분위로 점수화하여 VIP, Loyal, Potential, At-risk, Dormant, Lost 세그먼트로 분류합니다."
-                  benchmark="VIP+Loyal 비중 30% 이상 시 건전한 고객 포트폴리오"
+                  formula="고객별 최근성, 빈도, 금액을 5단계로 점수화한 뒤 세그먼트 분류"
+                  description="RFM 분석은 고객을 3가지 기준으로 평가합니다. R(최근성): 마지막 거래가 얼마나 최근인지, F(빈도): 얼마나 자주 거래하는지, M(금액): 총 거래 금액이 얼마인지. 이 점수를 조합하여 VIP(최우수), Loyal(충성), Potential(잠재), At-risk(위험), Dormant(휴면), Lost(이탈) 등 6개 그룹으로 나눕니다."
+                  benchmark="VIP + Loyal 거래처가 전체의 30% 이상이면 건전한 고객 포트폴리오"
                 >
                   <div className="h-72 md:h-80">
                     <ResponsiveContainer width="100%" height="100%">
@@ -503,9 +505,9 @@ export default function SalesAnalysisPage() {
 
                 <ChartCard
                   title="세그먼트별 매출 비중"
-                  formula="SUM(Monetary) GROUP BY RFM Segment"
-                  description="각 세그먼트가 전체 매출에서 차지하는 비중입니다. VIP 세그먼트의 매출 집중도를 확인합니다."
-                  benchmark="VIP 세그먼트 매출 비중 60% 이상 시 핵심 고객 관리 강화 필요"
+                  formula="세그먼트별로 고객 매출액(M값)을 합산"
+                  description="각 고객 등급(세그먼트)이 전체 매출에서 차지하는 금액을 비교합니다. 보통 VIP 소수 고객이 전체 매출의 대부분을 차지하며, 이들의 이탈 방지가 매출 유지의 핵심입니다."
+                  benchmark="VIP 세그먼트 매출 비중이 60% 이상이면 핵심 고객 관리 프로그램 강화 필요"
                 >
                   <div className="h-72 md:h-80">
                     <ResponsiveContainer width="100%" height="100%">
@@ -543,9 +545,9 @@ export default function SalesAnalysisPage() {
               {/* Recency vs Monetary 산점도 */}
               <ChartCard
                 title="Recency vs Monetary 분포"
-                formula="X=마지막 거래 경과 개월수, Y=총 매출액, 점 크기=거래 빈도"
-                description="최근성(X축)과 매출 규모(Y축)를 기준으로 고객을 배치합니다. 점의 크기는 거래 빈도를 나타냅니다. 좌상단이 VIP(최근 거래, 높은 매출), 우하단이 Lost(오래된 거래, 낮은 매출)입니다."
-                benchmark="좌상단(VIP)에 큰 점이 집중될수록 건전한 고객 구조"
+                formula="가로축: 마지막 거래 후 경과 개월, 세로축: 총 매출액, 점 크기: 거래 빈도"
+                description="고객을 최근성(가로축)과 매출 규모(세로축)로 배치한 산점도입니다. 점이 클수록 거래 빈도가 높은 고객입니다. 왼쪽 위(최근 거래 + 높은 매출)에 있는 고객이 VIP이고, 오른쪽 아래(오래된 거래 + 낮은 매출)에 있는 고객은 이탈 위험군입니다."
+                benchmark="왼쪽 위에 큰 점이 많을수록 건전한 고객 구조"
               >
                 <div className="h-72 md:h-96">
                   <ResponsiveContainer width="100%" height="100%">
@@ -619,36 +621,37 @@ export default function SalesAnalysisPage() {
               {/* CLV KPI 카드 */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <KpiCard
-                  title="총 CLV"
+                  title="총 CLV(고객생애가치)"
                   value={clvSummary.totalClv}
                   format="currency"
                   icon={<TrendingUp className="h-5 w-5" />}
-                  formula="SUM(고객별 CLV)"
-                  description="모든 고객의 예상 생애가치 합계입니다."
+                  formula="모든 고객의 예상 생애가치를 합산"
+                  description="CLV(고객생애가치)란 한 고객이 거래 기간 동안 가져다줄 것으로 예상되는 총 수익입니다. 총 CLV는 모든 고객의 예상 가치를 합한 것으로, 고객 자산의 전체 규모를 보여줍니다."
                 />
                 <KpiCard
-                  title="평균 CLV"
+                  title="평균 CLV(고객생애가치)"
                   value={clvSummary.avgClv}
                   format="currency"
                   icon={<BarChart3 className="h-5 w-5" />}
-                  formula="총 CLV / 고객 수"
-                  description="고객 1인당 평균 생애가치입니다."
+                  formula="총 CLV 나누기 고객 수"
+                  description="고객 1곳당 평균적으로 기대되는 생애가치입니다. 이 금액이 높을수록 고객 1곳이 장기적으로 더 큰 수익을 가져다준다는 의미입니다."
+                  benchmark="평균 CLV가 고객 획득 비용의 3배 이상이면 건전한 수준"
                 />
                 <KpiCard
                   title="Top 고객 CLV"
                   value={clvSummary.topCustomerClv}
                   format="currency"
                   icon={<Crown className="h-5 w-5" />}
-                  formula="MAX(고객별 CLV)"
-                  description="가장 높은 생애가치를 가진 고객의 CLV입니다."
+                  formula="고객별 CLV 중 가장 큰 값"
+                  description="가장 높은 생애가치를 가진 최우수 고객의 CLV입니다. 이 고객은 장기적으로 가장 큰 수익을 가져다줄 것으로 예상되므로, 특별 관리가 필요합니다."
                 />
                 <KpiCard
                   title="분석 고객 수"
                   value={clvSummary.customerCount}
                   format="number"
                   icon={<Users className="h-5 w-5" />}
-                  formula="DISTINCT COUNT(매출처)"
-                  description="CLV가 산출된 고유 고객 수입니다."
+                  formula="중복 없이 매출처 수를 세기"
+                  description="CLV(고객생애가치)가 산출된 고유 고객 수입니다. 최소 2회 이상 거래가 있어야 의미 있는 CLV를 계산할 수 있으므로, 전체 거래처 수보다 적을 수 있습니다."
                 />
               </div>
 
@@ -656,9 +659,9 @@ export default function SalesAnalysisPage() {
                 {/* Top 15 CLV 고객 */}
                 <ChartCard
                   title="Top 15 고객 생애가치 (CLV)"
-                  formula="CLV = 평균거래액 × 연간빈도 × 이익률 × 예상거래기간"
-                  description="고객 생애가치 상위 15개 고객입니다. CLV가 높은 고객은 장기적으로 더 큰 수익을 창출할 것으로 기대됩니다."
-                  benchmark="상위 20% 고객 CLV가 전체의 80% 이상이면 집중 관리 필요"
+                  formula="CLV(고객생애가치) = 평균 거래액 곱하기 연간 거래빈도 곱하기 이익률 곱하기 예상 거래기간"
+                  description="고객 생애가치가 높은 상위 15개 고객입니다. CLV가 높다는 것은 해당 고객이 장기적으로 꾸준히 수익을 가져다줄 가능성이 크다는 의미이며, 이들에 대한 맞춤형 관리가 중요합니다."
+                  benchmark="상위 20% 고객의 CLV가 전체의 80% 이상이면 핵심 고객 집중 관리 필요"
                 >
                   <div className="h-72 md:h-96">
                     <ResponsiveContainer width="100%" height="100%">
@@ -692,9 +695,9 @@ export default function SalesAnalysisPage() {
                 {/* CLV vs 현재 매출 산점도 */}
                 <ChartCard
                   title="CLV vs 현재 매출"
-                  formula="X=현재 매출액, Y=CLV, 대각선 위=성장 잠재력 높은 고객"
-                  description="현재 매출 대비 예상 생애가치를 비교합니다. 대각선 위에 있는 고객은 현재 매출 대비 장기 가치가 높아 육성 대상입니다."
-                  benchmark="CLV/매출 비율 > 1.5이면 고성장 잠재 고객"
+                  formula="가로축: 현재 매출액, 세로축: 예상 생애가치(CLV)"
+                  description="현재 매출과 장기 예상 가치를 비교합니다. 대각선 위쪽 고객은 현재 매출은 적지만 장기 가치가 높아 적극 육성 대상입니다. 대각선 아래쪽 고객은 현재 매출은 많지만 장기 가치가 낮아 관계 강화가 필요합니다."
+                  benchmark="CLV가 현재 매출의 1.5배 이상이면 고성장 잠재 고객으로 분류"
                 >
                   <div className="h-72 md:h-96">
                     <ResponsiveContainer width="100%" height="100%">
@@ -749,9 +752,9 @@ export default function SalesAnalysisPage() {
               {migration.summaries.length > 0 && (
                 <ChartCard
                   title="월별 등급 이동 추이"
-                  formula="등급 기준: A(상위20%), B(상위40%), C(상위60%), D(그 이하)"
-                  description="매월 거래처의 등급 변동을 추적합니다. 상승(녹색)·하락(적색)은 막대, 이탈(황색)·신규(청색)는 선으로 표시합니다."
-                  benchmark="상승 > 하락이면 고객 포트폴리오 개선 중"
+                  formula="등급 기준: A(매출 상위 20%), B(상위 40%), C(상위 60%), D(나머지)"
+                  description="매월 거래처가 어떤 등급으로 이동했는지 추적합니다. 녹색 막대(등급 상승)와 적색 막대(등급 하락)는 기존 고객의 변동을, 황색 선(이탈)과 청색 선(신규)은 고객 유출입과 유입을 보여줍니다."
+                  benchmark="녹색(상승)이 적색(하락)보다 지속적으로 크면 고객 포트폴리오가 개선되는 추세"
                 >
                   <div className="h-72 md:h-96">
                     <ResponsiveContainer width="100%" height="100%">
@@ -778,9 +781,9 @@ export default function SalesAnalysisPage() {
               {gradeDistribution.length > 0 && (
                 <ChartCard
                   title="월별 등급 분포 추이"
-                  formula="COUNT(거래처) GROUP BY 등급, MONTH"
-                  description="각 월의 거래처 등급 분포를 면적 차트로 보여줍니다. A~D 등급별 거래처 수의 변화를 추적하여 전체 고객 포트폴리오의 건전성을 파악합니다."
-                  benchmark="A+B 등급 비중이 지속 증가하면 고객 질 개선 추세"
+                  formula="월별, 등급별로 거래처 수를 세어서 누적 표시"
+                  description="매월 A, B, C, D 등급에 속하는 거래처가 각각 몇 곳인지를 면적 차트로 보여줍니다. 시간이 지남에 따라 A등급(상위)의 면적이 넓어지고 D등급(하위)의 면적이 좁아지면 전체 고객 품질이 좋아지고 있다는 의미입니다."
+                  benchmark="A + B 등급 비중이 지속 증가하면 고객 포트폴리오 건전성 개선 추세"
                 >
                   <div className="h-72 md:h-96">
                     <ResponsiveContainer width="100%" height="100%">
@@ -819,43 +822,43 @@ export default function SalesAnalysisPage() {
                   value={fxImpact.foreignSharePercent}
                   format="percent"
                   icon={<Globe className="h-5 w-5" />}
-                  formula="해외매출(장부) / 총매출(장부) x 100"
-                  description="외화 거래의 총매출 대비 비중입니다. 높을수록 환율 변동에 민감합니다."
-                  benchmark="30% 초과 시 환리스크 관리 필요"
+                  formula="해외매출(원화 환산) 나누기 총매출(원화) 곱하기 100"
+                  description="전체 매출 중 외화(해외) 거래가 차지하는 비율입니다. 이 비중이 높을수록 원/달러, 원/엔 등 환율 변동에 따라 실적이 크게 흔들릴 수 있습니다."
+                  benchmark="30%를 넘으면 환리스크 헤지(환율 변동 대비) 전략 필요"
                 />
                 <KpiCard
                   title="해외매출액"
                   value={fxImpact.foreignAmount}
                   format="currency"
                   icon={<DollarSign className="h-5 w-5" />}
-                  formula="SUM(장부금액) WHERE 거래통화 ≠ KRW"
-                  description="외화 거래의 장부금액(원화 환산) 합계입니다."
+                  formula="거래통화가 원화(KRW)가 아닌 매출의 장부금액을 합산"
+                  description="외화(달러, 유로, 엔 등)로 거래된 매출을 원화로 환산한 금액의 합계입니다. 환율 변동에 따라 같은 외화 금액이라도 원화 환산 금액이 달라질 수 있습니다."
                 />
                 <KpiCard
                   title="거래 통화 수"
                   value={fxImpact.currencyBreakdown.length}
                   format="number"
                   icon={<BarChart3 className="h-5 w-5" />}
-                  formula="DISTINCT COUNT(거래통화)"
-                  description="거래에 사용된 고유 통화의 수입니다."
+                  formula="중복 없이 거래에 사용된 통화 종류 수를 세기"
+                  description="매출 거래에 사용된 통화(KRW, USD, EUR, JPY 등)의 종류 수입니다. 통화가 다양할수록 여러 해외 시장에 진출해 있다는 의미이지만, 환율 관리 복잡도도 높아집니다."
                 />
                 <KpiCard
                   title="FX 효과"
                   value={fxPnL.reduce((sum, item) => sum + item.fxGainLoss, 0)}
                   format="currency"
                   icon={<TrendingUp className="h-5 w-5" />}
-                  formula="SUM(장부금액 - 판매금액 x 평균환율)"
-                  description="통화별 가중평균 환율 대비 실제 적용 환율의 차이로 발생한 환차익/손 추정액입니다."
-                  benchmark="양수: 환차익, 음수: 환차손"
+                  formula="(실제 장부금액 빼기 판매금액 곱하기 평균환율)의 합계"
+                  description="각 거래의 실제 적용 환율과 기간 내 가중평균 환율의 차이에서 발생한 환차익 또는 환차손의 추정 금액입니다. 환율이 유리하게 적용된 거래가 많으면 양수(이익), 불리하면 음수(손실)로 나타납니다."
+                  benchmark="양수이면 환차익(이득), 음수이면 환차손(손해)"
                 />
               </div>
 
               {/* 월별 내수/해외 매출 추이 */}
               <ChartCard
                 title="월별 내수/해외 매출 추이"
-                formula="SUM(장부금액) GROUP BY MONTH, 통화구분(KRW/외화)"
-                description="월별로 내수(KRW)와 해외(외화) 매출의 구성을 보여줍니다. 오른쪽 축은 해외매출 비중(%)을 나타냅니다."
-                benchmark="해외매출 비중 추이가 안정적인지 확인"
+                formula="월별로 원화(내수)와 외화(해외) 매출을 각각 합산"
+                description="매월 내수 매출(파랑 막대)과 해외 매출(보라 막대)이 어떻게 변하는지 보여줍니다. 오른쪽 축의 선은 해외매출 비중(%)을 나타냅니다. 해외매출 비중이 급변하면 환율 리스크 관리 전략을 재검토해야 합니다."
+                benchmark="해외매출 비중 추이가 안정적이면 양호, 급등 또는 급락 시 원인 분석 필요"
               >
                 <div className="h-72 md:h-96">
                   <ResponsiveContainer width="100%" height="100%">
@@ -916,9 +919,9 @@ export default function SalesAnalysisPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <ChartCard
                   title="통화별 매출 분포"
-                  formula="SUM(장부금액) GROUP BY 거래통화"
-                  description="거래 통화별 매출액(원화 환산 기준)을 보여줍니다. KRW 외 통화의 비중을 확인할 수 있습니다."
-                  benchmark="특정 외화 의존도 50% 초과 시 분산 필요"
+                  formula="거래통화별로 장부금액(원화 환산)을 합산"
+                  description="KRW(원화), USD(달러), EUR(유로) 등 거래에 사용된 통화별 매출 규모를 비교합니다. 원화 외에 특정 외화에 매출이 집중되어 있으면 해당 통화의 환율 변동이 실적에 큰 영향을 미칩니다."
+                  benchmark="특정 외화 의존도가 50%를 넘으면 통화 분산 또는 환헤지 필요"
                 >
                   <div className="h-72 md:h-96">
                     <ResponsiveContainer width="100%" height="100%">
@@ -979,8 +982,9 @@ export default function SalesAnalysisPage() {
                 {fxPnL.length > 0 && (
                   <ChartCard
                     title="통화별 가중평균 환율 및 거래 현황"
-                    formula="가중평균환율 = 장부금액(KRW) / 판매금액(원래통화)"
-                    description="외화 통화별 가중평균 적용 환율과 거래 규모를 보여줍니다. 환율 변동이 매출에 미치는 영향을 파악할 수 있습니다."
+                    formula="가중평균환율: 원화 장부금액 나누기 원래 통화 판매금액"
+                    description="외화 통화별로 실제 적용된 가중평균 환율과 거래 규모를 표로 보여줍니다. 같은 통화라도 거래 시점에 따라 환율이 다르며, FX 효과 열에서 환차익(+) 또는 환차손(-)을 확인할 수 있습니다."
+                    benchmark="FX 효과가 양수(녹색)이면 환율이 유리하게 적용됨, 음수(적색)이면 불리하게 적용됨"
                   >
                     <div className="h-72 md:h-96 overflow-auto">
                       <table className="w-full text-sm">

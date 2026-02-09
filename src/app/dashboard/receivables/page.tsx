@@ -351,43 +351,43 @@ export default function ReceivablesPage() {
               value={summary.total}
               format="currency"
               icon={<CreditCard className="h-5 w-5" />}
-              formula="SUM(미수채권연령 파일별 전체 미수금)"
-              description="Infra 사업본부 담당 조직의 전체 미수채권 잔액 합계입니다."
-              benchmark="매출액 대비 15% 이내 양호"
+              formula="모든 미수채권연령 파일의 미수금을 합산"
+              description="인프라 사업본부 담당 조직이 거래처로부터 아직 받지 못한 매출채권의 총합입니다. 미수금이 과도하면 현금 유동성에 문제가 생길 수 있습니다."
+              benchmark="매출액 대비 15% 이내이면 양호한 수준입니다"
             />
             <KpiCard
               title="3개월 이상 연체"
               value={overdueTotal}
               format="currency"
               icon={<AlertTriangle className="h-5 w-5" />}
-              formula="SUM(4개월 + 5개월 + 6개월 + 6개월초과 미수금)"
-              description="4개월 이상 장기 미수금 합계로, 회수 불능 위험이 높은 채권입니다."
-              benchmark="총 미수금의 20% 미만이면 양호"
+              formula="4개월 + 5개월 + 6개월 + 6개월 초과 미수금의 합계"
+              description="4개월 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
+              benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
             />
             <KpiCard
               title="연체비율"
               value={overdueRate}
               format="percent"
-              formula="(3개월이상 미수금) / 총미수금 × 100"
-              description="전체 미수금 대비 장기 연체금의 비율입니다. 높을수록 채권 건전성이 낮습니다."
-              benchmark="20% 미만 양호, 30% 이상 위험"
+              formula="3개월 이상 미수금 나누기 총 미수금, 곱하기 100"
+              description="전체 미수금 중에서 3개월 이상 오래된 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
+              benchmark="20% 미만이면 양호, 30% 이상이면 위험 수준입니다"
             />
             <KpiCard
               title="고위험 거래처"
               value={highRiskCount}
               format="number"
               icon={<Shield className="h-5 w-5" />}
-              formula="연체비율 50% 초과 OR 6개월+ 미수금 1억원 초과"
-              description="채권 회수 위험이 높은 거래처 수입니다. 즉각적인 관리 조치가 필요합니다."
-              benchmark="0건이 이상적, 3건 이상 시 집중 관리"
+              formula="연체비율 50% 초과 또는 6개월 이상 미수금 1억원 초과인 거래처 수"
+              description="채권 회수가 어려울 가능성이 높은 거래처 수입니다. 이런 거래처에는 즉각적인 추심 조치와 거래 조건 재검토가 필요합니다."
+              benchmark="0건이 이상적이며, 3건 이상이면 집중 관리 체계가 필요합니다"
             />
           </div>
 
           <ChartCard
             title="조직별 미수채권 연령 분석"
-            formula="각 조직의 미수채권을 1~6개월 및 6개월 초과로 분류\n연령 = 채권 발생일로부터 경과 개월 수"
-            description="조직별 미수채권의 연령 분포를 보여줍니다. 빨간색 계열(장기)이 많을수록 채권 건전성이 낮습니다."
-            benchmark="3개월 이상 비율 20% 미만이면 양호, 6개월+ 비중이 높으면 대손 위험"
+            formula="각 조직의 미수채권을 경과 기간별(1~6개월, 6개월 초과)로 분류"
+            description="조직별로 미수채권이 얼마나 오래되었는지 색상으로 구분하여 보여줍니다. 녹색은 최근 발생한 채권, 빨간색은 오래된 채권입니다. 빨간색 비중이 클수록 회수 위험이 높습니다."
+            benchmark="3개월 이상 비율이 20% 미만이면 양호합니다. 6개월 초과 비중이 높으면 대손(회수 불능) 위험이 있습니다"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -418,37 +418,37 @@ export default function ReceivablesPage() {
               value={byPerson.length}
               format="number"
               icon={<Users className="h-5 w-5" />}
-              description="미수금이 있는 영업담당자 수입니다."
+              description="현재 미수금을 보유하고 있는 영업담당자 수입니다. 미수금이 특정 담당자에 집중되어 있는지 확인할 필요가 있습니다."
             />
             <KpiCard
               title="주의 거래처"
               value={mediumRiskCount}
               format="number"
-              formula="연체비율 30~50% OR 3개월이상 미수금 5천만원 초과"
-              description="관심을 기울여야 하는 거래처 수입니다. 고위험으로 전환되지 않도록 선제 관리가 필요합니다."
+              formula="연체비율 30~50% 또는 3개월 이상 미수금 5천만원 초과인 거래처 수"
+              description="아직 고위험은 아니지만 관심이 필요한 거래처 수입니다. 방치하면 고위험으로 악화될 수 있으므로 선제적인 관리가 중요합니다."
             />
             <KpiCard
               title="고위험 거래처"
               value={highRiskCount}
               format="number"
               icon={<Shield className="h-5 w-5" />}
-              formula="연체비율 50% 초과 OR 6개월+ 미수금 1억원 초과"
-              description="즉각적인 채권 회수 조치가 필요한 거래처 수입니다."
-              benchmark="0건이 이상적"
+              formula="연체비율 50% 초과 또는 6개월 이상 미수금 1억원 초과인 거래처 수"
+              description="채권 회수가 어려울 가능성이 높아 즉각적인 추심 조치가 필요한 거래처 수입니다."
+              benchmark="0건이 이상적이며, 발생 시 즉시 대응 계획을 수립해야 합니다"
             />
             <KpiCard
               title="리스크 평가 대상"
               value={risks.length}
               format="number"
-              description="리스크 등급이 분류된 전체 거래처 수입니다."
+              description="미수금 연체 상황에 따라 리스크 등급(양호/주의/고위험)이 분류된 전체 거래처 수입니다."
             />
           </div>
 
           <ChartCard
             title="담당자별 미수금 현황"
-            formula="SUM(미수금) GROUP BY 영업담당자\nTOP 15 기준 정렬"
-            description="담당자별 총 미수금 상위 15명입니다. 특정 담당자에 미수금이 집중되어 있다면 채권 관리 강화가 필요합니다."
-            benchmark="담당자 1인당 미수금이 총 미수금의 20% 이상이면 집중도 과다"
+            formula="영업담당자별 미수금 합계를 구한 뒤 상위 15명을 표시"
+            description="미수금이 가장 많은 영업담당자 상위 15명입니다. 특정 담당자에 미수금이 지나치게 몰려 있다면 해당 담당자의 거래처 관리를 강화해야 합니다."
+            benchmark="1인당 미수금이 전체의 20% 이상이면 집중도가 과도한 상태입니다"
           >
             <div className="h-80 md:h-[500px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -465,9 +465,9 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="리스크 등급 현황"
-            formula="고위험: 연체비율 50%↑ OR 6개월+ 1억↑\n주의: 연체비율 30~50% OR 3개월+ 5천만↑\n양호: 그 외"
-            description="연령×금액 기준으로 거래처를 리스크 등급으로 분류합니다. 고위험 거래처는 즉각 조치가 필요합니다."
-            benchmark="고위험 0건, 주의 총 미수금의 10% 이내가 이상적"
+            formula="고위험: 연체비율 50% 초과 또는 6개월 이상 1억 초과\n주의: 연체비율 30~50% 또는 3개월 이상 5천만 초과\n양호: 위 조건에 해당하지 않는 거래처"
+            description="연체 기간과 금액을 기준으로 거래처를 3단계(양호/주의/고위험) 등급으로 분류한 표입니다. 고위험 거래처는 즉시 추심 조치가 필요합니다."
+            benchmark="고위험 0건, 주의 등급의 미수금이 전체의 10% 이내이면 이상적입니다"
           >
             <DataTable
               data={risks}
@@ -485,44 +485,44 @@ export default function ReceivablesPage() {
               value={creditTotalLimit}
               format="currency"
               icon={<Landmark className="h-5 w-5" />}
-              formula="SUM(여신한도가 설정된 거래처의 여신한도)"
-              description="여신한도가 부여된 전체 거래처의 한도 합계입니다."
-              benchmark="총 매출액 대비 적정 수준 유지"
+              formula="여신한도가 설정된 모든 거래처의 한도를 합산"
+              description="거래처에 부여한 여신한도(외상 허용 금액)의 총합입니다. 이 금액 범위 내에서 외상 거래가 허용됩니다."
+              benchmark="총 매출액 대비 적정 수준을 유지해야 합니다"
             />
             <KpiCard
               title="총 사용액"
               value={creditTotalUsed}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="SUM(여신한도 설정 거래처의 미수금 합계)"
-              description="여신한도가 설정된 거래처들의 총 미수금 잔액입니다."
-              benchmark="총 여신한도의 70% 이내가 양호"
+              formula="여신한도가 설정된 거래처들의 미수금 합계"
+              description="여신한도가 있는 거래처들이 현재 사용 중인 외상 금액(미수금)의 총합입니다. 총 여신한도에 가까울수록 추가 거래 여력이 줄어듭니다."
+              benchmark="총 여신한도의 70% 이내이면 양호한 상태입니다"
             />
             <KpiCard
               title="평균 사용률"
               value={creditAvgRate}
               format="percent"
               icon={<Gauge className="h-5 w-5" />}
-              formula="총 사용액 / 총 여신한도 x 100"
-              description="전체 여신한도 대비 사용 비율입니다. 높을수록 여신 여력이 부족합니다."
-              benchmark="70% 미만 양호, 80% 이상 주의, 100% 이상 위험"
+              formula="총 사용액 나누기 총 여신한도, 곱하기 100"
+              description="전체 여신한도 대비 실제 사용 비율입니다. 이 비율이 높으면 여신 여력이 부족하여 신규 외상 거래에 제약이 생길 수 있습니다."
+              benchmark="70% 미만이면 양호, 80% 이상이면 주의, 100% 이상이면 위험입니다"
             />
             <KpiCard
               title="한도초과 거래처"
               value={creditDangerCount}
               format="number"
               icon={<Ban className="h-5 w-5" />}
-              formula="여신 사용률 100% 이상 거래처 수"
-              description="미수금이 여신한도를 초과한 거래처 수입니다. 즉각적인 여신 관리 조치가 필요합니다."
-              benchmark="0건이 이상적"
+              formula="여신 사용률이 100% 이상인 거래처 수"
+              description="미수금이 여신한도를 초과한 거래처 수입니다. 한도를 넘긴 거래처에는 추가 출고 중단 등 즉각적인 조치가 필요합니다."
+              benchmark="0건이 이상적이며, 발생 시 즉시 여신 관리 조치를 취해야 합니다"
             />
           </div>
 
           <ChartCard
             title="조직별 여신 사용률"
-            formula="조직별 SUM(미수금) / SUM(여신한도) x 100\n빨간선 = 100% 한도 기준"
-            description="각 조직의 여신한도 대비 미수금 사용 비율입니다. 100%를 초과하면 한도 초과 상태입니다."
-            benchmark="80% 미만 양호(녹색), 80~100% 주의(노란색), 100% 이상 위험(빨간색)"
+            formula="조직별 미수금 합계 나누기 여신한도 합계, 곱하기 100\n빨간 점선 = 100% 한도 기준선"
+            description="각 조직이 여신한도를 얼마나 사용하고 있는지 보여줍니다. 100%를 넘으면 한도 초과이며, 빨간 점선이 100% 기준입니다."
+            benchmark="80% 미만이면 양호(녹색), 80~100%이면 주의(노란색), 100% 이상이면 위험(빨간색)입니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -557,9 +557,9 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="거래처별 여신 사용률"
-            formula="거래처별 총미수금 / 여신한도 x 100\n사용률 내림차순 정렬"
-            description="거래처별 여신한도 대비 미수금 비율입니다. 위험(빨강)은 한도 초과, 주의(노랑)는 80% 이상입니다."
-            benchmark="사용률 80% 미만이 양호, 한도초과(100%+) 거래처는 즉시 조치"
+            formula="거래처별 미수금 나누기 여신한도, 곱하기 100\n사용률이 높은 순서대로 정렬"
+            description="거래처별로 여신한도를 얼마나 사용하고 있는지 상세 목록입니다. 빨간색(한도초과)과 노란색(주의) 거래처를 우선 관리해야 합니다."
+            benchmark="사용률 80% 미만이면 양호, 100% 이상 한도초과 거래처는 즉시 조치가 필요합니다"
             action={<ExportButton data={creditExportData} fileName="여신사용률" />}
           >
             <div className="h-80 md:h-[500px] overflow-auto">
@@ -602,38 +602,38 @@ export default function ReceivablesPage() {
         <TabsContent value="dso" className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
-              title="평균 DSO"
+              title="평균 DSO(매출채권 회수기간)"
               value={overallDSO}
               format="number"
               icon={<Clock className="h-5 w-5" />}
-              formula="(총 미수금 / 월평균 매출액) × 30"
-              description="매출채권 평균 회수 소요일입니다. 매출 발생 후 현금으로 회수되기까지 걸리는 평균 일수를 의미합니다."
-              benchmark="30일 미만 우수, 30~45일 양호, 45~60일 보통, 60일 초과 주의"
+              formula="총 미수금 나누기 월평균 매출액, 곱하기 30일"
+              description="DSO(매출채권 회수기간)는 매출이 발생한 뒤 현금으로 회수되기까지 걸리는 평균 일수입니다. 이 숫자가 작을수록 현금 회수가 빠르다는 뜻입니다."
+              benchmark="건자재/인프라 업종 평균은 45~60일입니다. 30일 미만이면 우수, 60일 초과이면 주의가 필요합니다"
             />
             <KpiCard
-              title="평균 CCC"
+              title="평균 CCC(현금순환주기)"
               value={cccAnalysis.avgCCC}
               format="number"
               icon={<RefreshCw className="h-5 w-5" />}
-              formula="CCC = DSO + DIO - DPO\n(DIO=0: 재고 데이터 미보유)"
-              description="현금전환주기입니다. 원재료 구매부터 매출 대금 회수까지의 총 소요일수입니다. 낮을수록 현금 회전이 빠릅니다."
-              benchmark="0일 미만 우수, 0~30일 양호, 30~60일 보통, 60일 초과 주의"
+              formula="CCC = DSO(매출채권 회수기간) + DIO(재고 보유기간) - DPO(매입채무 지급기간)\n현재 DIO는 0으로 설정 (재고 데이터 미보유)"
+              description="CCC(현금순환주기)는 돈을 지출한 시점부터 다시 돈을 회수하기까지 걸리는 기간입니다. 값이 작거나 음수일수록 현금 회전이 빨라 자금 운용에 유리합니다."
+              benchmark="0일 미만이면 우수, 0~30일이면 양호, 30~60일이면 보통, 60일 초과이면 주의가 필요합니다"
             />
             <KpiCard
-              title="평균 DPO"
+              title="평균 DPO(매입채무 지급기간)"
               value={cccAnalysis.avgDPO}
               format="number"
               icon={<Landmark className="h-5 w-5" />}
-              formula="매출원가율 기반 업종 평균 추정\n80%↑=45일, 60~80%=35일, 60%↓=30일"
-              description="매입채무 결제 소요일 추정치입니다. 매출원가율 기반으로 업종 특성을 반영하여 추정합니다."
-              benchmark="DPO가 길수록 운전자본 관리에 유리 (단, 거래 관계 고려)"
+              formula="매출원가율 기준 업종 평균 추정값\n원가율 80% 이상은 45일, 60~80%는 35일, 60% 미만은 30일"
+              description="DPO(매입채무 지급기간)는 원자재를 구매한 뒤 대금을 지급하기까지 걸리는 일수 추정치입니다. 길수록 현금을 오래 보유할 수 있어 유리하지만, 거래 관계를 고려해야 합니다."
+              benchmark="DPO가 길수록 운전자본 관리에 유리합니다. 다만 너무 길면 거래처와의 관계에 영향을 줄 수 있습니다"
             />
             <KpiCard
               title="분석 조직 수"
               value={dsoMetrics.length}
               format="number"
               icon={<Users className="h-5 w-5" />}
-              description="DSO/CCC 분석이 가능한 조직 수입니다. 미수금 및 매출 데이터가 모두 존재하는 조직만 포함됩니다."
+              description="DSO(매출채권 회수기간)와 CCC(현금순환주기) 분석이 가능한 조직 수입니다. 미수금 데이터와 매출 데이터가 모두 있는 조직만 포함됩니다."
             />
           </div>
 
@@ -654,10 +654,10 @@ export default function ReceivablesPage() {
           )}
 
           <ChartCard
-            title="조직별 DSO (매출채권 회수일)"
-            formula="DSO = (조직별 미수금 합계 / 조직별 월평균 매출) × 30\n색상: 녹색(우수 <30일), 파랑(양호 30~45일), 노랑(보통 45~60일), 빨강(주의 >60일)"
-            description="각 조직의 매출채권 평균 회수 소요일입니다. DSO가 낮을수록 현금 회수가 빠르며 운전자본 관리가 효율적입니다."
-            benchmark="업종 평균 DSO 45일 기준, 30일 미만이면 최상위 수준"
+            title="조직별 DSO(매출채권 회수기간)"
+            formula="DSO = 조직별 미수금 합계 나누기 월평균 매출, 곱하기 30일\n색상 기준: 녹색(우수, 30일 미만), 파랑(양호, 30~45일), 노랑(보통, 45~60일), 빨강(주의, 60일 초과)"
+            description="각 조직이 매출채권을 회수하는 데 평균 며칠이 걸리는지 보여줍니다. DSO(매출채권 회수기간)가 짧을수록 현금 회수가 빠르며 자금 관리가 효율적입니다."
+            benchmark="건자재/인프라 업종 평균 DSO는 45일입니다. 30일 미만이면 최상위 수준입니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -689,10 +689,10 @@ export default function ReceivablesPage() {
           </ChartCard>
 
           <ChartCard
-            title="조직별 CCC 상세 분석"
-            formula="CCC = DSO - DPO (DIO=0)\nDSO: 매출채권 회수일\nDPO: 매입채무 결제일 (추정)\nCCC: 현금전환주기"
-            description="조직별 현금전환주기(CCC)를 분석합니다. CCC가 음수이면 매입 결제 전에 매출을 회수하는 우수한 상태입니다."
-            benchmark="CCC 0일 미만 우수, 30일 이내 양호"
+            title="조직별 CCC(현금순환주기) 상세 분석"
+            formula="CCC = DSO(매출채권 회수기간) - DPO(매입채무 지급기간)\nDSO: 매출 후 현금 회수까지 걸리는 일수\nDPO: 구매 후 대금 지급까지 걸리는 일수 (추정값)\n재고 보유기간(DIO)은 데이터 부재로 0일 적용"
+            description="조직별 현금순환주기를 보여줍니다. CCC(현금순환주기)가 음수이면 물건 대금을 지급하기 전에 매출 대금을 먼저 회수하는 우수한 상태입니다."
+            benchmark="CCC가 0일 미만이면 우수, 30일 이내이면 양호합니다"
             action={<ExportButton data={cccExportData} fileName="CCC분석" />}
           >
             <DataTable
@@ -711,34 +711,34 @@ export default function ReceivablesPage() {
               value={prepaymentSummary.totalPrepayment}
               format="currency"
               icon={<Wallet className="h-5 w-5" />}
-              formula="SUM(수금목록의 선수금액)"
-              description="거래처로부터 미리 받은 선수금 총액입니다. 향후 매출로 인식될 예정인 금액입니다."
-              benchmark="매출 대비 적정 비율 유지 필요"
+              formula="수금목록에서 선수금으로 분류된 금액을 모두 합산"
+              description="거래처로부터 상품 인도 전에 미리 받은 금액의 총합입니다. 선수금은 아직 매출로 인식되지 않았으며, 향후 상품이나 서비스를 제공해야 하는 의무가 있습니다."
+              benchmark="매출 대비 적정 비율을 유지해야 하며, 과도한 선수금은 이행 부담을 의미합니다"
             />
             <KpiCard
               title="장부 선수금"
               value={prepaymentSummary.totalBookPrepayment}
               format="currency"
               icon={<Landmark className="h-5 w-5" />}
-              formula="SUM(수금목록의 장부선수금액)"
-              description="회계 장부에 기록된 선수금 총액입니다. 통화 환산 차이로 선수금액과 차이가 발생할 수 있습니다."
-              benchmark="선수금액과 장부선수금액 차이가 크면 환율 변동 점검"
+              formula="수금목록의 장부선수금액을 모두 합산"
+              description="회계 장부에 원화로 기록된 선수금 총액입니다. 외화 거래가 있으면 환율 차이로 인해 실제 선수금액과 차이가 날 수 있습니다."
+              benchmark="선수금액과 장부선수금액의 차이가 크면 환율 변동 영향을 점검해야 합니다"
             />
             <KpiCard
               title="매출 대비 비중"
               value={prepaymentSummary.prepaymentToSalesRatio}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
-              formula="총 선수금 / 총 매출액 × 100"
-              description="매출액 대비 선수금 비율입니다. 높을수록 선수금 의존도가 높으며, 향후 이행 의무가 큰 상태입니다."
-              benchmark="10% 미만 양호, 20% 이상 시 이행 리스크 점검"
+              formula="총 선수금 나누기 총 매출액, 곱하기 100"
+              description="매출액 대비 선수금이 차지하는 비율입니다. 이 비율이 높으면 아직 이행하지 않은 의무가 많다는 의미이며, 납품 일정 관리가 중요합니다."
+              benchmark="10% 미만이면 양호, 20% 이상이면 이행 리스크를 점검해야 합니다"
             />
             <KpiCard
               title="해당 조직 수"
               value={prepaymentSummary.orgCount}
               format="number"
               icon={<Building2 className="h-5 w-5" />}
-              description="선수금이 발생한 조직 수입니다."
+              description="선수금이 발생한 영업조직 수입니다. 선수금이 특정 조직에 집중되어 있는지 확인할 필요가 있습니다."
             />
           </div>
 
@@ -752,9 +752,9 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="조직별 선수금 현황"
-            formula="SUM(선수금액) GROUP BY 영업조직\nTOP 10 기준 내림차순 정렬"
-            description="조직별 선수금 상위 10개 조직입니다. 특정 조직에 선수금이 집중되어 있다면 이행 리스크를 점검해야 합니다."
-            benchmark="단일 조직 선수금이 전체의 30% 이상이면 집중도 과다"
+            formula="영업조직별 선수금액을 합산하여 상위 10개 조직을 표시"
+            description="선수금이 가장 많은 상위 10개 조직입니다. 특정 조직에 선수금이 집중되어 있다면 해당 조직의 납품 이행 능력과 일정을 점검해야 합니다."
+            benchmark="단일 조직의 선수금이 전체의 30% 이상이면 집중도가 과도한 상태입니다"
           >
             <div className="h-80 md:h-[500px]">
               <ResponsiveContainer width="100%" height="100%">
@@ -779,9 +779,9 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="월별 선수금 추이"
-            formula="SUM(선수금액) GROUP BY 수금월\nBar = 선수금, Line = 장부선수금"
-            description="월별 선수금 발생 추이입니다. 선수금과 장부선수금의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."
-            benchmark="월별 변동폭이 크면 계절성 또는 대형 프로젝트 영향 확인"
+            formula="수금월별 선수금액을 합산\n막대 = 선수금, 선 = 장부선수금"
+            description="매월 선수금이 얼마나 발생했는지 추이를 보여줍니다. 선수금(막대)과 장부선수금(선)의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."
+            benchmark="월별 변동폭이 크면 계절적 요인이나 대형 프로젝트의 영향을 확인해야 합니다"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">

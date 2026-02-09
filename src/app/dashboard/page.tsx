@@ -241,8 +241,9 @@ export default function OverviewPage() {
               sparklineData={sparklines.sales}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="SUM(매출리스트.장부금액)"
-              description="필터된 영업조직의 전체 매출 합계"
+              formula="매출리스트의 모든 장부금액을 합산"
+              description="선택한 영업조직에서 발생한 전체 매출 금액의 합계입니다. 회사의 전체 영업 규모를 가장 직관적으로 보여주는 핵심 지표입니다."
+              benchmark="전년 동기 대비 10% 이상 성장이면 양호"
             />
             <KpiCard
               title="총 수주액"
@@ -251,8 +252,9 @@ export default function OverviewPage() {
               sparklineData={sparklines.orders}
               format="currency"
               icon={<ShoppingCart className="h-5 w-5" />}
-              formula="SUM(수주리스트.장부금액)"
-              description="필터된 영업조직의 전체 수주 합계"
+              formula="수주리스트의 모든 장부금액을 합산"
+              description="선택한 영업조직에서 확보한 전체 수주 금액의 합계입니다. 수주는 아직 매출로 전환되지 않은 계약 금액으로, 향후 매출의 선행지표 역할을 합니다."
+              benchmark="매출액 대비 수주액이 100% 이상이면 성장 기반 확보"
             />
             <KpiCard
               title="수주잔고"
@@ -260,9 +262,9 @@ export default function OverviewPage() {
               previousValue={compKpis ? (compKpis.totalOrders - compKpis.totalSales > 0 ? compKpis.totalOrders - compKpis.totalSales : 0) : undefined}
               format="currency"
               icon={<Package className="h-5 w-5" />}
-              formula="총수주액 - 총매출액"
-              description="수주는 되었으나 아직 매출로 전환되지 않은 잔액입니다. 향후 매출 파이프라인을 나타냅니다."
-              benchmark="매출 대비 50% 이상이면 양호한 파이프라인"
+              formula="총 수주액에서 총 매출액을 뺀 금액"
+              description="계약은 체결되었지만 아직 매출로 잡히지 않은 남은 금액입니다. 이 금액이 클수록 앞으로 매출로 전환될 파이프라인이 풍부하다는 의미입니다."
+              benchmark="매출 대비 50% 이상이면 양호한 파이프라인 보유"
             />
             <KpiCard
               title="수금율 (총)"
@@ -271,21 +273,21 @@ export default function OverviewPage() {
               sparklineData={sparklines.collections}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="총수금액 / 총매출액 × 100"
+              formula="총 수금액 나누기 총 매출액 곱하기 100"
               description={collectionRateDetail.totalCollectionRate > 100
-                ? "100% 초과는 전기 이월 미수금 수금 또는 선수금 포함 시 발생합니다."
-                : "총 매출 대비 수금된 비율입니다 (선수금 포함)."
+                ? "100%를 넘는 경우는 이전 기간에 발생한 미수금을 이번 기간에 수금했거나, 선수금(미리 받은 돈)이 포함된 경우입니다."
+                : "매출 중 실제로 현금이 회수된 비율입니다. 선수금(미리 받은 돈)도 포함됩니다. 이 비율이 높을수록 현금흐름이 건강합니다."
               }
-              benchmark="80% 이상이면 양호"
+              benchmark="80% 이상이면 양호, 60% 미만이면 수금 관리 점검 필요"
             />
             <KpiCard
               title="수금율 (순수)"
               value={collectionRateDetail.netCollectionRate}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="(총수금액 - 선수금) / 총매출액 × 100"
-              description={`선수금 ${formatCurrency(collectionRateDetail.prepaymentAmount)}을 제외한 순수 수금율입니다.`}
-              benchmark="선수금 제외 시 실질 수금 성과 파악 가능"
+              formula="(총 수금액 빼기 선수금) 나누기 총 매출액 곱하기 100"
+              description={`선수금(미리 받은 돈) ${formatCurrency(collectionRateDetail.prepaymentAmount)}을 제외한 순수 수금율입니다. 실제 매출에 대한 현금 회수 성과를 더 정확하게 보여줍니다.`}
+              benchmark="총 수금율보다 낮은 것이 정상이며, 차이가 클수록 선수금 비중이 높음"
             />
           </div>
           {/* KPI Cards - Row 2 */}
@@ -296,11 +298,12 @@ export default function OverviewPage() {
               previousValue={compKpis?.totalReceivables}
               format="currency"
               icon={<CreditCard className="h-5 w-5" />}
-              formula={flattenedAging.length > 0 ? "SUM(미수금에이징.합계.장부금액)" : "총매출액 - 총수금액"}
+              formula={flattenedAging.length > 0 ? "미수금 에이징의 모든 장부금액을 합산" : "총 매출액에서 총 수금액을 뺀 금액"}
               description={flattenedAging.length > 0
-                ? "미수금 에이징 데이터 기반 정확 산출입니다."
-                : "에이징 데이터 미업로드 시 매출-수금 차감으로 추정합니다."
+                ? "업로드된 미수금 에이징 데이터를 기반으로 정확하게 산출한 값입니다. 아직 받지 못한 대금이 얼마인지 보여줍니다."
+                : "미수금 에이징 파일이 없어서 매출에서 수금을 뺀 추정치입니다. 정확한 값을 위해 에이징 파일을 업로드해 주세요."
               }
+              benchmark="미수금이 월 매출의 2배를 넘으면 현금흐름 위험 신호"
             />
             <KpiCard
               title="영업이익율"
@@ -308,9 +311,9 @@ export default function OverviewPage() {
               previousValue={compKpis?.operatingProfitRate}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
-              formula="영업이익 / 매출액 × 100"
-              description="매출에서 모든 영업비용을 차감한 실질 수익률입니다."
-              benchmark="10% 이상 양호, 5% 미만 주의"
+              formula="영업이익 나누기 매출액 곱하기 100"
+              description="매출에서 원가, 인건비, 판매관리비 등 모든 영업비용을 뺀 뒤 남는 이익의 비율입니다. 본업의 수익성을 가장 잘 보여주는 지표입니다."
+              benchmark="인프라 업종 평균 약 7~8%. 10% 이상이면 양호, 5% 미만이면 비용 구조 점검 필요"
             />
             <KpiCard
               title="매출 계획 달성율"
@@ -318,8 +321,9 @@ export default function OverviewPage() {
               previousValue={compKpis?.salesPlanAchievement}
               format="percent"
               icon={<Target className="h-5 w-5" />}
-              formula="매출실적 / 매출계획 × 100"
-              benchmark="100% 달성이 목표"
+              formula="매출 실적 나누기 매출 계획 곱하기 100"
+              description="연초에 세운 매출 목표 대비 실제 달성한 비율입니다. 영업 조직의 목표 달성 능력을 평가하는 핵심 관리지표입니다."
+              benchmark="100%가 목표. 90% 이상이면 양호, 80% 미만이면 원인 분석 필요"
             />
             <KpiCard
               title="수주 건수"
@@ -327,7 +331,8 @@ export default function OverviewPage() {
               previousValue={compKpis ? compOrders.length : undefined}
               format="number"
               icon={<ShoppingCart className="h-5 w-5" />}
-              description="분석 기간 내 총 수주 건수입니다."
+              formula="기간 내 수주 리스트의 총 건수"
+              description="선택한 분석 기간 동안 발생한 수주의 총 건수입니다. 건수가 많을수록 영업 활동이 활발하다는 의미이며, 건당 평균 수주액과 함께 보면 영업 패턴을 파악할 수 있습니다."
             />
           </div>
 
@@ -338,52 +343,54 @@ export default function OverviewPage() {
               value={forecastAccuracy}
               format="percent"
               icon={<Target className="h-5 w-5" />}
-              formula="100 - |실적 - 계획| / |계획| × 100"
-              description="매출 계획 대비 실적의 예측 정확도. 100%에 가까울수록 정확"
-              benchmark="90% 이상 우수"
+              formula="100 빼기 (실적과 계획의 차이 나누기 계획 곱하기 100)"
+              description="매출 계획과 실적이 얼마나 가까운지를 보여줍니다. 100%에 가까울수록 예측이 정확했다는 뜻이며, 낮을수록 계획과 실적의 괴리가 크다는 의미입니다."
+              benchmark="90% 이상이면 우수한 예측력, 70% 미만이면 계획 수립 프로세스 개선 필요"
             />
             <KpiCard
               title="수금 효율성"
               value={collectionEfficiency}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="수금액 / (기초미수금 + 매출액) × 100"
-              description="발생한 채권 대비 실제 수금 비율"
-              benchmark="80% 이상 양호"
+              formula="수금액 나누기 (기초미수금 더하기 매출액) 곱하기 100"
+              description="기간 초에 남아있던 미수금과 새로 발생한 매출을 합친 총 채권 금액 중에서 실제로 수금한 비율입니다. 수금율(총)과 달리 이전 미수금도 고려하므로 더 정확한 수금 능력을 보여줍니다."
+              benchmark="80% 이상이면 양호한 수금 관리 수준"
             />
             <KpiCard
               title="영업레버리지"
               value={operatingLeverage}
               format="percent"
               icon={<Gauge className="h-5 w-5" />}
-              formula="실적영업이익율 / 계획영업이익율 × 100"
-              description="계획 대비 실제 영업이익율 달성도"
-              benchmark="100% 이상이면 계획 초과 달성"
+              formula="실적 영업이익율 나누기 계획 영업이익율 곱하기 100"
+              description="계획했던 영업이익율 대비 실제 달성한 영업이익율의 비율입니다. 100%를 넘으면 계획보다 수익성이 좋다는 뜻이고, 미만이면 비용이 예상보다 많이 들었다는 신호입니다."
+              benchmark="100% 이상이면 계획 초과 달성, 80% 미만이면 비용 관리 점검 필요"
             />
             <KpiCard
               title="공헌이익율"
               value={contributionMarginRate}
               format="percent"
               icon={<PieChart className="h-5 w-5" />}
-              formula="공헌이익 / 매출액 × 100"
-              description="변동비 차감 후 고정비 회수에 기여하는 비율"
-              benchmark="30% 이상 건전"
+              formula="공헌이익 나누기 매출액 곱하기 100"
+              description="매출에서 재료비, 외주비 등 변동비(물건을 만들수록 늘어나는 비용)를 뺀 금액의 비율입니다. 이 돈으로 임대료, 인건비 등 고정비를 충당하고 남으면 이익이 됩니다."
+              benchmark="30% 이상이면 건전한 수익 구조, 20% 미만이면 원가 절감 필요"
             />
             <KpiCard
               title="매출총이익율"
               value={grossProfitMargin}
               format="percent"
               icon={<BarChart3 className="h-5 w-5" />}
-              formula="매출총이익 / 매출액 × 100"
-              description="원가 차감 후 매출이익 비율"
-              benchmark="20% 이상 양호"
+              formula="매출총이익 나누기 매출액 곱하기 100"
+              description="매출에서 직접적인 제조원가(재료비, 노무비, 경비)만 뺀 이익의 비율입니다. 제품 자체의 수익성을 보여주며, 판매관리비를 빼기 전 단계의 마진입니다."
+              benchmark="인프라 업종 기준 20% 이상이면 양호, 15% 미만이면 원가 경쟁력 저하"
             />
           </div>
 
           {/* Monthly Trend */}
           <ChartCard
             title="월별 매출/수주/수금 추이"
-            description="월별 금액 추이 비교"
+            formula="월별로 매출, 수주, 수금 금액을 각각 합산하여 비교"
+            description="매월 매출(막대), 수주(막대), 수금(선)의 변화를 한눈에 비교합니다. 수주가 매출보다 높으면 향후 매출 성장이 기대되며, 수금이 매출보다 낮으면 미수금이 쌓이고 있다는 신호입니다."
+            benchmark="수금선이 매출 막대 위에 있으면 현금흐름 양호"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -416,8 +423,9 @@ export default function OverviewPage() {
           {forecast && forecast.points.length > 3 && (
             <ChartCard
               title="매출 추이 및 예측"
-              formula={`y = ${formatCurrency(forecast.stats.slope, true)}/월 + ${formatCurrency(forecast.stats.intercept, true)} (R² = ${forecast.stats.r2.toFixed(2)})`}
-              description={`추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"} (월평균 ${forecast.stats.avgGrowthRate.toFixed(1)}% 성장)`}
+              formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
+              description={`과거 매출 데이터를 바탕으로 향후 3개월을 예측합니다. 현재 추세는 ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}이며, 월평균 ${forecast.stats.avgGrowthRate.toFixed(1)}% 성장률을 보이고 있습니다. 점선은 예측값, 음영은 예측 범위입니다.`}
+              benchmark="설명력(R제곱)이 70% 이상이면 예측 신뢰도 높음"
             >
               <div className="h-64 md:h-80">
                 <ResponsiveContainer width="100%" height="100%">
@@ -443,7 +451,9 @@ export default function OverviewPage() {
           {/* Org Ranking */}
           <ChartCard
             title="영업조직별 매출 순위"
-            description="조직별 매출액 기준 정렬"
+            formula="조직별 매출액 합계를 큰 순서대로 정렬 (상위 10개)"
+            description="각 영업조직의 매출 기여도를 순위로 보여줍니다. 상위 조직과 하위 조직 간 격차가 크면 조직별 맞춤 전략이 필요하다는 신호입니다."
+            benchmark="상위 3개 조직이 전체 매출의 60% 이상 차지하면 집중도 높음"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -473,8 +483,8 @@ export default function OverviewPage() {
           {filteredOrgProfit.length > 0 && (
             <ChartCard
               title="조직별 계획 대비 실적"
-              description="매출액 계획 vs 실적 비교"
-              formula="달성율 = 실적 / 계획 × 100"
+              description="각 조직의 매출 목표(계획)와 실제 달성(실적)을 나란히 비교합니다. 실적 막대가 계획 막대보다 높으면 목표 초과 달성, 낮으면 미달입니다. 조직별 성과 차이를 직관적으로 파악할 수 있습니다."
+              formula="달성율: 실적 나누기 계획 곱하기 100"
             >
               <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">
