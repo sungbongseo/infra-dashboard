@@ -34,6 +34,23 @@ export interface VarianceSummary {
   itemCount: number;
 }
 
+/** Extended summary with analysis coverage and trade categorization */
+export interface VarianceAnalysisResult {
+  /** 기존 거래 분산분석 결과 */
+  items: VarianceItem[];
+  summary: VarianceSummary;
+  /** 신규 거래 (계획수량=0, 실적수량>0) */
+  newTradeAmount: number;
+  newTradeCount: number;
+  /** 중단 거래 (계획수량>0, 실적수량=0) */
+  lostTradeAmount: number;
+  lostTradeCount: number;
+  /** 분석 커버리지 */
+  totalRows: number;
+  skippedRows: number; // 계획=0 && 실적=0
+  analysisRate: number; // 분석 가능 행 비율 (%)
+}
+
 /** Org-level aggregation for waterfall chart */
 export interface OrgVarianceSummary {
   org: string;
@@ -45,23 +62,45 @@ export interface OrgVarianceSummary {
 
 /**
  * Calculate 3-way variance analysis per record.
- * Filters out rows where both plan qty and actual qty are 0.
- * Handles division by zero: qty=0 -> price=0.
+ * Separates new trades (planQty=0, actualQty>0) and lost trades (planQty>0, actualQty=0)
+ * from the main analysis to prevent price variance distortion.
  */
-export function calcVarianceAnalysis(
+export function calcVarianceAnalysisEx(
   data: ProfitabilityAnalysisRecord[]
-): VarianceItem[] {
+): VarianceAnalysisResult {
   const items: VarianceItem[] = [];
+  let skippedRows = 0;
+  let newTradeAmount = 0;
+  let newTradeCount = 0;
+  let lostTradeAmount = 0;
+  let lostTradeCount = 0;
 
   for (const r of data) {
     const planQty = r.매출수량.계획;
     const actualQty = r.매출수량.실적;
 
     // Skip rows where both plan and actual quantities are zero
-    if (planQty === 0 && actualQty === 0) continue;
+    if (planQty === 0 && actualQty === 0) {
+      skippedRows++;
+      continue;
+    }
 
     const planAmount = r.매출액.계획;
     const actualAmount = r.매출액.실적;
+
+    // 신규 거래: 계획 없던 품목에 실적 발생 → 가격차이로 왜곡되므로 분리
+    if (planQty === 0 && actualQty > 0) {
+      newTradeAmount += actualAmount;
+      newTradeCount++;
+      continue;
+    }
+
+    // 중단 거래: 계획 있었으나 실적 0 → 수량차이로만 정확히 반영됨 (유지)
+    if (planQty > 0 && actualQty === 0) {
+      lostTradeAmount += planAmount;
+      lostTradeCount++;
+      // 중단 거래는 분산분석에 포함 (수량차이로 정확히 잡힘)
+    }
 
     // Unit price: handle division by zero (qty=0 -> price=0)
     const planPrice = planQty !== 0 ? planAmount / planQty : 0;
@@ -96,7 +135,30 @@ export function calcVarianceAnalysis(
     });
   }
 
-  return items;
+  const analysedCount = items.length + newTradeCount;
+  const analysisRate = data.length > 0 ? (analysedCount / data.length) * 100 : 0;
+
+  return {
+    items,
+    summary: calcVarianceSummary(items),
+    newTradeAmount,
+    newTradeCount,
+    lostTradeAmount,
+    lostTradeCount,
+    totalRows: data.length,
+    skippedRows,
+    analysisRate,
+  };
+}
+
+/**
+ * Legacy function - kept for backward compatibility.
+ * Prefer calcVarianceAnalysisEx() for richer results.
+ */
+export function calcVarianceAnalysis(
+  data: ProfitabilityAnalysisRecord[]
+): VarianceItem[] {
+  return calcVarianceAnalysisEx(data).items;
 }
 
 /**

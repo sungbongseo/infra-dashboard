@@ -1,4 +1,7 @@
-import type { CustomerItemDetailRecord } from "@/types";
+import type { CustomerItemDetailRecord, ProfitabilityAnalysisRecord } from "@/types";
+
+/** Union type for records that have the fields needed by calcMarginErosion */
+type MarginErosionRecord = CustomerItemDetailRecord | ProfitabilityAnalysisRecord;
 
 // ── Pareto Analysis ──────────────────────────────────────────────
 
@@ -174,9 +177,12 @@ export interface MarginErosionItem {
  * 계획 대비 실적 매출총이익율의 차이를 분석하여 마진이 악화된 항목 도출
  * erosion = actualMargin - plannedMargin (음수 = 마진 악화)
  * impactAmount = sales * erosion / 100 (추정 손실이익)
+ *
+ * Supports both CustomerItemDetailRecord and ProfitabilityAnalysisRecord.
+ * ProfitabilityAnalysisRecord lacks 품목명/매출거래처명 → falls back to code.
  */
 export function calcMarginErosion(
-  data: CustomerItemDetailRecord[],
+  data: MarginErosionRecord[],
   dimension: "product" | "customer",
   topN: number = 20
 ): MarginErosionItem[] {
@@ -194,7 +200,10 @@ export function calcMarginErosion(
 
   for (const r of data) {
     const code = dimension === "product" ? r.품목 : r.매출거래처;
-    const name = dimension === "product" ? r.품목명 : r.매출거래처명;
+    // ProfitabilityAnalysisRecord has no 품목명/매출거래처명 → fallback to code
+    const name = dimension === "product"
+      ? ((r as CustomerItemDetailRecord).품목명 || r.품목)
+      : ((r as CustomerItemDetailRecord).매출거래처명 || r.매출거래처);
     if (!code) continue;
 
     const entry = map.get(code) || {

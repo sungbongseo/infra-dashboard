@@ -190,6 +190,98 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
 }
 
 /**
+ * Org-level BEP calculation aggregated from TeamContributionRecord.
+ * Uses actual 판관고정 3항목 (감가상각비, 기타경비, 노무비) summed by org.
+ * More accurate than calcOrgBreakeven() which derives fixed costs from 공헌이익-영업이익.
+ */
+export function calcOrgBreakevenFromTeam(
+  data: TeamContributionRecord[]
+): BreakevenResult[] {
+  // Group by org
+  const orgMap = new Map<
+    string,
+    {
+      sales: number;
+      variableCosts: number;
+      fixedCosts: number;
+      contributionMargin: number;
+      operatingProfit: number;
+    }
+  >();
+
+  for (const r of data) {
+    const org = r.영업조직팀;
+    if (!org) continue;
+
+    const person = String(r.영업담당사번 || "").trim();
+    if (person === "") continue; // 소계 행 제거
+
+    const entry = orgMap.get(org) || {
+      sales: 0,
+      variableCosts: 0,
+      fixedCosts: 0,
+      contributionMargin: 0,
+      operatingProfit: 0,
+    };
+
+    entry.sales += r.매출액.실적;
+    entry.variableCosts += r.변동비합계.실적;
+    entry.fixedCosts +=
+      r.판관고정_감가상각비.실적 +
+      r.판관고정_기타경비.실적 +
+      r.판관고정_노무비.실적;
+    entry.contributionMargin += r.공헌이익.실적;
+    entry.operatingProfit += r.영업이익.실적;
+
+    orgMap.set(org, entry);
+  }
+
+  const results: BreakevenResult[] = [];
+
+  Array.from(orgMap.entries()).forEach(([org, v]) => {
+    if (v.sales === 0) return;
+
+    const variableCostRatio = v.variableCosts / v.sales;
+    const contributionMarginRatio = 1 - variableCostRatio;
+
+    let bepSales: number;
+    if (contributionMarginRatio <= 0) {
+      bepSales = Infinity;
+    } else {
+      bepSales = v.fixedCosts / contributionMarginRatio;
+    }
+
+    let safetyMarginRate: number;
+    if (!isFinite(bepSales)) {
+      safetyMarginRate = -Infinity;
+    } else {
+      safetyMarginRate = ((v.sales - bepSales) / v.sales) * 100;
+    }
+
+    let operatingLeverage: number;
+    if (v.operatingProfit === 0) {
+      operatingLeverage = v.contributionMargin === 0 ? 0 : Infinity;
+    } else {
+      operatingLeverage = v.contributionMargin / v.operatingProfit;
+    }
+
+    results.push({
+      org,
+      sales: v.sales,
+      variableCosts: v.variableCosts,
+      fixedCosts: v.fixedCosts,
+      variableCostRatio,
+      contributionMarginRatio,
+      bepSales,
+      safetyMarginRate,
+      operatingLeverage,
+    });
+  });
+
+  return results;
+}
+
+/**
  * Generate data points for BEP chart visualization.
  * Creates 20 evenly spaced points from 0 to maxRevenue.
  *

@@ -11,6 +11,7 @@ export interface ProfitRiskData {
   riskGrade: "low" | "medium" | "high";
   sales: number;
   receivables: number;
+  longTermRatio: number; // 3개월+ 장기미수 비율 (%)
   quadrant: "star" | "cash_cow" | "problem_child" | "dog";
 }
 
@@ -60,7 +61,7 @@ function classifyRiskGrade(riskScore: number): ProfitRiskData["riskGrade"] {
  */
 function calcOrgRiskScores(
   receivableAging: ReceivableAgingRecord[]
-): Map<string, { riskScore: number; receivables: number }> {
+): Map<string, { riskScore: number; receivables: number; longTermRatio: number }> {
   // 조직별 미수금 집계
   const orgMap = new Map<
     string,
@@ -88,12 +89,13 @@ function calcOrgRiskScores(
     orgMap.set(org, entry);
   }
 
-  const result = new Map<string, { riskScore: number; receivables: number }>();
+  const result = new Map<string, { riskScore: number; receivables: number; longTermRatio: number }>();
   Array.from(orgMap.entries()).forEach(([org, v]) => {
     const riskScore = v.total > 0 ? (v.longTerm / v.total) * 100 : 0;
     result.set(org, {
       riskScore: Math.min(Math.max(riskScore, 0), 100),
       receivables: v.total,
+      longTermRatio: riskScore,
     });
   });
 
@@ -139,17 +141,32 @@ function fuzzyGet<T>(map: Map<string, T>, name: string): T | undefined {
   return undefined;
 }
 
+export interface ProfitRiskResult {
+  data: ProfitRiskData[];
+  matchFailures: number; // 미수금 데이터 매칭 실패 조직 수
+  totalOrgs: number;
+}
+
 export function calcProfitRiskMatrix(
   orgProfit: OrgProfitRecord[],
   receivableAging: ReceivableAgingRecord[],
   sales: SalesRecord[]
 ): ProfitRiskData[] {
+  return calcProfitRiskMatrixEx(orgProfit, receivableAging, sales).data;
+}
+
+export function calcProfitRiskMatrixEx(
+  orgProfit: OrgProfitRecord[],
+  receivableAging: ReceivableAgingRecord[],
+  sales: SalesRecord[]
+): ProfitRiskResult {
   const riskScores = calcOrgRiskScores(receivableAging);
   const orgSalesMap = calcOrgSales(sales);
+  let matchFailures = 0;
 
-  return orgProfit
-    .filter((r) => r.영업조직팀 && r.매출액.실적 !== 0)
-    .map((r) => {
+  const filtered = orgProfit.filter((r) => r.영업조직팀 && r.매출액.실적 !== 0);
+
+  const data = filtered.map((r) => {
       const name = r.영업조직팀;
       const profitMargin = r.영업이익율.실적;
 
@@ -157,8 +174,13 @@ export function calcProfitRiskMatrix(
       const riskData = fuzzyGet(riskScores, name);
       const salesTotal = fuzzyGet(orgSalesMap, name);
 
+      if (!riskData && receivableAging.length > 0) {
+        matchFailures++;
+      }
+
       const riskScore = riskData?.riskScore ?? 0;
       const receivables = riskData?.receivables ?? 0;
+      const longTermRatio = riskData?.longTermRatio ?? 0;
       const salesAmount = salesTotal ?? r.매출액.실적;
 
       return {
@@ -168,9 +190,12 @@ export function calcProfitRiskMatrix(
         riskGrade: classifyRiskGrade(riskScore),
         sales: salesAmount,
         receivables,
+        longTermRatio,
         quadrant: classifyQuadrant(profitMargin, riskScore),
       };
     });
+
+  return { data, matchFailures, totalOrgs: filtered.length };
 }
 
 /**
