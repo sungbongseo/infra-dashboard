@@ -32,6 +32,7 @@ export interface SalesRecord {
   장부금액: number;
   부가세: number;
   총금액: number;
+  품목범주: string;
   영업조직: string;
   유통경로: string;
   제품군: string;

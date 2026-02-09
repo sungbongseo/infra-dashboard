@@ -7,7 +7,11 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcTopCustomers, calcItemSales, calcSalesByType } from "@/lib/analysis/kpi";
-import { calcSalesByPaymentTerm, calcSalesByChannel, calcProductGroupTrends } from "@/lib/analysis/channel";
+import {
+  calcSalesByPaymentTerm,
+  calcSalesByCustomerCategory,
+  calcSalesByItemCategory,
+} from "@/lib/analysis/channel";
 import { calcRfmScores, calcRfmSegmentSummary } from "@/lib/analysis/rfm";
 import { calcClv, calcClvSummary } from "@/lib/analysis/clv";
 import { calcCustomerMigration, calcGradeDistribution } from "@/lib/analysis/migration";
@@ -61,8 +65,8 @@ export default function SalesAnalysisPage() {
 
   // 채널 분석 데이터
   const paymentTermSales = useMemo(() => calcSalesByPaymentTerm(filteredSales), [filteredSales]);
-  const channelSales = useMemo(() => calcSalesByChannel(filteredSales), [filteredSales]);
-  const productGroupTrends = useMemo(() => calcProductGroupTrends(filteredSales), [filteredSales]);
+  const customerCategorySales = useMemo(() => calcSalesByCustomerCategory(filteredSales), [filteredSales]);
+  const itemCategorySales = useMemo(() => calcSalesByItemCategory(filteredSales), [filteredSales]);
 
   // RFM, CLV, 거래처 이동 분석 데이터
   const filteredOrgProfit = useMemo(
@@ -305,28 +309,28 @@ export default function SalesAnalysisPage() {
             </div>
           </ChartCard>
 
-          {/* 유통경로별 매출 */}
+          {/* 거래처소분류별 매출 */}
           <ChartCard
-            title="유통경로별 매출"
-            formula="유통경로별로 판매금액을 합산하여 비교"
-            description="직판, 대리점, 온라인 등 유통경로별 매출 비중을 보여줍니다. 특정 채널에 매출이 편중되면 해당 채널 문제 발생 시 전체 매출에 큰 타격을 받을 수 있습니다."
-            benchmark="단일 채널 의존도 50% 이하가 바람직하며, 채널 다변화 권장"
+            title="거래처소분류별 매출"
+            formula="거래처소분류별로 판매금액을 합산하여 비교"
+            description="제조사, 대리점, 딜러, 건설업 등 거래처 유형별 매출 비중을 보여줍니다. 특정 거래처 유형에 매출이 편중되면 해당 시장 변화에 취약할 수 있습니다."
+            benchmark="단일 거래처 유형 의존도 60% 이하가 바람직하며, 거래처 다변화 권장"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={channelSales}
+                    data={customerCategorySales}
                     cx="50%"
                     cy="50%"
                     innerRadius={80}
                     outerRadius={130}
                     dataKey="amount"
-                    nameKey="channel"
+                    nameKey="category"
                     label={
-                      channelSales.length <= 8
+                      customerCategorySales.length <= 8
                         ? (props: any) => {
-                            const { cx, cy, midAngle, outerRadius: or, channel, share } = props;
+                            const { cx, cy, midAngle, outerRadius: or, category, share } = props;
                             const RADIAN = Math.PI / 180;
                             const radius = (or || 130) + 25;
                             const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -340,14 +344,14 @@ export default function SalesAnalysisPage() {
                                 dominantBaseline="central"
                                 fontSize={11}
                               >
-                                {channel} {(share || 0).toFixed(1)}%
+                                {category} {(share || 0).toFixed(1)}%
                               </text>
                             );
                           }
                         : false
                     }
                   >
-                    {channelSales.map((_, i) => (
+                    {customerCategorySales.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -355,71 +359,81 @@ export default function SalesAnalysisPage() {
                     {...TOOLTIP_STYLE}
                     formatter={(value: any) => formatCurrency(Number(value))}
                   />
-                  {channelSales.length > 8 && <Legend />}
+                  {customerCategorySales.length > 8 && <Legend />}
                 </PieChart>
               </ResponsiveContainer>
             </div>
           </ChartCard>
 
-          {/* 제품군별 월별 트렌드 */}
+          {/* 품목범주별 매출 분석 */}
           <ChartCard
-            title="제품군별 월별 트렌드"
-            formula="제품군별, 월별로 판매금액을 합산 (상위 5개 + 기타)"
-            description="주요 제품군의 월별 매출 변화를 누적 막대 차트로 보여줍니다. 상위 5개 제품군은 개별 표시하고 나머지는 '기타'로 묶습니다. 특정 제품군의 계절적 패턴이나 성장/하락 추세를 파악할 수 있습니다."
-            benchmark="특정 제품군이 지속 하락하면 시장 변화 대응 전략 수립 필요"
+            title="품목범주별 매출 및 평균 단가"
+            formula="품목범주별로 판매금액과 평균 단가를 비교"
+            description="표준품목, 구매직납, 수출품 등 품목 유형별 매출 규모와 평균 단가를 보여줍니다. 구매직납은 일반적으로 단가가 높고, 표준품목은 거래 건수가 많은 특성이 있습니다."
+            benchmark="구매직납 비중 30~40%가 적정하며, 표준품목 판매를 통한 안정적 매출 기반 유지 필요"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
-                {(() => {
-                  // 상위 5개 제품군 선정, 나머지 기타 집계
-                  const allGroups = productGroupTrends.length > 0
-                    ? Object.keys(productGroupTrends[0]).filter((k) => k !== "month")
-                    : [];
-                  const groupTotals = allGroups.map((g) => ({
-                    group: g,
-                    total: productGroupTrends.reduce((sum, row) => sum + (Number(row[g]) || 0), 0),
-                  }));
-                  groupTotals.sort((a, b) => b.total - a.total);
-                  const top5 = groupTotals.slice(0, 5).map((g) => g.group);
-                  const hasEtc = groupTotals.length > 5;
-
-                  const chartData = productGroupTrends.map((row) => {
-                    const entry: Record<string, string | number> = { month: row.month as string };
-                    top5.forEach((g) => {
-                      entry[g] = Number(row[g]) || 0;
-                    });
-                    if (hasEtc) {
-                      entry["기타"] = groupTotals
-                        .slice(5)
-                        .reduce((sum, g) => sum + (Number(row[g.group]) || 0), 0);
-                    }
-                    return entry;
-                  });
-
-                  const displayGroups = hasEtc ? [...top5, "기타"] : top5;
-
-                  return (
-                    <ComposedChart data={chartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                      <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                      <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                      <RechartsTooltip
-                        {...TOOLTIP_STYLE}
-                        formatter={(value: any) => formatCurrency(Number(value))}
-                      />
-                      <Legend />
-                      {displayGroups.map((group, i) => (
-                        <Bar
-                          key={group}
-                          dataKey={group}
-                          stackId="productGroup"
-                          fill={CHART_COLORS[i % CHART_COLORS.length]}
-                          name={group}
-                        />
-                      ))}
-                    </ComposedChart>
-                  );
-                })()}
+                <ComposedChart data={itemCategorySales}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis
+                    dataKey="category"
+                    tick={{ fontSize: 11 }}
+                    angle={-15}
+                    textAnchor="end"
+                    height={80}
+                  />
+                  <YAxis
+                    yAxisId="amount"
+                    orientation="left"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => formatCurrency(v, true)}
+                    label={{
+                      value: "매출액",
+                      angle: -90,
+                      position: "insideLeft",
+                      style: { fontSize: 12 },
+                    }}
+                  />
+                  <YAxis
+                    yAxisId="price"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                    label={{
+                      value: "평균단가",
+                      angle: 90,
+                      position: "insideRight",
+                      style: { fontSize: 12 },
+                    }}
+                  />
+                  <RechartsTooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(value: any, name?: string) => {
+                      if (name === "매출액") return formatCurrency(Number(value));
+                      if (name === "평균단가") return `${formatCurrency(Number(value))}/개`;
+                      if (name === "거래건수") return `${Number(value).toLocaleString()}건`;
+                      return value;
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    yAxisId="amount"
+                    dataKey="amount"
+                    fill={CHART_COLORS[0]}
+                    name="매출액"
+                    radius={[8, 8, 0, 0]}
+                  />
+                  <Line
+                    yAxisId="price"
+                    type="monotone"
+                    dataKey="avgUnitPrice"
+                    stroke={CHART_COLORS[3]}
+                    strokeWidth={2}
+                    name="평균단가"
+                    dot={{ r: 4 }}
+                  />
+                </ComposedChart>
               </ResponsiveContainer>
             </div>
           </ChartCard>
