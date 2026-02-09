@@ -336,7 +336,7 @@ export default function ReceivablesPage() {
       </div>
 
       <Tabs defaultValue="status" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
           <TabsTrigger value="credit">여신 관리</TabsTrigger>

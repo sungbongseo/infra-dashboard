@@ -106,10 +106,10 @@ export function calcABCAnalysis(
     if (existing) {
       existing.sales += r.매출액.실적 || 0;
       existing.grossProfit += r.매출총이익.실적 || 0;
-      existing.customers.add(r.매출거래처 || "");
+      if (r.매출거래처) existing.customers.add(r.매출거래처);
     } else {
       const customers = new Set<string>();
-      customers.add(r.매출거래처 || "");
+      if (r.매출거래처) customers.add(r.매출거래처);
       map.set(key, {
         product: r.품목명 || "",
         productCode: key,
@@ -123,11 +123,11 @@ export function calcABCAnalysis(
   // Sort by sales descending
   const sorted = Array.from(map.values()).sort((a, b) => b.sales - a.sales);
 
-  const totalSales = sorted.reduce((sum, v) => sum + v.sales, 0);
+  const totalSales = sorted.reduce((sum, v) => sum + Math.abs(v.sales), 0);
   let cumulative = 0;
 
   const results: ABCItem[] = sorted.map((v) => {
-    cumulative += v.sales;
+    cumulative += Math.abs(v.sales);
     const cumulativeShare =
       totalSales !== 0 ? (cumulative / totalSales) * 100 : 0;
 

@@ -126,8 +126,19 @@ function getHeatmapBg(rate: number, isCostItem: boolean): string {
   return "#ef4444";
 }
 
+// ─── 상수: 컴포넌트 밖으로 호이스팅 ──────────────────────────────
+const COST_KEYS = ["원재료비", "상품매입", "외주가공비", "운반비", "지급수수료", "노무비", "기타변동비", "고정비"] as const;
+
 export default function ProfitabilityPage() {
-  const { orgProfit, teamContribution, profitabilityAnalysis, receivableAging, salesList, orgNames, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail } = useDataStore();
+  const orgProfit = useDataStore((s) => s.orgProfit);
+  const teamContribution = useDataStore((s) => s.teamContribution);
+  const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
+  const receivableAging = useDataStore((s) => s.receivableAging);
+  const salesList = useDataStore((s) => s.salesList);
+  const orgNames = useDataStore((s) => s.orgNames);
+  const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
+  const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
   const { selectedOrgs, dateRange } = useFilterStore();
 
@@ -149,18 +160,14 @@ export default function ProfitabilityPage() {
       return person !== "";
     });
   }, [teamContribution, effectiveOrgNames]);
-  const filteredProfAnalysis = useMemo(() => {
+  const { filteredProfAnalysis, profAnalysisIsFallback } = useMemo(() => {
     const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
-    // 필터 후 유효 매출이 없으면 전체 데이터 사용 (fallback)
-    const hasSales = filtered.some((r: any) => r.매출액?.실적 !== 0);
-    if (filtered.length > 0 && hasSales) return filtered;
-    if (profitabilityAnalysis.length > 0 && !hasSales) return profitabilityAnalysis;
-    return filtered;
-  }, [profitabilityAnalysis, effectiveOrgNames]);
-  const profAnalysisIsFallback = useMemo(() => {
-    const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
-    const hasSales = filtered.some((r: any) => r.매출액?.실적 !== 0);
-    return profitabilityAnalysis.length > 0 && filtered.length > 0 && !hasSales;
+    const hasSales = filtered.some((r) => r.매출액?.실적 !== 0);
+    const isFallback = profitabilityAnalysis.length > 0 && filtered.length > 0 && !hasSales;
+    const data = (filtered.length > 0 && hasSales) ? filtered
+      : isFallback ? profitabilityAnalysis
+      : filtered;
+    return { filteredProfAnalysis: data, profAnalysisIsFallback: isFallback };
   }, [profitabilityAnalysis, effectiveOrgNames]);
   const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
   const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
@@ -170,7 +177,7 @@ export default function ProfitabilityPage() {
   const filteredHqCustItemProfit = useMemo(() => filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), [hqCustomerItemProfit, effectiveOrgNames]);
   const filteredCustItemDetail = useMemo(() => filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀"), [customerItemDetail, effectiveOrgNames]);
 
-  const hasData = filteredOrgProfit.length > 0;
+  const hasData = filteredOrgProfit.length > 0 || filteredOrgCustProfit.length > 0 || filteredHqCustItemProfit.length > 0 || filteredCustItemDetail.length > 0;
 
   // ─── 손익 Waterfall 데이터 ──────────────────────────────
   const waterfallData = useMemo(() => {
@@ -277,6 +284,12 @@ export default function ProfitabilityPage() {
         };
       }),
     [filteredTeamContribution]
+  );
+
+  // ─── 기여도율 순 정렬 (공헌이익율 차트용) ──────────────────────────────
+  const contribByRate = useMemo(
+    () => [...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율),
+    [contribRanking]
   );
 
   // ─── 조직별 공헌이익 파이 데이터 ──────────────────────────────
@@ -478,17 +491,28 @@ export default function ProfitabilityPage() {
   const marginErosion = useMemo(() => calcMarginErosion(filteredCustItemDetail, "product", 15), [filteredCustItemDetail]);
 
   // ─── KPI 합계 ──────────────────────────────
-  const totalSales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
-  const totalOP = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
-  const totalGP = filteredOrgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
-  const totalContrib = filteredOrgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
-  const opRate = totalSales > 0 ? (totalOP / totalSales) * 100 : 0;
-  const gpRate = totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
+  const { totalSales, totalOP, totalGP, totalContrib, opRate, gpRate } = useMemo(() => {
+    const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
+    const op = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
+    const gp = filteredOrgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
+    const contrib = filteredOrgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
+    return {
+      totalSales: sales, totalOP: op, totalGP: gp, totalContrib: contrib,
+      opRate: sales > 0 ? (op / sales) * 100 : 0,
+      gpRate: sales > 0 ? (gp / sales) * 100 : 0,
+    };
+  }, [filteredOrgProfit]);
+
+  // ─── 품목 가중평균 매출총이익율 ──────────────────────────────
+  const productWeightedGPRate = useMemo(() => {
+    const s = productProfitability.reduce((sum, p) => sum + p.sales, 0);
+    const g = productProfitability.reduce((sum, p) => sum + p.grossProfit, 0);
+    return s > 0 ? (g / s) * 100 : 0;
+  }, [productProfitability]);
 
   if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
 
-  const costKeys = ["원재료비", "상품매입", "외주가공비", "운반비", "지급수수료", "노무비", "기타변동비", "고정비"] as const;
   const heatmapMetricNames = heatmapData.length > 0 ? heatmapData[0].metrics.map((m) => m.name) : [];
 
   return (
@@ -725,9 +749,9 @@ export default function ProfitabilityPage() {
             description="각 담당자의 매출 100원당 변동비를 빼고 남는 이익 비율입니다. 공헌이익율이 높을수록 적은 매출로도 고정비 회수에 크게 기여하며, 변동비 관리를 효율적으로 하고 있다는 의미입니다."
             benchmark="공헌이익율 20% 이상이면 양호, 음수인 경우 매출보다 변동비가 더 큰 적자 상태"
           >
-            <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
+            <div style={{ height: Math.max(320, contribByRate.length * 28 + 40) }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={[...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율)} layout="vertical" margin={{ left: 90 }}>
+                <BarChart data={contribByRate} layout="vertical" margin={{ left: 90 }}>
                   <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                   <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
                   <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
@@ -748,7 +772,7 @@ export default function ProfitabilityPage() {
                   />
                   <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
                   <Bar dataKey="공헌이익율" name="공헌이익율" radius={[0, 4, 4, 0]}>
-                    {[...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율).map((entry, i) => (
+                    {contribByRate.map((entry, i) => (
                       <Cell key={i} fill={entry.공헌이익율 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />
                     ))}
                   </Bar>
@@ -793,7 +817,7 @@ export default function ProfitabilityPage() {
                       }}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
-                    {costKeys.map((key) => (
+                    {COST_KEYS.map((key) => (
                       <Bar
                         key={key}
                         dataKey={key}
@@ -1064,11 +1088,7 @@ export default function ProfitabilityPage() {
                 />
                 <KpiCard
                   title="가중평균 매출총이익율"
-                  value={(() => {
-                    const totalSales = productProfitability.reduce((s, p) => s + p.sales, 0);
-                    const totalGP = productProfitability.reduce((s, p) => s + p.grossProfit, 0);
-                    return totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
-                  })()}
+                  value={productWeightedGPRate}
                   format="percent"
                   formula="가중평균 = 전체 매출총이익 합계 나누기 전체 매출액 합계 곱하기 100"
                   description="매출 규모가 큰 품목의 이익율이 더 많이 반영된 평균 이익율입니다. 단순 평균보다 실제 수익 구조를 더 정확하게 보여줍니다."
@@ -1537,6 +1557,7 @@ export default function ProfitabilityPage() {
 
           {/* 거래처 세그먼트 분포 */}
           <ChartCard title="거래처 세그먼트별 매출 분포" description="거래처 대분류 기준으로 매출, 수익, 마진을 비교합니다. 세그먼트별 수익성 차이를 통해 전략적 집중이 필요한 영역을 파악할 수 있습니다.">
+            <ErrorBoundary>
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <ComposedChart data={custSegments} layout="vertical">
@@ -1551,6 +1572,7 @@ export default function ProfitabilityPage() {
                 </ComposedChart>
               </ResponsiveContainer>
             </div>
+            </ErrorBoundary>
           </ChartCard>
 
           {/* 거래처 Top/Bottom 랭킹 */}
@@ -1592,10 +1614,10 @@ export default function ProfitabilityPage() {
                       formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
                       {...TOOLTIP_STYLE}
                     />
-                    <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                    <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
                     <Scatter
                       name="거래처"
-                      data={custRanking.slice(0, 30).map((r) => ({ name: r.name, sales: r.sales, opMargin: r.opMargin, grossProfit: r.grossProfit }))}
+                      data={custRanking.slice(0, 15).map((r) => ({ name: r.name, sales: r.sales, opMargin: r.opMargin, grossProfit: r.grossProfit }))}
                       fill={CHART_COLORS[0]}
                     >
                       <LabelList dataKey="name" position="top" style={{ fontSize: 9 }} formatter={(v: any) => String(v).substring(0, 8)} />
@@ -1611,7 +1633,7 @@ export default function ProfitabilityPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
+                  <tr className="border-b bg-muted/50 text-left">
                     <th className="p-2 font-medium">세그먼트</th>
                     <th className="p-2 font-medium text-right">거래처수</th>
                     <th className="p-2 font-medium text-right">매출액</th>
@@ -1718,30 +1740,32 @@ export default function ProfitabilityPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {prodCustMatrix.products.map((p, pi) => (
-                    <tr key={pi} className="border-b">
-                      <td className="p-1 font-medium sticky left-0 bg-background z-10">{String(p).substring(0, 10)}</td>
-                      {prodCustMatrix.customers.map((_, ci) => {
-                        const cell = prodCustMatrix.cells.find((c) => c.productIdx === pi && c.customerIdx === ci);
-                        const sales = cell?.sales || 0;
-                        const maxSales = Math.max(...prodCustMatrix.cells.map((c) => c.sales), 1);
-                        const intensity = sales > 0 ? Math.max(0.15, sales / maxSales) : 0;
-                        return (
-                          <td
-                            key={ci}
-                            className="p-1 text-center"
-                            style={{
-                              backgroundColor: sales > 0 ? `rgba(59, 130, 246, ${intensity})` : undefined,
-                              color: intensity > 0.5 ? "#fff" : undefined,
-                            }}
-                            title={sales > 0 ? `${formatCurrency(sales)} (마진: ${(cell?.grossMargin || 0).toFixed(1)}%)` : "거래 없음"}
-                          >
-                            {sales > 0 ? formatCurrency(sales, true) : ""}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {(() => {
+                    const maxSales = Math.max(...prodCustMatrix.cells.map((c) => c.sales), 1);
+                    return prodCustMatrix.products.map((p, pi) => (
+                      <tr key={pi} className="border-b">
+                        <td className="p-1 font-medium sticky left-0 bg-background z-10">{String(p).substring(0, 10)}</td>
+                        {prodCustMatrix.customers.map((_, ci) => {
+                          const cell = prodCustMatrix.cells.find((c) => c.productIdx === pi && c.customerIdx === ci);
+                          const sales = cell?.sales || 0;
+                          const intensity = sales > 0 ? Math.max(0.15, sales / maxSales) : 0;
+                          return (
+                            <td
+                              key={ci}
+                              className="p-1 text-center"
+                              style={{
+                                backgroundColor: sales > 0 ? `rgba(59, 130, 246, ${intensity})` : undefined,
+                                color: intensity > 0.5 ? "#fff" : intensity > 0 ? "hsl(var(--foreground))" : undefined,
+                              }}
+                              title={sales > 0 ? `${formatCurrency(sales)} (마진: ${(cell?.grossMargin || 0).toFixed(1)}%)` : "거래 없음"}
+                            >
+                              {sales > 0 ? formatCurrency(sales, true) : ""}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>
@@ -1752,7 +1776,7 @@ export default function ProfitabilityPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
+                  <tr className="border-b bg-muted/50 text-left">
                     <th className="p-2 font-medium">거래처</th>
                     <th className="p-2 font-medium text-right">매출액</th>
                     <th className="p-2 font-medium text-right">이익율</th>
@@ -1871,7 +1895,6 @@ export default function ProfitabilityPage() {
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickFormatter={(v) => String(v).substring(0, 12)} />
                   <RechartsTooltip
-                    formatter={(v: any, name: any) => name.includes("율") ? `${Number(v).toFixed(1)}%p` : formatCurrency(Number(v))}
                     content={({ active, payload, label }: any) => {
                       if (!active || !payload?.length) return null;
                       const item = payload[0]?.payload;
@@ -1889,7 +1912,7 @@ export default function ProfitabilityPage() {
                       );
                     }}
                   />
-                  <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" />
+                  <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" />
                   <Bar dataKey="impactAmount" name="영향액" radius={[0, 4, 4, 0]}>
                     {marginErosion.slice(0, 15).map((item, idx) => (
                       <Cell key={idx} fill={item.impactAmount < 0 ? "#ef4444" : "#059669"} />
@@ -1905,7 +1928,7 @@ export default function ProfitabilityPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b text-left">
+                  <tr className="border-b bg-muted/50 text-left">
                     <th className="p-2 font-medium">제품군</th>
                     <th className="p-2 font-medium text-right">매출액</th>
                     <th className="p-2 font-medium text-right">이익율</th>

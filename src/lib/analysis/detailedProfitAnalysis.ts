@@ -55,7 +55,7 @@ export function calcParetoAnalysis(
     const share = total !== 0 ? (Math.abs(item.value) / total) * 100 : 0;
     const cumShare = total !== 0 ? (cumValue / total) * 100 : 0;
     const grade: "A" | "B" | "C" =
-      cumShare <= 80 ? "A" : cumShare <= 95 ? "B" : "C";
+      total === 0 ? "C" : cumShare <= 80 ? "A" : cumShare <= 95 ? "B" : "C";
 
     return {
       name: item.name,
@@ -128,8 +128,8 @@ export function calcProductGroupAnalysis(
     entry.cost += r.실적매출원가.실적;
     entry.grossProfit += r.매출총이익.실적;
     entry.operatingProfit += r.영업이익.실적;
-    entry.domesticSales += r.제품내수매출.실적;
-    entry.exportSales += r.제품수출매출.실적;
+    entry.domesticSales += r.제품내수매출?.실적 || 0;
+    entry.exportSales += r.제품수출매출?.실적 || 0;
     if (r.품목) entry.products.add(r.품목);
     if (r.매출거래처) entry.customers.add(r.매출거래처);
 
@@ -147,7 +147,7 @@ export function calcProductGroupAnalysis(
       opMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
       domesticSales: v.domesticSales,
       exportSales: v.exportSales,
-      exportRatio: v.sales !== 0 ? (v.exportSales / v.sales) * 100 : 0,
+      exportRatio: v.sales !== 0 ? Math.max(0, Math.min(100, (v.exportSales / v.sales) * 100)) : 0,
       productCount: v.products.size,
       customerCount: v.customers.size,
       planAchievement:
@@ -292,7 +292,7 @@ export function calcOrgProductSummary(
     const sales = r.매출액.실적;
     entry.totalSales += sales;
     entry.totalGrossProfit += r.매출총이익.실적;
-    entry.domesticSales += r.제품내수매출.실적;
+    entry.domesticSales += r.제품내수매출?.실적 || 0;
 
     if (r.품목) {
       entry.products.add(r.품목);

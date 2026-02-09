@@ -99,9 +99,9 @@ export function calcCustomerHierarchy(
       grossProfit: 0,
       operatingProfit: 0,
     };
-    bucket.sales += r.매출액.실적;
-    bucket.grossProfit += r.매출총이익.실적;
-    bucket.operatingProfit += r.영업이익.실적;
+    bucket.sales += r.매출액.실적 || 0;
+    bucket.grossProfit += r.매출총이익.실적 || 0;
+    bucket.operatingProfit += r.영업이익.실적 || 0;
     leafMap.set(k4, bucket);
   }
 
@@ -211,7 +211,7 @@ export function calcCustomerConcentration(
   for (const r of data) {
     const key = r.매출거래처;
     if (!key) continue;
-    salesByCustomer.set(key, (salesByCustomer.get(key) || 0) + r.매출액.실적);
+    salesByCustomer.set(key, (salesByCustomer.get(key) || 0) + (r.매출액.실적 || 0));
   }
 
   const totalSales = Array.from(salesByCustomer.values()).reduce(
@@ -296,10 +296,10 @@ export function calcCustomerRanking(
       planSales: 0,
     };
 
-    entry.sales += r.매출액.실적;
-    entry.grossProfit += r.매출총이익.실적;
-    entry.operatingProfit += r.영업이익.실적;
-    entry.planSales += r.매출액.계획;
+    entry.sales += r.매출액.실적 || 0;
+    entry.grossProfit += r.매출총이익.실적 || 0;
+    entry.operatingProfit += r.영업이익.실적 || 0;
+    entry.planSales += r.매출액.계획 || 0;
 
     // Keep the first non-empty org/category encountered
     if (!entry.org && r.영업조직팀) entry.org = r.영업조직팀;
@@ -357,9 +357,9 @@ export function calcCustomerSegments(
     };
 
     if (r.매출거래처) entry.customers.add(r.매출거래처);
-    entry.totalSales += r.매출액.실적;
-    entry.totalGrossProfit += r.매출총이익.실적;
-    entry.totalOperatingProfit += r.영업이익.실적;
+    entry.totalSales += r.매출액.실적 || 0;
+    entry.totalGrossProfit += r.매출총이익.실적 || 0;
+    entry.totalOperatingProfit += r.영업이익.실적 || 0;
 
     map.set(segment, entry);
   }

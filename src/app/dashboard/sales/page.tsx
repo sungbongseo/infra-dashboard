@@ -171,7 +171,7 @@ export default function SalesAnalysisPage() {
       </div>
 
       <Tabs defaultValue="customer" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="customer">거래처 분석</TabsTrigger>
           <TabsTrigger value="item">품목 분석</TabsTrigger>
           <TabsTrigger value="type">유형별 분석</TabsTrigger>

@@ -181,7 +181,7 @@ export default function OrdersAnalysisPage() {
       </div>
 
       <Tabs defaultValue="status" className="space-y-4">
-        <TabsList>
+        <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="status">수주 현황</TabsTrigger>
           <TabsTrigger value="analysis">수주 분석</TabsTrigger>
           <TabsTrigger value="org">조직 분석</TabsTrigger>
