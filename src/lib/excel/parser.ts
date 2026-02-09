@@ -227,26 +227,62 @@ function parseOrderList(data: unknown[][]): OrderRecord[] {
   }));
 }
 
-function parseOrgProfit(data: unknown[][]): OrgProfitRecord[] {
-  return data.slice(2).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    판매사업본부: str(row[1]),
-    판매사업부: str(row[2]),
-    영업조직팀: str(row[3]),
-    매출액: parsePlanActualDiff(row, 4),
-    실적매출원가: parsePlanActualDiff(row, 7),
-    매출총이익: parsePlanActualDiff(row, 10),
-    판관변동_직접판매운반비: parsePlanActualDiff(row, 13),
-    판관변동_운반비: parsePlanActualDiff(row, 16),
-    판매관리비: parsePlanActualDiff(row, 19),
-    영업이익: parsePlanActualDiff(row, 22),
-    공헌이익: parsePlanActualDiff(row, 25),
-    매출원가율: parsePlanActualDiff(row, 28),
-    매출총이익율: parsePlanActualDiff(row, 31),
-    판관비율: parsePlanActualDiff(row, 34),
-    영업이익율: parsePlanActualDiff(row, 37),
-    공헌이익율: parsePlanActualDiff(row, 40),
-  }));
+function parseOrgProfit(data: unknown[][], warnings: string[]): OrgProfitRecord[] {
+  let abnormalCount = 0;
+  const result = data.slice(2)
+    .filter(r => {
+      // 합계 행 제외: No 컬럼 있고, 영업조직팀이 유효한 값이어야 함
+      if (!r[0]) return false;
+      const org = str(r[3]).trim();
+      // 공백, "합계", "총계" 등 합계 행 제외
+      if (!org || org === "합계" || org === "총계" || org.includes("합계")) return false;
+      return true;
+    })
+    .map((row) => {
+      const parsed = {
+        No: num(row[0]),
+        판매사업본부: str(row[1]),
+        판매사업부: str(row[2]),
+        영업조직팀: str(row[3]),
+        매출액: parsePlanActualDiff(row, 4),
+        실적매출원가: parsePlanActualDiff(row, 7),
+        매출총이익: parsePlanActualDiff(row, 10),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 13),
+        판관변동_운반비: parsePlanActualDiff(row, 16),
+        판매관리비: parsePlanActualDiff(row, 19),
+        영업이익: parsePlanActualDiff(row, 22),
+        공헌이익: parsePlanActualDiff(row, 25),
+        매출원가율: parsePlanActualDiff(row, 28),
+        매출총이익율: parsePlanActualDiff(row, 31),
+        판관비율: parsePlanActualDiff(row, 34),
+        영업이익율: parsePlanActualDiff(row, 37),
+        공헌이익율: parsePlanActualDiff(row, 40),
+      };
+
+      // 비정상 데이터 검증: 영업이익율 100% 또는 절대값 >200%는 계산 오류로 간주
+      // → 0으로 대체하여 차트에서 제외되도록 함
+      if (Math.abs(parsed.영업이익율.실적) >= 100 || Math.abs(parsed.공헌이익율.실적) >= 100) {
+        abnormalCount++;
+        if (abnormalCount <= 3) {
+          warnings.push(`[조직별손익] ${parsed.영업조직팀}: 비정상 이익율 감지 (영업이익율 ${parsed.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${parsed.공헌이익율.실적.toFixed(1)}%) - 해당 데이터는 분석에서 제외됩니다`);
+        }
+        parsed.영업이익율.실적 = 0;
+        parsed.영업이익율.계획 = 0;
+        parsed.영업이익율.차이 = 0;
+        parsed.공헌이익율.실적 = 0;
+        parsed.공헌이익율.계획 = 0;
+        parsed.공헌이익율.차이 = 0;
+      }
+
+      return parsed;
+    })
+    .filter(r => r.매출액.실적 !== 0); // 매출액 0인 행도 제외
+
+  if (abnormalCount > 3) {
+    warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 비정상 이익율 데이터가 제외되었습니다. Excel 파일의 수식을 확인하세요.`);
+  }
+
+  return result;
 }
 
 // parseProfitabilityAnalysis는 parseExcelFile 내부에서 safeParseRows로 처리
@@ -349,36 +385,57 @@ export function parseExcelFile(
       parsed = parseOrderList(rawData);
       break;
     case "orgProfit":
-      parsed = parseOrgProfit(rawData);
+      parsed = parseOrgProfit(rawData, warnings);
       break;
     case "teamContribution": {
       // teamContribution has wide rows (index up to 112), use safe parsing
-      const r = safeParseRows(rawData, 2, (row) => ({
-        No: num(row[0]), 영업그룹: str(row[1]), 영업조직팀: str(row[2]),
-        영업담당사번: str(row[3]),
-        매출액: parsePlanActualDiff(row, 4), 실적매출원가: parsePlanActualDiff(row, 7),
-        매출총이익: parsePlanActualDiff(row, 10), 매출총이익율: parsePlanActualDiff(row, 13),
-        판관변동_직접판매운반비: parsePlanActualDiff(row, 16),
-        판매관리비: parsePlanActualDiff(row, 19), 영업이익: parsePlanActualDiff(row, 22),
-        영업이익율: parsePlanActualDiff(row, 25),
-        판관변동_노무비: parsePlanActualDiff(row, 28), 판관변동_복리후생비: parsePlanActualDiff(row, 31),
-        판관변동_소모품비: parsePlanActualDiff(row, 34), 판관변동_수도광열비: parsePlanActualDiff(row, 37),
-        판관변동_수선비: parsePlanActualDiff(row, 40), 판관변동_외주가공비: parsePlanActualDiff(row, 43),
-        판관변동_운반비: parsePlanActualDiff(row, 46), 판관변동_지급수수료: parsePlanActualDiff(row, 49),
-        판관변동_견본비: parsePlanActualDiff(row, 52),
-        판관고정_노무비: parsePlanActualDiff(row, 55), 판관고정_감가상각비: parsePlanActualDiff(row, 58),
-        판관고정_기타경비: parsePlanActualDiff(row, 61),
-        제조변동_원재료비: parsePlanActualDiff(row, 64), 제조변동_부재료비: parsePlanActualDiff(row, 67),
-        변동_상품매입: parsePlanActualDiff(row, 70), 제조변동_노무비: parsePlanActualDiff(row, 73),
-        제조변동_복리후생비: parsePlanActualDiff(row, 76), 제조변동_소모품비: parsePlanActualDiff(row, 79),
-        제조변동_수도광열비: parsePlanActualDiff(row, 82), 제조변동_수선비: parsePlanActualDiff(row, 85),
-        제조변동_연료비: parsePlanActualDiff(row, 88), 제조변동_외주가공비: parsePlanActualDiff(row, 91),
-        제조변동_운반비: parsePlanActualDiff(row, 94), 제조변동_전력비: parsePlanActualDiff(row, 97),
-        제조변동_견본비: parsePlanActualDiff(row, 100), 제조변동_지급수수료: parsePlanActualDiff(row, 103),
-        변동비합계: parsePlanActualDiff(row, 106), 공헌이익: parsePlanActualDiff(row, 109),
-        공헌이익율: parsePlanActualDiff(row, 112),
-      }), warnings, "팀원별공헌이익");
-      parsed = r.parsed; skippedRows = r.skipped;
+      const r = safeParseRows(rawData, 2, (row) => {
+        // 합계 행 필터링: 영업담당사번이 없으면 제외
+        const empNo = str(row[3]).trim();
+        if (!empNo) {
+          throw new Error("SKIP_ROW"); // safeParseRows에서 자동으로 skip됨
+        }
+
+        const record = {
+          No: num(row[0]), 영업그룹: str(row[1]), 영업조직팀: str(row[2]),
+          영업담당사번: empNo,
+          매출액: parsePlanActualDiff(row, 4), 실적매출원가: parsePlanActualDiff(row, 7),
+          매출총이익: parsePlanActualDiff(row, 10), 매출총이익율: parsePlanActualDiff(row, 13),
+          판관변동_직접판매운반비: parsePlanActualDiff(row, 16),
+          판매관리비: parsePlanActualDiff(row, 19), 영업이익: parsePlanActualDiff(row, 22),
+          영업이익율: parsePlanActualDiff(row, 25),
+          판관변동_노무비: parsePlanActualDiff(row, 28), 판관변동_복리후생비: parsePlanActualDiff(row, 31),
+          판관변동_소모품비: parsePlanActualDiff(row, 34), 판관변동_수도광열비: parsePlanActualDiff(row, 37),
+          판관변동_수선비: parsePlanActualDiff(row, 40), 판관변동_외주가공비: parsePlanActualDiff(row, 43),
+          판관변동_운반비: parsePlanActualDiff(row, 46), 판관변동_지급수수료: parsePlanActualDiff(row, 49),
+          판관변동_견본비: parsePlanActualDiff(row, 52),
+          판관고정_노무비: parsePlanActualDiff(row, 55), 판관고정_감가상각비: parsePlanActualDiff(row, 58),
+          판관고정_기타경비: parsePlanActualDiff(row, 61),
+          제조변동_원재료비: parsePlanActualDiff(row, 64), 제조변동_부재료비: parsePlanActualDiff(row, 67),
+          변동_상품매입: parsePlanActualDiff(row, 70), 제조변동_노무비: parsePlanActualDiff(row, 73),
+          제조변동_복리후생비: parsePlanActualDiff(row, 76), 제조변동_소모품비: parsePlanActualDiff(row, 79),
+          제조변동_수도광열비: parsePlanActualDiff(row, 82), 제조변동_수선비: parsePlanActualDiff(row, 85),
+          제조변동_연료비: parsePlanActualDiff(row, 88), 제조변동_외주가공비: parsePlanActualDiff(row, 91),
+          제조변동_운반비: parsePlanActualDiff(row, 94), 제조변동_전력비: parsePlanActualDiff(row, 97),
+          제조변동_견본비: parsePlanActualDiff(row, 100), 제조변동_지급수수료: parsePlanActualDiff(row, 103),
+          변동비합계: parsePlanActualDiff(row, 106), 공헌이익: parsePlanActualDiff(row, 109),
+          공헌이익율: parsePlanActualDiff(row, 112),
+        };
+
+        // 비정상 데이터 검증: 공헌이익율 >=100% 또는 절대값 >200%는 계산 오류
+        if (Math.abs(record.공헌이익율.실적) >= 100 || Math.abs(record.영업이익율.실적) >= 100) {
+          record.공헌이익율.실적 = 0;
+          record.공헌이익율.계획 = 0;
+          record.공헌이익율.차이 = 0;
+          record.영업이익율.실적 = 0;
+          record.영업이익율.계획 = 0;
+          record.영업이익율.차이 = 0;
+        }
+
+        return record;
+      }, warnings, "팀원별공헌이익");
+      parsed = r.parsed.filter((r: any) => r.매출액.실적 !== 0); // 매출액 0 제외
+      skippedRows = r.skipped;
       break;
     }
     case "profitabilityAnalysis": {
