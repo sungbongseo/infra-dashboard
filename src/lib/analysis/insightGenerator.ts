@@ -14,6 +14,7 @@ export interface Insight {
 
 export interface InsightConfig {
   kpis: OverviewKpis;
+  netCollectionRate?: number;
   dso?: number;
   ccc?: number;
   forecastAccuracy?: number;
@@ -24,36 +25,37 @@ export function generateInsights(config: InsightConfig): Insight[] {
   const insights: Insight[] = [];
   const { kpis } = config;
 
-  // Rule 1: Collection rate
-  if (kpis.collectionRate >= 95) {
+  // Rule 1: Collection rate (순수 수금율 사용 - 선수금 제외)
+  const effectiveCollectionRate = config.netCollectionRate ?? kpis.collectionRate;
+  if (effectiveCollectionRate >= 95) {
     insights.push({
       id: "col-high",
-      title: "수금율 우수",
-      message: `수금율 ${kpis.collectionRate.toFixed(1)}%로 매우 양호합니다.`,
+      title: "순수 수금율 우수",
+      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 매우 양호합니다 (선수금 제외 기준).`,
       severity: "positive",
       category: "수금",
-      metric: "collectionRate",
-      value: kpis.collectionRate,
+      metric: "netCollectionRate",
+      value: effectiveCollectionRate,
     });
-  } else if (kpis.collectionRate < 70) {
+  } else if (effectiveCollectionRate < 70) {
     insights.push({
       id: "col-low",
-      title: "수금율 저조 경고",
-      message: `수금율 ${kpis.collectionRate.toFixed(1)}%로 목표(70%) 미달입니다. 연체 거래처 집중 관리가 필요합니다.`,
+      title: "순수 수금율 저조 경고",
+      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 목표(70%) 미달입니다 (선수금 제외 기준). 연체 거래처 집중 관리가 필요합니다.`,
       severity: "critical",
       category: "수금",
-      metric: "collectionRate",
-      value: kpis.collectionRate,
+      metric: "netCollectionRate",
+      value: effectiveCollectionRate,
     });
-  } else if (kpis.collectionRate < 85) {
+  } else if (effectiveCollectionRate < 85) {
     insights.push({
       id: "col-med",
-      title: "수금율 주의",
-      message: `수금율 ${kpis.collectionRate.toFixed(1)}%로 개선이 필요합니다.`,
+      title: "순수 수금율 주의",
+      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 개선이 필요합니다 (선수금 제외 기준).`,
       severity: "warning",
       category: "수금",
-      metric: "collectionRate",
-      value: kpis.collectionRate,
+      metric: "netCollectionRate",
+      value: effectiveCollectionRate,
     });
   }
 

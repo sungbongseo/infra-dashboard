@@ -119,12 +119,13 @@ export default function OverviewPage() {
     () =>
       generateInsights({
         kpis,
+        netCollectionRate: collectionRateDetail.netCollectionRate,
         dso: overallDso,
         ccc: overallCcc,
         forecastAccuracy,
         contributionMarginRate,
       }),
-    [kpis, overallDso, overallCcc, forecastAccuracy, contributionMarginRate]
+    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate]
   );
 
   // ─── Comparison period data (YoY/MoM) ───────────────────────────

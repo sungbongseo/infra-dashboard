@@ -490,7 +490,8 @@ export default function OrdersAnalysisPage() {
                     orientation="right"
                     tick={{ fontSize: 11 }}
                     tickFormatter={(v) => `${v.toFixed(0)}%`}
-                    domain={[0, (dataMax: number) => Math.max(120, Math.ceil(dataMax / 10) * 10)]}
+                    domain={[0, 200]}
+                    allowDataOverflow={true}
                   />
                   <RechartsTooltip
                     {...TOOLTIP_STYLE}
