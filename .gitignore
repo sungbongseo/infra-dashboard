@@ -44,3 +44,9 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+
+# Temporary files
+nul
+
+# Playwright MCP logs
+.playwright-mcp/
