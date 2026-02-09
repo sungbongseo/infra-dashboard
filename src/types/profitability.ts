@@ -139,6 +139,7 @@ export interface CustomerItemDetailRecord {
   거래처중분류: string;
   거래처소분류: string;
   제품군: string;
+  매출연월: string;
   제품내수매출: PlanActualDiff;
   제품수출매출: PlanActualDiff;
   매출수량: PlanActualDiff;

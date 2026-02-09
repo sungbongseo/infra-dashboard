@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { OrgProfitRecord, PlanActualDiff } from "@/types";
+import type { OrgProfitRecord, PlanActualDiff, CustomerItemDetailRecord, OrgCustomerProfitRecord } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -85,6 +85,8 @@ export function extractMonth(dateStr: string): string {
     return "";
   }
   if (d.length === 8 && /^\d{8}$/.test(d)) return `${d.substring(0, 4)}-${d.substring(4, 6)}`;
+  // YYYYMM 6-digit format
+  if (d.length === 6 && /^\d{6}$/.test(d)) return `${d.substring(0, 4)}-${d.substring(4, 6)}`;
   // Excel serial number
   const serial = Number(d);
   if (!isNaN(serial) && serial > 40000 && serial < 100000) {
@@ -213,6 +215,61 @@ export function aggregateOrgProfit(data: OrgProfitRecord[]): OrgProfitRecord[] {
     r.판관비율 = calcRatioPAD(r.판매관리비, r.매출액);
     r.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
     r.공헌이익율 = calcRatioPAD(r.공헌이익, r.매출액);
+  }
+
+  return results;
+}
+
+// ─── CustomerItemDetail → OrgCustomerProfit 거래처 단위 집계 ────────
+
+const zeroPAD = (): PlanActualDiff => ({ 계획: 0, 실적: 0, 차이: 0 });
+
+/**
+ * CustomerItemDetailRecord[]를 거래처 단위로 집계하여
+ * OrgCustomerProfitRecord[] 호환 형태로 변환합니다.
+ * 기간 필터된 customerItemDetail 데이터를 거래처 손익 탭에 사용할 수 있습니다.
+ */
+export function aggregateToCustomerLevel(
+  data: CustomerItemDetailRecord[],
+): OrgCustomerProfitRecord[] {
+  if (data.length === 0) return [];
+
+  const map = new Map<string, OrgCustomerProfitRecord>();
+
+  for (const row of data) {
+    const key = `${row.영업조직팀}||${row.매출거래처}`;
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, {
+        No: map.size + 1,
+        영업조직팀: row.영업조직팀,
+        거래처대분류: row.거래처대분류,
+        거래처중분류: row.거래처중분류,
+        거래처소분류: row.거래처소분류,
+        매출거래처: row.매출거래처,
+        매출거래처명: row.매출거래처명,
+        매출액: { ...row.매출액 },
+        실적매출원가: { ...row.실적매출원가 },
+        매출총이익: { ...row.매출총이익 },
+        판매관리비: { ...row.판매관리비 },
+        영업이익: { ...row.영업이익 },
+        매출총이익율: zeroPAD(),
+        영업이익율: zeroPAD(),
+      });
+    } else {
+      existing.매출액 = addPAD(existing.매출액, row.매출액);
+      existing.실적매출원가 = addPAD(existing.실적매출원가, row.실적매출원가);
+      existing.매출총이익 = addPAD(existing.매출총이익, row.매출총이익);
+      existing.판매관리비 = addPAD(existing.판매관리비, row.판매관리비);
+      existing.영업이익 = addPAD(existing.영업이익, row.영업이익);
+    }
+  }
+
+  const results = Array.from(map.values());
+  for (const r of results) {
+    r.매출총이익율 = calcRatioPAD(r.매출총이익, r.매출액);
+    r.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
   }
 
   return results;

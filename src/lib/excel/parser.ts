@@ -560,6 +560,7 @@ export function parseExcelFile(
         거래처중분류: str(row[10]),
         거래처소분류: str(row[11]),
         제품군: str(row[30]),  // 품목제품군
+        매출연월: str(row[13]),  // YYYYMM 형식
         제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         매출수량: parsePlanActualDiff(row, 42),

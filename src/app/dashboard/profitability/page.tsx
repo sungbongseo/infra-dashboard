@@ -36,9 +36,10 @@ import {
   Line,
   Area,
 } from "recharts";
-import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert, Users, Info } from "lucide-react";
+import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert, Users, Info, Calendar } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateToCustomerLevel, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import {
   calcCostStructure,
   calcOrgRatioMetrics,
@@ -139,6 +140,7 @@ export default function ProfitabilityPage() {
   const orgNames = useDataStore((s) => s.orgNames);
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
   const { selectedOrgs, dateRange } = useFilterStore();
 
@@ -176,7 +178,35 @@ export default function ProfitabilityPage() {
   const filteredOrgCustProfit = useMemo(() => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), [orgCustomerProfit, effectiveOrgNames]);
   const filteredHqCustItemProfit = useMemo(() => filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), [hqCustomerItemProfit, effectiveOrgNames]);
 
-  const hasData = filteredOrgProfit.length > 0 || filteredOrgCustProfit.length > 0 || filteredHqCustItemProfit.length > 0;
+  // ─── customerItemDetail 기간 필터 (스마트 데이터소스) ──────────────────
+  const filteredCustItemDetail = useMemo(() => {
+    const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
+    if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
+    return filterByDateRange(orgFiltered, dateRange, "매출연월");
+  }, [customerItemDetail, effectiveOrgNames, dateRange]);
+
+  // 기간 필터가 활성 + customerItemDetail 데이터 존재 시 스마트 데이터소스 사용
+  const isDateFilterActive = !!(dateRange?.from && dateRange?.to);
+  const hasCustItemData = filteredCustItemDetail.length > 0;
+  const isUsingDateFiltered = isDateFilterActive && hasCustItemData;
+
+  // 스마트 데이터소스: 기간필터 활성 시 customerItemDetail 기반, 아닌 경우 기존 소스
+  const effectiveProfAnalysis = useMemo(() => {
+    if (isUsingDateFiltered) return filteredCustItemDetail as any[];
+    return filteredProfAnalysis;
+  }, [isUsingDateFiltered, filteredCustItemDetail, filteredProfAnalysis]);
+
+  const effectiveHqCustItemProfit = useMemo(() => {
+    if (isUsingDateFiltered) return filteredCustItemDetail as any[];
+    return filteredHqCustItemProfit;
+  }, [isUsingDateFiltered, filteredCustItemDetail, filteredHqCustItemProfit]);
+
+  const effectiveOrgCustProfit = useMemo(() => {
+    if (isUsingDateFiltered) return aggregateToCustomerLevel(filteredCustItemDetail);
+    return filteredOrgCustProfit;
+  }, [isUsingDateFiltered, filteredCustItemDetail, filteredOrgCustProfit]);
+
+  const hasData = filteredOrgProfit.length > 0 || filteredOrgCustProfit.length > 0 || filteredHqCustItemProfit.length > 0 || hasCustItemData;
 
   // ─── 손익 Waterfall 데이터 ──────────────────────────────
   const waterfallData = useMemo(() => {
@@ -415,15 +445,15 @@ export default function ProfitabilityPage() {
     [filteredOrgProfit]
   );
 
-  // ─── 제품/거래처 수익성 분석 (ProfitabilityAnalysisRecord 활용) ──────
+  // ─── 제품/거래처 수익성 분석 (스마트 데이터소스 활용) ──────
   const productProfitability = useMemo(
-    () => calcProductProfitability(filteredProfAnalysis),
-    [filteredProfAnalysis]
+    () => calcProductProfitability(effectiveProfAnalysis),
+    [effectiveProfAnalysis]
   );
 
   const customerProfitability = useMemo(
-    () => calcCustomerProfitability(filteredProfAnalysis),
-    [filteredProfAnalysis]
+    () => calcCustomerProfitability(effectiveProfAnalysis),
+    [effectiveProfAnalysis]
   );
 
   // ─── 수익성 x 리스크 크로스 분석 ──────────────────────────────
@@ -438,11 +468,11 @@ export default function ProfitabilityPage() {
     [profitRiskData]
   );
 
-  // ─── 계획 달성 분석 (Plan Achievement) ──────────────────────────────
-  const planSummary = useMemo(() => calcPlanAchievementSummary(filteredProfAnalysis), [filteredProfAnalysis]);
-  const orgAchievement = useMemo(() => calcOrgAchievement(filteredProfAnalysis), [filteredProfAnalysis]);
-  const topContributors = useMemo(() => calcTopContributors(filteredProfAnalysis, 10), [filteredProfAnalysis]);
-  const marginDriftItems = useMemo(() => calcMarginDrift(filteredProfAnalysis, 15), [filteredProfAnalysis]);
+  // ─── 계획 달성 분석 (Plan Achievement, 스마트 데이터소스) ──────────────────
+  const planSummary = useMemo(() => calcPlanAchievementSummary(effectiveProfAnalysis), [effectiveProfAnalysis]);
+  const orgAchievement = useMemo(() => calcOrgAchievement(effectiveProfAnalysis), [effectiveProfAnalysis]);
+  const topContributors = useMemo(() => calcTopContributors(effectiveProfAnalysis, 10), [effectiveProfAnalysis]);
+  const marginDriftItems = useMemo(() => calcMarginDrift(effectiveProfAnalysis, 15), [effectiveProfAnalysis]);
 
   // ─── 손익분기점 (Break-even / CVP) ──────────────────────────────
   // teamContribution 데이터가 있으면 정확한 판관고정 3항목을 직접 사용 (더 정확)
@@ -482,14 +512,13 @@ export default function ProfitabilityPage() {
     [filteredOrgProfit]
   );
 
-  // ─── 거래처 손익 분석 (OrgCustomerProfit) ──────────────────────────────
-  const custConcentration = useMemo(() => calcCustomerConcentration(filteredOrgCustProfit), [filteredOrgCustProfit]);
-  const custRanking = useMemo(() => calcCustomerRanking(filteredOrgCustProfit), [filteredOrgCustProfit]);
-  const custSegments = useMemo(() => calcCustomerSegments(filteredOrgCustProfit), [filteredOrgCustProfit]);
+  // ─── 거래처 손익 분석 (스마트 데이터소스) ──────────────────────────────
+  const custConcentration = useMemo(() => calcCustomerConcentration(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
+  const custRanking = useMemo(() => calcCustomerRanking(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
+  const custSegments = useMemo(() => calcCustomerSegments(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
 
-  // ─── 거래처별 담당자 매핑 (901 데이터에서 영업담당사번 추출) ──────────
+  // ─── 거래처별 담당자 매핑 (스마트 데이터소스) ──────────
   const custDetailTable = useMemo(() => {
-    // 901(profitabilityAnalysis)에서 거래처별 담당자 + 재무지표 집계
     const map = new Map<string, {
       customer: string;
       org: string;
@@ -498,7 +527,7 @@ export default function ProfitabilityPage() {
       gpActual: number;
       opActual: number;
     }>();
-    for (const r of filteredProfAnalysis) {
+    for (const r of effectiveProfAnalysis) {
       const key = r.매출거래처 || "";
       if (!key) continue;
       const entry = map.get(key) || {
@@ -528,15 +557,15 @@ export default function ProfitabilityPage() {
       }))
       .filter(v => v.salesActual !== 0)
       .sort((a, b) => b.salesActual - a.salesActual);
-  }, [filteredProfAnalysis]);
+  }, [effectiveProfAnalysis]);
 
-  // ─── 거래처×품목 분석 (HqCustomerItemProfit) ──────────────────────────────
-  const abcItems = useMemo(() => calcABCAnalysis(filteredHqCustItemProfit), [filteredHqCustItemProfit]);
-  const custPortfolio = useMemo(() => calcCustomerPortfolio(filteredHqCustItemProfit), [filteredHqCustItemProfit]);
-  const topCombinations = useMemo(() => calcCrossProfitability(filteredHqCustItemProfit).slice(0, 20), [filteredHqCustItemProfit]);
+  // ─── 거래처×품목 분석 (스마트 데이터소스) ──────────────────────────────
+  const abcItems = useMemo(() => calcABCAnalysis(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
+  const custPortfolio = useMemo(() => calcCustomerPortfolio(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
+  const topCombinations = useMemo(() => calcCrossProfitability(effectiveHqCustItemProfit).slice(0, 20), [effectiveHqCustItemProfit]);
 
   // ─── 마진 침식 분석 (profitabilityAnalysis 기반 → Tab 6 통합) ──────────────────
-  const marginErosion = useMemo(() => calcMarginErosion(filteredProfAnalysis, "product", 20), [filteredProfAnalysis]);
+  const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
 
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate } = useMemo(() => {
@@ -585,20 +614,30 @@ export default function ProfitabilityPage() {
       </div>
 
       <Tabs defaultValue="pnl" className="space-y-4">
+        <TooltipProvider delayDuration={300}>
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="pnl">손익 현황</TabsTrigger>
           <TabsTrigger value="org">조직 수익성</TabsTrigger>
           <TabsTrigger value="contrib" disabled={filteredTeamContribution.length === 0}>팀원별 공헌이익</TabsTrigger>
           <TabsTrigger value="cost" disabled={filteredTeamContribution.length === 0}>비용 구조</TabsTrigger>
           <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>
-          <TabsTrigger value="product" disabled={filteredProfAnalysis.length === 0}>제품 수익성</TabsTrigger>
+          <TabsTrigger value="product" disabled={effectiveProfAnalysis.length === 0}>
+            제품 수익성{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+          </TabsTrigger>
           <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성x리스크</TabsTrigger>
-          <TabsTrigger value="variance" disabled={filteredProfAnalysis.length === 0}>계획 달성 분석</TabsTrigger>
+          <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
+            계획 달성 분석{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+          </TabsTrigger>
           <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
           <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
-          <TabsTrigger value="custProfit" disabled={filteredOrgCustProfit.length === 0}>거래처 손익</TabsTrigger>
-          <TabsTrigger value="custItem" disabled={filteredHqCustItemProfit.length === 0}>거래처×품목</TabsTrigger>
+          <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
+            거래처 손익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+          </TabsTrigger>
+          <TabsTrigger value="custItem" disabled={effectiveHqCustItemProfit.length === 0}>
+            거래처×품목{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+          </TabsTrigger>
         </TabsList>
+        </TooltipProvider>
 
         {/* ────────── 손익 현황 ────────── */}
         <TabsContent value="pnl" className="space-y-6">
@@ -1153,9 +1192,15 @@ export default function ProfitabilityPage() {
 
         {/* ────────── 제품 수익성 ────────── */}
         <TabsContent value="product" className="space-y-6">
-          {filteredProfAnalysis.length > 0 ? (
+          {effectiveProfAnalysis.length > 0 ? (
             <>
-              {profAnalysisIsFallback && (
+              {isUsingDateFiltered && (
+                <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+                  <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                  기간 필터 적용 중 — 거래처별품목별 손익(100) 데이터 기준 ({dateRange?.from} ~ {dateRange?.to})
+                </div>
+              )}
+              {!isUsingDateFiltered && profAnalysisIsFallback && (
                 <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
                   조직 필터와 일치하는 유효 데이터가 없어 전체 데이터를 표시합니다. 원본 파일의 &apos;영업조직팀&apos; 필드를 확인하세요.
                 </div>
@@ -1589,6 +1634,12 @@ export default function ProfitabilityPage() {
 
         {/* ────────── 분산분석 (3-Way Variance) ────────── */}
         <TabsContent value="variance" className="space-y-6">
+          {isUsingDateFiltered && (
+            <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              기간 필터 적용 중 — 거래처별품목별 손익(100) 데이터 기준 ({dateRange?.from} ~ {dateRange?.to})
+            </div>
+          )}
           {/* KPI Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -1941,6 +1992,12 @@ export default function ProfitabilityPage() {
 
         {/* ────────── 거래처 손익 (OrgCustomerProfit) ────────── */}
         <TabsContent value="custProfit" className="space-y-6">
+          {isUsingDateFiltered && (
+            <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              기간 필터 적용 중 — 거래처별품목별 손익(100) 데이터 기준 ({dateRange?.from} ~ {dateRange?.to})
+            </div>
+          )}
           {/* KPI */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard
@@ -2131,6 +2188,12 @@ export default function ProfitabilityPage() {
 
         {/* ────────── 거래처×품목 (HqCustomerItemProfit) ────────── */}
         <TabsContent value="custItem" className="space-y-6">
+          {isUsingDateFiltered && (
+            <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+              <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+              기간 필터 적용 중 — 거래처별품목별 손익(100) 데이터 기준 ({dateRange?.from} ~ {dateRange?.to})
+            </div>
+          )}
           {/* ABC 분석 KPI */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard

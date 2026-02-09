@@ -32,7 +32,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   receivableAging: ["판매처", "영업조직"],
   orgCustomerProfit: ["영업조직팀", "매출거래처", "매출액"],
   hqCustomerItemProfit: ["영업조직팀", "매출거래처", "품목", "매출액"],
-  customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출액"],
+  customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출연월", "매출액"],
 };
 
 function getCompletenessColor(rate: number): string {
