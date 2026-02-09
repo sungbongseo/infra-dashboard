@@ -73,6 +73,68 @@ function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
   return records.filter((r) => r.영업조직팀.trim() !== "합계");
 }
 
+/**
+ * SAP 다중 레벨 계층 리포트 fill-down.
+ * levels는 상위→하위 순으로 [주필드, ...연관필드] 배열.
+ * 상위 레벨 값이 바뀌면 하위 레벨을 리셋하여 교차 오염 방지.
+ * "합계"/"소계" 행은 제외.
+ */
+function fillDownMultiLevel<T extends Record<string, any>>(
+  records: T[],
+  levels: string[][],
+): T[] {
+  const lastLevelPrimary = levels[levels.length - 1][0];
+
+  // 1단계: 최하위 레벨이 원본에서 채워져 있는 행만 상세행으로 표시
+  const isDetailRow = records.map((rec) => {
+    const val = String(rec[lastLevelPrimary] || "").trim();
+    return val !== "" && val !== "합계" && val !== "소계";
+  });
+
+  // 2단계: fill-down 수행
+  const current: Record<string, string> = {};
+  for (const rec of records) {
+    for (let i = 0; i < levels.length; i++) {
+      const fields = levels[i];
+      const primary = fields[0];
+      const val = String(rec[primary] || "").trim();
+
+      if (val !== "" && val !== "합계" && val !== "소계") {
+        // 새 값 감지 → 현재값 갱신
+        if (current[primary] !== val) {
+          for (const f of fields) {
+            current[f] = String(rec[f] || "").trim();
+          }
+          // 하위 레벨 리셋 (교차 오염 방지)
+          for (let j = i + 1; j < levels.length; j++) {
+            for (const f of levels[j]) {
+              current[f] = "";
+            }
+          }
+        }
+      } else if (val === "") {
+        // 빈 값 → fill-down
+        for (const f of fields) {
+          if (!String(rec[f] || "").trim() && current[f]) {
+            (rec as Record<string, any>)[f] = current[f];
+          }
+        }
+      }
+    }
+  }
+
+  // 3단계: 상세행만 유지 (소계/합계 행 및 중간 레벨 소계 제거)
+  return records.filter((r, idx) => {
+    if (!isDetailRow[idx]) return false;
+    // 모든 레벨에서 합계/소계 체크
+    for (const level of levels) {
+      const v = String(r[level[0]] || "").trim();
+      if (v === "합계" || v === "소계") return false;
+    }
+    return true;
+  });
+}
+
 /** Row-level safe parser: catches individual row errors and collects warnings */
 function safeParseRows<T>(
   data: unknown[][],
@@ -343,72 +405,107 @@ export function parseExcelFile(
       break;
     }
     case "orgCustomerProfit": {
+      // 303 실제 컬럼: 0:No 1:판매사업본부 2:판매사업부 3:영업조직(팀) 4:거래처대분류
+      // 5:거래처중분류 6:거래처소분류 7:판매거래처 8~10:매출액 11~13:실적매출원가
+      // 14~16:매출총이익 17~19:판매관리비 20~22:영업이익 23+:판관비세부
       const r = safeParseRows<OrgCustomerProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
-        영업조직팀: str(row[1]),
-        거래처대분류: str(row[2]),
-        거래처중분류: str(row[3]),
-        거래처소분류: str(row[4]),
-        매출거래처: str(row[5]),
-        매출거래처명: str(row[6]),
-        매출액: parsePlanActualDiff(row, 7),
-        실적매출원가: parsePlanActualDiff(row, 10),
-        매출총이익: parsePlanActualDiff(row, 13),
-        판매관리비: parsePlanActualDiff(row, 16),
-        영업이익: parsePlanActualDiff(row, 19),
-        매출총이익율: parsePlanActualDiff(row, 22),
-        영업이익율: parsePlanActualDiff(row, 25),
+        영업조직팀: str(row[3]),
+        거래처대분류: str(row[4]),
+        거래처중분류: str(row[5]),
+        거래처소분류: str(row[6]),
+        매출거래처: str(row[7]),
+        매출거래처명: str(row[7]),  // 별도 이름 컬럼 없음, 판매거래처가 이름 역할
+        매출액: parsePlanActualDiff(row, 8),
+        실적매출원가: parsePlanActualDiff(row, 11),
+        매출총이익: parsePlanActualDiff(row, 14),
+        판매관리비: parsePlanActualDiff(row, 17),
+        영업이익: parsePlanActualDiff(row, 20),
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
       }), warnings, "조직별거래처별손익");
-      parsed = r.parsed; skippedRows = r.skipped;
+      // SAP 다중 레벨 계층: 영업조직팀→거래처대분류→중분류→소분류→매출거래처
+      parsed = fillDownMultiLevel(r.parsed, [
+        ["영업조직팀"],
+        ["거래처대분류"],
+        ["거래처중분류"],
+        ["거래처소분류"],
+        ["매출거래처", "매출거래처명"],
+      ]);
+      skippedRows = r.skipped;
       break;
     }
     case "hqCustomerItemProfit": {
+      // 304 실제 컬럼: 0:No 1:판매사업본부 2:영업조직(팀) 3:판매사업부 4:매출거래처
+      // 5:품목계정그룹 6:중분류코드 7:품목 8~10:매출수량 11~13:환산수량
+      // 14~16:매출액 17~19:실적매출원가 20~22:매출총이익 23~25:판매관리비 26~28:영업이익
       const r = safeParseRows<HqCustomerItemProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
-        영업조직팀: str(row[1]),
-        매출거래처: str(row[2]),
-        매출거래처명: str(row[3]),
-        품목: str(row[4]),
-        품목명: str(row[5]),
-        매출수량: parsePlanActualDiff(row, 6),
-        매출액: parsePlanActualDiff(row, 9),
-        실적매출원가: parsePlanActualDiff(row, 12),
-        매출총이익: parsePlanActualDiff(row, 15),
-        판매관리비: parsePlanActualDiff(row, 18),
-        영업이익: parsePlanActualDiff(row, 21),
-        매출총이익율: parsePlanActualDiff(row, 24),
-        영업이익율: parsePlanActualDiff(row, 27),
+        영업조직팀: str(row[2]),
+        매출거래처: str(row[4]),
+        매출거래처명: str(row[4]),  // 별도 이름 컬럼 없음
+        품목: str(row[7]),
+        품목명: str(row[5]) || str(row[7]),  // 품목계정그룹 또는 품목명
+        매출수량: parsePlanActualDiff(row, 8),
+        매출액: parsePlanActualDiff(row, 14),
+        실적매출원가: parsePlanActualDiff(row, 17),
+        매출총이익: parsePlanActualDiff(row, 20),
+        판매관리비: parsePlanActualDiff(row, 23),
+        영업이익: parsePlanActualDiff(row, 26),
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
       }), warnings, "본부거래처품목손익");
-      parsed = r.parsed; skippedRows = r.skipped;
+      // SAP 다중 레벨 계층: 영업조직팀→매출거래처→품목
+      parsed = fillDownMultiLevel(r.parsed, [
+        ["영업조직팀"],
+        ["매출거래처", "매출거래처명"],
+        ["품목", "품목명"],
+      ]);
+      skippedRows = r.skipped;
       break;
     }
     case "customerItemDetail": {
+      // 100 실제 컬럼: 0:No 1:판매사업본부 2:판매사업부 3:영업조직(팀) 4:매출거래처
+      // 5:품목 6:대분류 7:환산단위 8:계정구분 9:거래처대분류 10:거래처중분류
+      // 11:거래처소분류 12:매출유형 13:매출연월 14:사업장 15:영업담당사번
+      // ... 30:품목제품군 ... 41:결제조건
+      // 42~44:매출수량 45~47:매출액 48~50:실적매출원가 51~53:차이매출원가
+      // 54~56:매입할인 57~59:원재료비 60~62:부재료비 63~65:상품매입
+      // 66~68:매출총이익 69~71:판매관리비 72~74:직접판매운반비 75~77:영업이익
       const r = safeParseRows<CustomerItemDetailRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
-        영업조직팀: str(row[1]),
-        영업담당사번: str(row[2]),
-        매출거래처: str(row[3]),
-        매출거래처명: str(row[4]),
+        영업조직팀: str(row[3]),
+        영업담당사번: str(row[15]),
+        매출거래처: str(row[4]),
+        매출거래처명: str(row[4]),  // 별도 이름 컬럼 없음
         품목: str(row[5]),
-        품목명: str(row[6]),
-        거래처대분류: str(row[7]),
-        거래처중분류: str(row[8]),
-        거래처소분류: str(row[9]),
-        제품군: str(row[10]),
-        제품내수매출: parsePlanActualDiff(row, 11),
-        제품수출매출: parsePlanActualDiff(row, 14),
-        매출수량: parsePlanActualDiff(row, 17),
-        환산수량: parsePlanActualDiff(row, 20),
-        매출액: parsePlanActualDiff(row, 23),
-        실적매출원가: parsePlanActualDiff(row, 26),
-        매출총이익: parsePlanActualDiff(row, 29),
-        판매관리비: parsePlanActualDiff(row, 32),
-        판관변동_직접판매운반비: parsePlanActualDiff(row, 35),
-        영업이익: parsePlanActualDiff(row, 38),
-        매출총이익율: parsePlanActualDiff(row, 41),
-        영업이익율: parsePlanActualDiff(row, 44),
+        품목명: str(row[5]),  // 별도 이름 컬럼 없음
+        거래처대분류: str(row[9]),
+        거래처중분류: str(row[10]),
+        거래처소분류: str(row[11]),
+        제품군: str(row[30]),  // 품목제품군
+        제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        매출수량: parsePlanActualDiff(row, 42),
+        환산수량: { 계획: 0, 실적: 0, 차이: 0 },  // 환산단위는 문자열(col 7)
+        매출액: parsePlanActualDiff(row, 45),
+        실적매출원가: parsePlanActualDiff(row, 48),
+        매출총이익: parsePlanActualDiff(row, 66),
+        판매관리비: parsePlanActualDiff(row, 69),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 72),
+        영업이익: parsePlanActualDiff(row, 75),
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
       }), warnings, "거래처별품목별손익");
-      parsed = r.parsed; skippedRows = r.skipped;
+      // SAP 계층: 영업조직팀→매출거래처→품목
+      // 거래처대분류/중분류/소분류는 행별 속성이지 계층 부모가 아님
+      // (대분류 변경이 매출거래처 fill-down을 리셋하면 안 됨)
+      parsed = fillDownMultiLevel(r.parsed, [
+        ["영업조직팀"],
+        ["매출거래처", "매출거래처명"],
+        ["품목", "품목명", "제품군"],
+      ]);
+      skippedRows = r.skipped;
       break;
     }
     case "receivableAging":
