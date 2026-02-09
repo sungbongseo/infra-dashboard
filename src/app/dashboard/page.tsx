@@ -29,6 +29,7 @@ import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent,
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 
 export default function OverviewPage() {
   const { salesList, orderList, collectionList, orgProfit, teamContribution, receivableAging, orgNames, isLoading } = useDataStore();
@@ -181,9 +182,21 @@ export default function OverviewPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">영업 실적 Overview</h2>
-        <p className="text-muted-foreground">인프라 사업본부 영업 현황 요약</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">영업 실적 Overview</h2>
+          <p className="text-muted-foreground">인프라 사업본부 영업 현황 요약</p>
+        </div>
+        <ExportButton
+          data={trends.map((t) => ({
+            월: t.month,
+            매출: t.매출,
+            수주: t.수주,
+            수금: t.수금,
+          }))}
+          fileName="영업실적_Overview"
+          sheetName="월별 추이"
+        />
       </div>
 
       {/* Executive Insight Summary */}

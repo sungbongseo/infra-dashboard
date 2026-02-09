@@ -9,6 +9,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import {
   BarChart,
   Bar,
@@ -564,9 +565,23 @@ export default function ProfitabilityPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">수익성 분석</h2>
-        <p className="text-muted-foreground">손익 구조 및 조직별 수익성 비교</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">수익성 분석</h2>
+          <p className="text-muted-foreground">손익 구조 및 조직별 수익성 비교</p>
+        </div>
+        <ExportButton
+          data={filteredOrgProfit.map((r) => ({
+            영업조직: r.영업조직팀,
+            매출액_계획: r.매출액.계획,
+            매출액_실적: r.매출액.실적,
+            매출총이익_실적: r.매출총이익.실적,
+            영업이익_실적: r.영업이익.실적,
+            영업이익율: r.영업이익율.실적,
+          }))}
+          fileName="수익성분석"
+          sheetName="조직별 수익성"
+        />
       </div>
 
       <Tabs defaultValue="pnl" className="space-y-4">

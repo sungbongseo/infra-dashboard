@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { subMonths, subQuarters, subYears, format, parse } from "date-fns";
+import { saveFilterState, loadFilterState } from "@/lib/db";
 
 export type ComparisonPreset = "prev_month" | "prev_quarter" | "prev_year" | "custom" | null;
 
@@ -19,6 +20,8 @@ interface FilterState {
   applyComparisonPreset: (preset: ComparisonPreset) => void;
   setSearchQuery: (query: string) => void;
   resetFilters: () => void;
+  /** IndexedDB에서 필터 상태 복원 */
+  restoreFromDB: () => Promise<void>;
 }
 
 /** YYYY-MM 문자열을 Date로 변환 */
@@ -65,6 +68,16 @@ export function calcComparisonRange(
   }
 }
 
+/** 필터 변경 시 IndexedDB에 비동기 저장 (debounce 불필요 - set 호출마다 1회) */
+function persistFilter(state: FilterState) {
+  saveFilterState({
+    selectedOrgs: state.selectedOrgs,
+    dateRange: state.dateRange,
+    comparisonRange: state.comparisonRange,
+    comparisonPreset: state.comparisonPreset,
+  }).catch(console.error);
+}
+
 export const useFilterStore = create<FilterState>((set, get) => ({
   selectedOrgs: [],
   selectedPerson: null,
@@ -72,39 +85,53 @@ export const useFilterStore = create<FilterState>((set, get) => ({
   comparisonRange: null,
   comparisonPreset: null,
   searchQuery: "",
-  setSelectedOrgs: (orgs) => set({ selectedOrgs: orgs }),
+  setSelectedOrgs: (orgs) => {
+    set({ selectedOrgs: orgs });
+    persistFilter({ ...get(), selectedOrgs: orgs });
+  },
   setSelectedPerson: (person) => set({ selectedPerson: person }),
   setDateRange: (range) => {
     const state = get();
-    // 날짜 변경 시 기존 프리셋으로 비교기간 재계산
     if (range && state.comparisonPreset && state.comparisonPreset !== "custom") {
       const compRange = calcComparisonRange(range, state.comparisonPreset);
       set({ dateRange: range, comparisonRange: compRange });
+      persistFilter({ ...state, dateRange: range, comparisonRange: compRange });
     } else {
       set({ dateRange: range });
+      persistFilter({ ...state, dateRange: range });
     }
   },
-  setComparisonRange: (range) => set({ comparisonRange: range }),
-  setComparisonPreset: (preset) => set({ comparisonPreset: preset }),
+  setComparisonRange: (range) => {
+    set({ comparisonRange: range });
+    persistFilter({ ...get(), comparisonRange: range });
+  },
+  setComparisonPreset: (preset) => {
+    set({ comparisonPreset: preset });
+    persistFilter({ ...get(), comparisonPreset: preset });
+  },
   applyComparisonPreset: (preset) => {
     const state = get();
     if (!preset) {
       set({ comparisonPreset: null, comparisonRange: null });
+      persistFilter({ ...state, comparisonPreset: null, comparisonRange: null });
       return;
     }
     if (preset === "custom") {
       set({ comparisonPreset: "custom" });
+      persistFilter({ ...state, comparisonPreset: "custom" });
       return;
     }
     if (state.dateRange && state.dateRange.from && state.dateRange.to) {
       const compRange = calcComparisonRange(state.dateRange, preset);
       set({ comparisonPreset: preset, comparisonRange: compRange });
+      persistFilter({ ...state, comparisonPreset: preset, comparisonRange: compRange });
     } else {
       set({ comparisonPreset: preset });
+      persistFilter({ ...state, comparisonPreset: preset });
     }
   },
   setSearchQuery: (query) => set({ searchQuery: query }),
-  resetFilters: () =>
+  resetFilters: () => {
     set({
       selectedOrgs: [],
       selectedPerson: null,
@@ -112,5 +139,26 @@ export const useFilterStore = create<FilterState>((set, get) => ({
       comparisonRange: null,
       comparisonPreset: null,
       searchQuery: "",
-    }),
+    });
+    saveFilterState({
+      selectedOrgs: [],
+      dateRange: null,
+      comparisonRange: null,
+      comparisonPreset: null,
+    }).catch(console.error);
+  },
+  restoreFromDB: async () => {
+    try {
+      const stored = await loadFilterState();
+      if (!stored) return;
+      set({
+        selectedOrgs: stored.selectedOrgs || [],
+        dateRange: stored.dateRange || null,
+        comparisonRange: stored.comparisonRange || null,
+        comparisonPreset: (stored.comparisonPreset as ComparisonPreset) || null,
+      });
+    } catch (e) {
+      console.error("FilterStore 복원 실패:", e);
+    }
+  },
 }));

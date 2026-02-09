@@ -67,6 +67,7 @@ export function DataTable<T>({
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder}
             className="w-full rounded-md border border-input bg-background py-1.5 pl-8 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1"
           />
         </div>
@@ -75,6 +76,7 @@ export function DataTable<T>({
           <select
             value={table.getState().pagination.pageSize}
             onChange={(e) => table.setPageSize(Number(e.target.value))}
+            aria-label="페이지당 행 수"
             className="rounded-md border border-input bg-background px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             {PAGE_SIZE_OPTIONS.map((size) => (
@@ -98,6 +100,21 @@ export function DataTable<T>({
                     className="py-2 px-2 font-medium select-none"
                     style={{ cursor: header.column.getCanSort() ? "pointer" : "default" }}
                     onClick={header.column.getToggleSortingHandler()}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === " ") && header.column.getCanSort()) {
+                        e.preventDefault();
+                        header.column.getToggleSortingHandler()?.(e);
+                      }
+                    }}
+                    tabIndex={header.column.getCanSort() ? 0 : undefined}
+                    role={header.column.getCanSort() ? "button" : undefined}
+                    aria-sort={
+                      header.column.getIsSorted() === "asc"
+                        ? "ascending"
+                        : header.column.getIsSorted() === "desc"
+                        ? "descending"
+                        : undefined
+                    }
                   >
                     <div className="flex items-center gap-1">
                       {header.isPlaceholder

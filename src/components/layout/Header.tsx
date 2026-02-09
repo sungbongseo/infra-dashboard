@@ -17,7 +17,7 @@ export function Header() {
       className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-6"
       style={{ marginLeft: sidebarOpen ? 256 : 64 }}
     >
-      <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleSidebar}>
+      <Button variant="ghost" size="icon" className="md:hidden" onClick={toggleSidebar} aria-label="메뉴 열기/닫기">
         <Menu className="h-5 w-5" />
       </Button>
 
@@ -32,7 +32,7 @@ export function Header() {
           </span>
         )}
         <AlertPanel />
-        <Button variant="ghost" size="icon" onClick={toggleDarkMode}>
+        <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}>
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>
       </div>

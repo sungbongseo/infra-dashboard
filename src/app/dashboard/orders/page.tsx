@@ -26,6 +26,7 @@ import { ShoppingCart, TrendingUp, Clock, Package, ArrowRightLeft, Wallet, Alert
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion, type O2CPipelineResult } from "@/lib/analysis/pipeline";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 
 export default function OrdersAnalysisPage() {
   const { orderList, salesList, collectionList, orgNames } = useDataStore();
@@ -180,6 +181,22 @@ export default function OrdersAnalysisPage() {
       <div>
         <h2 className="text-2xl font-bold tracking-tight">수주 분석</h2>
         <p className="text-muted-foreground">수주 파이프라인 및 전환율 분석</p>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div />
+        <ExportButton
+          data={filteredOrders.map((r) => ({
+            수주일: r.수주일,
+            영업조직: r.영업조직,
+            수주유형: r.수주유형명 || r.수주유형 || "",
+            판매처: r.판매처명 || r.판매처 || "",
+            장부금액: r.장부금액,
+            납품요청일: r.납품요청일 || "",
+          }))}
+          fileName="수주분석"
+          sheetName="수주 데이터"
+        />
       </div>
 
       <Tabs defaultValue="status" className="space-y-4">

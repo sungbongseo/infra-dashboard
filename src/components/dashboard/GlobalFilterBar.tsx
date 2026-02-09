@@ -89,7 +89,7 @@ export function GlobalFilterBar() {
   };
 
   return (
-    <div className="bg-card border-b px-6 py-3 flex items-center gap-3 flex-wrap">
+    <div className="bg-card border-b px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
       {/* Filter icon + label */}
       <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
         <Filter className="h-4 w-4" />
@@ -183,12 +183,13 @@ export function GlobalFilterBar() {
 
       {/* Date range */}
       <div className="flex items-center gap-1.5">
-        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+        <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         <input
           type="month"
           value={dateRange?.from || ""}
           onChange={(e) => handleDateFromChange(e.target.value)}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="시작 기간"
+          className="h-8 w-[130px] rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           placeholder="시작"
         />
         <span className="text-xs text-muted-foreground">~</span>
@@ -196,7 +197,8 @@ export function GlobalFilterBar() {
           type="month"
           value={dateRange?.to || ""}
           onChange={(e) => handleDateToChange(e.target.value)}
-          className="h-8 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="종료 기간"
+          className="h-8 w-[130px] rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           placeholder="종료"
         />
       </div>

@@ -31,6 +31,7 @@ import {
 import { Users, Trophy, TrendingUp, Star, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { ReceivableAgingRecord } from "@/types";
 
 export default function ProfilesPage() {
@@ -164,18 +165,38 @@ export default function ProfilesPage() {
           <h2 className="text-2xl font-bold tracking-tight">영업사원 성과 프로파일</h2>
           <p className="text-muted-foreground">개인별 성과 스코어카드 및 동료 비교</p>
         </div>
-        <Select value={selected?.id || ""} onValueChange={setSelectedPerson}>
-          <SelectTrigger className="w-48">
-            <SelectValue placeholder="영업사원 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            {profiles.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name || p.id} ({p.org})
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <ExportButton
+            data={profiles.map((p) => ({
+              사번: p.id,
+              이름: p.name,
+              조직: p.org,
+              총점: p.score.totalScore,
+              매출점수: p.score.salesScore,
+              수주점수: p.score.orderScore,
+              수익성점수: p.score.profitScore,
+              수금점수: p.score.collectionScore,
+              매출액: p.salesAmount,
+              수주액: p.orderAmount,
+              수금액: p.collectionAmount,
+              공헌이익율: p.contributionMarginRate,
+            }))}
+            fileName="영업사원_성과"
+            sheetName="성과 프로파일"
+          />
+          <Select value={selected?.id || ""} onValueChange={setSelectedPerson}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="영업사원 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              {profiles.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name || p.id} ({p.org})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <Tabs defaultValue="performance" className="space-y-4">

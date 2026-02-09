@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Upload, FileSpreadsheet, Trash2, CheckCircle, AlertCircle, AlertTriangle, Loader2, Database } from "lucide-react";
 import { useDataStore } from "@/stores/dataStore";
+import { useFilterStore } from "@/stores/filterStore";
 import { parseExcelFile } from "@/lib/excel/parser";
 import { detectFileType } from "@/lib/excel/schemas";
 import { saveDataset, saveAgingData, saveOrgFilter, saveUploadedFiles, clearAllDB, hasStoredData } from "@/lib/db";
@@ -57,6 +58,7 @@ export function FileUploader() {
     setRestoring(true);
     try {
       await useDataStore.getState().restoreFromDB();
+      await useFilterStore.getState().restoreFromDB();
       setRestoredFromDB(true);
       setDbHasData(false);
     } catch (err) {

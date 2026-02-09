@@ -47,7 +47,7 @@ export function Sidebar() {
             <span className="font-bold text-lg">인프라 사업본부</span>
           </div>
         )}
-        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="h-8 w-8">
+        <Button variant="ghost" size="icon" onClick={toggleSidebar} className="h-8 w-8" aria-label={sidebarOpen ? "사이드바 접기" : "사이드바 펼치기"}>
           <ChevronLeft className={cn("h-4 w-4 transition-transform", !sidebarOpen && "rotate-180")} />
         </Button>
       </div>
@@ -72,6 +72,7 @@ export function Sidebar() {
                 )}
                 onClick={() => router.push(item.href)}
                 title={item.label}
+                aria-current={isActive ? "page" : undefined}
               >
                 <item.icon className="h-4 w-4 shrink-0" />
                 {sidebarOpen && <span className="truncate">{item.label}</span>}

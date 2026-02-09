@@ -38,11 +38,21 @@ export interface StoredOrgFilter {
   orgCodes: string[];
 }
 
+export interface StoredFilterState {
+  id: string; // "default"
+  selectedOrgs: string[];
+  dateRange: { from: string; to: string } | null;
+  comparisonRange: { from: string; to: string } | null;
+  comparisonPreset: string | null;
+  updatedAt: Date;
+}
+
 class DashboardDB extends Dexie {
   datasets!: Table<StoredDataset>;
   agingData!: Table<StoredAgingData>;
   uploadedFiles!: Table<StoredUploadedFile>;
   orgFilter!: Table<StoredOrgFilter>;
+  filterState!: Table<StoredFilterState>;
 
   constructor() {
     super("infra-dashboard");
@@ -51,6 +61,13 @@ class DashboardDB extends Dexie {
       agingData: "id",
       uploadedFiles: "id",
       orgFilter: "id",
+    });
+    this.version(2).stores({
+      datasets: "id",
+      agingData: "id",
+      uploadedFiles: "id",
+      orgFilter: "id",
+      filterState: "id",
     });
   }
 }
@@ -120,6 +137,25 @@ export async function loadOrgFilter(): Promise<{ orgNames: string[]; orgCodes: s
   return { orgNames: stored.orgNames, orgCodes: stored.orgCodes };
 }
 
+/** 필터 상태 저장 */
+export async function saveFilterState(state: {
+  selectedOrgs: string[];
+  dateRange: { from: string; to: string } | null;
+  comparisonRange: { from: string; to: string } | null;
+  comparisonPreset: string | null;
+}): Promise<void> {
+  await db.filterState.put({
+    id: "default",
+    ...state,
+    updatedAt: new Date(),
+  });
+}
+
+/** 필터 상태 로드 */
+export async function loadFilterState(): Promise<StoredFilterState | null> {
+  return (await db.filterState.get("default")) ?? null;
+}
+
 /** 전체 DB 초기화 */
 export async function clearAllDB(): Promise<void> {
   await Promise.all([
@@ -127,6 +163,7 @@ export async function clearAllDB(): Promise<void> {
     db.agingData.clear(),
     db.uploadedFiles.clear(),
     db.orgFilter.clear(),
+    db.filterState.clear(),
   ]);
 }
 
