@@ -35,7 +35,7 @@ import {
   Line,
   Area,
 } from "recharts";
-import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert } from "lucide-react";
+import { TrendingUp, Target, Package, AlertTriangle, Star, Shield, ShieldAlert, Users, Grid3X3, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
@@ -55,6 +55,9 @@ import {
 import { calcVarianceAnalysis, calcVarianceSummary, calcOrgVarianceSummaries } from "@/lib/analysis/variance";
 import { calcOrgBreakeven, calcBreakevenChart } from "@/lib/analysis/breakeven";
 import { calcWhatIfScenario, calcScenarioSummary, calcSensitivity } from "@/lib/analysis/whatif";
+import { calcCustomerConcentration, calcCustomerRanking, calcCustomerSegments } from "@/lib/analysis/customerProfitAnalysis";
+import { calcABCAnalysis, calcCustomerPortfolio, calcProductCustomerMatrix } from "@/lib/analysis/customerItemAnalysis";
+import { calcParetoAnalysis, calcProductGroupAnalysis, calcMarginErosion } from "@/lib/analysis/detailedProfitAnalysis";
 import type { ScenarioParams } from "@/lib/analysis/whatif";
 import type { ProfitRiskData } from "@/lib/analysis/profitRiskMatrix";
 import { Card, CardContent } from "@/components/ui/card";
@@ -124,7 +127,7 @@ function getHeatmapBg(rate: number, isCostItem: boolean): string {
 }
 
 export default function ProfitabilityPage() {
-  const { orgProfit, teamContribution, profitabilityAnalysis, receivableAging, salesList, orgNames } = useDataStore();
+  const { orgProfit, teamContribution, profitabilityAnalysis, receivableAging, salesList, orgNames, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail } = useDataStore();
   const isLoading = useDataStore((s) => s.isLoading);
   const { selectedOrgs, dateRange } = useFilterStore();
 
@@ -161,6 +164,11 @@ export default function ProfitabilityPage() {
   }, [profitabilityAnalysis, effectiveOrgNames]);
   const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
   const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
+
+  // ─── 신규 데이터 타입 필터링 ──────────────────────────────
+  const filteredOrgCustProfit = useMemo(() => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), [orgCustomerProfit, effectiveOrgNames]);
+  const filteredHqCustItemProfit = useMemo(() => filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), [hqCustomerItemProfit, effectiveOrgNames]);
+  const filteredCustItemDetail = useMemo(() => filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀"), [customerItemDetail, effectiveOrgNames]);
 
   const hasData = filteredOrgProfit.length > 0;
 
@@ -453,6 +461,22 @@ export default function ProfitabilityPage() {
     [filteredOrgProfit]
   );
 
+  // ─── 거래처 손익 분석 (OrgCustomerProfit) ──────────────────────────────
+  const custConcentration = useMemo(() => calcCustomerConcentration(filteredOrgCustProfit), [filteredOrgCustProfit]);
+  const custRanking = useMemo(() => calcCustomerRanking(filteredOrgCustProfit), [filteredOrgCustProfit]);
+  const custSegments = useMemo(() => calcCustomerSegments(filteredOrgCustProfit), [filteredOrgCustProfit]);
+
+  // ─── 거래처×품목 분석 (HqCustomerItemProfit) ──────────────────────────────
+  const abcItems = useMemo(() => calcABCAnalysis(filteredHqCustItemProfit), [filteredHqCustItemProfit]);
+  const custPortfolio = useMemo(() => calcCustomerPortfolio(filteredHqCustItemProfit), [filteredHqCustItemProfit]);
+  const prodCustMatrix = useMemo(() => calcProductCustomerMatrix(filteredHqCustItemProfit, 10), [filteredHqCustItemProfit]);
+
+  // ─── 상세 수익 분석 (CustomerItemDetail) ──────────────────────────────
+  const paretoCustomer = useMemo(() => calcParetoAnalysis(filteredCustItemDetail, "customer", "sales"), [filteredCustItemDetail]);
+  const paretoProduct = useMemo(() => calcParetoAnalysis(filteredCustItemDetail, "product", "grossProfit"), [filteredCustItemDetail]);
+  const productGroups = useMemo(() => calcProductGroupAnalysis(filteredCustItemDetail), [filteredCustItemDetail]);
+  const marginErosion = useMemo(() => calcMarginErosion(filteredCustItemDetail, "product", 15), [filteredCustItemDetail]);
+
   // ─── KPI 합계 ──────────────────────────────
   const totalSales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
   const totalOP = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
@@ -486,6 +510,9 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="variance" disabled={filteredProfAnalysis.length === 0}>분산분석</TabsTrigger>
           <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
           <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
+          <TabsTrigger value="custProfit" disabled={filteredOrgCustProfit.length === 0}>거래처 손익</TabsTrigger>
+          <TabsTrigger value="custItem" disabled={filteredHqCustItemProfit.length === 0}>거래처×품목</TabsTrigger>
+          <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>상세 수익</TabsTrigger>
         </TabsList>
 
         {/* ────────── 손익 현황 ────────── */}
@@ -1470,6 +1497,442 @@ export default function ProfitabilityPage() {
                   <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" />
                 </ComposedChart>
               </ResponsiveContainer>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        {/* ────────── 거래처 손익 (OrgCustomerProfit) ────────── */}
+        <TabsContent value="custProfit" className="space-y-6">
+          {/* KPI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="거래처 수"
+              value={custConcentration.totalCustomers}
+              format="number"
+              icon={<Users className="h-5 w-5" />}
+              description="조직별 거래처별 손익 데이터에 포함된 고유 거래처 수입니다."
+            />
+            <KpiCard
+              title="HHI 집중도"
+              value={custConcentration.hhi}
+              format="number"
+              icon={<Target className="h-5 w-5" />}
+              formula="HHI = Σ(시장점유율²) × 10,000"
+              description={`허핀달-허쉬만 지수입니다. ${custConcentration.interpretation}. 높을수록 소수 거래처에 매출이 집중되어 리스크가 높습니다.`}
+              benchmark="1,500 미만=낮은 집중도, 1,500~2,500=보통, 2,500 이상=높은 집중도"
+            />
+            <KpiCard
+              title="Top 5 매출 비중"
+              value={custConcentration.top5Share}
+              format="percent"
+              description="상위 5개 거래처가 전체 매출에서 차지하는 비중입니다. 50% 이상이면 특정 거래처 의존도가 높습니다."
+            />
+            <KpiCard
+              title="Top 10 매출 비중"
+              value={custConcentration.top10Share}
+              format="percent"
+              description="상위 10개 거래처가 전체 매출에서 차지하는 비중입니다."
+            />
+          </div>
+
+          {/* 거래처 세그먼트 분포 */}
+          <ChartCard title="거래처 세그먼트별 매출 분포" description="거래처 대분류 기준으로 매출, 수익, 마진을 비교합니다. 세그먼트별 수익성 차이를 통해 전략적 집중이 필요한 영역을 파악할 수 있습니다.">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={custSegments} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis type="category" dataKey="segment" width={80} tick={{ fontSize: 11 }} />
+                  <RechartsTooltip formatter={(v: any, name: any) => name.includes("율") || name.includes("비중") ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+                  <Legend />
+                  <Bar dataKey="totalSales" name="매출액" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="totalGrossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="totalOperatingProfit" name="영업이익" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* 거래처 Top/Bottom 랭킹 */}
+          <div className="grid gap-4 md:grid-cols-2">
+            <ChartCard title="매출 Top 15 거래처" description="매출액 기준 상위 15개 거래처입니다. 막대 색상은 영업이익율에 따라 녹색(양호)~적색(부진)으로 표시됩니다.">
+              <div className="h-80 md:h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={custRanking.slice(0, 15)} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickFormatter={(v) => String(v).substring(0, 12)} />
+                    <RechartsTooltip
+                      formatter={(v: any) => formatCurrency(Number(v))}
+                      labelFormatter={(label) => {
+                        const item = custRanking.find((r) => r.name === label);
+                        return item ? `${label} (이익율: ${item.opMargin.toFixed(1)}%)` : label;
+                      }}
+                      {...TOOLTIP_STYLE}
+                    />
+                    <Bar dataKey="sales" name="매출액" radius={[0, 4, 4, 0]}>
+                      {custRanking.slice(0, 15).map((entry, idx) => (
+                        <Cell key={idx} fill={entry.opMargin >= 5 ? CHART_COLORS[1] : entry.opMargin >= 0 ? CHART_COLORS[5] : CHART_COLORS[4]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+
+            <ChartCard title="거래처 수익성 Scatter" description="X축=매출액, Y축=영업이익율로 각 거래처의 위치를 보여줍니다. 우상단이 매출도 크고 수익성도 높은 우량 거래처입니다.">
+              <div className="h-80 md:h-96">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis type="number" dataKey="sales" name="매출액" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <YAxis type="number" dataKey="opMargin" name="영업이익율(%)" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                    <ZAxis type="number" dataKey="grossProfit" range={[30, 300]} />
+                    <RechartsTooltip
+                      formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                      {...TOOLTIP_STYLE}
+                    />
+                    <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="3 3" />
+                    <Scatter
+                      name="거래처"
+                      data={custRanking.slice(0, 30).map((r) => ({ name: r.name, sales: r.sales, opMargin: r.opMargin, grossProfit: r.grossProfit }))}
+                      fill={CHART_COLORS[0]}
+                    >
+                      <LabelList dataKey="name" position="top" style={{ fontSize: 9 }} formatter={(v: any) => String(v).substring(0, 8)} />
+                    </Scatter>
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            </ChartCard>
+          </div>
+
+          {/* 세그먼트 요약 테이블 */}
+          <ChartCard title="세그먼트별 상세 지표" description="거래처 대분류별 거래처 수, 매출 비중, 매출총이익율, 영업이익율을 비교합니다.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="p-2 font-medium">세그먼트</th>
+                    <th className="p-2 font-medium text-right">거래처수</th>
+                    <th className="p-2 font-medium text-right">매출액</th>
+                    <th className="p-2 font-medium text-right">매출비중</th>
+                    <th className="p-2 font-medium text-right">매출총이익율</th>
+                    <th className="p-2 font-medium text-right">영업이익율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {custSegments.map((s) => (
+                    <tr key={s.segment} className="border-b hover:bg-muted/50">
+                      <td className="p-2 font-medium">{s.segment}</td>
+                      <td className="p-2 text-right">{s.customerCount}</td>
+                      <td className="p-2 text-right">{formatCurrency(s.totalSales, true)}</td>
+                      <td className="p-2 text-right">{s.salesShare.toFixed(1)}%</td>
+                      <td className="p-2 text-right" style={{ color: s.avgGrossMargin >= 20 ? "#059669" : s.avgGrossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        {s.avgGrossMargin.toFixed(1)}%
+                      </td>
+                      <td className="p-2 text-right" style={{ color: s.avgOpMargin >= 5 ? "#059669" : s.avgOpMargin >= 0 ? "#fbbf24" : "#ef4444" }}>
+                        {s.avgOpMargin.toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        {/* ────────── 거래처×품목 (HqCustomerItemProfit) ────────── */}
+        <TabsContent value="custItem" className="space-y-6">
+          {/* ABC 분석 KPI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="A등급 품목"
+              value={abcItems.filter((i) => i.grade === "A").length}
+              format="number"
+              icon={<Package className="h-5 w-5" />}
+              description="매출 누적 80%를 차지하는 핵심 품목 수입니다. 이 품목들이 매출의 대부분을 만들어내는 핵심 제품입니다."
+              formula="매출 기준 내림차순 정렬 후 누적비중 80%까지 = A등급"
+            />
+            <KpiCard
+              title="B등급 품목"
+              value={abcItems.filter((i) => i.grade === "B").length}
+              format="number"
+              icon={<Package className="h-5 w-5" />}
+              description="매출 누적 80~95%에 해당하는 중요 품목 수입니다."
+            />
+            <KpiCard
+              title="C등급 품목"
+              value={abcItems.filter((i) => i.grade === "C").length}
+              format="number"
+              icon={<Package className="h-5 w-5" />}
+              description="매출 누적 95~100%의 기타 품목입니다. 수가 많지만 매출 기여는 작습니다."
+            />
+            <KpiCard
+              title="총 거래처"
+              value={custPortfolio.length}
+              format="number"
+              icon={<Users className="h-5 w-5" />}
+              description="거래처×품목 데이터에 포함된 고유 거래처 수입니다."
+            />
+          </div>
+
+          {/* ABC Pareto 차트 */}
+          <ChartCard title="품목 ABC 분석 (Pareto)" formula="매출액 기준 내림차순 정렬 → 누적비중 80%=A, 95%=B, 100%=C" description="품목을 매출 기여도 순으로 정렬하고 누적 비중을 표시합니다. A등급 품목이 매출의 80%를 차지하며, 이들에 집중 관리가 필요합니다." benchmark="일반적으로 20%의 품목이 80%의 매출을 차지합니다 (파레토 법칙)">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={abcItems.slice(0, 30)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="product" tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 8)} angle={-45} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
+                  <RechartsTooltip
+                    formatter={(v: any, name: any) => name === "누적비중(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                    {...TOOLTIP_STYLE}
+                  />
+                  <Legend />
+                  <Bar dataKey="sales" name="매출액" radius={[4, 4, 0, 0]}>
+                    {abcItems.slice(0, 30).map((item, idx) => (
+                      <Cell key={idx} fill={item.grade === "A" ? CHART_COLORS[0] : item.grade === "B" ? CHART_COLORS[5] : CHART_COLORS[6]} />
+                    ))}
+                  </Bar>
+                  <Line type="monotone" dataKey="cumulativeShare" name="누적비중(%)" stroke={CHART_COLORS[4]} strokeWidth={2} yAxisId="right" dot={false} />
+                  <ReferenceLine y={80} yAxisId="right" stroke="#f97316" strokeDasharray="5 5" label={{ value: "80%", position: "right", fontSize: 10 }} />
+                  <ReferenceLine y={95} yAxisId="right" stroke="#ef4444" strokeDasharray="5 5" label={{ value: "95%", position: "right", fontSize: 10 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* 품목×거래처 히트맵 (테이블 형태) */}
+          <ChartCard title="품목 × 거래처 매출 히트맵" description="상위 품목과 거래처의 교차 매출을 히트맵으로 표시합니다. 셀 색상이 진할수록 매출이 큰 조합입니다. 빈 셀은 해당 조합의 거래가 없음을 의미합니다.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b">
+                    <th className="p-1 text-left font-medium sticky left-0 bg-background z-10">품목 \ 거래처</th>
+                    {prodCustMatrix.customers.map((c, i) => (
+                      <th key={i} className="p-1 font-medium text-center" style={{ minWidth: 60 }}>
+                        {String(c).substring(0, 6)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {prodCustMatrix.products.map((p, pi) => (
+                    <tr key={pi} className="border-b">
+                      <td className="p-1 font-medium sticky left-0 bg-background z-10">{String(p).substring(0, 10)}</td>
+                      {prodCustMatrix.customers.map((_, ci) => {
+                        const cell = prodCustMatrix.cells.find((c) => c.productIdx === pi && c.customerIdx === ci);
+                        const sales = cell?.sales || 0;
+                        const maxSales = Math.max(...prodCustMatrix.cells.map((c) => c.sales), 1);
+                        const intensity = sales > 0 ? Math.max(0.15, sales / maxSales) : 0;
+                        return (
+                          <td
+                            key={ci}
+                            className="p-1 text-center"
+                            style={{
+                              backgroundColor: sales > 0 ? `rgba(59, 130, 246, ${intensity})` : undefined,
+                              color: intensity > 0.5 ? "#fff" : undefined,
+                            }}
+                            title={sales > 0 ? `${formatCurrency(sales)} (마진: ${(cell?.grossMargin || 0).toFixed(1)}%)` : "거래 없음"}
+                          >
+                            {sales > 0 ? formatCurrency(sales, true) : ""}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartCard>
+
+          {/* 거래처 포트폴리오 Top 10 */}
+          <ChartCard title="거래처 포트폴리오 Top 10" description="매출 상위 10개 거래처의 매출, 이익율, 품목 수, 주요 품목을 요약합니다.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="p-2 font-medium">거래처</th>
+                    <th className="p-2 font-medium text-right">매출액</th>
+                    <th className="p-2 font-medium text-right">이익율</th>
+                    <th className="p-2 font-medium text-right">품목수</th>
+                    <th className="p-2 font-medium">Top 3 품목</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {custPortfolio.slice(0, 10).map((c) => (
+                    <tr key={c.customerCode} className="border-b hover:bg-muted/50">
+                      <td className="p-2 font-medium">{c.customer.substring(0, 15)}</td>
+                      <td className="p-2 text-right">{formatCurrency(c.totalSales, true)}</td>
+                      <td className="p-2 text-right" style={{ color: c.avgGrossMargin >= 20 ? "#059669" : c.avgGrossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        {c.avgGrossMargin.toFixed(1)}%
+                      </td>
+                      <td className="p-2 text-right">{c.productCount}</td>
+                      <td className="p-2 text-xs text-muted-foreground">
+                        {c.topProducts.map((p) => `${p.name.substring(0, 8)}(${p.margin.toFixed(0)}%)`).join(", ")}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </ChartCard>
+        </TabsContent>
+
+        {/* ────────── 상세 수익 (CustomerItemDetail) ────────── */}
+        <TabsContent value="detailed" className="space-y-6">
+          {/* KPI */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KpiCard
+              title="제품군 수"
+              value={productGroups.length}
+              format="number"
+              icon={<Grid3X3 className="h-5 w-5" />}
+              description="상세 손익 데이터에 포함된 고유 제품군 수입니다."
+            />
+            <KpiCard
+              title="마진 악화 품목"
+              value={marginErosion.filter((m) => m.erosion < -2).length}
+              format="number"
+              icon={<AlertTriangle className="h-5 w-5" />}
+              description="계획 대비 매출총이익율이 2%p 이상 하락한 품목 수입니다. 원가 상승이나 가격 인하로 수익성이 악화된 항목을 나타냅니다."
+            />
+            <KpiCard
+              title="거래처 A등급"
+              value={paretoCustomer.filter((p) => p.grade === "A").length}
+              format="number"
+              icon={<BarChart3 className="h-5 w-5" />}
+              description="매출 누적 80%를 차지하는 핵심 거래처 수입니다."
+            />
+            <KpiCard
+              title="품목 A등급 (이익)"
+              value={paretoProduct.filter((p) => p.grade === "A").length}
+              format="number"
+              icon={<BarChart3 className="h-5 w-5" />}
+              description="매출총이익 누적 80%를 차지하는 핵심 품목 수입니다."
+            />
+          </div>
+
+          {/* 제품군별 수익성 비교 */}
+          <ChartCard title="제품군별 수익성 비교" description="각 제품군의 매출액(막대)과 매출총이익율(꺾은선)을 비교합니다. 매출이 크면서 이익율도 높은 제품군이 핵심 수익원입니다." benchmark="매출총이익율 20% 이상이면 양호한 수익 구조입니다">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={productGroups}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="group" tick={{ fontSize: 10 }} tickFormatter={(v) => String(v).substring(0, 10)} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                  <RechartsTooltip
+                    formatter={(v: any, name: any) => name.includes("율") ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                    {...TOOLTIP_STYLE}
+                  />
+                  <Legend />
+                  <Bar dataKey="sales" name="매출액" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="grossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={[4, 4, 0, 0]} />
+                  <Line type="monotone" dataKey="grossMargin" name="매출총이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* 거래처 Pareto */}
+          <ChartCard title="거래처별 매출 Pareto (80/20)" formula="매출액 기준 내림차순 정렬 → 누적비중 80%=A, 95%=B, 100%=C" description="거래처를 매출 기여도 순으로 정렬합니다. 상위 20%의 거래처가 전체 매출의 80%를 차지하는 파레토 법칙을 확인할 수 있습니다.">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={paretoCustomer.slice(0, 25)}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis dataKey="name" tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 8)} angle={-45} textAnchor="end" height={60} />
+                  <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
+                  <RechartsTooltip
+                    formatter={(v: any, name: any) => name === "누적비중(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                    {...TOOLTIP_STYLE}
+                  />
+                  <Legend />
+                  <Bar dataKey="value" name="매출액" radius={[4, 4, 0, 0]}>
+                    {paretoCustomer.slice(0, 25).map((item, idx) => (
+                      <Cell key={idx} fill={item.grade === "A" ? CHART_COLORS[0] : item.grade === "B" ? CHART_COLORS[5] : CHART_COLORS[6]} />
+                    ))}
+                  </Bar>
+                  <Line type="monotone" dataKey="cumShare" name="누적비중(%)" stroke={CHART_COLORS[4]} strokeWidth={2} yAxisId="right" dot={false} />
+                  <ReferenceLine y={80} yAxisId="right" stroke="#f97316" strokeDasharray="5 5" label={{ value: "80%", position: "right", fontSize: 10 }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* 마진 침식 분석 */}
+          <ChartCard title="마진 침식 분석 (품목별)" formula="마진침식 = 실적 매출총이익율 - 계획 매출총이익율" description="계획 대비 실적 매출총이익율이 크게 하락한 품목을 보여줍니다. 빨간 막대가 클수록 계획보다 수익성이 크게 악화된 것이며, 원가 상승 또는 가격 하락의 원인을 분석해야 합니다." benchmark="마진 침식이 -5%p 이상이면 긴급 원인 분석이 필요합니다">
+            <div className="h-64 md:h-80">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={marginErosion.slice(0, 15)} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                  <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickFormatter={(v) => String(v).substring(0, 12)} />
+                  <RechartsTooltip
+                    formatter={(v: any, name: any) => name.includes("율") ? `${Number(v).toFixed(1)}%p` : formatCurrency(Number(v))}
+                    content={({ active, payload, label }: any) => {
+                      if (!active || !payload?.length) return null;
+                      const item = payload[0]?.payload;
+                      if (!item) return null;
+                      return (
+                        <div style={{ ...TOOLTIP_STYLE.contentStyle, padding: 8 }}>
+                          <p className="font-semibold text-xs mb-1">{label}</p>
+                          <p className="text-xs">계획 이익율: {item.plannedMargin.toFixed(1)}%</p>
+                          <p className="text-xs">실적 이익율: {item.actualMargin.toFixed(1)}%</p>
+                          <p className="text-xs" style={{ color: item.erosion < 0 ? "#ef4444" : "#059669" }}>
+                            침식: {item.erosion.toFixed(1)}%p
+                          </p>
+                          <p className="text-xs">영향액: {formatCurrency(item.impactAmount)}</p>
+                        </div>
+                      );
+                    }}
+                  />
+                  <ReferenceLine x={0} stroke="hsl(var(--muted-foreground))" />
+                  <Bar dataKey="impactAmount" name="영향액" radius={[0, 4, 4, 0]}>
+                    {marginErosion.slice(0, 15).map((item, idx) => (
+                      <Cell key={idx} fill={item.impactAmount < 0 ? "#ef4444" : "#059669"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </ChartCard>
+
+          {/* 제품군 상세 테이블 */}
+          <ChartCard title="제품군별 상세 지표" description="제품군별 매출, 수익, 수출 비중, 계획달성율을 종합 비교합니다.">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b text-left">
+                    <th className="p-2 font-medium">제품군</th>
+                    <th className="p-2 font-medium text-right">매출액</th>
+                    <th className="p-2 font-medium text-right">이익율</th>
+                    <th className="p-2 font-medium text-right">수출비중</th>
+                    <th className="p-2 font-medium text-right">품목수</th>
+                    <th className="p-2 font-medium text-right">거래처수</th>
+                    <th className="p-2 font-medium text-right">달성율</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productGroups.map((g) => (
+                    <tr key={g.group} className="border-b hover:bg-muted/50">
+                      <td className="p-2 font-medium">{g.group}</td>
+                      <td className="p-2 text-right">{formatCurrency(g.sales, true)}</td>
+                      <td className="p-2 text-right" style={{ color: g.grossMargin >= 20 ? "#059669" : g.grossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        {g.grossMargin.toFixed(1)}%
+                      </td>
+                      <td className="p-2 text-right">{g.exportRatio.toFixed(1)}%</td>
+                      <td className="p-2 text-right">{g.productCount}</td>
+                      <td className="p-2 text-right">{g.customerCount}</td>
+                      <td className="p-2 text-right" style={{ color: g.planAchievement >= 100 ? "#059669" : g.planAchievement >= 80 ? "#fbbf24" : "#ef4444" }}>
+                        {g.planAchievement.toFixed(0)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </ChartCard>
         </TabsContent>

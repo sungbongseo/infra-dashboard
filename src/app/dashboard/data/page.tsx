@@ -16,6 +16,9 @@ const TYPE_LABELS: Record<string, string> = {
   teamContribution: "팀기여도",
   profitabilityAnalysis: "수익성분석",
   receivableAging: "매출채권",
+  orgCustomerProfit: "조직별거래처손익",
+  hqCustomerItemProfit: "거래처품목손익",
+  customerItemDetail: "거래처별품목별손익",
 };
 
 /** 파일 타입별 필수 필드 */
@@ -27,6 +30,9 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   teamContribution: ["영업조직팀", "영업담당사번", "매출액"],
   profitabilityAnalysis: ["영업조직팀", "품목"],
   receivableAging: ["판매처", "영업조직"],
+  orgCustomerProfit: ["영업조직팀", "매출거래처", "매출액"],
+  hqCustomerItemProfit: ["영업조직팀", "매출거래처", "품목", "매출액"],
+  customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출액"],
 };
 
 function getCompletenessColor(rate: number): string {
@@ -49,6 +55,9 @@ export default function DataManagementPage() {
   const teamContribution = useDataStore((s) => s.teamContribution);
   const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
   const receivableAging = useDataStore((s) => s.receivableAging);
+  const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
+  const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
 
   /** receivableAging은 Map이므로 모든 소스를 합쳐서 하나의 배열로 변환 */
   const allAgingRecords = useMemo(() => {
@@ -69,8 +78,11 @@ export default function DataManagementPage() {
       teamContribution,
       profitabilityAnalysis,
       receivableAging: allAgingRecords,
+      orgCustomerProfit,
+      hqCustomerItemProfit,
+      customerItemDetail,
     }),
-    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords]
+    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail]
   );
 
   /** 로드된 타입만 필터링하고 품질 지표 계산 */
@@ -120,7 +132,7 @@ export default function DataManagementPage() {
                 <p className="text-sm font-medium text-muted-foreground">로드된 파일 유형</p>
                 <p className="text-2xl font-bold mt-1">
                   {summary.loadedTypes}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">/ 7개</span>
+                  <span className="text-sm font-normal text-muted-foreground ml-1">/ 10개</span>
                 </p>
               </CardContent>
             </Card>
