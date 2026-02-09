@@ -25,7 +25,7 @@ import {
 import { ShoppingCart, TrendingUp, Clock, Package, ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
+import { calcO2CPipeline, calcMonthlyConversion, type O2CPipelineResult } from "@/lib/analysis/pipeline";
 
 export default function OrdersAnalysisPage() {
   const { orderList, salesList, collectionList, orgNames } = useDataStore();
@@ -139,10 +139,11 @@ export default function OrdersAnalysisPage() {
   }, [filteredOrders]);
 
   // O2C 파이프라인 데이터
-  const pipelineStages = useMemo(
+  const pipelineResult = useMemo(
     () => calcO2CPipeline(filteredOrders, filteredSales, filteredCollections),
     [filteredOrders, filteredSales, filteredCollections]
   );
+  const pipelineStages = pipelineResult.stages;
 
   const monthlyConversion = useMemo(
     () => calcMonthlyConversion(filteredOrders, filteredSales, filteredCollections),
@@ -153,9 +154,10 @@ export default function OrdersAnalysisPage() {
   const orderToSalesRate = pipelineStages.find((s) => s.stage === "매출전환")?.percentage ?? 0;
   const salesToCollectionRate = useMemo(() => {
     const totalSalesAmt = filteredSales.reduce((s, r) => s + r.장부금액, 0);
-    const totalCollAmt = filteredCollections.reduce((s, c) => s + c.장부수금액, 0);
-    return totalSalesAmt > 0 ? (totalCollAmt / totalSalesAmt) * 100 : 0;
-  }, [filteredSales, filteredCollections]);
+    // 순수 수금율: 선수금 제외한 순수 수금액 / 매출액
+    const netCollAmt = pipelineResult.netCollections;
+    return totalSalesAmt > 0 ? (netCollAmt / totalSalesAmt) * 100 : 0;
+  }, [filteredSales, pipelineResult]);
   const outstandingAmount = pipelineStages.find((s) => s.stage === "미수잔액")?.amount ?? 0;
 
   // 퍼널 차트 데이터 (수평 바 차트)
@@ -386,12 +388,12 @@ export default function OrdersAnalysisPage() {
               benchmark="80~120%가 정상 범위이며, 이 범위를 벗어나면 수주-매출 시차를 점검해야 합니다"
             />
             <KpiCard
-              title="매출에서 수금 수금율"
+              title="순수 수금율 (선수금 제외)"
               value={salesToCollectionRate}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="총 수금액 나누기 총 매출액, 곱하기 100"
-              description="발생한 매출 중 실제로 현금 수금된 비율입니다. 이 비율이 높을수록 현금흐름이 양호하며, 낮으면 미수금이 쌓이고 있다는 의미입니다."
+              formula="(총 수금액 빼기 선수금) 나누기 총 매출액, 곱하기 100"
+              description={`발생한 매출 중 실제 매출 대금으로 수금된 비율입니다 (선수금 ${formatCurrency(pipelineResult.prepaymentAmount)} 제외). 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리합니다.`}
               benchmark="90% 이상이면 양호, 80% 미만이면 수금 활동을 강화해야 합니다"
             />
             <KpiCard
@@ -399,16 +401,16 @@ export default function OrdersAnalysisPage() {
               value={outstandingAmount}
               format="currency"
               icon={<AlertCircle className="h-5 w-5" />}
-              formula="총 매출액 빼기 총 수금액 (0 미만이면 0으로 처리)"
-              description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 이 금액이 크면 현금 유동성에 부담을 줄 수 있습니다."
+              formula="총 매출액 빼기 순수 수금액 (선수금 제외, 0 미만이면 0으로 처리)"
+              description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다."
               benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
             />
           </div>
 
           <ChartCard
             title="O2C(주문-수금) 퍼널: 수주에서 매출, 수금까지"
-            formula="수주금액에서 매출전환금액, 수금완료금액, 미수잔액 순서로 표시"
-            description="O2C(주문-수금 프로세스)의 전체 흐름을 퍼널(깔때기) 형태로 보여줍니다. 수주에서 시작하여 매출 전환, 수금 완료까지 각 단계별 금액과 전환 비율을 확인할 수 있으며, 금액이 크게 줄어드는 구간이 병목입니다."
+            formula="수주금액에서 매출전환금액, 순수수금완료금액(선수금 제외), 미수잔액 순서로 표시"
+            description="O2C(주문-수금 프로세스)의 전체 흐름을 퍼널(깔때기) 형태로 보여줍니다. 수금완료는 선수금을 제외한 순수 수금액입니다. 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리하여 미수잔액을 정확히 산출합니다."
             benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C(주문-수금) 프로세스입니다"
           >
             <div className="h-56 md:h-72">
@@ -555,7 +557,7 @@ export default function OrdersAnalysisPage() {
             description="주문에서 수금까지의 전체 흐름을 시각적으로 표현합니다. 수주가 매출로 전환되고, 매출이 수금 완료와 미수잔액으로 나뉘는 과정을 보여줍니다. 화살표가 굵을수록 해당 경로의 금액 비중이 큽니다."
             benchmark="전환율 80% 이상, 수금율 90% 이상이면 양호한 O2C(주문-수금) 흐름입니다"
           >
-            <O2CFlowDiagram stages={pipelineStages} salesToCollectionRate={salesToCollectionRate} />
+            <O2CFlowDiagram stages={pipelineStages} salesToCollectionRate={salesToCollectionRate} prepaymentAmount={pipelineResult.prepaymentAmount} grossCollections={pipelineResult.grossCollections} />
           </ChartCard>
         </TabsContent>
       </Tabs>
@@ -566,11 +568,13 @@ export default function OrdersAnalysisPage() {
 /* ─── O2C 플로우 다이어그램 컴포넌트 ─── */
 
 interface O2CFlowDiagramProps {
-  stages: ReturnType<typeof calcO2CPipeline>;
+  stages: O2CPipelineResult["stages"];
   salesToCollectionRate: number;
+  prepaymentAmount: number;
+  grossCollections: number;
 }
 
-function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) {
+function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, grossCollections }: O2CFlowDiagramProps) {
   const orderStage = stages.find((s) => s.stage === "수주");
   const salesStage = stages.find((s) => s.stage === "매출전환");
   const collectionStage = stages.find((s) => s.stage === "수금완료");
@@ -606,12 +610,13 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
   return (
     <div className="py-4">
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
         {[
-          { label: "수주", amount: orderAmt, rate: null, color: colors.order },
-          { label: "매출전환", amount: salesAmt, rate: convRate, color: colors.sales },
-          { label: "수금완료", amount: collAmt, rate: collRate, color: colors.collection },
-          { label: "미수잔액", amount: outAmt, rate: outRate, color: colors.outstanding },
+          { label: "수주", amount: orderAmt, rate: null, color: colors.order, sub: null },
+          { label: "매출전환", amount: salesAmt, rate: convRate, color: colors.sales, sub: null },
+          { label: "수금완료 (순수)", amount: collAmt, rate: collRate, color: colors.collection, sub: null },
+          { label: "선수금", amount: prepaymentAmount, rate: null, color: CHART_COLORS[3], sub: `총수금 ${formatCurrency(grossCollections, true)}` },
+          { label: "미수잔액", amount: outAmt, rate: outRate, color: colors.outstanding, sub: null },
         ].map((item) => (
           <div
             key={item.label}
@@ -621,9 +626,12 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
             <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
             <div className="text-sm font-bold">{formatCurrency(item.amount, true)}</div>
             {item.rate !== null && (
-              <div className="text-xs mt-0.5" style={{ color: item.label === "미수잔액" ? healthColor(100 - item.rate, 80) : healthColor(item.rate, item.label === "수금완료" ? 90 : 80) }}>
+              <div className="text-xs mt-0.5" style={{ color: item.label === "미수잔액" ? healthColor(100 - item.rate, 80) : healthColor(item.rate, item.label === "수금완료 (순수)" ? 90 : 80) }}>
                 {item.rate.toFixed(1)}%
               </div>
+            )}
+            {item.sub && (
+              <div className="text-[10px] mt-0.5 text-muted-foreground">{item.sub}</div>
             )}
           </div>
         ))}
@@ -632,9 +640,9 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
       {/* SVG 플로우 다이어그램 */}
       <div className="w-full overflow-x-auto">
         <svg
-          viewBox="0 0 820 340"
+          viewBox="0 0 820 360"
           className="w-full min-w-[600px]"
-          style={{ maxHeight: 380 }}
+          style={{ maxHeight: 400 }}
           role="img"
           aria-label="O2C 플로우 다이어그램: 수주에서 매출전환, 수금완료, 미수잔액으로의 흐름"
         >
@@ -777,17 +785,20 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
             </text>
           </g>
 
-          {/* 수금완료 */}
+          {/* 수금완료 (순수) */}
           <g filter="url(#boxShadow)">
-            <rect x="620" y="40" width="180" height="76" rx="14" fill="hsl(var(--card))" stroke={colors.collection} strokeWidth="2.5" />
-            <rect x="620" y="40" width="180" height="26" rx="14" fill={colors.collection} opacity="0.12" />
-            <rect x="620" y="40" width="180" height="26" rx="14" fill="none" stroke={colors.collection} strokeWidth="2.5" />
-            <text x="710" y="58" textAnchor="middle" className="text-xs font-bold" fill={colors.collection}>수금완료</text>
-            <text x="710" y="84" textAnchor="middle" className="text-sm font-bold" fill="hsl(var(--foreground))">
+            <rect x="620" y="30" width="180" height="92" rx="14" fill="hsl(var(--card))" stroke={colors.collection} strokeWidth="2.5" />
+            <rect x="620" y="30" width="180" height="26" rx="14" fill={colors.collection} opacity="0.12" />
+            <rect x="620" y="30" width="180" height="26" rx="14" fill="none" stroke={colors.collection} strokeWidth="2.5" />
+            <text x="710" y="48" textAnchor="middle" className="text-xs font-bold" fill={colors.collection}>순수 수금</text>
+            <text x="710" y="74" textAnchor="middle" className="text-sm font-bold" fill="hsl(var(--foreground))">
               {formatCurrency(collAmt, true)}
             </text>
-            <text x="710" y="104" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
+            <text x="710" y="92" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               {collectionStage.count.toLocaleString()}건 · 매출대비 {collRate.toFixed(1)}%
+            </text>
+            <text x="710" y="108" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">
+              선수금 {formatCurrency(prepaymentAmount, true)} 별도
             </text>
           </g>
 
@@ -807,12 +818,12 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
 
           {/* ─── 흐름 방향 라벨 ─── */}
           <text x="255" y="140" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">전환</text>
-          <text x="569" y="50" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">수금</text>
+          <text x="569" y="42" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">순수수금</text>
           <text x="569" y="270" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">미수</text>
 
           {/* ─── 건전성 요약 ─── */}
           <g>
-            <rect x="20" y="200" width="280" height="120" rx="12" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" opacity="0.9" />
+            <rect x="20" y="200" width="280" height="140" rx="12" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" opacity="0.9" />
             <text x="36" y="222" className="text-[11px] font-semibold" fill="hsl(var(--foreground))">O2C 건전성 요약</text>
 
             {/* 수주→매출 전환율 */}
@@ -824,21 +835,30 @@ function O2CFlowDiagram({ stages, salesToCollectionRate }: O2CFlowDiagramProps) 
               {convRate >= 80 ? "양호" : convRate >= 64 ? "주의" : "위험"}
             </text>
 
-            {/* 매출→수금 수금율 */}
+            {/* 매출→수금 순수수금율 */}
             <circle cx="42" cy="268" r="5" fill={healthColor(collRate, 90)} />
             <text x="54" y="272" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              매출-수금 수금율: {collRate.toFixed(1)}%
+              순수 수금율: {collRate.toFixed(1)}% (선수금 제외)
             </text>
             <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, 90)}>
               {collRate >= 90 ? "양호" : collRate >= 72 ? "주의" : "위험"}
             </text>
 
-            {/* 미수 비율 */}
-            <circle cx="42" cy="291" r="5" fill={healthColor(100 - outRate, 80)} />
+            {/* 선수금 정보 */}
+            <circle cx="42" cy="291" r="5" fill={CHART_COLORS[3]} />
             <text x="54" y="295" className="text-[10px]" fill="hsl(var(--muted-foreground))">
+              선수금: {formatCurrency(prepaymentAmount, true)}
+            </text>
+            <text x="240" y="295" className="text-[10px] font-medium" fill="hsl(var(--muted-foreground))">
+              별도 관리
+            </text>
+
+            {/* 미수 비율 */}
+            <circle cx="42" cy="314" r="5" fill={healthColor(100 - outRate, 80)} />
+            <text x="54" y="318" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               미수잔액 비중: {outRate.toFixed(1)}%
             </text>
-            <text x="240" y="295" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 80)}>
+            <text x="240" y="318" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 80)}>
               {outRate <= 20 ? "양호" : outRate <= 35 ? "주의" : "위험"}
             </text>
           </g>
