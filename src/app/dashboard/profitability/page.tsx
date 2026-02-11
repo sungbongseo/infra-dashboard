@@ -2031,7 +2031,7 @@ export default function ProfitabilityPage() {
           </div>
 
           {/* 거래처 세그먼트 분포 */}
-          <ChartCard title="거래처 세그먼트별 매출 분포" description="거래처 대분류 기준으로 매출, 수익, 마진을 비교합니다. 세그먼트별 수익성 차이를 통해 전략적 집중이 필요한 영역을 파악할 수 있습니다.">
+          <ChartCard title="거래처 세그먼트별 매출 분포" formula="세그먼트별 매출 비중(%) = 세그먼트 매출 ÷ 전체 매출 × 100" description="거래처 대분류 기준으로 매출, 수익, 마진을 비교합니다. 세그먼트별 수익성 차이를 통해 전략적 집중이 필요한 영역을 파악할 수 있습니다." benchmark="특정 세그먼트가 매출의 50% 이상이면 의존도가 높아 리스크 분산이 필요합니다">
             <ErrorBoundary>
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
@@ -2052,7 +2052,7 @@ export default function ProfitabilityPage() {
 
           {/* 거래처 Top/Bottom 랭킹 */}
           <div className="grid gap-4 md:grid-cols-2">
-            <ChartCard title="매출 Top 15 거래처" description="매출액 기준 상위 15개 거래처입니다. 막대 색상은 영업이익율에 따라 녹색(양호)~적색(부진)으로 표시됩니다.">
+            <ChartCard title="매출 Top 15 거래처" formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100" description="매출액 기준 상위 15개 거래처입니다. 막대 색상은 영업이익율에 따라 녹색(양호)~적색(부진)으로 표시됩니다." benchmark="상위 20% 거래처가 전체 매출의 80%를 차지하면 파레토 법칙에 부합합니다">
               <div className="h-80 md:h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={custRanking.slice(0, 15)} layout="vertical">
@@ -2077,7 +2077,7 @@ export default function ProfitabilityPage() {
               </div>
             </ChartCard>
 
-            <ChartCard title="거래처 수익성 Scatter" description="X축=매출액, Y축=영업이익율로 각 거래처의 위치를 보여줍니다. 우상단이 매출도 크고 수익성도 높은 우량 거래처입니다.">
+            <ChartCard title="거래처 수익성 Scatter" formula="X축 = 매출액, Y축 = 영업이익율(%)" description="X축=매출액, Y축=영업이익율로 각 거래처의 위치를 보여줍니다. 우상단이 매출도 크고 수익성도 높은 우량 거래처입니다." benchmark="우상단(고매출+고수익): 핵심 거래처, 좌상단(저매출+고수익): 육성 대상, 우하단(고매출+저수익): 조건 재협상 필요">
               <div className="h-80 md:h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <ScatterChart>
@@ -2104,7 +2104,7 @@ export default function ProfitabilityPage() {
           </div>
 
           {/* 세그먼트 요약 테이블 */}
-          <ChartCard title="세그먼트별 상세 지표" description="거래처 대분류별 거래처 수, 매출 비중, 매출총이익율, 영업이익율을 비교합니다.">
+          <ChartCard title="세그먼트별 상세 지표" formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100, 영업이익율(%) = 영업이익 ÷ 매출액 × 100" description="거래처 대분류별 거래처 수, 매출 비중, 매출총이익율, 영업이익율을 비교합니다." benchmark="매출총이익율 30% 이상 양호, 영업이익율 10% 이상 양호">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -2294,7 +2294,7 @@ export default function ProfitabilityPage() {
           </ChartCard>
 
           {/* 거래처 포트폴리오 Top 10 */}
-          <ChartCard title="거래처 포트폴리오 Top 10" description="매출 상위 10개 거래처의 매출, 이익율, 품목 수, 주요 품목을 요약합니다. Top 3 품목은 매출 금액과 이익율을 함께 표시합니다.">
+          <ChartCard title="거래처 포트폴리오 Top 10" formula="품목 집중도 = 거래처별 취급 품목 수, 매출총이익율(%) = 매출총이익 ÷ 매출 × 100" description="매출 상위 10개 거래처의 매출, 이익율, 품목 수, 주요 품목을 요약합니다. Top 3 품목은 매출 금액과 이익율을 함께 표시합니다." benchmark="품목 수가 적고 이익율이 높으면 효율적인 거래처, 품목 수가 많고 이익율이 낮으면 조건 재검토 필요">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>

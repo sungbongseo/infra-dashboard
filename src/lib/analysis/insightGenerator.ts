@@ -25,8 +25,10 @@ export function generateInsights(config: InsightConfig): Insight[] {
   const insights: Insight[] = [];
   const { kpis } = config;
 
+  const safe = (v: number) => isFinite(v) ? v : 0;
+
   // Rule 1: Collection rate (순수 수금율 사용 - 선수금 제외)
-  const effectiveCollectionRate = config.netCollectionRate ?? kpis.collectionRate;
+  const effectiveCollectionRate = safe(config.netCollectionRate ?? kpis.collectionRate);
   if (effectiveCollectionRate >= 95) {
     insights.push({
       id: "col-high",
@@ -60,7 +62,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
   }
 
   // Rule 2: Operating profit rate
-  if (kpis.operatingProfitRate < 0) {
+  if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate < 0) {
     insights.push({
       id: "op-neg",
       title: "영업적자 발생",
@@ -70,7 +72,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
       metric: "operatingProfitRate",
       value: kpis.operatingProfitRate,
     });
-  } else if (kpis.operatingProfitRate < 5) {
+  } else if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate < 5) {
     insights.push({
       id: "op-low",
       title: "영업이익율 저조",
@@ -80,7 +82,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
       metric: "operatingProfitRate",
       value: kpis.operatingProfitRate,
     });
-  } else if (kpis.operatingProfitRate >= 10) {
+  } else if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate >= 10) {
     insights.push({
       id: "op-high",
       title: "영업이익율 양호",
@@ -93,7 +95,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
   }
 
   // Rule 3: Sales plan achievement
-  if (kpis.salesPlanAchievement >= 100) {
+  if (isFinite(kpis.salesPlanAchievement) && kpis.salesPlanAchievement >= 100) {
     insights.push({
       id: "plan-over",
       title: "매출 계획 초과 달성",
@@ -103,7 +105,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
       metric: "salesPlanAchievement",
       value: kpis.salesPlanAchievement,
     });
-  } else if (kpis.salesPlanAchievement < 80) {
+  } else if (isFinite(kpis.salesPlanAchievement) && kpis.salesPlanAchievement < 80) {
     insights.push({
       id: "plan-low",
       title: "매출 계획 미달",
@@ -116,7 +118,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
   }
 
   // Rule 4: DSO
-  if (config.dso !== undefined) {
+  if (config.dso !== undefined && isFinite(config.dso)) {
     if (config.dso > 90) {
       insights.push({
         id: "dso-high",
@@ -151,7 +153,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
   }
 
   // Rule 5: CCC
-  if (config.ccc !== undefined) {
+  if (config.ccc !== undefined && isFinite(config.ccc)) {
     if (config.ccc < 0) {
       insights.push({
         id: "ccc-neg",
