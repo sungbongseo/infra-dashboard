@@ -132,7 +132,7 @@ export default function DataManagementPage() {
                 <p className="text-sm font-medium text-muted-foreground">로드된 파일 유형</p>
                 <p className="text-2xl font-bold mt-1">
                   {summary.loadedTypes}
-                  <span className="text-sm font-normal text-muted-foreground ml-1">/ 10개</span>
+                  <span className="text-sm font-normal text-muted-foreground ml-1">/ {Object.keys(dataMap).length}개</span>
                 </p>
               </CardContent>
             </Card>
