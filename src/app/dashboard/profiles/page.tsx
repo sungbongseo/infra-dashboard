@@ -739,7 +739,7 @@ export default function ProfilesPage() {
                     <p className="text-xs text-muted-foreground mb-1">Top 품목</p>
                     <p className="text-sm font-bold truncate">{productPortfolio.topProducts[0]?.productName || "-"}</p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      비중 {productPortfolio.topProducts[0]?.sharePercent.toFixed(1)}%
+                      비중 {(productPortfolio.topProducts[0]?.sharePercent ?? 0).toFixed(1)}%
                     </p>
                   </CardContent>
                 </Card>

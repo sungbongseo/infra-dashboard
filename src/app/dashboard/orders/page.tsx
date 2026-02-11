@@ -478,7 +478,7 @@ export default function OrdersAnalysisPage() {
                           dominantBaseline="middle"
                           className="text-xs fill-muted-foreground"
                         >
-                          {formatCurrency(Number(value), true)} ({stage.비율.toFixed(1)}%)
+                          {formatCurrency(Number(value), true)} ({(isFinite(stage.비율) ? stage.비율 : 0).toFixed(1)}%)
                         </text>
                       );
                     }}

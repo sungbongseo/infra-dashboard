@@ -278,7 +278,7 @@ export default function ReceivablesPage() {
         header: () => <span className="block text-right">연체비율</span>,
         cell: ({ getValue }) => (
           <span className="block text-right tabular-nums">
-            {getValue<number>().toFixed(1)}%
+            {(isFinite(getValue<number>()) ? getValue<number>() : 0).toFixed(1)}%
           </span>
         ),
       },

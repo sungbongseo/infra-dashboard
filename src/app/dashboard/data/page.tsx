@@ -191,7 +191,7 @@ export default function DataManagementPage() {
                           <div key={field} className="flex justify-between text-xs">
                             <span className="text-muted-foreground">{field}</span>
                             <span className="text-amber-600 dark:text-amber-400">
-                              {count}건 ({((count / m.totalRows) * 100).toFixed(0)}%)
+                              {count}건 ({(m.totalRows > 0 ? (count / m.totalRows) * 100 : 0).toFixed(0)}%)
                             </span>
                           </div>
                         ))}
