@@ -776,19 +776,25 @@ export default function ProfitabilityPage() {
               value={contribRanking.length}
               format="number"
               icon={<Users className="h-5 w-5" />}
+              formula="소계/합계 행을 제외한 실제 영업 담당자(사번 기준) 수"
               description="소계행을 제외한 실제 영업 담당자 수입니다."
+              benchmark="인당 평균 매출이 1억 이상이면 적정 인력, 미만이면 인력 효율 점검"
             />
             <KpiCard
               title="1인당 평균 공헌이익"
               value={contribRanking.length > 0 ? contribRanking.reduce((s, r) => s + r.공헌이익, 0) / contribRanking.length : 0}
               format="currency"
+              formula="1인당 평균 공헌이익 = 전체 공헌이익 합계 ÷ 분석 인원 수"
               description="전체 공헌이익을 담당자 수로 나눈 평균입니다."
+              benchmark="인당 공헌이익이 양수면 고정비 회수에 기여, 음수면 해당 인력의 수익성 점검 필요"
             />
             <KpiCard
               title="최고 성과자"
               value={contribRanking.length > 0 ? contribRanking[0].공헌이익 : 0}
               format="currency"
+              formula="공헌이익 기준 내림차순 정렬 시 1위 담당자의 공헌이익"
               description={contribRanking.length > 0 ? `${contribRanking[0].org} ${contribRanking[0].사번}` : "-"}
+              benchmark="최고 성과자 1인의 비중이 전체의 30% 이상이면 인력 의존도 리스크"
             />
             <KpiCard
               title="평균 공헌이익율"
@@ -1213,6 +1219,7 @@ export default function ProfitabilityPage() {
                   icon={<Package className="h-5 w-5" />}
                   formula="동일 품목명으로 묶은 후 고유 품목 수 합계"
                   description="현재 수익성 분석 대상이 되는 전체 품목(제품/상품)의 수입니다. 품목이 많을수록 매출 포트폴리오가 다양합니다."
+                  benchmark="품목 수가 많을수록 매출 다각화가 되어 있으나, 관리 복잡도도 증가합니다"
                 />
                 <KpiCard
                   title="최고 수익 품목"
@@ -1221,6 +1228,7 @@ export default function ProfitabilityPage() {
                   icon={<TrendingUp className="h-5 w-5" />}
                   formula="전체 품목 중 매출총이익(매출 - 원가)이 가장 큰 품목"
                   description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%). 이 품목이 전체 이익에 가장 크게 기여하고 있습니다.` : "데이터 없음"}
+                  benchmark="최고 수익 품목이 전체 이익의 50% 이상이면 제품 집중도가 높아 리스크 관리 필요"
                 />
                 <KpiCard
                   title="가중평균 매출총이익율"
@@ -1658,6 +1666,7 @@ export default function ProfitabilityPage() {
               icon={<TrendingUp className="h-5 w-5" />}
               formula="매출 차이 = 매출 실적 - 매출 계획"
               description="계획 대비 매출의 절대 금액 차이입니다. 양수면 초과 달성, 음수면 미달입니다."
+              benchmark="양수면 계획 초과로 긍정적, 음수의 절대값이 계획의 20% 이상이면 계획 수정 검토"
             />
             <KpiCard
               title="매출총이익 달성율"
@@ -1665,6 +1674,7 @@ export default function ProfitabilityPage() {
               format="percent"
               formula="매출총이익 달성율 = 매출총이익 실적 ÷ 매출총이익 계획 × 100"
               description={`계획 매출총이익 ${formatCurrency(planSummary.totalGPPlan, true)} 대비 실적 ${formatCurrency(planSummary.totalGPActual, true)}의 달성율입니다.`}
+              benchmark="매출 달성율과 함께 비교하여 매출총이익 달성율이 더 낮다면 원가율 악화 신호"
             />
             <KpiCard
               title="이익율 변동"
@@ -1746,7 +1756,9 @@ export default function ProfitabilityPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <ChartCard
               title="매출 초과 달성 Top 10 거래처"
+              formula="매출 차이 = 매출 실적 - 매출 계획, 상위 10건 정렬"
               description="계획 대비 매출이 가장 크게 늘어난 거래처입니다. 신규 거래 확보나 기존 거래 확대의 성과를 보여줍니다."
+              benchmark="초과 달성 거래처의 성공 요인을 분석하여 타 거래처에 적용 검토"
             >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1781,7 +1793,9 @@ export default function ProfitabilityPage() {
 
             <ChartCard
               title="매출 미달 Top 10 거래처"
+              formula="매출 차이 = 매출 실적 - 매출 계획, 하위 10건 정렬"
               description="계획 대비 매출이 가장 크게 줄어든 거래처입니다. 거래 감소 원인 분석과 대응 전략이 필요합니다."
+              benchmark="미달 거래처의 원인(경쟁사 이동, 수요 감소 등)을 파악하여 대응 전략 수립"
             >
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
@@ -1872,7 +1886,7 @@ export default function ProfitabilityPage() {
             <KpiCard title="손익분기점(BEP) 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="BEP 매출 = 고정비 ÷ (1 - 변동비율)" description="손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다." benchmark="실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다" />
             <KpiCard title="안전한계율" value={(() => { const finite = orgBreakeven.filter(r => isFinite(r.safetyMarginRate)); return finite.length > 0 ? finite.reduce((s, r) => s + r.safetyMarginRate, 0) / finite.length : 0; })()} format="percent" formula="안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
             <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="공헌이익률 = (매출 - 변동비) ÷ 매출 × 100" description="매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다." benchmark="공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다" />
-            <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" description={`손익분기점(BEP) 분석이 가능한 조직 수입니다. 데이터 소스: ${bepFromTeam ? "팀원별 공헌이익(401)" : "조직별 손익(303)"}`} />
+            <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" formula="손익 데이터에서 변동비/고정비 분리가 가능한 조직 수" description={`손익분기점(BEP) 분석이 가능한 조직 수입니다. 데이터 소스: ${bepFromTeam ? "팀원별 공헌이익(401)" : "조직별 손익(303)"}`} benchmark="전체 조직 대비 분석 가능 조직이 80% 이상이면 데이터 커버리지 양호" />
           </div>
 
           {/* BEP Chart */}
@@ -1948,10 +1962,10 @@ export default function ProfitabilityPage() {
 
           {/* Scenario KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" formula="시나리오 매출 = 기준 매출 × (1 + 매출 변동률)" description="위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다." />
-            <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" formula="시나리오 영업이익 = 시나리오 매출 - 시나리오 원가 - 시나리오 판관비" description="매출, 원가율, 판관비를 모두 변동시켰을 때의 예상 영업이익입니다. 기준 대비 얼마나 이익이 늘거나 줄어드는지 보여줍니다." />
-            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" formula="시나리오 영업이익율(%) = 시나리오 영업이익 ÷ 시나리오 매출 × 100" description="시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다." />
-            <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" description="시나리오 분석 대상이 되는 조직의 수입니다." />
+            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" formula="시나리오 매출 = 기준 매출 × (1 + 매출 변동률)" description="위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다." benchmark="기준 대비 증감률 ±10% 이내가 현실적인 시나리오 범위입니다" />
+            <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" formula="시나리오 영업이익 = 시나리오 매출 - 시나리오 원가 - 시나리오 판관비" description="매출, 원가율, 판관비를 모두 변동시켰을 때의 예상 영업이익입니다. 기준 대비 얼마나 이익이 늘거나 줄어드는지 보여줍니다." benchmark="시나리오 영업이익이 양수면 수익성 유지, 음수 전환 시 비용 구조 재검토 필요" />
+            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" formula="시나리오 영업이익율(%) = 시나리오 영업이익 ÷ 시나리오 매출 × 100" description="시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다." benchmark="영업이익율 5% 이상 유지가 최소 목표, 10% 이상이면 양호한 수익 구조" />
+            <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" formula="손익 데이터가 있는 조직 중 시나리오 변수 적용이 가능한 조직 수" description="시나리오 분석 대상이 되는 조직의 수입니다." benchmark="전체 조직이 모두 포함되어야 정확한 시나리오 비교가 가능합니다" />
           </div>
 
           {/* Base vs Scenario comparison bar */}
@@ -2005,7 +2019,9 @@ export default function ProfitabilityPage() {
               value={custConcentration.totalCustomers}
               format="number"
               icon={<Users className="h-5 w-5" />}
+              formula="조직별 거래처별 손익 데이터에서 중복 제거한 고유 거래처 수"
               description="조직별 거래처별 손익 데이터에 포함된 고유 거래처 수입니다."
+              benchmark="거래처가 다양할수록 매출 안정성이 높으며, 10개 미만이면 집중도 리스크 점검"
             />
             <KpiCard
               title="HHI 집중도"
@@ -2021,12 +2037,16 @@ export default function ProfitabilityPage() {
               value={custConcentration.top5Share}
               format="percent"
               description="상위 5개 거래처가 전체 매출에서 차지하는 비중입니다. 50% 이상이면 특정 거래처 의존도가 높습니다."
+              formula="Top 5 매출 비중 = 매출 상위 5개 거래처 매출 합계 ÷ 전체 매출 × 100"
+              benchmark="50% 미만이면 양호한 분산, 70% 이상이면 거래처 다변화 전략 필요"
             />
             <KpiCard
               title="Top 10 매출 비중"
               value={custConcentration.top10Share}
               format="percent"
               description="상위 10개 거래처가 전체 매출에서 차지하는 비중입니다."
+              formula="Top 10 매출 비중 = 매출 상위 10개 거래처 매출 합계 ÷ 전체 매출 × 100"
+              benchmark="80% 이상이면 상위 거래처 의존도가 매우 높아 리스크 관리 필수"
             />
           </div>
 
@@ -2141,7 +2161,9 @@ export default function ProfitabilityPage() {
           {custDetailTable.length > 0 && (
             <ChartCard
               title="거래처별 담당자 및 영업이익 상세"
+              formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
               description="수익성분석(901) 데이터에서 거래처별 영업담당자, 매출액, 이익율, 영업이익을 조회합니다. 담당자 열에는 해당 거래처를 담당하는 사번이 표시됩니다."
+              benchmark="담당자당 관리 거래처 수가 적정한지, 이익율 편차가 큰 거래처는 집중 관리"
             >
               <div className="overflow-x-auto max-h-[500px] overflow-y-auto">
                 <table className="w-full text-sm">
@@ -2203,20 +2225,25 @@ export default function ProfitabilityPage() {
               icon={<Package className="h-5 w-5" />}
               description="매출 누적 80%를 차지하는 핵심 품목 수입니다. 이 품목들이 매출의 대부분을 만들어내는 핵심 제품입니다."
               formula="매출 기준 내림차순 정렬 후 누적비중 80%까지 = A등급"
+              benchmark="A등급 품목이 전체의 20% 이하이면 전형적인 파레토(80/20) 패턴"
             />
             <KpiCard
               title="B등급 품목"
               value={abcItems.filter((i) => i.grade === "B").length}
               format="number"
               icon={<Package className="h-5 w-5" />}
+              formula="매출 기준 내림차순 정렬 후 누적비중 80~95% = B등급"
               description="매출 누적 80~95%에 해당하는 중요 품목 수입니다."
+              benchmark="B등급 품목은 성장 잠재력을 가진 품목으로 육성 대상으로 검토"
             />
             <KpiCard
               title="C등급 품목"
               value={abcItems.filter((i) => i.grade === "C").length}
               format="number"
               icon={<Package className="h-5 w-5" />}
+              formula="매출 기준 내림차순 정렬 후 누적비중 95~100% = C등급"
               description="매출 누적 95~100%의 기타 품목입니다. 수가 많지만 매출 기여는 작습니다."
+              benchmark="C등급 품목 수가 과도하면 관리 비용 대비 수익이 낮아 품목 정리 검토"
             />
             <KpiCard
               title="총 거래처"
@@ -2224,6 +2251,8 @@ export default function ProfitabilityPage() {
               format="number"
               icon={<Users className="h-5 w-5" />}
               description="거래처×품목 데이터에 포함된 고유 거래처 수입니다."
+              formula="거래처×품목 손익 데이터에서 중복 제거한 고유 거래처 수"
+              benchmark="거래처별 품목 분석이 가능해야 교차 수익성 파악이 정확합니다"
             />
           </div>
 
@@ -2257,7 +2286,9 @@ export default function ProfitabilityPage() {
           {/* 거래처×품목 매출 Top 20 조합 */}
           <ChartCard
             title="거래처×품목 매출 Top 20"
+            formula="거래처×품목 조합별 매출액 기준 내림차순 정렬 후 상위 20건"
             description="매출이 가장 큰 거래처-품목 조합 상위 20건입니다. 어떤 거래처에 어떤 품목을 얼마나 팔고 있는지, 그리고 그 수익성이 어떤지를 한눈에 파악할 수 있습니다."
+            benchmark="상위 20개 조합의 매출총이익율이 평균 이상이면 핵심 거래의 수익성이 양호합니다"
           >
             <div className="overflow-x-auto">
               <table className="w-full text-sm">

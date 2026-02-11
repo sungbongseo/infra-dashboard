@@ -352,6 +352,7 @@ export default function OverviewPage() {
               icon={<ShoppingCart className="h-5 w-5" />}
               formula="기간 내 수주 리스트의 총 건수"
               description="선택한 분석 기간 동안 발생한 수주의 총 건수입니다. 건수가 많을수록 영업 활동이 활발하다는 의미이며, 건당 평균 수주액과 함께 보면 영업 패턴을 파악할 수 있습니다."
+              benchmark="전기 대비 건수가 증가하면 영업 활동 활발, 건수는 줄고 금액이 늘면 대형화 추세"
             />
           </div>
 
@@ -504,6 +505,7 @@ export default function OverviewPage() {
               title="조직별 계획 대비 실적"
               description="각 조직의 매출 목표(계획)와 실제 달성(실적)을 나란히 비교합니다. 실적 막대가 계획 막대보다 높으면 목표 초과 달성, 낮으면 미달입니다. 조직별 성과 차이를 직관적으로 파악할 수 있습니다."
               formula="달성율(%) = 실적 ÷ 계획 × 100"
+              benchmark="모든 조직이 90% 이상 달성이면 양호, 조직 간 편차가 20%p 이상이면 불균형"
             >
               <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">

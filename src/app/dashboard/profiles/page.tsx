@@ -578,6 +578,7 @@ export default function ProfilesPage() {
                 title="담당자별 비용 효율 비교"
                 formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100"
                 description="각 담당자의 주요 비용 항목 비율을 테이블로 비교합니다. 공헌이익율이 높고 비용 비율이 낮을수록 효율적인 영업을 하고 있다는 의미입니다."
+                benchmark="공헌이익율 20% 이상이면 양호, 원재료비율이 50% 이상이면 원가 구조 점검 필요"
                 action={<ExportButton data={costEfficiencyData.map((c) => ({
                   사번: c.personId, 조직: c.org, 매출액: c.salesAmount,
                   원재료비율: c.rawMaterialRate, 상품매입비율: c.purchaseRate, 외주비율: c.outsourcingRate,
@@ -777,6 +778,7 @@ export default function ProfilesPage() {
                 title="품목별 수익성 분석"
                 formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
                 description="각 품목의 매출액, 매출총이익, 이익율을 정리합니다. 매출은 크지만 이익율이 낮은 품목은 가격 또는 원가 구조 개선이 필요합니다."
+                benchmark="매출총이익율 25% 이상이면 양호, 10% 미만이면 가격 또는 원가 재검토 필요"
                 action={<ExportButton data={productPortfolio.productMix.map((p) => ({
                   품목: p.product, 품목명: p.productName, 제품군: p.productGroup,
                   매출액: p.salesAmount, 매출총이익: p.grossProfit,

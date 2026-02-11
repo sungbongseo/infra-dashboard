@@ -143,6 +143,7 @@ export default function SalesAnalysisPage() {
           format="currency"
           icon={<DollarSign className="h-5 w-5" />}
           formula="매출리스트의 모든 장부금액을 합산"
+          benchmark="전년 동기 대비 10% 이상 성장이면 양호"
           description="선택한 영업조직의 전체 매출 금액 합계입니다. 이 페이지의 모든 분석은 이 금액을 기준으로 산출됩니다."
         />
         <KpiCard
@@ -641,6 +642,7 @@ export default function SalesAnalysisPage() {
                   icon={<TrendingUp className="h-5 w-5" />}
                   formula="모든 고객의 예상 생애가치를 합산"
                   description="CLV(고객생애가치)란 한 고객이 거래 기간 동안 가져다줄 것으로 예상되는 총 수익입니다. 총 CLV는 모든 고객의 예상 가치를 합한 것으로, 고객 자산의 전체 규모를 보여줍니다."
+                  benchmark="총 CLV가 현재 매출의 3배 이상이면 장기 성장 기반 확보"
                 />
                 <KpiCard
                   title="평균 CLV(고객생애가치)"
@@ -658,6 +660,7 @@ export default function SalesAnalysisPage() {
                   icon={<Crown className="h-5 w-5" />}
                   formula="고객별 CLV 중 가장 큰 값"
                   description="가장 높은 생애가치를 가진 최우수 고객의 CLV입니다. 이 고객은 장기적으로 가장 큰 수익을 가져다줄 것으로 예상되므로, 특별 관리가 필요합니다."
+                  benchmark="Top 고객 CLV가 총 CLV의 30% 이상이면 의존도 과다"
                 />
                 <KpiCard
                   title="분석 고객 수"
@@ -666,6 +669,7 @@ export default function SalesAnalysisPage() {
                   icon={<Users className="h-5 w-5" />}
                   formula="중복 없이 매출처 수를 세기"
                   description="CLV(고객생애가치)가 산출된 고유 고객 수입니다. 최소 2회 이상 거래가 있어야 의미 있는 CLV를 계산할 수 있으므로, 전체 거래처 수보다 적을 수 있습니다."
+                  benchmark="분석 고객 수가 전체 거래처의 70% 이상이면 데이터 커버리지 양호"
                 />
               </div>
 
@@ -847,6 +851,7 @@ export default function SalesAnalysisPage() {
                   icon={<DollarSign className="h-5 w-5" />}
                   formula="거래통화가 원화(KRW)가 아닌 매출의 장부금액을 합산"
                   description="외화(달러, 유로, 엔 등)로 거래된 매출을 원화로 환산한 금액의 합계입니다. 환율 변동에 따라 같은 외화 금액이라도 원화 환산 금액이 달라질 수 있습니다."
+                  benchmark="전기 대비 해외매출 증감을 모니터링하여 수출 경쟁력을 추적"
                 />
                 <KpiCard
                   title="거래 통화 수"
@@ -855,6 +860,7 @@ export default function SalesAnalysisPage() {
                   icon={<BarChart3 className="h-5 w-5" />}
                   formula="중복 없이 거래에 사용된 통화 종류 수를 세기"
                   description="매출 거래에 사용된 통화(KRW, USD, EUR, JPY 등)의 종류 수입니다. 통화가 다양할수록 여러 해외 시장에 진출해 있다는 의미이지만, 환율 관리 복잡도도 높아집니다."
+                  benchmark="3개 이상 통화이면 환리스크 관리 체계 구축 필요"
                 />
                 <KpiCard
                   title="FX 효과"

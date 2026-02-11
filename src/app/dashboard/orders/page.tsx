@@ -217,6 +217,7 @@ export default function OrdersAnalysisPage() {
               icon={<ShoppingCart className="h-5 w-5" />}
               formula="수주 리스트의 모든 장부금액을 합산"
               description="인프라 사업본부 담당 조직이 고객으로부터 주문받은 총 금액입니다. 수주는 매출이 발생하기 전 단계로, 향후 매출로 전환될 예정인 파이프라인입니다."
+              benchmark="매출액 대비 수주액이 100% 이상이면 파이프라인 양호"
             />
             <KpiCard
               title="수주에서 매출 전환율"
@@ -234,13 +235,16 @@ export default function OrdersAnalysisPage() {
               icon={<Package className="h-5 w-5" />}
               formula="미출고 수주잔(원) = 총 수주액 − 총 매출액"
               description="고객이 주문했지만 아직 출고(납품)되지 않은 금액입니다. 이 금액이 크면 향후 매출로 전환될 여지가 많다는 뜻이지만, 납기 관리에 주의가 필요합니다."
+              benchmark="수주잔이 월 매출의 1~3배이면 적정, 과다하면 납기 지연 리스크"
             />
             <KpiCard
               title="수주 건수"
               value={filteredOrders.length}
               format="number"
               icon={<Clock className="h-5 w-5" />}
+              formula="기간 내 수주 리스트의 총 건수"
               description="분석 기간 내에 접수된 총 수주 건수입니다. 건수와 금액을 함께 보면 건당 평균 수주 규모를 파악할 수 있습니다."
+              benchmark="전기 대비 건수가 증가하면 영업 활동 활발, 건수는 줄고 금액이 늘면 대형화 추세"
             />
           </div>
 
@@ -274,6 +278,7 @@ export default function OrdersAnalysisPage() {
             title="수주유형별 분석"
             formula="수주유형(내수/수출/프로젝트 등)별 장부금액 합계"
             description="수주를 유형별로 나누어 금액 비중을 보여줍니다. 어떤 유형의 수주가 주력인지, 특정 유형에 지나치게 의존하고 있지는 않은지 확인할 수 있습니다."
+            benchmark="단일 수주유형 의존도가 70% 이상이면 포트폴리오 다변화를 검토하세요"
           >
             <div className="h-72 md:h-96">
               <ResponsiveContainer width="100%" height="100%">
@@ -322,6 +327,7 @@ export default function OrdersAnalysisPage() {
             title="조직별 수주 비중"
             formula="영업조직별 장부금액 합계를 구한 뒤 금액 순으로 정렬"
             description="영업조직별 수주 금액 순위를 보여줍니다. 특정 조직에 수주가 지나치게 집중되어 있다면 매출 리스크를 분산하는 전략이 필요합니다."
+            benchmark="상위 3개 조직이 전체 수주의 60% 이상이면 집중도가 높은 편입니다"
           >
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">

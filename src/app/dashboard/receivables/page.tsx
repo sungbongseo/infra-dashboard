@@ -418,7 +418,9 @@ export default function ReceivablesPage() {
               value={byPerson.length}
               format="number"
               icon={<Users className="h-5 w-5" />}
+              formula="미수금 잔액이 있는 고유 영업담당자 수 합계"
               description="현재 미수금을 보유하고 있는 영업담당자 수입니다. 미수금이 특정 담당자에 집중되어 있는지 확인할 필요가 있습니다."
+              benchmark="미수금이 상위 20% 담당자에 집중되어 있다면 업무 분산 또는 집중 관리 검토"
             />
             <KpiCard
               title="주의 거래처"
@@ -426,6 +428,7 @@ export default function ReceivablesPage() {
               format="number"
               formula="연체비율 30~50% 또는 3개월 이상 미수금 5천만원 초과인 거래처 수"
               description="아직 고위험은 아니지만 관심이 필요한 거래처 수입니다. 방치하면 고위험으로 악화될 수 있으므로 선제적인 관리가 중요합니다."
+              benchmark="주의 거래처가 전체의 10% 이상이면 연체 관리 프로세스 강화 필요"
             />
             <KpiCard
               title="고위험 거래처"
@@ -440,7 +443,9 @@ export default function ReceivablesPage() {
               title="리스크 평가 대상"
               value={risks.length}
               format="number"
+              formula="미수금 연체 데이터에서 거래처별 리스크 등급을 산정한 전체 대상 수"
               description="미수금 연체 상황에 따라 리스크 등급(양호/주의/고위험)이 분류된 전체 거래처 수입니다."
+              benchmark="전체 거래처 대비 평가 대상 비율이 높을수록 채권 관리 범위가 넓다는 의미"
             />
           </div>
 
@@ -633,7 +638,9 @@ export default function ReceivablesPage() {
               value={dsoMetrics.length}
               format="number"
               icon={<Users className="h-5 w-5" />}
+              formula="미수금 데이터와 매출 데이터가 모두 존재하는 고유 조직 수"
               description="DSO(매출채권 회수기간)와 CCC(현금순환주기) 분석이 가능한 조직 수입니다. 미수금 데이터와 매출 데이터가 모두 있는 조직만 포함됩니다."
+              benchmark="전체 영업조직 대비 분석 가능 조직이 80% 이상이면 데이터 커버리지 양호"
             />
           </div>
 
@@ -738,7 +745,9 @@ export default function ReceivablesPage() {
               value={prepaymentSummary.orgCount}
               format="number"
               icon={<Building2 className="h-5 w-5" />}
+              formula="수금 데이터에서 선수금이 1건 이상 발생한 고유 조직 수"
               description="선수금이 발생한 영업조직 수입니다. 선수금이 특정 조직에 집중되어 있는지 확인할 필요가 있습니다."
+              benchmark="선수금이 특정 1~2개 조직에 집중되면 해당 조직의 납품 일정 리스크 점검 필요"
             />
           </div>
 
