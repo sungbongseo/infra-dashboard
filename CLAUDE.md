@@ -49,7 +49,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
 - `src/lib/db.ts` — Dexie IndexedDB persistence for all parsed data and filter state
 - `src/lib/orgMapping.ts` — Centralized fuzzy matching for 영업조직 ↔ 영업조직팀 name resolution
-- `src/lib/utils.ts` — formatCurrency (억/만원), extractMonth, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE
+- `src/lib/utils.ts` — formatCurrency (억/만원), formatPercent, extractMonth, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateToCustomerLevel, CHART_COLORS, TOOLTIP_STYLE
 - `src/types/` — TypeScript interfaces for all data structures
 
 ### Analysis Modules (src/lib/analysis/)
@@ -97,18 +97,39 @@ Each file type is detected by filename regex. Some use merged headers (rows 0-1)
 ### Page Pattern
 
 Each dashboard page follows the same pattern:
-1. Read data from `useDataStore` with selectors
+1. Read data from `useDataStore` with individual selectors (not destructuring entire store)
 2. Read filter state from `useFilterStore` (dateRange, selectedOrgs, comparisonRange)
-3. Filter with `filterByOrg(data, orgNames, fieldName)` and `filterByDateRange(data, dateRange, dateField)` via `useMemo`
-4. Compute derived data with analysis functions via `useMemo`
-5. Render KpiCards + ChartCards wrapping Recharts components
-6. Show `EmptyState` when no data loaded, `LoadingSkeleton` during loading
-7. Wrap in `ErrorBoundary` for graceful error handling
+3. Compute `effectiveOrgNames` from selectedOrgs (if any) or fall back to orgNames
+4. Filter with `filterByOrg(data, effectiveOrgNames, fieldName)` and `filterByDateRange(data, dateRange, dateField)` via `useMemo`
+5. For orgProfit data, apply `filterOrgProfitLeafOnly()` then `aggregateOrgProfit()` to remove subtotals and aggregate by org
+6. Compute derived data with analysis functions via `useMemo`
+7. Render KpiCards (with `formula` and `benchmark` props) + ChartCards wrapping Recharts components
+8. Show `EmptyState` when no data loaded, `LoadingSkeleton` during loading
+9. Wrap in `ErrorBoundary` for graceful error handling
 
-### Profitability Page Tabs
+### Tab Component Extraction
 
-The profitability page (`/dashboard/profitability`) has 12 tabs spanning multiple analysis modules:
-손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 계획 달성 분석 (variance), 손익분기 (breakeven), 시나리오 (whatif), 거래처 손익 (customerProfitAnalysis), 거래처×품목 (customerItemAnalysis)
+Large pages extract tab content into separate components under `tabs/` subdirectories:
+- `sales/tabs/` — ChannelTab, RfmTab, ClvTab, MigrationTab, FxTab
+- `profitability/tabs/` — RiskTab, WhatIfTab, CustProfitTab, CustItemTab
+- `receivables/tabs/` — CreditTab, DsoTab
+
+Tab components receive filtered data as props from the parent page rather than accessing stores directly.
+
+### Page Tab Structure
+
+| Page | Tabs |
+|------|------|
+| Overview (`/dashboard`) | 핵심 지표, 조직 분석 |
+| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, RFM, CLV, 거래처 이동, FX (8 tabs) |
+| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 계획 달성 분석, 손익분기, 시나리오, 거래처 손익, 거래처×품목 (12 tabs) |
+| Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 선수금 (5 tabs) |
+| Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우 (5 tabs) |
+| Profiles (`/dashboard/profiles`) | 종합 성과, 순위/거래처, 비용 효율, 실적 트렌드, 제품 포트폴리오 (5 tabs) |
+
+### Smart Data Source (Profitability)
+
+When dateRange filter is active and `customerItemDetail` data exists, profitability page switches from `profitabilityAnalysis` to `customerItemDetail` as the data source for date-filtered analysis. This enables period-specific P&L analysis that `profitabilityAnalysis` (which is a snapshot report) cannot provide.
 
 ### Conventions
 
@@ -121,6 +142,8 @@ The profitability page (`/dashboard/profitability`) has 12 tabs spanning multipl
 - `DEFAULT_INFRA_ORG_NAMES` in `dataStore.ts` provides initial org filter
 - `extractMonth()` in `lib/utils.ts` handles: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD, Excel serial numbers
 - `TOOLTIP_STYLE` constant for consistent Recharts tooltip styling
+- `KpiCard` accepts `formula` (calculation explanation) and `benchmark` (industry reference) string props for tooltip context
+- `NaN`/`Infinity` safety: always guard `.toFixed()` calls with `isFinite()` check; use `formatCurrency()`/`formatPercent()` which handle this automatically
 
 ### Charting Patterns
 
