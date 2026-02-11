@@ -159,7 +159,7 @@ export default function SalesAnalysisPage() {
           value={avgPerTransaction}
           format="currency"
           icon={<BarChart3 className="h-5 w-5" />}
-          formula="총 매출액 나누기 매출 건수"
+          formula="건당 평균(원) = 총 매출액 ÷ 매출 건수"
           description="매출 1건당 평균 거래 금액입니다. 건당 평균이 높으면 대형 프로젝트 위주의 영업, 낮으면 소규모 거래 위주의 영업 패턴을 의미합니다."
           benchmark="업종 평균 건당 금액 대비 높으면 고부가가치 영업 구조"
         />
@@ -168,7 +168,7 @@ export default function SalesAnalysisPage() {
           value={top1Share}
           format="percent"
           icon={<Target className="h-5 w-5" />}
-          formula="1위 거래처 매출 나누기 총매출 곱하기 100"
+          formula="Top1 거래처 비중(%) = 1위 거래처 매출 ÷ 총매출 × 100"
           description="매출 1위 거래처가 전체 매출에서 차지하는 비율입니다. 이 수치가 높으면 해당 거래처에 대한 의존도가 크므로, 거래처 이탈 시 매출 급감 위험이 있습니다."
           benchmark="20% 이내이면 안정적 분산, 30% 초과 시 집중 리스크 경고"
         />
@@ -189,7 +189,7 @@ export default function SalesAnalysisPage() {
         <TabsContent value="customer" className="space-y-6">
           <ChartCard
             title="거래처별 매출 (ABC 분석)"
-            formula="누적 비율: 누적 매출 나누기 총 매출 곱하기 100"
+            formula="누적 비율(%) = 누적 매출 ÷ 총 매출 × 100"
             description="거래처를 매출액이 큰 순서대로 나열하고, 누적 비율에 따라 A등급(상위 80%까지), B등급(80~95%), C등급(95~100%)으로 분류합니다. 소수의 핵심 거래처가 대부분의 매출을 차지하는 '파레토 법칙'을 확인할 수 있습니다."
             benchmark="상위 20% 거래처가 매출의 80%를 차지하면 전형적인 파레토 분포 (80:20 법칙)"
             action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
@@ -647,7 +647,7 @@ export default function SalesAnalysisPage() {
                   value={clvSummary.avgClv}
                   format="currency"
                   icon={<BarChart3 className="h-5 w-5" />}
-                  formula="총 CLV 나누기 고객 수"
+                  formula="평균 CLV(원) = 총 CLV ÷ 고객 수"
                   description="고객 1곳당 평균적으로 기대되는 생애가치입니다. 이 금액이 높을수록 고객 1곳이 장기적으로 더 큰 수익을 가져다준다는 의미입니다."
                   benchmark="평균 CLV가 고객 획득 비용의 3배 이상이면 건전한 수준"
                 />
@@ -673,7 +673,7 @@ export default function SalesAnalysisPage() {
                 {/* Top 15 CLV 고객 */}
                 <ChartCard
                   title="Top 15 고객 생애가치 (CLV)"
-                  formula="CLV(고객생애가치) = 평균 거래액 곱하기 연간 거래빈도 곱하기 이익률 곱하기 예상 거래기간"
+                  formula="CLV(고객생애가치) = 평균 거래액 × 연간 거래빈도 × 이익률 × 예상 거래기간"
                   description="고객 생애가치가 높은 상위 15개 고객입니다. CLV가 높다는 것은 해당 고객이 장기적으로 꾸준히 수익을 가져다줄 가능성이 크다는 의미이며, 이들에 대한 맞춤형 관리가 중요합니다."
                   benchmark="상위 20% 고객의 CLV가 전체의 80% 이상이면 핵심 고객 집중 관리 필요"
                 >
@@ -836,7 +836,7 @@ export default function SalesAnalysisPage() {
                   value={fxImpact.foreignSharePercent}
                   format="percent"
                   icon={<Globe className="h-5 w-5" />}
-                  formula="해외매출(원화 환산) 나누기 총매출(원화) 곱하기 100"
+                  formula="해외매출 비중(%) = 해외매출(원화 환산) ÷ 총매출(원화) × 100"
                   description="전체 매출 중 외화(해외) 거래가 차지하는 비율입니다. 이 비중이 높을수록 원/달러, 원/엔 등 환율 변동에 따라 실적이 크게 흔들릴 수 있습니다."
                   benchmark="30%를 넘으면 환리스크 헤지(환율 변동 대비) 전략 필요"
                 />
@@ -861,7 +861,7 @@ export default function SalesAnalysisPage() {
                   value={fxPnL.reduce((sum, item) => sum + item.fxGainLoss, 0)}
                   format="currency"
                   icon={<TrendingUp className="h-5 w-5" />}
-                  formula="(실제 장부금액 빼기 판매금액 곱하기 평균환율)의 합계"
+                  formula="FX 효과(원) = Σ(실제 장부금액 − 판매금액 × 평균환율)"
                   description="각 거래의 실제 적용 환율과 기간 내 가중평균 환율의 차이에서 발생한 환차익 또는 환차손의 추정 금액입니다. 환율이 유리하게 적용된 거래가 많으면 양수(이익), 불리하면 음수(손실)로 나타납니다."
                   benchmark="양수이면 환차익(이득), 음수이면 환차손(손해)"
                 />
@@ -996,7 +996,7 @@ export default function SalesAnalysisPage() {
                 {fxPnL.length > 0 && (
                   <ChartCard
                     title="통화별 가중평균 환율 및 거래 현황"
-                    formula="가중평균환율: 원화 장부금액 나누기 원래 통화 판매금액"
+                    formula="가중평균환율 = 원화 장부금액 ÷ 원래 통화 판매금액"
                     description="외화 통화별로 실제 적용된 가중평균 환율과 거래 규모를 표로 보여줍니다. 같은 통화라도 거래 시점에 따라 환율이 다르며, FX 효과 열에서 환차익(+) 또는 환차손(-)을 확인할 수 있습니다."
                     benchmark="FX 효과가 양수(녹색)이면 환율이 유리하게 적용됨, 음수(적색)이면 불리하게 적용됨"
                   >

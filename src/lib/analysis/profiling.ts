@@ -5,7 +5,9 @@ import type {
   TeamContributionRecord,
   PerformanceScore,
   ReceivableAgingRecord,
+  CustomerItemDetailRecord,
 } from "@/types";
+import { extractMonth } from "@/lib/utils";
 
 // ─── HHI (Herfindahl-Hirschman Index) 거래처 집중도 ────────────────────────
 
@@ -256,16 +258,10 @@ export function calcPerformanceScores(
     ...Array.from(personCollections.keys()),
   ]);
 
-  // Calculate max values for scoring
-  const maxSales = Math.max(
-    ...Array.from(personSales.values()).map((v) => v.amount),
-    1
-  );
-  const maxOrders = Math.max(...Array.from(personOrders.values()), 1);
-  const maxContribRate = Math.max(
-    ...Array.from(personContrib.values()).map((v) => v.rate),
-    1
-  );
+  // Calculate max values for scoring (reduce pattern to avoid stack overflow on large datasets)
+  const maxSales = Array.from(personSales.values()).reduce((max, v) => Math.max(max, v.amount), 1);
+  const maxOrders = Array.from(personOrders.values()).reduce((max, v) => Math.max(max, v), 1);
+  const maxContribRate = Array.from(personContrib.values()).reduce((max, v) => Math.max(max, v.rate), 1);
 
   const profiles: SalesRepProfile[] = [];
 
@@ -334,4 +330,287 @@ export function calcPerformanceScores(
   });
 
   return profiles;
+}
+
+// ─── Tab 3: 비용 효율 분석 ──────────────────────────────────────────────────
+
+export interface CostEfficiency {
+  personId: string;
+  org: string;
+  salesAmount: number;
+  // 변동비 항목별 비율 (매출 대비 %)
+  rawMaterialRate: number;      // 원재료비율
+  purchaseRate: number;         // 상품매입비율
+  outsourcingRate: number;      // 외주가공비율
+  variableCostRate: number;     // 판관변동비율 합계
+  mfgVariableCostRate: number;  // 제조변동비율 합계
+  fixedCostRate: number;        // 판관고정비율 합계
+  contributionMarginRate: number;
+  operatingMarginRate: number;
+}
+
+/**
+ * 담당자별 비용 효율 분석
+ * teamContribution의 41개 비용 항목 중 주요 항목을 매출 대비 비율로 계산
+ */
+export function calcCostEfficiency(
+  teamContrib: TeamContributionRecord[]
+): CostEfficiency[] {
+  return teamContrib
+    .filter((r) => r.매출액?.실적 > 0)
+    .map((r) => {
+      const sales = r.매출액.실적;
+      const safeRate = (val: number) => (sales > 0 ? (val / sales) * 100 : 0);
+
+      // 판관변동비 합계
+      const sgaVariable =
+        (r.판관변동_노무비?.실적 || 0) +
+        (r.판관변동_복리후생비?.실적 || 0) +
+        (r.판관변동_소모품비?.실적 || 0) +
+        (r.판관변동_수도광열비?.실적 || 0) +
+        (r.판관변동_수선비?.실적 || 0) +
+        (r.판관변동_외주가공비?.실적 || 0) +
+        (r.판관변동_운반비?.실적 || 0) +
+        (r.판관변동_지급수수료?.실적 || 0) +
+        (r.판관변동_견본비?.실적 || 0) +
+        (r.판관변동_직접판매운반비?.실적 || 0);
+
+      // 판관고정비 합계
+      const sgaFixed =
+        (r.판관고정_노무비?.실적 || 0) +
+        (r.판관고정_감가상각비?.실적 || 0) +
+        (r.판관고정_기타경비?.실적 || 0);
+
+      // 제조변동비 주요 항목
+      const mfgVariable =
+        (r.제조변동_원재료비?.실적 || 0) +
+        (r.제조변동_부재료비?.실적 || 0) +
+        (r.변동_상품매입?.실적 || 0) +
+        (r.제조변동_노무비?.실적 || 0) +
+        (r.제조변동_복리후생비?.실적 || 0) +
+        (r.제조변동_소모품비?.실적 || 0) +
+        (r.제조변동_수도광열비?.실적 || 0) +
+        (r.제조변동_수선비?.실적 || 0) +
+        (r.제조변동_연료비?.실적 || 0) +
+        (r.제조변동_외주가공비?.실적 || 0) +
+        (r.제조변동_운반비?.실적 || 0) +
+        (r.제조변동_전력비?.실적 || 0) +
+        (r.제조변동_견본비?.실적 || 0) +
+        (r.제조변동_지급수수료?.실적 || 0);
+
+      return {
+        personId: r.영업담당사번,
+        org: r.영업조직팀,
+        salesAmount: sales,
+        rawMaterialRate: safeRate(r.제조변동_원재료비?.실적 || 0),
+        purchaseRate: safeRate(r.변동_상품매입?.실적 || 0),
+        outsourcingRate: safeRate(r.제조변동_외주가공비?.실적 || 0),
+        variableCostRate: safeRate(sgaVariable),
+        mfgVariableCostRate: safeRate(mfgVariable),
+        fixedCostRate: safeRate(sgaFixed),
+        contributionMarginRate: r.공헌이익율?.실적 || 0,
+        operatingMarginRate: r.영업이익율?.실적 || 0,
+      };
+    });
+}
+
+// ─── Tab 4: 실적 트렌드 분석 ────────────────────────────────────────────────
+
+export interface MonthlyTrendPoint {
+  month: string;
+  sales: number;
+  orders: number;
+  collections: number;
+}
+
+export interface RepTrend {
+  personId: string;
+  name: string;
+  monthlyData: MonthlyTrendPoint[];
+  avgMonthlySales: number;
+  avgMonthlyOrders: number;
+  avgMonthlyCollections: number;
+  salesMoM: number; // 최근 MoM 성장률 %
+  momentum: "accelerating" | "stable" | "decelerating";
+}
+
+/**
+ * 담당자별 월별 매출/수주/수금 트렌드 계산
+ */
+export function calcRepTrend(
+  sales: SalesRecord[],
+  orders: OrderRecord[],
+  collections: CollectionRecord[],
+  personId: string
+): RepTrend | null {
+  const personSales = sales.filter((r) => r.영업담당자 === personId);
+  const personOrders = orders.filter((r) => r.영업담당자 === personId);
+  const personCollections = collections.filter((r) => r.담당자 === personId);
+
+  if (personSales.length === 0 && personOrders.length === 0) return null;
+
+  // 월별 집계
+  const monthMap = new Map<string, { sales: number; orders: number; collections: number }>();
+
+  for (const r of personSales) {
+    const m = extractMonth(r.매출일);
+    if (!m) continue;
+    const entry = monthMap.get(m) || { sales: 0, orders: 0, collections: 0 };
+    entry.sales += r.장부금액;
+    monthMap.set(m, entry);
+  }
+  for (const r of personOrders) {
+    const m = extractMonth(r.수주일);
+    if (!m) continue;
+    const entry = monthMap.get(m) || { sales: 0, orders: 0, collections: 0 };
+    entry.orders += r.장부금액;
+    monthMap.set(m, entry);
+  }
+  for (const r of personCollections) {
+    const m = extractMonth(r.수금일);
+    if (!m) continue;
+    const entry = monthMap.get(m) || { sales: 0, orders: 0, collections: 0 };
+    entry.collections += r.장부수금액;
+    monthMap.set(m, entry);
+  }
+
+  const monthlyData = Array.from(monthMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, data]) => ({ month, ...data }));
+
+  if (monthlyData.length === 0) return null;
+
+  const totalSales = monthlyData.reduce((s, d) => s + d.sales, 0);
+  const totalOrders = monthlyData.reduce((s, d) => s + d.orders, 0);
+  const totalCollections = monthlyData.reduce((s, d) => s + d.collections, 0);
+  const n = monthlyData.length;
+
+  // MoM 성장률 (최근 2개월 비교)
+  let salesMoM = 0;
+  if (n >= 2) {
+    const last = monthlyData[n - 1].sales;
+    const prev = monthlyData[n - 2].sales;
+    salesMoM = prev > 0 ? ((last - prev) / prev) * 100 : 0;
+  }
+
+  // 모멘텀: 최근 3개월 이동평균 추세
+  let momentum: "accelerating" | "stable" | "decelerating" = "stable";
+  if (n >= 3) {
+    const last3 = monthlyData.slice(-3).map((d) => d.sales);
+    const trend = last3[2] - last3[0];
+    const avgSales = totalSales / n;
+    if (avgSales > 0) {
+      const trendRate = trend / avgSales;
+      if (trendRate > 0.1) momentum = "accelerating";
+      else if (trendRate < -0.1) momentum = "decelerating";
+    }
+  }
+
+  const name = personSales[0]?.영업담당자명 || personId;
+
+  return {
+    personId,
+    name,
+    monthlyData,
+    avgMonthlySales: totalSales / n,
+    avgMonthlyOrders: totalOrders / n,
+    avgMonthlyCollections: totalCollections / n,
+    salesMoM,
+    momentum,
+  };
+}
+
+// ─── Tab 5: 제품 포트폴리오 분석 ────────────────────────────────────────────
+
+export interface ProductPortfolioItem {
+  product: string;
+  productName: string;
+  productGroup: string;
+  salesAmount: number;
+  grossProfit: number;
+  grossMarginRate: number;
+  sharePercent: number;
+}
+
+export interface RepProductPortfolio {
+  personId: string;
+  productMix: ProductPortfolioItem[];
+  topProducts: ProductPortfolioItem[];
+  productConcentrationHHI: number;
+  avgMarginByProduct: number;
+  totalProducts: number;
+  totalProductGroups: number;
+}
+
+/**
+ * 담당자별 제품 포트폴리오 분석
+ * customerItemDetail의 영업담당사번으로 필터링
+ */
+export function calcRepProductPortfolio(
+  customerItemDetail: CustomerItemDetailRecord[],
+  personId: string
+): RepProductPortfolio | null {
+  const personData = customerItemDetail.filter(
+    (r) => r.영업담당사번 === personId
+  );
+  if (personData.length === 0) return null;
+
+  // 품목별 집계
+  const productMap = new Map<
+    string,
+    { name: string; group: string; sales: number; grossProfit: number }
+  >();
+
+  for (const r of personData) {
+    const key = r.품목 || "기타";
+    const entry = productMap.get(key) || {
+      name: r.품목명 || key,
+      group: r.제품군 || "기타",
+      sales: 0,
+      grossProfit: 0,
+    };
+    entry.sales += r.매출액?.실적 || 0;
+    entry.grossProfit += r.매출총이익?.실적 || 0;
+    productMap.set(key, entry);
+  }
+
+  const totalSales = Array.from(productMap.values()).reduce(
+    (sum, p) => sum + p.sales,
+    0
+  );
+
+  const productMix: ProductPortfolioItem[] = Array.from(productMap.entries())
+    .map(([product, data]) => ({
+      product,
+      productName: data.name,
+      productGroup: data.group,
+      salesAmount: data.sales,
+      grossProfit: data.grossProfit,
+      grossMarginRate: data.sales > 0 ? (data.grossProfit / data.sales) * 100 : 0,
+      sharePercent: totalSales > 0 ? (data.sales / totalSales) * 100 : 0,
+    }))
+    .sort((a, b) => b.salesAmount - a.salesAmount);
+
+  // HHI (품목 집중도)
+  const productHHI = productMix.reduce((sum, p) => {
+    const share = totalSales > 0 ? p.salesAmount / totalSales : 0;
+    return sum + share * share;
+  }, 0);
+
+  // 가중평균 마진
+  const totalGP = productMix.reduce((s, p) => s + p.grossProfit, 0);
+  const avgMargin = totalSales > 0 ? (totalGP / totalSales) * 100 : 0;
+
+  // 제품군 수
+  const productGroups = new Set(productMix.map((p) => p.productGroup));
+
+  return {
+    personId,
+    productMix,
+    topProducts: productMix.slice(0, 10),
+    productConcentrationHHI: productHHI,
+    avgMarginByProduct: avgMargin,
+    totalProducts: productMix.length,
+    totalProductGroups: productGroups.size,
+  };
 }

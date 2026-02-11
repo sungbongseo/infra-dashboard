@@ -24,7 +24,7 @@ export function calcOverviewKpis(
   const collectionRate = totalSales > 0 ? (totalCollection / totalSales) * 100 : 0;
   const totalReceivables = receivableAging && receivableAging.length > 0
     ? receivableAging.reduce((sum, r) => sum + r.합계.장부금액, 0)
-    : totalSales - totalCollection;
+    : Math.max(0, totalSales - totalCollection);
 
   const opSum = orgProfit.reduce((sum, r) => sum + r.영업이익.실적, 0);
   const salesSum = orgProfit.reduce((sum, r) => sum + r.매출액.실적, 0);
@@ -131,8 +131,14 @@ export function calcItemSales(sales: SalesRecord[]) {
 }
 
 export function calcSalesByType(sales: SalesRecord[]) {
-  const domestic = sales.filter(r => r.수주유형 !== "수출" && r.거래통화 === "KRW").reduce((s, r) => s + r.장부금액, 0);
-  const exported = sales.filter(r => r.수주유형 === "수출" || r.거래통화 !== "KRW").reduce((s, r) => s + r.장부금액, 0);
+  const domestic = sales.filter(r => {
+    const currency = (r.거래통화 || "KRW").trim().toUpperCase();
+    return r.수주유형 !== "수출" && currency === "KRW";
+  }).reduce((s, r) => s + r.장부금액, 0);
+  const exported = sales.filter(r => {
+    const currency = (r.거래통화 || "KRW").trim().toUpperCase();
+    return r.수주유형 === "수출" || currency !== "KRW";
+  }).reduce((s, r) => s + r.장부금액, 0);
   return { domestic, exported };
 }
 
@@ -362,11 +368,15 @@ export function calcCollectionEfficiency(
   return (totalCollections / potential) * 100;
 }
 
-// Operating leverage: actual margin / plan margin × 100
+// Operating leverage: weighted actual margin / weighted plan margin × 100
 export function calcOperatingLeverage(orgProfit: OrgProfitRecord[]): number {
   if (orgProfit.length === 0) return 0;
-  const actualMargin = orgProfit.reduce((s, r) => s + r.영업이익율.실적, 0) / orgProfit.length;
-  const planMargin = orgProfit.reduce((s, r) => s + r.영업이익율.계획, 0) / orgProfit.length;
+  const totalActualSales = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
+  const totalPlanSales = orgProfit.reduce((s, r) => s + r.매출액.계획, 0);
+  const totalActualProfit = orgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
+  const totalPlanProfit = orgProfit.reduce((s, r) => s + r.영업이익.계획, 0);
+  const actualMargin = totalActualSales > 0 ? (totalActualProfit / totalActualSales) * 100 : 0;
+  const planMargin = totalPlanSales > 0 ? (totalPlanProfit / totalPlanSales) * 100 : 0;
   if (planMargin === 0) return 0;
   return (actualMargin / planMargin) * 100;
 }

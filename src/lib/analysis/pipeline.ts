@@ -41,7 +41,7 @@ export function calcO2CPipeline(
   const totalSales = sales.reduce((s, r) => s + r.장부금액, 0);
   const grossCollections = collections.reduce((s, c) => s + c.장부수금액, 0);
   const prepaymentAmount = collections.reduce((s, c) => s + c.장부선수금액, 0);
-  const netCollections = grossCollections - prepaymentAmount;
+  const netCollections = Math.max(0, grossCollections - prepaymentAmount);
   const outstanding = Math.max(0, totalSales - netCollections);
 
   const stages: O2CStage[] = [

@@ -16,7 +16,7 @@ export interface DSOMetric {
  * 미수채권 회수에 걸리는 평균 일수
  */
 export function calcDSO(receivablesTotal: number, avgMonthlySales: number): number {
-  if (avgMonthlySales <= 0) return 0;
+  if (avgMonthlySales <= 0) return receivablesTotal > 0 ? Infinity : 0;
   return Math.round((receivablesTotal / avgMonthlySales) * 30);
 }
 
@@ -28,10 +28,10 @@ export function calcDSO(receivablesTotal: number, avgMonthlySales: number): numb
  * > 60일: poor (주의)
  */
 export function classifyDSO(dso: number): DSOClassification {
+  if (!isFinite(dso) || dso > 60) return "poor";
   if (dso < 30) return "excellent";
   if (dso <= 45) return "good";
-  if (dso <= 60) return "fair";
-  return "poor";
+  return "fair";
 }
 
 /**
@@ -89,6 +89,8 @@ export function calcDSOByOrg(
 
     // 미수금이 0이고 매출도 0이면 의미 없으므로 제외
     if (totalReceivables === 0 && avgMonthlySales === 0) continue;
+    // 매출 없이 미수금만 있는 경우 DSO 산출 불가 → 제외
+    if (!isFinite(dso)) continue;
 
     results.push({
       org,

@@ -223,7 +223,7 @@ export default function OrdersAnalysisPage() {
               value={conversionRate}
               format="percent"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="총 매출액 나누기 총 수주액, 곱하기 100"
+              formula="수주→매출 전환율(%) = 총 매출액 ÷ 총 수주액 × 100"
               description="수주한 금액 중 실제로 매출(출고/납품)로 전환된 비율입니다. 100%를 초과하면 이전 기간에 수주했던 물량이 금기에 매출로 반영된 것을 의미합니다."
               benchmark="80~120% 범위가 정상적인 수준입니다"
             />
@@ -232,7 +232,7 @@ export default function OrdersAnalysisPage() {
               value={outstandingOrders > 0 ? outstandingOrders : 0}
               format="currency"
               icon={<Package className="h-5 w-5" />}
-              formula="총 수주액 빼기 총 매출액"
+              formula="미출고 수주잔(원) = 총 수주액 − 총 매출액"
               description="고객이 주문했지만 아직 출고(납품)되지 않은 금액입니다. 이 금액이 크면 향후 매출로 전환될 여지가 많다는 뜻이지만, 납기 관리에 주의가 필요합니다."
             />
             <KpiCard
@@ -299,7 +299,7 @@ export default function OrdersAnalysisPage() {
 
           <ChartCard
             title="납품 리드타임 분포"
-            formula="납품요청일 빼기 수주일 = 리드타임(일수)"
+            formula="리드타임(일) = 납품요청일 − 수주일"
             description="주문을 받은 날부터 납품을 요청받은 날까지 며칠이 걸리는지 구간별로 보여줍니다. 리드타임이 짧은 건이 많으면 긴급 납품 부담이 크고, 긴 건이 많으면 장기 프로젝트 비중이 높다는 뜻입니다."
             benchmark="30일 이내가 일반적인 납품 기간이며, 90일 이상은 장기 프로젝트로 분류됩니다"
           >
@@ -349,7 +349,7 @@ export default function OrdersAnalysisPage() {
 
           <ChartCard
             title="월별 수주 vs 매출 전환 갭"
-            formula="갭 = 수주금액 빼기 매출금액\n양수이면 수주잔고가 쌓이는 중, 음수이면 과거 수주를 소진하는 중"
+            formula="갭(원) = 수주금액 − 매출금액\n양수이면 수주잔고가 쌓이는 중, 음수이면 과거 수주를 소진하는 중"
             description="매월 수주금액과 매출금액의 차이를 비교합니다. 갭이 양수이면 주문이 매출보다 많아 수주잔고가 늘어나는 것이고, 음수이면 과거에 받은 주문을 납품하며 잔고를 줄이고 있다는 뜻입니다."
             benchmark="갭이 꾸준히 양수이면 매출 파이프라인이 건전한 상태입니다"
           >
@@ -400,7 +400,7 @@ export default function OrdersAnalysisPage() {
               value={orderToSalesRate}
               format="percent"
               icon={<ArrowRightLeft className="h-5 w-5" />}
-              formula="총 매출액 나누기 총 수주액, 곱하기 100"
+              formula="수주→매출 전환율(%) = 총 매출액 ÷ 총 수주액 × 100"
               description="수주한 금액이 실제 매출(출고/납품)로 얼마나 전환되었는지 보여줍니다. 100%를 초과하면 이전 기간 수주분이 금기 매출로 반영된 것입니다."
               benchmark="80~120%가 정상 범위이며, 이 범위를 벗어나면 수주-매출 시차를 점검해야 합니다"
             />
@@ -409,7 +409,7 @@ export default function OrdersAnalysisPage() {
               value={salesToCollectionRate}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="(총 수금액 빼기 선수금) 나누기 총 매출액, 곱하기 100"
+              formula="순수 수금율(%) = (총 수금액 − 선수금) ÷ 총 매출액 × 100"
               description={`발생한 매출 중 실제 매출 대금으로 수금된 비율입니다 (선수금 ${formatCurrency(pipelineResult.prepaymentAmount)} 제외). 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리합니다.`}
               benchmark="90% 이상이면 양호, 80% 미만이면 수금 활동을 강화해야 합니다"
             />
@@ -418,7 +418,7 @@ export default function OrdersAnalysisPage() {
               value={outstandingAmount}
               format="currency"
               icon={<AlertCircle className="h-5 w-5" />}
-              formula="총 매출액 빼기 순수 수금액 (선수금 제외, 0 미만이면 0으로 처리)"
+              formula="미수잔액(원) = 총 매출액 − 순수 수금액 (선수금 제외, 0 미만이면 0)"
               description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다."
               benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
             />
@@ -488,7 +488,7 @@ export default function OrdersAnalysisPage() {
 
           <ChartCard
             title="월별 O2C(주문-수금) 전환 추이"
-            formula="전환율 = 매출 나누기 수주, 곱하기 100\n수금율 = 수금 나누기 매출, 곱하기 100"
+            formula="전환율(%) = 매출 ÷ 수주 × 100\n수금율(%) = 수금 ÷ 매출 × 100"
             description="매월 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 보여줍니다. 두 비율이 안정적으로 높게 유지되면 주문에서 수금까지의 흐름이 건전하다는 의미입니다."
             benchmark="전환율과 수금율 모두 80% 이상으로 안정 유지되면 양호합니다"
           >

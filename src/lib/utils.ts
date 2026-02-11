@@ -7,6 +7,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number, compact = false): string {
+  if (!isFinite(value)) return "-";
   if (compact) {
     if (Math.abs(value) >= 1e8) {
       return `${(value / 1e8).toFixed(1)}억`;
@@ -19,6 +20,7 @@ export function formatCurrency(value: number, compact = false): string {
 }
 
 export function formatPercent(value: number, decimals = 1): string {
+  if (!isFinite(value)) return "-";
   return `${value.toFixed(decimals)}%`;
 }
 

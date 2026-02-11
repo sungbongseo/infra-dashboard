@@ -356,19 +356,19 @@ export default function ReceivablesPage() {
               benchmark="매출액 대비 15% 이내이면 양호한 수준입니다"
             />
             <KpiCard
-              title="3개월 이상 연체"
+              title="90일 이상 연체"
               value={overdueTotal}
               format="currency"
               icon={<AlertTriangle className="h-5 w-5" />}
-              formula="4개월 + 5개월 + 6개월 + 6개월 초과 미수금의 합계"
-              description="4개월 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
+              formula="90일 이상 연체액(원) = 4개월차 + 5개월차 + 6개월차 + 6개월 초과 미수금의 합계"
+              description="90일(3개월) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
               benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
             />
             <KpiCard
               title="연체비율"
               value={overdueRate}
               format="percent"
-              formula="3개월 이상 미수금 나누기 총 미수금, 곱하기 100"
+              formula="연체비율(%) = 3개월 이상 미수금 ÷ 총 미수금 × 100"
               description="전체 미수금 중에서 3개월 이상 오래된 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
               benchmark="20% 미만이면 양호, 30% 이상이면 위험 수준입니다"
             />
@@ -503,7 +503,7 @@ export default function ReceivablesPage() {
               value={creditAvgRate}
               format="percent"
               icon={<Gauge className="h-5 w-5" />}
-              formula="총 사용액 나누기 총 여신한도, 곱하기 100"
+              formula="평균 사용률(%) = 총 사용액 ÷ 총 여신한도 × 100"
               description="전체 여신한도 대비 실제 사용 비율입니다. 이 비율이 높으면 여신 여력이 부족하여 신규 외상 거래에 제약이 생길 수 있습니다."
               benchmark="70% 미만이면 양호, 80% 이상이면 주의, 100% 이상이면 위험입니다"
             />
@@ -520,7 +520,7 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="조직별 여신 사용률"
-            formula="조직별 미수금 합계 나누기 여신한도 합계, 곱하기 100\n빨간 점선 = 100% 한도 기준선"
+            formula="조직별 여신 사용률(%) = 조직별 미수금 합계 ÷ 여신한도 합계 × 100\n빨간 점선 = 100% 한도 기준선"
             description="각 조직이 여신한도를 얼마나 사용하고 있는지 보여줍니다. 100%를 넘으면 한도 초과이며, 빨간 점선이 100% 기준입니다."
             benchmark="80% 미만이면 양호(녹색), 80~100%이면 주의(노란색), 100% 이상이면 위험(빨간색)입니다"
           >
@@ -557,7 +557,7 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="거래처별 여신 사용률"
-            formula="거래처별 미수금 나누기 여신한도, 곱하기 100\n사용률이 높은 순서대로 정렬"
+            formula="거래처별 여신 사용률(%) = 미수금 ÷ 여신한도 × 100\n사용률이 높은 순서대로 정렬"
             description="거래처별로 여신한도를 얼마나 사용하고 있는지 상세 목록입니다. 빨간색(한도초과)과 노란색(주의) 거래처를 우선 관리해야 합니다."
             benchmark="사용률 80% 미만이면 양호, 100% 이상 한도초과 거래처는 즉시 조치가 필요합니다"
             action={<ExportButton data={creditExportData} fileName="여신사용률" />}
@@ -606,7 +606,7 @@ export default function ReceivablesPage() {
               value={overallDSO}
               format="number"
               icon={<Clock className="h-5 w-5" />}
-              formula="총 미수금 나누기 월평균 매출액, 곱하기 30일"
+              formula="DSO(일) = 총 미수금 ÷ 월평균 매출액 × 30"
               description="DSO(매출채권 회수기간)는 매출이 발생한 뒤 현금으로 회수되기까지 걸리는 평균 일수입니다. 이 숫자가 작을수록 현금 회수가 빠르다는 뜻입니다."
               benchmark="건자재/인프라 업종 평균은 45~60일입니다. 30일 미만이면 우수, 60일 초과이면 주의가 필요합니다"
             />
@@ -655,7 +655,7 @@ export default function ReceivablesPage() {
 
           <ChartCard
             title="조직별 DSO(매출채권 회수기간)"
-            formula="DSO = 조직별 미수금 합계 나누기 월평균 매출, 곱하기 30일\n색상 기준: 녹색(우수, 30일 미만), 파랑(양호, 30~45일), 노랑(보통, 45~60일), 빨강(주의, 60일 초과)"
+            formula="DSO(일) = 조직별 미수금 합계 ÷ 월평균 매출 × 30\n색상: 녹색(우수, <30일), 파랑(양호, 30~45일), 노랑(보통, 45~60일), 빨강(주의, >60일)"
             description="각 조직이 매출채권을 회수하는 데 평균 며칠이 걸리는지 보여줍니다. DSO(매출채권 회수기간)가 짧을수록 현금 회수가 빠르며 자금 관리가 효율적입니다."
             benchmark="건자재/인프라 업종 평균 DSO는 45일입니다. 30일 미만이면 최상위 수준입니다"
           >
@@ -729,7 +729,7 @@ export default function ReceivablesPage() {
               value={prepaymentSummary.prepaymentToSalesRatio}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
-              formula="총 선수금 나누기 총 매출액, 곱하기 100"
+              formula="매출 대비 비중(%) = 총 선수금 ÷ 총 매출액 × 100"
               description="매출액 대비 선수금이 차지하는 비율입니다. 이 비율이 높으면 아직 이행하지 않은 의무가 많다는 의미이며, 납품 일정 관리가 중요합니다."
               benchmark="10% 미만이면 양호, 20% 이상이면 이행 리스크를 점검해야 합니다"
             />

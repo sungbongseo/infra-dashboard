@@ -110,11 +110,16 @@ export default function OverviewPage() {
     return calcOverallDSO(flattenedAging, filteredSales);
   }, [flattenedAging, filteredSales]);
 
+  const filteredTeamContrib = useMemo(
+    () => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"),
+    [teamContribution, effectiveOrgNames]
+  );
+
   const overallCcc = useMemo(() => {
     if (overallDso === undefined) return undefined;
-    const dpo = estimateDPO(teamContribution);
+    const dpo = estimateDPO(filteredTeamContrib);
     return overallDso - dpo;
-  }, [overallDso, teamContribution]);
+  }, [overallDso, filteredTeamContrib]);
 
   const insights = useMemo(
     () =>
@@ -276,7 +281,7 @@ export default function OverviewPage() {
               previousValue={compKpis ? (compKpis.totalOrders - compKpis.totalSales > 0 ? compKpis.totalOrders - compKpis.totalSales : 0) : undefined}
               format="currency"
               icon={<Package className="h-5 w-5" />}
-              formula="총 수주액에서 총 매출액을 뺀 금액"
+              formula="수주잔고 = 총 수주액 − 총 매출액"
               description="계약은 체결되었지만 아직 매출로 잡히지 않은 남은 금액입니다. 이 금액이 클수록 앞으로 매출로 전환될 파이프라인이 풍부하다는 의미입니다."
               benchmark="매출 대비 50% 이상이면 양호한 파이프라인 보유"
             />
@@ -287,7 +292,7 @@ export default function OverviewPage() {
               sparklineData={sparklines.collections}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="총 수금액 나누기 총 매출액 곱하기 100"
+              formula="수금율(%) = 총 수금액 ÷ 총 매출액 × 100"
               description={collectionRateDetail.totalCollectionRate > 100
                 ? "100%를 넘는 경우는 이전 기간에 발생한 미수금을 이번 기간에 수금했거나, 선수금(미리 받은 돈)이 포함된 경우입니다."
                 : "매출 중 실제로 현금이 회수된 비율입니다. 선수금(미리 받은 돈)도 포함됩니다. 이 비율이 높을수록 현금흐름이 건강합니다."
@@ -299,7 +304,7 @@ export default function OverviewPage() {
               value={collectionRateDetail.netCollectionRate}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="(총 수금액 빼기 선수금) 나누기 총 매출액 곱하기 100"
+              formula="순수 수금율(%) = (총 수금액 − 선수금) ÷ 총 매출액 × 100"
               description={`선수금(미리 받은 돈) ${formatCurrency(collectionRateDetail.prepaymentAmount)}을 제외한 순수 수금율입니다. 실제 매출에 대한 현금 회수 성과를 더 정확하게 보여줍니다.`}
               benchmark="총 수금율보다 낮은 것이 정상이며, 차이가 클수록 선수금 비중이 높음"
             />
@@ -312,10 +317,10 @@ export default function OverviewPage() {
               previousValue={compKpis?.totalReceivables}
               format="currency"
               icon={<CreditCard className="h-5 w-5" />}
-              formula={flattenedAging.length > 0 ? "미수금 에이징의 모든 장부금액을 합산" : "총 매출액에서 총 수금액을 뺀 금액"}
+              formula={flattenedAging.length > 0 ? "미수금 합계 = 미수금 에이징의 모든 장부금액 합산" : "미수금 합계(추정) = 총 매출액 − 총 수금액"}
               description={flattenedAging.length > 0
                 ? "업로드된 미수금 에이징 데이터를 기반으로 정확하게 산출한 값입니다. 아직 받지 못한 대금이 얼마인지 보여줍니다."
-                : "미수금 에이징 파일이 없어서 매출에서 수금을 뺀 추정치입니다. 정확한 값을 위해 에이징 파일을 업로드해 주세요."
+                : "미수금 에이징 파일이 없어서 매출에서 수금을 차감한 추정치입니다. 정확한 값을 위해 에이징 파일을 업로드해 주세요."
               }
               benchmark="미수금이 월 매출의 2배를 넘으면 현금흐름 위험 신호"
             />
@@ -325,8 +330,8 @@ export default function OverviewPage() {
               previousValue={compKpis?.operatingProfitRate}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
-              formula="영업이익 나누기 매출액 곱하기 100"
-              description="매출에서 원가, 인건비, 판매관리비 등 모든 영업비용을 뺀 뒤 남는 이익의 비율입니다. 본업의 수익성을 가장 잘 보여주는 지표입니다."
+              formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
+              description="영업이익율은 매출에서 제품 원가, 직원 인건비, 판매/관리에 드는 비용을 모두 제외한 뒤 남은 금액의 비율입니다. 이 수치가 높을수록 본업에서 효율적으로 돈을 벌고 있다는 뜻입니다."
               benchmark="인프라 업종 평균 약 7~8%. 10% 이상이면 양호, 5% 미만이면 비용 구조 점검 필요"
             />
             <KpiCard
@@ -335,7 +340,7 @@ export default function OverviewPage() {
               previousValue={compKpis?.salesPlanAchievement}
               format="percent"
               icon={<Target className="h-5 w-5" />}
-              formula="매출 실적 나누기 매출 계획 곱하기 100"
+              formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100"
               description="연초에 세운 매출 목표 대비 실제 달성한 비율입니다. 영업 조직의 목표 달성 능력을 평가하는 핵심 관리지표입니다."
               benchmark="100%가 목표. 90% 이상이면 양호, 80% 미만이면 원인 분석 필요"
             />
@@ -357,7 +362,7 @@ export default function OverviewPage() {
               value={forecastAccuracy}
               format="percent"
               icon={<Target className="h-5 w-5" />}
-              formula="100 빼기 (실적과 계획의 차이 나누기 계획 곱하기 100)"
+              formula="예측 정확도(%) = 100 − |실적 − 계획| ÷ 계획 × 100"
               description="매출 계획과 실적이 얼마나 가까운지를 보여줍니다. 100%에 가까울수록 예측이 정확했다는 뜻이며, 낮을수록 계획과 실적의 괴리가 크다는 의미입니다."
               benchmark="90% 이상이면 우수한 예측력, 70% 미만이면 계획 수립 프로세스 개선 필요"
             />
@@ -366,7 +371,7 @@ export default function OverviewPage() {
               value={collectionEfficiency}
               format="percent"
               icon={<Wallet className="h-5 w-5" />}
-              formula="수금액 나누기 (기초미수금 더하기 매출액) 곱하기 100"
+              formula="수금 효율성(%) = 수금액 ÷ (기말미수금 + 매출액) × 100"
               description="기간 초에 남아있던 미수금과 새로 발생한 매출을 합친 총 채권 금액 중에서 실제로 수금한 비율입니다. 수금율(총)과 달리 이전 미수금도 고려하므로 더 정확한 수금 능력을 보여줍니다."
               benchmark="80% 이상이면 양호한 수금 관리 수준"
             />
@@ -375,7 +380,7 @@ export default function OverviewPage() {
               value={operatingLeverage}
               format="percent"
               icon={<Gauge className="h-5 w-5" />}
-              formula="실적 영업이익율 나누기 계획 영업이익율 곱하기 100"
+              formula="영업레버리지(%) = 실적 영업이익율 ÷ 계획 영업이익율 × 100"
               description="계획했던 영업이익율 대비 실제 달성한 영업이익율의 비율입니다. 100%를 넘으면 계획보다 수익성이 좋다는 뜻이고, 미만이면 비용이 예상보다 많이 들었다는 신호입니다."
               benchmark="100% 이상이면 계획 초과 달성, 80% 미만이면 비용 관리 점검 필요"
             />
@@ -384,8 +389,8 @@ export default function OverviewPage() {
               value={contributionMarginRate}
               format="percent"
               icon={<PieChart className="h-5 w-5" />}
-              formula="공헌이익 나누기 매출액 곱하기 100"
-              description="매출에서 재료비, 외주비 등 변동비(물건을 만들수록 늘어나는 비용)를 뺀 금액의 비율입니다. 이 돈으로 임대료, 인건비 등 고정비를 충당하고 남으면 이익이 됩니다."
+              formula="공헌이익율(%) = 공헌이익 ÷ 매출액 × 100"
+              description="매출에서 재료비, 외주비 등 변동비(물건을 만들수록 늘어나는 비용)를 차감한 금액의 비율입니다. 이 돈으로 임대료, 인건비 등 고정비를 충당하고 남으면 이익이 됩니다. 높을수록 고정비 부담 능력이 우수합니다."
               benchmark="30% 이상이면 건전한 수익 구조, 20% 미만이면 원가 절감 필요"
             />
             <KpiCard
@@ -393,8 +398,8 @@ export default function OverviewPage() {
               value={grossProfitMargin}
               format="percent"
               icon={<BarChart3 className="h-5 w-5" />}
-              formula="매출총이익 나누기 매출액 곱하기 100"
-              description="매출에서 직접적인 제조원가(재료비, 노무비, 경비)만 뺀 이익의 비율입니다. 제품 자체의 수익성을 보여주며, 판매관리비를 빼기 전 단계의 마진입니다."
+              formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
+              description="매출에서 직접적인 제조원가(재료비, 노무비, 경비)만 차감한 이익의 비율입니다. 제품 자체의 수익성을 보여주며, 판매관리비를 차감하기 전 단계의 마진입니다. 높을수록 제품의 원가 경쟁력이 우수합니다."
               benchmark="인프라 업종 기준 20% 이상이면 양호, 15% 미만이면 원가 경쟁력 저하"
             />
           </div>
@@ -498,7 +503,7 @@ export default function OverviewPage() {
             <ChartCard
               title="조직별 계획 대비 실적"
               description="각 조직의 매출 목표(계획)와 실제 달성(실적)을 나란히 비교합니다. 실적 막대가 계획 막대보다 높으면 목표 초과 달성, 낮으면 미달입니다. 조직별 성과 차이를 직관적으로 파악할 수 있습니다."
-              formula="달성율: 실적 나누기 계획 곱하기 100"
+              formula="달성율(%) = 실적 ÷ 계획 × 100"
             >
               <div className="h-56 md:h-72">
                 <ResponsiveContainer width="100%" height="100%">

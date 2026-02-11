@@ -655,7 +655,7 @@ export default function ProfitabilityPage() {
               title="매출총이익율"
               value={gpRate}
               format="percent"
-              formula="매출총이익율 = 매출총이익 나누기 매출액 곱하기 100"
+              formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
               description="매출 100원당 원가를 빼고 남는 이익의 비율입니다. 이 비율이 높을수록 원가 관리를 잘하고 있다는 의미이며, 가격 경쟁력과 원가 효율성을 동시에 보여줍니다."
               benchmark="제조업 평균 20~30%, 30% 이상이면 원가 경쟁력 양호"
             />
@@ -663,7 +663,7 @@ export default function ProfitabilityPage() {
               title="영업이익율"
               value={opRate}
               format="percent"
-              formula="영업이익율 = 영업이익 나누기 매출액 곱하기 100"
+              formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
               description="매출에서 원가와 판매관리비(인건비, 임차료 등)까지 모두 뺀 후 남는 이익의 비율입니다. 회사의 본업(영업활동)이 실제로 얼마나 돈을 버는지 보여주는 핵심 수익성 지표입니다."
               benchmark="제조업 평균 5~10%, 10% 이상이면 양호한 수익 구조"
             />
@@ -836,7 +836,7 @@ export default function ProfitabilityPage() {
 
             <ChartCard
               title="조직별 공헌이익 비중"
-              formula="비중 = 해당 조직의 공헌이익 나누기 전체 공헌이익 곱하기 100"
+              formula="비중(%) = 해당 조직의 공헌이익 ÷ 전체 공헌이익 × 100"
               description="전체 공헌이익 중 각 조직이 차지하는 비율을 원형 차트로 보여줍니다. 한 조직에 지나치게 편중되면 해당 조직 실적 부진 시 전체 수익에 큰 타격을 받으므로, 적절한 분산이 중요합니다."
               benchmark="특정 조직 비중이 50%를 넘으면 수익 집중 리스크를 검토해야 합니다"
             >
@@ -875,7 +875,7 @@ export default function ProfitabilityPage() {
 
           <ChartCard
             title="담당자별 공헌이익율"
-            formula="공헌이익율 = 공헌이익 나누기 매출액 곱하기 100"
+            formula="공헌이익율(%) = 공헌이익 ÷ 매출액 × 100"
             description="각 담당자의 매출 100원당 변동비를 빼고 남는 이익 비율입니다. 공헌이익율이 높을수록 적은 매출로도 고정비 회수에 크게 기여하며, 변동비 관리를 효율적으로 하고 있다는 의미입니다."
             benchmark="공헌이익율 20% 이상이면 양호, 음수인 경우 매출보다 변동비가 더 큰 적자 상태"
           >
@@ -995,7 +995,7 @@ export default function ProfitabilityPage() {
           {/* Cost Efficiency Table */}
           <ChartCard
             title="비용 효율성 비교"
-            formula="비용 비율 = 해당 비용 나누기 매출액 곱하기 100"
+            formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100"
             description="각 담당자의 원재료비율, 상품매입비율, 외주비율을 소속 조직의 평균값과 나란히 비교하는 표입니다. 조직 평균보다 크게 높은 항목(빨간색 표시)은 비용 절감이 필요한 영역이며, 원인 분석과 개선 조치가 필요합니다."
             benchmark="조직 평균 대비 5%p(퍼센트포인트) 이상 높으면 주의가 필요합니다"
           >
@@ -1118,7 +1118,7 @@ export default function ProfitabilityPage() {
             {/* Heatmap */}
             <ChartCard
               title="계획 대비 실적 히트맵"
-              formula="달성률 = 실적 나누기 계획 곱하기 100"
+              formula="달성률(%) = 실적 ÷ 계획 × 100"
               description="각 조직의 매출, 이익 등 주요 손익 항목이 연초 계획 대비 몇 % 달성했는지를 색상으로 한눈에 보여줍니다. 수익 항목(매출, 이익)은 달성률이 높을수록 녹색, 비용 항목(원가, 판관비)은 달성률이 낮을수록(예산 절감) 녹색으로 표시됩니다."
               benchmark="수익항목: 녹색 100% 이상 달성, 노랑 80~100%, 빨강 80% 미만 | 비용항목: 색상이 반대(낮을수록 좋음)"
             >
@@ -1226,7 +1226,7 @@ export default function ProfitabilityPage() {
                   title="가중평균 매출총이익율"
                   value={productWeightedGPRate}
                   format="percent"
-                  formula="가중평균 = 전체 매출총이익 합계 나누기 전체 매출액 합계 곱하기 100"
+                  formula="가중평균 매출총이익율(%) = 전체 매출총이익 합계 ÷ 전체 매출액 합계 × 100"
                   description="매출 규모가 큰 품목의 이익율이 더 많이 반영된 평균 이익율입니다. 단순 평균보다 실제 수익 구조를 더 정확하게 보여줍니다."
                   benchmark="제조업 평균 20~30%, 30% 이상이면 양호한 제품 포트폴리오"
                 />
@@ -1283,7 +1283,7 @@ export default function ProfitabilityPage() {
 
               <ChartCard
                 title="제품 포트폴리오 (매출 비중)"
-                formula="매출 비중 = 각 품목 매출액 나누기 전체 매출액 곱하기 100"
+                formula="매출 비중(%) = 각 품목 매출액 ÷ 전체 매출액 × 100"
                 description="전체 매출에서 각 품목이 차지하는 비중을 원형 차트로 보여줍니다. 상위 10개 품목을 표시하며, 나머지는 '기타'로 묶습니다. 특정 품목 의존도가 너무 높으면 리스크가 크므로, 매출 포트폴리오를 다양화하는 것이 안정적입니다."
                 benchmark="단일 품목 비중이 30% 이상이면 집중도가 높아 리스크 관리 필요"
               >
@@ -1380,7 +1380,7 @@ export default function ProfitabilityPage() {
 
               <ChartCard
                 title="거래처별 수익성 분석"
-                formula="매출총이익율 = 매출총이익 나누기 매출액 곱하기 100"
+                formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
                 description="각 거래처(고객사)별로 매출액, 매출총이익, 영업이익과 각각의 이익율, 취급 품목 수를 표로 정리합니다. 매출은 크지만 이익율이 낮은 거래처는 거래 조건 재협상이 필요하며, 이익율이 높은 거래처는 관계를 강화해야 합니다."
                 benchmark="매출총이익율 30% 이상 양호, 영업이익율 10% 이상 양호. 음수 이익율은 거래 손실 발생 중"
               >
@@ -1870,7 +1870,7 @@ export default function ProfitabilityPage() {
           {/* BEP KPI Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <KpiCard title="손익분기점(BEP) 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="BEP 매출 = 고정비 ÷ (1 - 변동비율)" description="손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다." benchmark="실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다" />
-            <KpiCard title="안전한계율" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + (isFinite(r.safetyMarginRate) ? r.safetyMarginRate : 0), 0) / orgBreakeven.length : 0} format="percent" formula="안전한계율 = (실적매출 - BEP매출) ÷ 실적매출 × 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
+            <KpiCard title="안전한계율" value={(() => { const finite = orgBreakeven.filter(r => isFinite(r.safetyMarginRate)); return finite.length > 0 ? finite.reduce((s, r) => s + r.safetyMarginRate, 0) / finite.length : 0; })()} format="percent" formula="안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
             <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="공헌이익률 = (매출 - 변동비) ÷ 매출 × 100" description="매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다." benchmark="공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다" />
             <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" description={`손익분기점(BEP) 분석이 가능한 조직 수입니다. 데이터 소스: ${bepFromTeam ? "팀원별 공헌이익(401)" : "조직별 손익(303)"}`} />
           </div>
@@ -1896,7 +1896,7 @@ export default function ProfitabilityPage() {
           )}
 
           {/* Org-level BEP comparison */}
-          <ChartCard title="조직별 손익분기점 비교" formula="안전한계율 = (실적매출 - BEP매출) 나누기 실적매출 곱하기 100" description="각 조직의 안전한계율을 수평 막대로 비교합니다. 안전한계율이 높을수록(녹색 영역) 매출이 줄어도 이익을 유지할 수 있어 안정적입니다. 빨간색 기준선(0%) 아래이면 현재 적자 상태, 녹색 안전선(20%) 이상이면 안전한 수익 구조입니다." benchmark="안전한계율 20% 이상(녹색 기준선): 안전, 0~20%: 주의, 0% 미만: 적자 상태">
+          <ChartCard title="조직별 손익분기점 비교" formula="안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100" description="각 조직의 안전한계율을 수평 막대로 비교합니다. 안전한계율이 높을수록(녹색 영역) 매출이 줄어도 이익을 유지할 수 있어 안정적입니다. 빨간색 기준선(0%) 아래이면 현재 적자 상태, 녹색 안전선(20%) 이상이면 안전한 수익 구조입니다." benchmark="안전한계율 20% 이상(녹색 기준선): 안전, 0~20%: 주의, 0% 미만: 적자 상태">
             <div className="h-64 md:h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
@@ -1948,9 +1948,9 @@ export default function ProfitabilityPage() {
 
           {/* Scenario KPIs */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" formula="시나리오 매출 = 기준 매출 곱하기 (1 + 매출 변동률)" description="위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다." />
+            <KpiCard title="시나리오 매출" value={scenarioSummary.scenarioTotalSales} previousValue={scenarioSummary.baseTotalSales} format="currency" formula="시나리오 매출 = 기준 매출 × (1 + 매출 변동률)" description="위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다." />
             <KpiCard title="시나리오 영업이익" value={scenarioSummary.scenarioTotalOperatingProfit} previousValue={scenarioSummary.baseTotalOperatingProfit} format="currency" formula="시나리오 영업이익 = 시나리오 매출 - 시나리오 원가 - 시나리오 판관비" description="매출, 원가율, 판관비를 모두 변동시켰을 때의 예상 영업이익입니다. 기준 대비 얼마나 이익이 늘거나 줄어드는지 보여줍니다." />
-            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" formula="시나리오 영업이익율 = 시나리오 영업이익 나누기 시나리오 매출 곱하기 100" description="시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다." />
+            <KpiCard title="시나리오 영업이익율" value={scenarioSummary.scenarioAvgMargin} previousValue={scenarioSummary.baseAvgMargin} format="percent" formula="시나리오 영업이익율(%) = 시나리오 영업이익 ÷ 시나리오 매출 × 100" description="시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다." />
             <KpiCard title="분석 조직 수" value={scenarioResults.length} format="number" description="시나리오 분석 대상이 되는 조직의 수입니다." />
           </div>
 

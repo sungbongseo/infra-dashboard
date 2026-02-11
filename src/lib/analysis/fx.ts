@@ -181,22 +181,34 @@ export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
     }
   }
 
-  // 통화별 전체 가중평균 환율 산출
+  // 통화별 가중평균 환율 산출
+  const avgRates = new Map<string, number>();
+  for (const [currency, data] of Array.from(map.entries())) {
+    avgRates.set(
+      currency,
+      data.transactionAmount !== 0
+        ? data.bookAmount / data.transactionAmount
+        : 0
+    );
+  }
+
+  // 거래별 FX 손익 누적 (개별 환율과 가중평균 환율의 차이)
+  const fxGainByCurrency = new Map<string, number>();
+  for (const row of foreignSales) {
+    const currency = (row.거래통화 || "").trim().toUpperCase();
+    const txnAmt = row.판매금액 || 0;
+    const bookAmt = row.장부금액 || 0;
+    const overallAvgRate = avgRates.get(currency) || 0;
+    // FX 효과 = 실제 장부금액 - (판매금액 × 전체 가중평균 환율)
+    const fxEffect = bookAmt - txnAmt * overallAvgRate;
+    fxGainByCurrency.set(currency, (fxGainByCurrency.get(currency) || 0) + fxEffect);
+  }
+
   return Array.from(map.entries())
     .map(([currency, data]) => {
-      // 가중평균 환율 = 총 장부금액 / 총 판매금액
-      const avgRate =
-        data.transactionAmount !== 0
-          ? data.bookAmount / data.transactionAmount
-          : 0;
-
-      // 가중평균 환율로 재계산한 예상 금액
+      const avgRate = avgRates.get(currency) || 0;
       const estimatedAtAvgRate = data.transactionAmount * avgRate;
-
-      // FX 손익 = 실제 장부금액 - 평균환율 적용 추정액
-      // 양수: 환율 유리하게 적용됨 (환차익)
-      // 음수: 환율 불리하게 적용됨 (환차손)
-      const fxGainLoss = data.bookAmount - estimatedAtAvgRate;
+      const fxGainLoss = fxGainByCurrency.get(currency) || 0;
 
       return {
         currency,
