@@ -26,7 +26,6 @@ import {
 import { CreditCard, AlertTriangle, Shield, Users, Landmark, Wallet, Building2, Percent } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, TOOLTIP_STYLE } from "@/lib/utils";
-import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { AgingRiskAssessment } from "@/types";
 import { CreditTab } from "./tabs/CreditTab";
@@ -196,20 +195,20 @@ export default function ReceivablesPage() {
               benchmark="매출액 대비 15% 이내이면 양호한 수준입니다"
             />
             <KpiCard
-              title="90일 이상 연체"
+              title="91일 이상 장기 미수"
               value={overdueTotal}
               format="currency"
               icon={<AlertTriangle className="h-5 w-5" />}
-              formula="90일 이상 연체액(원) = 4개월차 + 5개월차 + 6개월차 + 6개월 초과 미수금의 합계"
-              description="90일(3개월) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
+              formula="91일 이상 장기 미수액(원) = 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+) 미수금의 합계"
+              description="91일(4개월차) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
               benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
             />
             <KpiCard
               title="연체비율"
               value={overdueRate}
               format="percent"
-              formula="연체비율(%) = 3개월 이상 미수금 ÷ 총 미수금 × 100"
-              description="전체 미수금 중에서 3개월 이상 오래된 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
+              formula="연체비율(%) = 91일 이상 미수금(4개월차~6개월 초과) ÷ 총 미수금 × 100"
+              description="전체 미수금 중에서 91일(4개월차) 이상 장기 체류한 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
               benchmark="20% 미만이면 양호, 30% 이상이면 위험 수준입니다"
             />
             <KpiCard

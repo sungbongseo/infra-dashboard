@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ExportButton } from "@/components/dashboard/ExportButton";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
 
 interface CreditTabProps {
@@ -153,7 +153,7 @@ export function CreditTab({ allRecords }: CreditTabProps) {
                   <td className="py-1.5 px-2 truncate max-w-[60px]">{c.담당자}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(c.여신한도, true)}</td>
                   <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(c.총미수금, true)}</td>
-                  <td className="py-1.5 px-2 text-right tabular-nums font-medium">{c.사용률.toFixed(1)}%</td>
+                  <td className="py-1.5 px-2 text-right tabular-nums font-medium">{formatPercent(c.사용률, 1)}</td>
                   <td className="py-1.5 px-2">
                     <Badge
                       variant={c.상태 === "danger" ? "destructive" : c.상태 === "warning" ? "warning" : "success"}

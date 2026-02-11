@@ -8,6 +8,7 @@ export interface CCCMetric {
   dso: number;
   dpo: number;
   ccc: number;
+  avgMonthlySales: number;
   classification: CCCClassification;
   recommendation: string;
 }
@@ -249,6 +250,7 @@ export function calcCCCByOrg(
       dso: dm.dso,
       dpo,
       ccc,
+      avgMonthlySales: dm.avgMonthlySales,
       classification,
       recommendation: getRecommendation(classification, ccc, dm.dso, dpo),
     });
@@ -266,15 +268,26 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
     return { avgCCC: 0, avgDSO: 0, avgDPO: 0, metrics: [] };
   }
 
-  const totalCCC = cccMetrics.reduce((sum, m) => sum + m.ccc, 0);
-  const totalDSO = cccMetrics.reduce((sum, m) => sum + m.dso, 0);
-  const totalDPO = cccMetrics.reduce((sum, m) => sum + m.dpo, 0);
-  const count = cccMetrics.length;
+  // 매출액 가중평균: 매출 규모가 큰 조직의 CCC가 더 큰 영향을 미침
+  const totalWeight = cccMetrics.reduce((sum, m) => sum + m.avgMonthlySales, 0);
+  if (totalWeight > 0) {
+    const wCCC = cccMetrics.reduce((sum, m) => sum + m.ccc * m.avgMonthlySales, 0);
+    const wDSO = cccMetrics.reduce((sum, m) => sum + m.dso * m.avgMonthlySales, 0);
+    const wDPO = cccMetrics.reduce((sum, m) => sum + m.dpo * m.avgMonthlySales, 0);
+    return {
+      avgCCC: Math.round(wCCC / totalWeight),
+      avgDSO: Math.round(wDSO / totalWeight),
+      avgDPO: Math.round(wDPO / totalWeight),
+      metrics: cccMetrics,
+    };
+  }
 
+  // 매출 데이터 없으면 단순 산술평균 fallback
+  const count = cccMetrics.length;
   return {
-    avgCCC: Math.round(totalCCC / count),
-    avgDSO: Math.round(totalDSO / count),
-    avgDPO: Math.round(totalDPO / count),
+    avgCCC: Math.round(cccMetrics.reduce((s, m) => s + m.ccc, 0) / count),
+    avgDSO: Math.round(cccMetrics.reduce((s, m) => s + m.dso, 0) / count),
+    avgDPO: Math.round(cccMetrics.reduce((s, m) => s + m.dpo, 0) / count),
     metrics: cccMetrics,
   };
 }

@@ -25,6 +25,7 @@ export function formatPercent(value: number, decimals = 1): string {
 }
 
 export function formatNumber(value: number): string {
+  if (!isFinite(value)) return "-";
   return new Intl.NumberFormat("ko-KR").format(value);
 }
 

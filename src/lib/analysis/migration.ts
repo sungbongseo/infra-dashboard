@@ -127,7 +127,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
 
     const customerMap = monthCustomerSales.get(month)!;
     const currentTotal = customerMap.get(customer) || 0;
-    customerMap.set(customer, currentTotal + (record.판매금액 || 0));
+    customerMap.set(customer, currentTotal + (record.장부금액 || 0));
   }
 
   // Get sorted months
@@ -301,7 +301,7 @@ export function calcGradeDistribution(sales: SalesRecord[]): GradeDistributionEn
 
     const customerMap = monthCustomerSales.get(month)!;
     const currentTotal = customerMap.get(customer) || 0;
-    customerMap.set(customer, currentTotal + (record.판매금액 || 0));
+    customerMap.set(customer, currentTotal + (record.장부금액 || 0));
   }
 
   // Calculate thresholds from all positive amounts

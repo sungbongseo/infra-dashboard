@@ -76,23 +76,19 @@ const PROFILE_COLORS: Record<CostProfileType, string> = {
   혼합형: CHART_COLORS[5],
 };
 
-const RADAR_COLORS = [
-  CHART_COLORS[0],
-  CHART_COLORS[1],
-  CHART_COLORS[2],
-  CHART_COLORS[3],
-  CHART_COLORS[4],
-  CHART_COLORS[5],
-  CHART_COLORS[6],
-];
 
 
 /**
  * 히트맵 배경색 결정
  * isCostItem=true이면 색상 반전 (비용 초과 = 빨간색)
+ * actual > 0: 비용항목에서 예산 없이 비용 발생 → 빨간색 경고
  */
-function getHeatmapBg(rate: number, isCostItem: boolean): string {
-  if (!isFinite(rate)) return "#6b7280"; // 계획없음 → 회색
+function getHeatmapBg(rate: number, isCostItem: boolean, actual?: number): string {
+  if (!isFinite(rate)) {
+    // 계획 없는 비용항목에서 실적 발생 → 예산 외 비용 경고
+    if (isCostItem && actual && actual > 0) return "#ef4444";
+    return "#6b7280"; // 계획없음 → 회색
+  }
   if (isCostItem) {
     // 비용항목: 달성률 낮을수록 좋음 (예산 절감)
     if (rate <= 80) return "#059669";     // 예산 대비 크게 절감 → 진녹색
@@ -172,6 +168,8 @@ export default function ProfitabilityPage() {
   const isUsingDateFiltered = isDateFilterActive && hasCustItemData;
 
   // 스마트 데이터소스: 기간필터 활성 시 customerItemDetail 기반, 아닌 경우 기존 소스
+  // Note: CustomerItemDetailRecord와 ProfitabilityAnalysisRecord는 구조가 다르지만(매출액이 number vs PlanActualDiff),
+  // 하위 분석 함수들이 런타임에 typeof 체크로 양쪽을 모두 처리하므로 as any[] 캐스트가 필요함
   const effectiveProfAnalysis = useMemo(() => {
     if (isUsingDateFiltered) return filteredCustItemDetail as any[];
     return filteredProfAnalysis;
@@ -289,8 +287,8 @@ export default function ProfitabilityPage() {
             : org.substring(0, 15),
           org: r.영업조직팀,
           사번: r.영업담당사번,
-          공헌이익: r.공헌이익?.실적 || 0,
-          공헌이익율: r.공헌이익율?.실적 || 0,
+          공헌이익: r.공헌이익?.실적 ?? 0,
+          공헌이익율: r.공헌이익율?.실적 ?? 0,
         };
       }),
     [filteredTeamContribution]
@@ -432,6 +430,22 @@ export default function ProfitabilityPage() {
     [effectiveProfAnalysis]
   );
 
+  const productPieData = useMemo(() => {
+    const top10 = productProfitability.slice(0, 10);
+    const others = productProfitability.slice(10);
+    const othersSales = others.reduce((s, p) => s + p.sales, 0);
+    const chartData = top10.map((p) => ({
+      name: p.product.length > 15 ? p.product.substring(0, 15) + "..." : p.product,
+      fullName: p.product,
+      value: p.sales,
+      margin: p.grossMargin,
+    }));
+    if (othersSales > 0) {
+      chartData.push({ name: "기타", fullName: `기타 ${others.length}개 품목`, value: othersSales, margin: 0 });
+    }
+    return chartData;
+  }, [productProfitability]);
+
   const customerProfitability = useMemo(
     () => calcCustomerProfitability(effectiveProfAnalysis),
     [effectiveProfAnalysis]
@@ -460,6 +474,14 @@ export default function ProfitabilityPage() {
     const totalVariable = orgBreakeven.reduce((s, r) => s + r.variableCosts, 0);
     const varRatio = totalSales > 0 ? totalVariable / totalSales : 0;
     return calcBreakevenChart(totalFixed, varRatio, totalSales * 1.3);
+  }, [orgBreakeven]);
+
+  const bepKpiSummary = useMemo(() => {
+    const totalBep = orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0);
+    const finiteSafety = orgBreakeven.filter(r => isFinite(r.safetyMarginRate));
+    const avgSafetyMargin = finiteSafety.length > 0 ? finiteSafety.reduce((s, r) => s + r.safetyMarginRate, 0) / finiteSafety.length : 0;
+    const avgContribMarginRatio = orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0;
+    return { totalBep, avgSafetyMargin, avgContribMarginRatio };
   }, [orgBreakeven]);
 
   // ─── 마진 침식 분석 (profitabilityAnalysis 기반 → product tab) ──────────────────
@@ -727,7 +749,7 @@ export default function ProfitabilityPage() {
                             <p className="font-semibold mb-1">{d.사번}</p>
                             <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
                             <p>공헌이익: {formatCurrency(d.공헌이익)}</p>
-                            <p>공헌이익율: {d.공헌이익율.toFixed(1)}%</p>
+                            <p>공헌이익율: {formatPercent(d.공헌이익율, 1)}</p>
                           </div>
                         );
                       }}
@@ -798,7 +820,7 @@ export default function ProfitabilityPage() {
                         <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                           <p className="font-semibold mb-1">{d.사번}</p>
                           <p className="text-xs text-muted-foreground mb-1">조직: {d.org}</p>
-                          <p>공헌이익율: {d.공헌이익율.toFixed(1)}%</p>
+                          <p>공헌이익율: {formatPercent(d.공헌이익율, 1)}</p>
                           <p>공헌이익: {formatCurrency(d.공헌이익)}</p>
                         </div>
                       );
@@ -934,17 +956,17 @@ export default function ProfitabilityPage() {
                       </td>
                       <td className="p-2 text-right font-mono text-xs">{formatCurrency(r.매출액, true)}</td>
                       <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                        {r.원재료비율.toFixed(1)}%
+                        {formatPercent(r.원재료비율, 1)}
                       </td>
-                      <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.원재료비율.toFixed(1)}%</td>
+                      <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.원재료비율, 1)}</td>
                       <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                        {r.상품매입비율.toFixed(1)}%
+                        {formatPercent(r.상품매입비율, 1)}
                       </td>
-                      <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.상품매입비율.toFixed(1)}%</td>
+                      <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.상품매입비율, 1)}</td>
                       <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                        {r.외주비율.toFixed(1)}%
+                        {formatPercent(r.외주비율, 1)}
                       </td>
-                      <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.외주비율.toFixed(1)}%</td>
+                      <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.외주비율, 1)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -997,8 +1019,8 @@ export default function ProfitabilityPage() {
                         key={org}
                         name={org}
                         dataKey={org}
-                        stroke={RADAR_COLORS[i % RADAR_COLORS.length]}
-                        fill={RADAR_COLORS[i % RADAR_COLORS.length]}
+                        stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                        fill={CHART_COLORS[i % CHART_COLORS.length]}
                         fillOpacity={0.15}
                         strokeWidth={2}
                       />
@@ -1045,8 +1067,8 @@ export default function ProfitabilityPage() {
                     {row.metrics.map((m) => {
                       const rate = m.achievementRate;
                       const noplan = !isFinite(rate);
-                      const displayRate = noplan ? "계획없음" : `${rate.toFixed(0)}%`;
-                      const bg = getHeatmapBg(rate, m.isCostItem);
+                      const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${rate.toFixed(0)}%`;
+                      const bg = getHeatmapBg(rate, m.isCostItem, m.actual);
                       // 텍스트 색상: 밝은 배경(노랑)은 어두운 글자, 나머지는 흰 글자
                       const textColor = (bg === "#fbbf24") ? "text-gray-900" : "text-white";
                       return (
@@ -1087,6 +1109,10 @@ export default function ProfitabilityPage() {
                   <span className="flex items-center gap-1">
                     <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#6b7280" }} />
                     계획없음
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <span className="inline-block w-3 h-3 rounded-sm border border-red-300" style={{ backgroundColor: "#ef4444" }} />
+                    예산외 비용
                   </span>
                 </div>
               </div>
@@ -1198,26 +1224,7 @@ export default function ProfitabilityPage() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
-                          data={(() => {
-                            const top10 = productProfitability.slice(0, 10);
-                            const others = productProfitability.slice(10);
-                            const othersSales = others.reduce((s, p) => s + p.sales, 0);
-                            const chartData = top10.map((p) => ({
-                              name: p.product.length > 15 ? p.product.substring(0, 15) + "..." : p.product,
-                              fullName: p.product,
-                              value: p.sales,
-                              margin: p.grossMargin,
-                            }));
-                            if (othersSales > 0) {
-                              chartData.push({
-                                name: "기타",
-                                fullName: `기타 ${others.length}개 품목`,
-                                value: othersSales,
-                                margin: 0,
-                              });
-                            }
-                            return chartData;
-                          })()}
+                          data={productPieData}
                           cx="50%"
                           cy="50%"
                           labelLine={false}
@@ -1244,16 +1251,9 @@ export default function ProfitabilityPage() {
                           outerRadius={120}
                           dataKey="value"
                         >
-                          {(() => {
-                            const top10 = productProfitability.slice(0, 10);
-                            const others = productProfitability.slice(10);
-                            const othersSales = others.reduce((s, p) => s + p.sales, 0);
-                            return top10.map((_, index) => (
-                              <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                            )).concat(
-                              othersSales > 0 ? [<Cell key="cell-others" fill="hsl(0, 0%, 60%)" />] : []
-                            );
-                          })()}
+                          {productPieData.map((d, index) => (
+                            <Cell key={`cell-${index}`} fill={d.name === "기타" ? "hsl(0, 0%, 60%)" : CHART_COLORS[index % CHART_COLORS.length]} />
+                          ))}
                         </Pie>
                         <RechartsTooltip
                           content={({ payload }) => {
@@ -1266,8 +1266,8 @@ export default function ProfitabilityPage() {
                               <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                                 <p className="font-semibold mb-1">{d.fullName}</p>
                                 <p>매출액: {formatCurrency(d.value)}</p>
-                                <p>비중: {percent.toFixed(1)}%</p>
-                                {d.name !== "기타" && <p>매출총이익율: {d.margin.toFixed(1)}%</p>}
+                                <p>비중: {formatPercent(percent, 1)}</p>
+                                {d.name !== "기타" && <p>매출총이익율: {formatPercent(d.margin, 1)}</p>}
                               </div>
                             );
                           }}
@@ -1634,9 +1634,9 @@ export default function ProfitabilityPage() {
 
           {/* BEP KPI Summary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <KpiCard title="손익분기점(BEP) 매출" value={orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0)} format="currency" formula="BEP 매출 = 고정비 ÷ (1 - 변동비율)" description="손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다." benchmark="실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다" />
-            <KpiCard title="안전한계율" value={(() => { const finite = orgBreakeven.filter(r => isFinite(r.safetyMarginRate)); return finite.length > 0 ? finite.reduce((s, r) => s + r.safetyMarginRate, 0) / finite.length : 0; })()} format="percent" formula="안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
-            <KpiCard title="공헌이익률" value={orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0} format="percent" formula="공헌이익률 = (매출 - 변동비) ÷ 매출 × 100" description="매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다." benchmark="공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다" />
+            <KpiCard title="손익분기점(BEP) 매출" value={bepKpiSummary.totalBep} format="currency" formula="BEP 매출 = 고정비 ÷ (1 - 변동비율)" description="손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다." benchmark="실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다" />
+            <KpiCard title="안전한계율" value={bepKpiSummary.avgSafetyMargin} format="percent" formula="안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100" description="현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다." benchmark="20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다" />
+            <KpiCard title="공헌이익률" value={bepKpiSummary.avgContribMarginRatio} format="percent" formula="공헌이익률 = (매출 - 변동비) ÷ 매출 × 100" description="매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다." benchmark="공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다" />
             <KpiCard title="분석 조직 수" value={orgBreakeven.length} format="number" formula="손익 데이터에서 변동비/고정비 분리가 가능한 조직 수" description={`손익분기점(BEP) 분석이 가능한 조직 수입니다. 데이터 소스: ${bepFromTeam ? "팀원별 공헌이익(401)" : "조직별 손익(303)"}`} benchmark="전체 조직 대비 분석 가능 조직이 80% 이상이면 데이터 커버리지 양호" />
           </div>
 

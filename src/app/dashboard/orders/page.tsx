@@ -24,7 +24,7 @@ import {
 } from "recharts";
 import { ShoppingCart, TrendingUp, Clock, Package, ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, filterByOrg, filterByDateRange, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion, type O2CPipelineResult } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 
@@ -764,19 +764,19 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
           {/* 수주→매출 전환율 */}
           <rect x="222" y="88" width="66" height="22" rx="11" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" />
           <text x="255" y="103" textAnchor="middle" className="text-[11px] font-semibold" fill={colors.sales}>
-            {convRate.toFixed(1)}%
+            {formatPercent(convRate, 1)}
           </text>
 
           {/* 매출→수금 수금율 */}
           <rect x="536" y="58" width="66" height="22" rx="11" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" />
           <text x="569" y="73" textAnchor="middle" className="text-[11px] font-semibold" fill={colors.collection}>
-            {collRate.toFixed(1)}%
+            {formatPercent(collRate, 1)}
           </text>
 
           {/* 미수 비율 */}
           <rect x="536" y="225" width="66" height="22" rx="11" fill="hsl(var(--card))" stroke="hsl(var(--border))" strokeWidth="1" />
           <text x="569" y="240" textAnchor="middle" className="text-[11px] font-semibold" fill={colors.outstanding}>
-            {outRate.toFixed(1)}%
+            {formatPercent(outRate, 1)}
           </text>
 
           {/* ─── 노드 박스 ─── */}
@@ -805,7 +805,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
               {formatCurrency(salesAmt, true)}
             </text>
             <text x="410" y="148" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              {salesStage.count.toLocaleString()}건 · 수주대비 {convRate.toFixed(1)}%
+              {salesStage.count.toLocaleString()}건 · 수주대비 {formatPercent(convRate, 1)}
             </text>
           </g>
 
@@ -819,7 +819,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
               {formatCurrency(collAmt, true)}
             </text>
             <text x="710" y="92" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              {collectionStage.count.toLocaleString()}건 · 매출대비 {collRate.toFixed(1)}%
+              {collectionStage.count.toLocaleString()}건 · 매출대비 {formatPercent(collRate, 1)}
             </text>
             <text x="710" y="108" textAnchor="middle" className="text-[9px]" fill="hsl(var(--muted-foreground))">
               선수금 {formatCurrency(prepaymentAmount, true)} 별도
@@ -836,7 +836,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
               {formatCurrency(outAmt, true)}
             </text>
             <text x="710" y="284" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              매출대비 {outRate.toFixed(1)}%
+              매출대비 {formatPercent(outRate, 1)}
             </text>
           </g>
 
@@ -853,7 +853,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             {/* 수주→매출 전환율 */}
             <circle cx="42" cy="245" r="5" fill={healthColor(convRate, 80)} />
             <text x="54" y="249" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              수주-매출 전환율: {convRate.toFixed(1)}%
+              수주-매출 전환율: {formatPercent(convRate, 1)}
             </text>
             <text x="240" y="249" className="text-[10px] font-medium" fill={healthColor(convRate, 80)}>
               {convRate >= 80 ? "양호" : convRate >= 64 ? "주의" : "위험"}
@@ -862,7 +862,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             {/* 매출→수금 순수수금율 */}
             <circle cx="42" cy="268" r="5" fill={healthColor(collRate, 90)} />
             <text x="54" y="272" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              순수 수금율: {collRate.toFixed(1)}% (선수금 제외)
+              순수 수금율: {formatPercent(collRate, 1)} (선수금 제외)
             </text>
             <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, 90)}>
               {collRate >= 90 ? "양호" : collRate >= 72 ? "주의" : "위험"}
@@ -880,7 +880,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             {/* 미수 비율 */}
             <circle cx="42" cy="314" r="5" fill={healthColor(100 - outRate, 80)} />
             <text x="54" y="318" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              미수잔액 비중: {outRate.toFixed(1)}%
+              미수잔액 비중: {formatPercent(outRate, 1)}
             </text>
             <text x="240" y="318" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 80)}>
               {outRate <= 20 ? "양호" : outRate <= 35 ? "주의" : "위험"}
