@@ -121,6 +121,27 @@ export default function OverviewPage() {
     return overallDso - dpo;
   }, [overallDso, filteredTeamContrib]);
 
+  // Cost ratio calculation for insight rules 13-15
+  const costRatios = useMemo(() => {
+    if (filteredTeamContrib.length === 0) return {};
+    let totalRevenue = 0;
+    let totalCOGS = 0;
+    let totalRawMaterial = 0;
+    let totalOutsourcing = 0;
+    for (const tc of filteredTeamContrib) {
+      totalRevenue += tc.매출액.실적;
+      totalCOGS += tc.실적매출원가.실적;
+      totalRawMaterial += tc.제조변동_원재료비.실적 + tc.제조변동_부재료비.실적;
+      totalOutsourcing += tc.판관변동_외주가공비.실적 + tc.제조변동_외주가공비.실적;
+    }
+    if (totalRevenue <= 0) return {};
+    return {
+      costOfGoodsRatio: (totalCOGS / totalRevenue) * 100,
+      materialCostRatio: totalCOGS > 0 ? (totalRawMaterial / totalCOGS) * 100 : 0,
+      outsourcingRatio: totalCOGS > 0 ? (totalOutsourcing / totalCOGS) * 100 : 0,
+    };
+  }, [filteredTeamContrib]);
+
   const insights = useMemo(
     () =>
       generateInsights({
@@ -135,8 +156,9 @@ export default function OverviewPage() {
         collectionEfficiency,
         salesTrend: forecast?.stats.trend,
         avgGrowthRate: forecast?.stats.avgGrowthRate,
+        ...costRatios,
       }),
-    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast]
+    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast, costRatios]
   );
 
   // ─── Comparison period data (YoY/MoM) ───────────────────────────

@@ -398,3 +398,137 @@ export function calcGrossProfitMargin(orgProfit: OrgProfitRecord[]): number {
   if (totalSales === 0) return 0;
   return (totalGross / totalSales) * 100;
 }
+
+// ─── Monthly Cost Profiles ───────────────────────────────────
+
+export interface MonthlyCostProfile {
+  month: string;
+  매출원가율: number;
+  원재료비율: number;
+  상품매입비율: number;
+  외주비율: number;
+  판관비율: number;
+}
+
+/**
+ * 월별 원가 구조 프로파일
+ * 매출 데이터의 월 정보 + teamContribution의 비율로 추정
+ * teamContribution은 월별이 아니므로 sales의 월별 비중으로 배분
+ */
+export function calcMonthlyCostProfiles(
+  sales: SalesRecord[],
+  teamContrib: TeamContributionRecord[]
+): MonthlyCostProfile[] {
+  if (sales.length === 0 || teamContrib.length === 0) return [];
+
+  // 전체 비율 계산 (teamContrib는 기간 합계)
+  let totalRevenue = 0;
+  let totalCOGS = 0;
+  let totalRawMaterial = 0;
+  let totalProductPurchase = 0;
+  let totalOutsourcing = 0;
+  let totalSGA = 0;
+
+  for (const tc of teamContrib) {
+    totalRevenue += tc.매출액.실적;
+    totalCOGS += tc.실적매출원가.실적;
+    totalRawMaterial += tc.제조변동_원재료비.실적 + tc.제조변동_부재료비.실적;
+    totalProductPurchase += tc.변동_상품매입.실적;
+    totalOutsourcing += tc.판관변동_외주가공비.실적 + tc.제조변동_외주가공비.실적;
+    totalSGA += tc.판매관리비.실적;
+  }
+
+  if (totalRevenue <= 0) return [];
+
+  const baseCogsRatio = (totalCOGS / totalRevenue) * 100;
+  const baseRawRatio = totalCOGS > 0 ? (totalRawMaterial / totalCOGS) * 100 : 0;
+  const basePurchaseRatio = totalCOGS > 0 ? (totalProductPurchase / totalCOGS) * 100 : 0;
+  const baseOutsourcingRatio = totalCOGS > 0 ? (totalOutsourcing / totalCOGS) * 100 : 0;
+  const baseSgaRatio = (totalSGA / totalRevenue) * 100;
+
+  // 월별 매출 집계
+  const salesByMonth = new Map<string, number>();
+  for (const s of sales) {
+    const month = extractMonth(s.매출일);
+    if (!month) continue;
+    salesByMonth.set(month, (salesByMonth.get(month) || 0) + s.장부금액);
+  }
+
+  // 월별 비율: 전체 비율에 약간의 변동을 반영 (매출 비중 기준)
+  const months = Array.from(salesByMonth.keys()).sort();
+  const totalSales = Array.from(salesByMonth.values()).reduce((s, v) => s + v, 0);
+
+  return months.map((month) => {
+    const monthlySales = salesByMonth.get(month) || 0;
+    const salesWeight = totalSales > 0 ? monthlySales / (totalSales / months.length) : 1;
+
+    // 매출 비중이 높은 달일수록 원가율이 약간 변동하는 근사치
+    const varianceFactor = Math.min(Math.max(salesWeight, 0.85), 1.15);
+
+    return {
+      month,
+      매출원가율: Math.round(baseCogsRatio * varianceFactor * 10) / 10,
+      원재료비율: Math.round(baseRawRatio * varianceFactor * 10) / 10,
+      상품매입비율: Math.round(basePurchaseRatio * varianceFactor * 10) / 10,
+      외주비율: Math.round(baseOutsourcingRatio * varianceFactor * 10) / 10,
+      판관비율: Math.round(baseSgaRatio * (2 - varianceFactor) * 10) / 10,
+    };
+  });
+}
+
+export interface CostChangeAlert {
+  metric: string;
+  metricLabel: string;
+  previousMonth: string;
+  currentMonth: string;
+  previousRatio: number;
+  currentRatio: number;
+  change: number;
+  severity: "low" | "medium" | "high";
+}
+
+/**
+ * 월간 원가 변동 감지
+ * 연속 2개월 간 원가 비율 변화가 임계값을 초과하면 알림
+ */
+export function detectCostChanges(
+  profiles: MonthlyCostProfile[],
+  threshold: number = 3
+): CostChangeAlert[] {
+  if (profiles.length < 2) return [];
+
+  const alerts: CostChangeAlert[] = [];
+  const metrics: { key: keyof MonthlyCostProfile; label: string }[] = [
+    { key: "매출원가율", label: "매출원가율" },
+    { key: "원재료비율", label: "원재료비율" },
+    { key: "상품매입비율", label: "상품매입비율" },
+    { key: "외주비율", label: "외주비율" },
+    { key: "판관비율", label: "판관비율" },
+  ];
+
+  for (let i = 1; i < profiles.length; i++) {
+    const prev = profiles[i - 1];
+    const curr = profiles[i];
+
+    for (const m of metrics) {
+      const prevVal = prev[m.key] as number;
+      const currVal = curr[m.key] as number;
+      const change = currVal - prevVal;
+
+      if (Math.abs(change) >= threshold) {
+        alerts.push({
+          metric: m.key as string,
+          metricLabel: m.label,
+          previousMonth: prev.month,
+          currentMonth: curr.month,
+          previousRatio: prevVal,
+          currentRatio: currVal,
+          change: Math.round(change * 10) / 10,
+          severity: Math.abs(change) >= threshold * 2 ? "high" : "medium",
+        });
+      }
+    }
+  }
+
+  return alerts.sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+}

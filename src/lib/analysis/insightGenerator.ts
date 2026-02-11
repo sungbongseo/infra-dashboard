@@ -24,6 +24,9 @@ export interface InsightConfig {
   collectionEfficiency?: number;
   salesTrend?: "up" | "down" | "flat";
   avgGrowthRate?: number;
+  costOfGoodsRatio?: number;
+  materialCostRatio?: number;
+  outsourcingRatio?: number;
 }
 
 export function generateInsights(config: InsightConfig): Insight[] {
@@ -327,6 +330,61 @@ export function generateInsights(config: InsightConfig): Insight[] {
         category: "미수금",
         metric: "receivablesToSalesRatio",
         value: receivablesToSalesRatio,
+      });
+    }
+  }
+
+  // Rule 13: COGS ratio (매출원가율)
+  if (config.costOfGoodsRatio !== undefined && isFinite(config.costOfGoodsRatio)) {
+    if (config.costOfGoodsRatio > 85) {
+      insights.push({
+        id: "cogs-critical",
+        title: "매출원가율 과다",
+        message: `매출원가율 ${config.costOfGoodsRatio.toFixed(1)}%로 수익 확보가 어렵습니다. 원가 절감 또는 가격 인상을 검토하세요.`,
+        severity: "critical",
+        category: "수익성",
+        metric: "costOfGoodsRatio",
+        value: config.costOfGoodsRatio,
+      });
+    } else if (config.costOfGoodsRatio > 75) {
+      insights.push({
+        id: "cogs-warning",
+        title: "매출원가율 주의",
+        message: `매출원가율 ${config.costOfGoodsRatio.toFixed(1)}%로 수익성 관리에 주의가 필요합니다.`,
+        severity: "warning",
+        category: "수익성",
+        metric: "costOfGoodsRatio",
+        value: config.costOfGoodsRatio,
+      });
+    }
+  }
+
+  // Rule 14: Material cost ratio (원재료비율)
+  if (config.materialCostRatio !== undefined && isFinite(config.materialCostRatio)) {
+    if (config.materialCostRatio > 40) {
+      insights.push({
+        id: "material-high",
+        title: "원재료비 비중 과다",
+        message: `원재료비가 매출원가의 ${config.materialCostRatio.toFixed(1)}%를 차지합니다. 조달 단가 협상 또는 대체 원자재 검토가 필요합니다.`,
+        severity: "warning",
+        category: "수익성",
+        metric: "materialCostRatio",
+        value: config.materialCostRatio,
+      });
+    }
+  }
+
+  // Rule 15: Outsourcing cost ratio (외주비율)
+  if (config.outsourcingRatio !== undefined && isFinite(config.outsourcingRatio)) {
+    if (config.outsourcingRatio > 30) {
+      insights.push({
+        id: "outsourcing-high",
+        title: "외주가공비 비중 높음",
+        message: `외주가공비가 매출원가의 ${config.outsourcingRatio.toFixed(1)}%에 달합니다. 내재화 검토 또는 외주 단가 재협상을 고려하세요.`,
+        severity: "warning",
+        category: "수익성",
+        metric: "outsourcingRatio",
+        value: config.outsourcingRatio,
       });
     }
   }

@@ -11,6 +11,9 @@ import {
   ResponsiveContainer,
   Cell,
   ReferenceLine,
+  Line,
+  ComposedChart,
+  Legend,
 } from "recharts";
 import { Clock, RefreshCw, Landmark, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +21,12 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ExportButton } from "@/components/dashboard/ExportButton";
-import { CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { calcDSOByOrg, calcOverallDSO } from "@/lib/analysis/dso";
+import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
+import { calcDSOByOrg, calcOverallDSO, calcDSOTrend } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CCCMetric } from "@/lib/analysis/ccc";
+import type { CollectionRecord, SalesRecord } from "@/types";
 
 const DSO_COLORS: Record<string, string> = {
   excellent: "hsl(142, 76%, 36%)",
@@ -40,11 +44,57 @@ const DSO_LABELS: Record<string, string> = {
 
 interface DsoTabProps {
   allRecords: any[];
-  filteredSales: any[];
+  filteredSales: SalesRecord[];
   filteredTeamContrib: any[];
+  filteredCollections: CollectionRecord[];
 }
 
-export function DsoTab({ allRecords, filteredSales, filteredTeamContrib }: DsoTabProps) {
+interface MonthlyCollectionRate {
+  month: string;
+  매출: number;
+  수금: number;
+  수금율: number;
+}
+
+function calcMonthlyCollectionRate(
+  sales: SalesRecord[],
+  collections: CollectionRecord[]
+): MonthlyCollectionRate[] {
+  const salesByMonth = new Map<string, number>();
+  for (const s of sales) {
+    const month = extractMonth(s.매출일);
+    if (!month) continue;
+    salesByMonth.set(month, (salesByMonth.get(month) || 0) + s.장부금액);
+  }
+
+  const collByMonth = new Map<string, number>();
+  for (const c of collections) {
+    const month = extractMonth(c.수금일);
+    if (!month) continue;
+    collByMonth.set(month, (collByMonth.get(month) || 0) + c.장부수금액);
+  }
+
+  const allMonths = new Set([
+    ...Array.from(salesByMonth.keys()),
+    ...Array.from(collByMonth.keys()),
+  ]);
+
+  return Array.from(allMonths)
+    .sort()
+    .map((month) => {
+      const salesAmt = salesByMonth.get(month) || 0;
+      const collAmt = collByMonth.get(month) || 0;
+      const rate = salesAmt > 0 ? (collAmt / salesAmt) * 100 : 0;
+      return {
+        month,
+        매출: salesAmt,
+        수금: collAmt,
+        수금율: Math.round(rate * 10) / 10,
+      };
+    });
+}
+
+export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filteredCollections }: DsoTabProps) {
   const dsoMetrics = useMemo(
     () => calcDSOByOrg(allRecords, filteredSales),
     [allRecords, filteredSales]
@@ -70,6 +120,18 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib }: DsoTa
         classification: d.classification,
       })),
     [dsoMetrics]
+  );
+
+  // DSO Trend
+  const dsoTrend = useMemo(
+    () => calcDSOTrend(allRecords, filteredSales),
+    [allRecords, filteredSales]
+  );
+
+  // Collection Rate Trend
+  const collectionRateTrend = useMemo(
+    () => calcMonthlyCollectionRate(filteredSales, filteredCollections),
+    [filteredSales, filteredCollections]
   );
 
   const cccExportData = useMemo(
@@ -258,6 +320,88 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib }: DsoTa
           </ResponsiveContainer>
         </div>
       </ChartCard>
+
+      {/* DSO Trend */}
+      {dsoTrend.length > 1 && (
+        <ChartCard
+          title="월별 DSO 추세"
+          formula="DSO(일) = 해당월 추정 미수금 ÷ 3개월 이동평균 매출 × 30\n미수금은 월별 매출 비중으로 배분하여 추정"
+          description="월별 DSO 변화를 보여줍니다. DSO가 지속적으로 상승하면 채권 회수가 느려지고 있다는 신호이며, 하락하면 회수가 개선되고 있다는 의미입니다."
+          benchmark="DSO 추세가 3개월 연속 상승하면 즉각적인 수금 관리 강화가 필요합니다"
+        >
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={dsoTrend}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis
+                  yAxisId="dso"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => `${v}일`}
+                />
+                <YAxis
+                  yAxisId="amount"
+                  orientation="right"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => formatCurrency(v, true)}
+                />
+                <RechartsTooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(value: any, name: any) =>
+                    name === "DSO" ? [`${value}일`, name] : [formatCurrency(Number(value)), name]
+                  }
+                />
+                <Legend />
+                <ReferenceLine yAxisId="dso" y={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "right", fontSize: 10 }} />
+                <Bar yAxisId="amount" dataKey="monthlySales" name="월매출" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.4} />
+                <Line yAxisId="dso" type="monotone" dataKey="dso" name="DSO" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Collection Rate Trend */}
+      {collectionRateTrend.length > 1 && (
+        <ChartCard
+          title="월별 수금율 추세"
+          formula="수금율(%) = 월별 수금액 ÷ 월별 매출액 × 100"
+          description="매월 매출 대비 수금 비율의 변화를 보여줍니다. 수금율이 100% 이상이면 이전 미수금까지 회수하고 있다는 뜻이고, 100% 미만이면 미수금이 쌓이고 있다는 의미입니다."
+          benchmark="수금율이 90% 이상이면 양호, 80% 미만이면 채권 관리 강화가 필요합니다"
+        >
+          <div className="h-64 md:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={collectionRateTrend}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <YAxis
+                  yAxisId="amount"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => formatCurrency(v, true)}
+                />
+                <YAxis
+                  yAxisId="rate"
+                  orientation="right"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v) => `${v}%`}
+                  domain={[0, (max: number) => Math.max(max * 1.1, 110)]}
+                />
+                <RechartsTooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(value: any, name: any) =>
+                    name === "수금율" ? [`${value}%`, name] : [formatCurrency(Number(value)), name]
+                  }
+                />
+                <Legend />
+                <ReferenceLine yAxisId="rate" y={100} stroke="hsl(142, 76%, 36%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "100%", position: "right", fontSize: 10 }} />
+                <Bar yAxisId="amount" dataKey="매출" name="매출" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.5} />
+                <Bar yAxisId="amount" dataKey="수금" name="수금" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} opacity={0.5} />
+                <Line yAxisId="rate" type="monotone" dataKey="수금율" name="수금율" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </ChartCard>
+      )}
 
       <ChartCard
         title="조직별 CCC(현금순환주기) 상세 분석"

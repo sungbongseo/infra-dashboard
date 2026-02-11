@@ -6,7 +6,7 @@ import { useFilterStore } from "@/stores/filterStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange, extractMonth } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, extractMonth } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 

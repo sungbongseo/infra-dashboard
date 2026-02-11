@@ -121,6 +121,7 @@ export default function ReceivablesPage() {
             allRecords={allRecords}
             filteredSales={filteredSales}
             filteredTeamContrib={filteredTeamContrib}
+            filteredCollections={filteredCollections}
           />
         </TabsContent>
 
