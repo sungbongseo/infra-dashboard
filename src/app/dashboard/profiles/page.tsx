@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -520,34 +521,38 @@ export default function ProfilesPage() {
             <>
               {selectedCostData && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">공헌이익율</p>
-                      <p className="text-2xl font-bold">{selectedCostData.contributionMarginRate.toFixed(1)}%</p>
-                      <p className="text-xs text-muted-foreground">변동비 차감 후 이익</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">영업이익율</p>
-                      <p className="text-2xl font-bold">{selectedCostData.operatingMarginRate.toFixed(1)}%</p>
-                      <p className="text-xs text-muted-foreground">모든 비용 차감 후 이익</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">제조변동비율</p>
-                      <p className="text-2xl font-bold">{selectedCostData.mfgVariableCostRate.toFixed(1)}%</p>
-                      <p className="text-xs text-muted-foreground">매출 대비 제조변동비</p>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-4 text-center">
-                      <p className="text-xs text-muted-foreground mb-1">판관고정비율</p>
-                      <p className="text-2xl font-bold">{selectedCostData.fixedCostRate.toFixed(1)}%</p>
-                      <p className="text-xs text-muted-foreground">매출 대비 고정비</p>
-                    </CardContent>
-                  </Card>
+                  <KpiCard
+                    title="공헌이익율"
+                    value={selectedCostData.contributionMarginRate}
+                    format="percent"
+                    formula="공헌이익율 = (매출액 - 변동비) ÷ 매출액 × 100"
+                    description="변동비(원재료비, 외주비, 상품매입비 등)를 차감한 후 고정비 회수와 이익에 기여하는 비율입니다."
+                    benchmark="30% 이상 우수, 20~30% 보통, 20% 미만 개선 필요"
+                  />
+                  <KpiCard
+                    title="영업이익율"
+                    value={selectedCostData.operatingMarginRate}
+                    format="percent"
+                    formula="영업이익율 = (매출액 - 매출원가 - 판관비) ÷ 매출액 × 100"
+                    description="모든 영업 비용을 차감한 순수 영업 수익성입니다. 담당자의 실질 이익 창출 능력을 나타냅니다."
+                    benchmark="10% 이상 양호, 5~10% 보통, 5% 미만 비용 구조 점검 필요"
+                  />
+                  <KpiCard
+                    title="제조변동비율"
+                    value={selectedCostData.mfgVariableCostRate}
+                    format="percent"
+                    formula="제조변동비율 = 제조변동비 ÷ 매출액 × 100"
+                    description="매출 대비 제조변동비(원재료, 외주 등) 비중입니다. 높을수록 매출 원가 부담이 크다는 의미입니다."
+                    benchmark="조직 평균 대비 5%p 이상 높으면 원가 절감 검토 필요"
+                  />
+                  <KpiCard
+                    title="판관고정비율"
+                    value={selectedCostData.fixedCostRate}
+                    format="percent"
+                    formula="판관고정비율 = 판관고정비 ÷ 매출액 × 100"
+                    description="매출 대비 고정비(감가상각비, 경비, 노무비) 비중입니다. 매출이 줄어도 고정비는 변하지 않아 수익성에 직접 영향합니다."
+                    benchmark="고정비율이 높으면 매출 감소 시 적자 전환 위험이 커집니다"
+                  />
                 </div>
               )}
 
@@ -611,8 +616,8 @@ export default function ProfilesPage() {
                           <td className="p-2 text-right text-xs">{c.outsourcingRate.toFixed(1)}%</td>
                           <td className="p-2 text-right text-xs">{c.variableCostRate.toFixed(1)}%</td>
                           <td className="p-2 text-right text-xs">{c.fixedCostRate.toFixed(1)}%</td>
-                          <td className={`p-2 text-right text-xs font-medium ${c.contributionMarginRate >= 30 ? "text-emerald-600" : c.contributionMarginRate >= 0 ? "text-amber-600" : "text-red-600"}`}>{c.contributionMarginRate.toFixed(1)}%</td>
-                          <td className={`p-2 text-right text-xs font-medium ${c.operatingMarginRate >= 10 ? "text-emerald-600" : c.operatingMarginRate >= 0 ? "text-amber-600" : "text-red-600"}`}>{c.operatingMarginRate.toFixed(1)}%</td>
+                          <td className={`p-2 text-right text-xs font-medium ${c.contributionMarginRate >= 30 ? "text-emerald-600 dark:text-emerald-400" : c.contributionMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{c.contributionMarginRate.toFixed(1)}%</td>
+                          <td className={`p-2 text-right text-xs font-medium ${c.operatingMarginRate >= 10 ? "text-emerald-600 dark:text-emerald-400" : c.operatingMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{c.operatingMarginRate.toFixed(1)}%</td>
                         </tr>
                       ))}
                     </tbody>
@@ -634,22 +639,26 @@ export default function ProfilesPage() {
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">월평균 매출</p>
-                    <p className="text-xl font-bold">{formatCurrency(repTrend.avgMonthlySales, true)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4 text-center">
-                    <p className="text-xs text-muted-foreground mb-1">월평균 수주</p>
-                    <p className="text-xl font-bold">{formatCurrency(repTrend.avgMonthlyOrders, true)}</p>
-                  </CardContent>
-                </Card>
+                <KpiCard
+                  title="월평균 매출"
+                  value={repTrend.avgMonthlySales}
+                  format="currency"
+                  formula="월평균 매출 = Σ(월별 매출액) ÷ 매출 발생 월수"
+                  description="선택된 기간 내 월별 매출의 단순 평균입니다. 담당자의 평균적인 매출 규모를 나타냅니다."
+                  benchmark="조직 내 매출 상위 20%와 비교하여 성장 잠재력 판단"
+                />
+                <KpiCard
+                  title="월평균 수주"
+                  value={repTrend.avgMonthlyOrders}
+                  format="currency"
+                  formula="월평균 수주 = Σ(월별 수주액) ÷ 수주 발생 월수"
+                  description="월별 수주의 평균값입니다. 수주가 매출보다 높으면 파이프라인이 건전하다는 의미입니다."
+                  benchmark="월평균 수주 ≥ 월평균 매출이면 성장 중, 미달이면 파이프라인 점검 필요"
+                />
                 <Card>
                   <CardContent className="p-4 text-center">
                     <p className="text-xs text-muted-foreground mb-1">MoM 매출 성장률</p>
-                    <p className={`text-xl font-bold ${repTrend.salesMoM >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                    <p className={`text-xl font-bold ${repTrend.salesMoM >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
                       {repTrend.salesMoM >= 0 ? "+" : ""}{repTrend.salesMoM.toFixed(1)}%
                     </p>
                   </CardContent>
@@ -728,7 +737,7 @@ export default function ProfilesPage() {
                 <Card>
                   <CardContent className="p-4 text-center">
                     <p className="text-xs text-muted-foreground mb-1">가중평균 마진</p>
-                    <p className={`text-2xl font-bold ${productPortfolio.avgMarginByProduct >= 20 ? "text-emerald-600" : productPortfolio.avgMarginByProduct >= 0 ? "text-amber-600" : "text-red-600"}`}>
+                    <p className={`text-2xl font-bold ${productPortfolio.avgMarginByProduct >= 20 ? "text-emerald-600 dark:text-emerald-400" : productPortfolio.avgMarginByProduct >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
                       {productPortfolio.avgMarginByProduct.toFixed(1)}%
                     </p>
                     <p className="text-xs text-muted-foreground">매출총이익율</p>
@@ -804,7 +813,7 @@ export default function ProfilesPage() {
                           <td className="p-2 text-xs">{p.productGroup}</td>
                           <td className="p-2 text-right text-xs">{formatCurrency(p.salesAmount, true)}</td>
                           <td className="p-2 text-right text-xs">{formatCurrency(p.grossProfit, true)}</td>
-                          <td className={`p-2 text-right text-xs font-medium ${p.grossMarginRate >= 20 ? "text-emerald-600" : p.grossMarginRate >= 0 ? "text-amber-600" : "text-red-600"}`}>{p.grossMarginRate.toFixed(1)}%</td>
+                          <td className={`p-2 text-right text-xs font-medium ${p.grossMarginRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : p.grossMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{p.grossMarginRate.toFixed(1)}%</td>
                           <td className="p-2 text-right text-xs">{p.sharePercent.toFixed(1)}%</td>
                         </tr>
                       ))}

@@ -1035,15 +1035,15 @@ export default function ProfitabilityPage() {
                         </span>
                       </td>
                       <td className="p-2 text-right font-mono text-xs">{formatCurrency(r.매출액, true)}</td>
-                      <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 font-semibold" : ""}`}>
+                      <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
                         {r.원재료비율.toFixed(1)}%
                       </td>
                       <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.원재료비율.toFixed(1)}%</td>
-                      <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 font-semibold" : ""}`}>
+                      <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
                         {r.상품매입비율.toFixed(1)}%
                       </td>
                       <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.상품매입비율.toFixed(1)}%</td>
-                      <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 font-semibold" : ""}`}>
+                      <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
                         {r.외주비율.toFixed(1)}%
                       </td>
                       <td className="p-2 text-right text-xs text-muted-foreground">{r.orgAvg.외주비율.toFixed(1)}%</td>
@@ -1413,11 +1413,11 @@ export default function ProfitabilityPage() {
                           </td>
                           <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.sales, true)}</td>
                           <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.grossProfit, true)}</td>
-                          <td className={`p-2 text-right font-mono text-xs ${c.grossMargin >= 30 ? "text-emerald-600" : c.grossMargin < 0 ? "text-red-500" : ""}`}>
+                          <td className={`p-2 text-right font-mono text-xs ${c.grossMargin >= 30 ? "text-emerald-600 dark:text-emerald-400" : c.grossMargin < 0 ? "text-red-500 dark:text-red-400" : ""}`}>
                             {formatPercent(c.grossMargin)}
                           </td>
                           <td className="p-2 text-right font-mono text-xs">{formatCurrency(c.operatingProfit, true)}</td>
-                          <td className={`p-2 text-right font-mono text-xs ${c.operatingMargin >= 10 ? "text-emerald-600" : c.operatingMargin < 0 ? "text-red-500" : ""}`}>
+                          <td className={`p-2 text-right font-mono text-xs ${c.operatingMargin >= 10 ? "text-emerald-600 dark:text-emerald-400" : c.operatingMargin < 0 ? "text-red-500 dark:text-red-400" : ""}`}>
                             {formatPercent(c.operatingMargin)}
                           </td>
                           <td className="p-2 text-center text-xs">{c.productCount}</td>
@@ -1453,7 +1453,7 @@ export default function ProfitabilityPage() {
                                   <p className="font-semibold text-xs mb-1">{label}</p>
                                   <p className="text-xs">계획 이익율: {item.plannedMargin.toFixed(1)}%</p>
                                   <p className="text-xs">실적 이익율: {item.actualMargin.toFixed(1)}%</p>
-                                  <p className="text-xs" style={{ color: item.erosion < 0 ? "#ef4444" : "#059669" }}>
+                                  <p className={`text-xs ${item.erosion < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                                     침식: {item.erosion > 0 ? "+" : ""}{item.erosion.toFixed(1)}%p
                                   </p>
                                   <p className="text-xs">매출액: {formatCurrency(item.sales)}</p>
@@ -1778,7 +1778,7 @@ export default function ProfitabilityPage() {
                         <td className="p-2 text-right text-xs">{formatCurrency(c.salesPlan, true)}</td>
                         <td className="p-2 text-right text-xs">{formatCurrency(c.salesActual, true)}</td>
                         <td className="p-2 text-right text-xs text-green-600 dark:text-green-400">+{formatCurrency(c.salesGap, true)}</td>
-                        <td className="p-2 text-right text-xs" style={{ color: c.gpMargin >= 20 ? "#059669" : c.gpMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        <td className={`p-2 text-right text-xs ${c.gpMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.gpMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                           {c.gpMargin.toFixed(1)}%
                         </td>
                       </tr>
@@ -1815,7 +1815,7 @@ export default function ProfitabilityPage() {
                         <td className="p-2 text-right text-xs">{formatCurrency(c.salesPlan, true)}</td>
                         <td className="p-2 text-right text-xs">{formatCurrency(c.salesActual, true)}</td>
                         <td className="p-2 text-right text-xs text-red-600 dark:text-red-400">{formatCurrency(c.salesGap, true)}</td>
-                        <td className="p-2 text-right text-xs" style={{ color: c.gpMargin >= 20 ? "#059669" : c.gpMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        <td className={`p-2 text-right text-xs ${c.gpMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.gpMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                           {c.gpMargin.toFixed(1)}%
                         </td>
                       </tr>
@@ -1855,10 +1855,10 @@ export default function ProfitabilityPage() {
                       <td className="p-2 text-right text-xs">{formatCurrency(item.salesActual, true)}</td>
                       <td className="p-2 text-right text-xs">{item.plannedGPRate.toFixed(1)}%</td>
                       <td className="p-2 text-right text-xs">{item.actualGPRate.toFixed(1)}%</td>
-                      <td className="p-2 text-right text-xs" style={{ color: item.marginDrift >= 0 ? "#059669" : "#ef4444" }}>
+                      <td className={`p-2 text-right text-xs ${item.marginDrift >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                         {item.marginDrift >= 0 ? "+" : ""}{item.marginDrift.toFixed(1)}%p
                       </td>
-                      <td className="p-2 text-right text-xs" style={{ color: item.driftImpact >= 0 ? "#059669" : "#ef4444" }}>
+                      <td className={`p-2 text-right text-xs ${item.driftImpact >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-500 dark:text-red-400"}`}>
                         {formatCurrency(item.driftImpact, true)}
                       </td>
                     </tr>
@@ -2144,10 +2144,10 @@ export default function ProfitabilityPage() {
                       <td className="p-2 text-right">{s.customerCount}</td>
                       <td className="p-2 text-right">{formatCurrency(s.totalSales, true)}</td>
                       <td className="p-2 text-right">{s.salesShare.toFixed(1)}%</td>
-                      <td className="p-2 text-right" style={{ color: s.avgGrossMargin >= 20 ? "#059669" : s.avgGrossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                      <td className={`p-2 text-right ${s.avgGrossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : s.avgGrossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                         {s.avgGrossMargin.toFixed(1)}%
                       </td>
-                      <td className="p-2 text-right" style={{ color: s.avgOpMargin >= 5 ? "#059669" : s.avgOpMargin >= 0 ? "#fbbf24" : "#ef4444" }}>
+                      <td className={`p-2 text-right ${s.avgOpMargin >= 5 ? "text-emerald-600 dark:text-emerald-400" : s.avgOpMargin >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                         {s.avgOpMargin.toFixed(1)}%
                       </td>
                     </tr>
@@ -2185,13 +2185,13 @@ export default function ProfitabilityPage() {
                         <td className="p-2 text-xs">{r.org}</td>
                         <td className="p-2 text-xs">{r.persons || "-"}</td>
                         <td className="p-2 text-right text-xs">{formatCurrency(r.salesActual, true)}</td>
-                        <td className="p-2 text-right text-xs" style={{ color: r.gpRate >= 20 ? "#059669" : r.gpRate >= 10 ? "#fbbf24" : "#ef4444" }}>
+                        <td className={`p-2 text-right text-xs ${r.gpRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : r.gpRate >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                           {r.gpRate.toFixed(1)}%
                         </td>
-                        <td className="p-2 text-right text-xs" style={{ color: r.opActual >= 0 ? "inherit" : "#ef4444" }}>
+                        <td className={`p-2 text-right text-xs ${r.opActual >= 0 ? "" : "text-red-500 dark:text-red-400"}`}>
                           {formatCurrency(r.opActual, true)}
                         </td>
-                        <td className="p-2 text-right text-xs" style={{ color: r.opRate >= 5 ? "#059669" : r.opRate >= 0 ? "#fbbf24" : "#ef4444" }}>
+                        <td className={`p-2 text-right text-xs ${r.opRate >= 5 ? "text-emerald-600 dark:text-emerald-400" : r.opRate >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                           {r.opRate.toFixed(1)}%
                         </td>
                       </tr>
@@ -2311,10 +2311,10 @@ export default function ProfitabilityPage() {
                       <td className="p-2 text-xs">{c.product.substring(0, 12)}</td>
                       <td className="p-2 text-right text-xs">{formatCurrency(c.sales, true)}</td>
                       <td className="p-2 text-right text-xs">{formatCurrency(c.grossProfit, true)}</td>
-                      <td className="p-2 text-right text-xs" style={{ color: c.grossMargin >= 20 ? "#059669" : c.grossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                      <td className={`p-2 text-right text-xs ${c.grossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.grossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                         {c.grossMargin.toFixed(1)}%
                       </td>
-                      <td className="p-2 text-right text-xs" style={{ color: c.opMargin >= 5 ? "#059669" : c.opMargin >= 0 ? "#fbbf24" : "#ef4444" }}>
+                      <td className={`p-2 text-right text-xs ${c.opMargin >= 5 ? "text-emerald-600 dark:text-emerald-400" : c.opMargin >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                         {c.opMargin.toFixed(1)}%
                       </td>
                     </tr>
@@ -2342,7 +2342,7 @@ export default function ProfitabilityPage() {
                     <tr key={c.customerCode} className="border-b hover:bg-muted/50">
                       <td className="p-2 font-medium text-xs">{c.customer.substring(0, 15)}</td>
                       <td className="p-2 text-right text-xs">{formatCurrency(c.totalSales, true)}</td>
-                      <td className="p-2 text-right text-xs" style={{ color: c.avgGrossMargin >= 20 ? "#059669" : c.avgGrossMargin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                      <td className={`p-2 text-right text-xs ${c.avgGrossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.avgGrossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
                         {c.avgGrossMargin.toFixed(1)}%
                       </td>
                       <td className="p-2 text-right text-xs">{c.productCount}</td>
@@ -2352,7 +2352,7 @@ export default function ProfitabilityPage() {
                             <div key={i} className="text-xs flex items-center gap-1.5">
                               <span className="font-medium truncate max-w-[120px]" title={p.name}>{p.name || "(미분류)"}</span>
                               <span className="text-muted-foreground">{formatCurrency(p.sales, true)}</span>
-                              <span style={{ color: p.margin >= 20 ? "#059669" : p.margin >= 10 ? "#fbbf24" : "#ef4444" }}>
+                              <span className={p.margin >= 20 ? "text-emerald-600 dark:text-emerald-400" : p.margin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}>
                                 {p.margin.toFixed(1)}%
                               </span>
                             </div>
