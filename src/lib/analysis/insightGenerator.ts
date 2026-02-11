@@ -19,6 +19,11 @@ export interface InsightConfig {
   ccc?: number;
   forecastAccuracy?: number;
   contributionMarginRate?: number;
+  grossProfitMargin?: number;
+  operatingLeverage?: number;
+  collectionEfficiency?: number;
+  salesTrend?: "up" | "down" | "flat";
+  avgGrowthRate?: number;
 }
 
 export function generateInsights(config: InsightConfig): Insight[] {
@@ -203,6 +208,125 @@ export function generateInsights(config: InsightConfig): Insight[] {
         message: `공헌이익률 ${config.contributionMarginRate.toFixed(1)}%로 고정비 회수가 어려울 수 있습니다.`,
         severity: "warning",
         category: "수익성",
+      });
+    }
+  }
+
+  // Rule 8: Gross profit margin
+  if (config.grossProfitMargin !== undefined && isFinite(config.grossProfitMargin)) {
+    if (config.grossProfitMargin < 15) {
+      insights.push({
+        id: "gpm-low",
+        title: "매출총이익률 위험",
+        message: `매출총이익률 ${config.grossProfitMargin.toFixed(1)}%로 원가 부담이 큽니다. 가격 정책 또는 원가 구조 재검토가 필요합니다.`,
+        severity: "critical",
+        category: "수익성",
+        metric: "grossProfitMargin",
+        value: config.grossProfitMargin,
+      });
+    } else if (config.grossProfitMargin >= 30) {
+      insights.push({
+        id: "gpm-high",
+        title: "매출총이익률 양호",
+        message: `매출총이익률 ${config.grossProfitMargin.toFixed(1)}%로 원가 관리가 잘 되고 있습니다.`,
+        severity: "positive",
+        category: "수익성",
+        metric: "grossProfitMargin",
+        value: config.grossProfitMargin,
+      });
+    }
+  }
+
+  // Rule 9: Operating leverage (plan vs actual margin)
+  if (config.operatingLeverage !== undefined && isFinite(config.operatingLeverage)) {
+    if (config.operatingLeverage < 80) {
+      insights.push({
+        id: "olev-low",
+        title: "영업레버리지 저하",
+        message: `영업레버리지 ${config.operatingLeverage.toFixed(1)}%로 계획 대비 이익율이 크게 하락했습니다. 비용 증가 또는 저마진 판매 증가를 점검하세요.`,
+        severity: "warning",
+        category: "수익성",
+        metric: "operatingLeverage",
+        value: config.operatingLeverage,
+      });
+    } else if (config.operatingLeverage >= 120) {
+      insights.push({
+        id: "olev-high",
+        title: "영업레버리지 초과 달성",
+        message: `영업레버리지 ${config.operatingLeverage.toFixed(1)}%로 계획 대비 수익 구조가 개선되었습니다.`,
+        severity: "positive",
+        category: "수익성",
+        metric: "operatingLeverage",
+        value: config.operatingLeverage,
+      });
+    }
+  }
+
+  // Rule 10: Sales trend
+  if (config.salesTrend && config.avgGrowthRate !== undefined && isFinite(config.avgGrowthRate)) {
+    if (config.salesTrend === "down" && config.avgGrowthRate < -5) {
+      insights.push({
+        id: "trend-down",
+        title: "매출 하락 추세",
+        message: `매출이 월평균 ${config.avgGrowthRate.toFixed(1)}% 감소하는 하락 추세입니다. 원인 분석과 영업 전략 수정이 필요합니다.`,
+        severity: "warning",
+        category: "매출",
+        metric: "avgGrowthRate",
+        value: config.avgGrowthRate,
+      });
+    } else if (config.salesTrend === "up" && config.avgGrowthRate > 5) {
+      insights.push({
+        id: "trend-up",
+        title: "매출 성장 추세",
+        message: `매출이 월평균 ${config.avgGrowthRate.toFixed(1)}% 성장하는 상승 추세입니다.`,
+        severity: "positive",
+        category: "매출",
+        metric: "avgGrowthRate",
+        value: config.avgGrowthRate,
+      });
+    }
+  }
+
+  // Rule 11: Order vs Sales ratio (pipeline health)
+  if (kpis.totalOrders > 0 && kpis.totalSales > 0) {
+    const orderToSalesRatio = (kpis.totalOrders / kpis.totalSales) * 100;
+    if (isFinite(orderToSalesRatio)) {
+      if (orderToSalesRatio < 80) {
+        insights.push({
+          id: "pipeline-low",
+          title: "수주 파이프라인 부족",
+          message: `수주/매출 비율 ${orderToSalesRatio.toFixed(0)}%로 향후 매출 확보를 위한 수주 활동 강화가 필요합니다.`,
+          severity: "warning",
+          category: "수주",
+          metric: "orderToSalesRatio",
+          value: orderToSalesRatio,
+        });
+      } else if (orderToSalesRatio >= 120) {
+        insights.push({
+          id: "pipeline-high",
+          title: "수주 파이프라인 양호",
+          message: `수주/매출 비율 ${orderToSalesRatio.toFixed(0)}%로 향후 매출 성장 기반이 확보되어 있습니다.`,
+          severity: "positive",
+          category: "수주",
+          metric: "orderToSalesRatio",
+          value: orderToSalesRatio,
+        });
+      }
+    }
+  }
+
+  // Rule 12: Receivables to sales ratio
+  if (kpis.totalReceivables > 0 && kpis.totalSales > 0) {
+    const receivablesToSalesRatio = (kpis.totalReceivables / kpis.totalSales) * 100;
+    if (isFinite(receivablesToSalesRatio) && receivablesToSalesRatio > 50) {
+      insights.push({
+        id: "ar-high",
+        title: "미수금 비중 과다",
+        message: `미수금이 매출의 ${receivablesToSalesRatio.toFixed(0)}%에 달합니다. 채권 회수 강화 또는 신용 한도 재검토가 필요합니다.`,
+        severity: "warning",
+        category: "미수금",
+        metric: "receivablesToSalesRatio",
+        value: receivablesToSalesRatio,
       });
     }
   }

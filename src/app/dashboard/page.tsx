@@ -130,8 +130,13 @@ export default function OverviewPage() {
         ccc: overallCcc,
         forecastAccuracy,
         contributionMarginRate,
+        grossProfitMargin,
+        operatingLeverage,
+        collectionEfficiency,
+        salesTrend: forecast?.stats.trend,
+        avgGrowthRate: forecast?.stats.avgGrowthRate,
       }),
-    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate]
+    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast]
   );
 
   // ─── Comparison period data (YoY/MoM) ───────────────────────────
