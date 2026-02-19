@@ -42,7 +42,9 @@ export default function ProfilesPage() {
     return filterByDateRange(byOrg, dateRange, "수금일");
   }, [collectionList, effectiveOrgNames, dateRange]);
   const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"), [teamContribution, effectiveOrgNames]);
-  const filteredCustomerItemDetail = useMemo(() => filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀"), [customerItemDetail, effectiveOrgNames]);
+  // customerItemDetail: 영업조직팀 값이 DEFAULT_INFRA_ORG_NAMES와 불일치할 수 있으므로 org 필터 제거
+  // 대신 calcRepProductPortfolio에서 personId/personName으로 필터링함
+  const filteredCustomerItemDetail = customerItemDetail;
 
   // 미수채권연령: Map의 모든 values를 flat()하여 단일 배열로 + orgNames 필터
   const allAgingRecords: ReceivableAgingRecord[] = useMemo(() => {
@@ -55,7 +57,7 @@ export default function ProfilesPage() {
 
   const hasAgingData = allAgingRecords.length > 0;
 
-  const profiles = useMemo(
+  const { profiles, idToName, nameToId } = useMemo(
     () => calcPerformanceScores(
       filteredSales,
       filteredOrders,
@@ -129,8 +131,8 @@ export default function ProfilesPage() {
 
   // Tab 3: 비용 효율 분석
   const costEfficiencyData = useMemo(
-    () => calcCostEfficiency(filteredTeamContribution),
-    [filteredTeamContribution]
+    () => calcCostEfficiency(filteredTeamContribution, nameToId),
+    [filteredTeamContribution, nameToId]
   );
   const selectedCostData = useMemo(
     () => selected ? costEfficiencyData.find((c) => c.personId === selected.id) : undefined,
@@ -153,14 +155,14 @@ export default function ProfilesPage() {
 
   // Tab 4: 실적 트렌드
   const repTrend = useMemo(
-    () => selected ? calcRepTrend(filteredSales, filteredOrders, filteredCollections, selected.id) : null,
-    [selected, filteredSales, filteredOrders, filteredCollections]
+    () => selected ? calcRepTrend(filteredSales, filteredOrders, filteredCollections, selected.id, idToName) : null,
+    [selected, filteredSales, filteredOrders, filteredCollections, idToName]
   );
 
   // Tab 5: 제품 포트폴리오
   const productPortfolio = useMemo(
-    () => selected ? calcRepProductPortfolio(filteredCustomerItemDetail, selected.id) : null,
-    [selected, filteredCustomerItemDetail]
+    () => selected ? calcRepProductPortfolio(filteredCustomerItemDetail, selected.id, idToName) : null,
+    [selected, filteredCustomerItemDetail, idToName]
   );
 
   if (isLoading) return <PageSkeleton />;

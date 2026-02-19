@@ -179,13 +179,19 @@ export interface SalesRepProfile {
  * 영업사원 성과 프로파일 계산
  * agingRecords가 제공되면 5축(각 20점), 미제공 시 4축(각 25점) 방식 유지
  */
+export interface PerformanceScoresResult {
+  profiles: SalesRepProfile[];
+  idToName: Map<string, string>;
+  nameToId: Map<string, string>;
+}
+
 export function calcPerformanceScores(
   sales: SalesRecord[],
   orders: OrderRecord[],
   collections: CollectionRecord[],
   teamContrib: TeamContributionRecord[],
   agingRecords?: ReceivableAgingRecord[]
-): SalesRepProfile[] {
+): PerformanceScoresResult {
   const is5Axis = agingRecords && agingRecords.length > 0;
   const axisMax = is5Axis ? 20 : 25;
 
@@ -224,34 +230,68 @@ export function calcPerformanceScores(
     personOrders.set(key, (personOrders.get(key) || 0) + r.장부금액);
   }
 
-  // Group collections by person
+  // ──── 사번↔이름 매핑 구축 (매출+수주 데이터 기반) ────────────────
+  const idToName = new Map<string, string>();
+  const nameToId = new Map<string, string>();
+  for (const r of sales) {
+    if (r.영업담당자 && r.영업담당자명) {
+      // M-2: 동명이인 충돌 감지
+      const existing = nameToId.get(r.영업담당자명);
+      if (existing && existing !== r.영업담당자) {
+        console.warn(`[프로파일] 동명이인 감지: "${r.영업담당자명}" → 기존 사번 ${existing}, 신규 사번 ${r.영업담당자}`);
+      }
+      idToName.set(r.영업담당자, r.영업담당자명);
+      if (!nameToId.has(r.영업담당자명)) nameToId.set(r.영업담당자명, r.영업담당자);
+    }
+  }
+  for (const r of orders) {
+    if (r.영업담당자 && r.영업담당자명) {
+      const existing = nameToId.get(r.영업담당자명);
+      if (existing && existing !== r.영업담당자) {
+        console.warn(`[프로파일] 동명이인 감지: "${r.영업담당자명}" → 기존 사번 ${existing}, 신규 사번 ${r.영업담당자}`);
+      }
+      if (!idToName.has(r.영업담당자)) idToName.set(r.영업담당자, r.영업담당자명);
+      if (!nameToId.has(r.영업담당자명)) nameToId.set(r.영업담당자명, r.영업담당자);
+    }
+  }
+
+  // Group collections by person (이름 키 → 사번 키로 변환)
   const personCollections = new Map<string, number>();
   for (const r of collections) {
     const key = r.담당자;
     if (!key) continue;
+    const id = nameToId.get(key) || key; // 이름→사번 변환, fallback=원래 키
     personCollections.set(
-      key,
-      (personCollections.get(key) || 0) + r.장부수금액
+      id,
+      (personCollections.get(id) || 0) + r.장부수금액
     );
   }
 
-  // Contribution margin from teamContrib
+  // Contribution margin from teamContrib (이름 키 → 사번 키로 변환)
   const personContrib = new Map<string, { rate: number }>();
   for (const r of teamContrib) {
-    personContrib.set(r.영업담당사번, {
+    const key = r.영업담당사번; // 필드명은 사번이지만 실제값은 이름
+    if (!key) continue;
+    const id = nameToId.get(key) || key;
+    personContrib.set(id, {
       rate: r.공헌이익율?.실적 || 0,
     });
   }
 
-  // Receivable risk scores (5축 모드)
-  const receivableScores = is5Axis
+  // Receivable risk scores (5축 모드, 이름 키 → 사번 키로 변환)
+  const rawReceivableScores = is5Axis
     ? calcReceivableRiskScore(agingRecords, axisMax)
     : new Map<string, number>();
+  const receivableScores = new Map<string, number>();
+  for (const [key, score] of Array.from(rawReceivableScores.entries())) {
+    const id = nameToId.get(key) || key;
+    receivableScores.set(id, score);
+  }
 
   // HHI 계산
   const hhiMap = calcCustomerHHI(sales);
 
-  // Collect all person IDs
+  // Collect all person IDs (사번 기반으로만 — 중복 프로파일 방지)
   const allPersons = new Set([
     ...Array.from(personSales.keys()),
     ...Array.from(personOrders.keys()),
@@ -329,7 +369,7 @@ export function calcPerformanceScores(
       ((profiles.length - i) / profiles.length) * 100;
   });
 
-  return profiles;
+  return { profiles, idToName, nameToId };
 }
 
 // ─── Tab 3: 비용 효율 분석 ──────────────────────────────────────────────────
@@ -354,7 +394,8 @@ export interface CostEfficiency {
  * teamContribution의 41개 비용 항목 중 주요 항목을 매출 대비 비율로 계산
  */
 export function calcCostEfficiency(
-  teamContrib: TeamContributionRecord[]
+  teamContrib: TeamContributionRecord[],
+  nameToId?: Map<string, string>
 ): CostEfficiency[] {
   return teamContrib
     .filter((r) => r.매출액?.실적 > 0)
@@ -399,7 +440,7 @@ export function calcCostEfficiency(
         (r.제조변동_지급수수료?.실적 || 0);
 
       return {
-        personId: r.영업담당사번,
+        personId: nameToId?.get(r.영업담당사번) || r.영업담당사번,
         org: r.영업조직팀,
         salesAmount: sales,
         rawMaterialRate: safeRate(r.제조변동_원재료비?.실적 || 0),
@@ -441,11 +482,15 @@ export function calcRepTrend(
   sales: SalesRecord[],
   orders: OrderRecord[],
   collections: CollectionRecord[],
-  personId: string
+  personId: string,
+  idToName?: Map<string, string>
 ): RepTrend | null {
   const personSales = sales.filter((r) => r.영업담당자 === personId);
   const personOrders = orders.filter((r) => r.영업담당자 === personId);
-  const personCollections = collections.filter((r) => r.담당자 === personId);
+  const personName = idToName?.get(personId);
+  const personCollections = collections.filter(
+    (r) => r.담당자 === personId || (personName != null && r.담당자 === personName)
+  );
 
   if (personSales.length === 0 && personOrders.length === 0) return null;
 
@@ -548,10 +593,12 @@ export interface RepProductPortfolio {
  */
 export function calcRepProductPortfolio(
   customerItemDetail: CustomerItemDetailRecord[],
-  personId: string
+  personId: string,
+  idToName?: Map<string, string>
 ): RepProductPortfolio | null {
+  const personName = idToName?.get(personId);
   const personData = customerItemDetail.filter(
-    (r) => r.영업담당사번 === personId
+    (r) => r.영업담당사번 === personId || (personName != null && r.영업담당사번 === personName)
   );
   if (personData.length === 0) return null;
 

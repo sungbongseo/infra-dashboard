@@ -109,10 +109,12 @@ Each dashboard page follows the same pattern:
 
 ### Tab Component Extraction
 
-Large pages extract tab content into separate components under `tabs/` subdirectories:
+All pages extract tab content into separate components under `tabs/` subdirectories:
 - `sales/tabs/` — ChannelTab, RfmTab, ClvTab, MigrationTab, FxTab
-- `profitability/tabs/` — RiskTab, WhatIfTab, CustProfitTab, CustItemTab
-- `receivables/tabs/` — CreditTab, DsoTab
+- `profitability/tabs/` — PnlTab, OrgTab, ContribTab, CostTab, PlanTab, ProductTab, VarianceTab, BreakevenTab, RiskTab, WhatIfTab, CustProfitTab, CustItemTab
+- `receivables/tabs/` — StatusTab, RiskTab, CreditTab, DsoTab, PrepaymentTab
+- `orders/tabs/` — StatusTab, AnalysisTab, OrgTab, PipelineTab, O2CFlowTab
+- `profiles/tabs/` — PerformanceTab, RankingTab, CostTab, TrendTab, ProductTab
 
 Tab components receive filtered data as props from the parent page rather than accessing stores directly.
 
