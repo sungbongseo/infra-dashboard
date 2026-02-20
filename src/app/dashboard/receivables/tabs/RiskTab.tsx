@@ -8,12 +8,12 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
 } from "recharts";
 import { Users, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -128,17 +128,15 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount }: Ris
         description="미수금이 가장 많은 영업담당자 상위 15명입니다. 특정 담당자에 미수금이 지나치게 몰려 있다면 해당 담당자의 거래처 관리를 강화해야 합니다."
         benchmark="1인당 미수금이 전체의 20% 이상이면 집중도가 과도한 상태입니다"
       >
-        <div className="h-80 md:h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={byPerson.slice(0, 15)} layout="vertical" margin={{ left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis type="category" dataKey="person" tick={{ fontSize: 10 }} width={55} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
-              <Bar dataKey="total" fill="hsl(24.6, 95%, 53.1%)" name="미수금" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="total" fill="hsl(24.6, 95%, 53.1%)" name="미수금" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       <ChartCard

@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Cell,
   ReferenceLine,
 } from "recharts";
@@ -16,6 +15,7 @@ import { Landmark, TrendingUp, Ban, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
@@ -94,10 +94,9 @@ export function CreditTab({ allRecords }: CreditTabProps) {
         description="각 조직이 여신한도를 얼마나 사용하고 있는지 보여줍니다. 100%를 넘으면 한도 초과이며, 빨간 점선이 100% 기준입니다."
         benchmark="80% 미만이면 양호(녹색), 80~100%이면 주의(노란색), 100% 이상이면 위험(빨간색)입니다"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <BarChart data={creditByOrg} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, (max: number) => Math.max(max * 1.1, 110)]} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip
@@ -106,7 +105,7 @@ export function CreditTab({ allRecords }: CreditTabProps) {
                 labelFormatter={(label) => `조직: ${label}`}
               />
               <ReferenceLine x={100} stroke="hsl(0, 84%, 50%)" strokeDasharray="3 3" strokeWidth={2} label={{ value: "100%", position: "top", fontSize: 10 }} />
-              <Bar dataKey="utilizationRate" name="사용률" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="utilizationRate" name="사용률" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {creditByOrg.map((entry, index) => (
                   <Cell
                     key={index}
@@ -121,8 +120,7 @@ export function CreditTab({ allRecords }: CreditTabProps) {
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       <ChartCard

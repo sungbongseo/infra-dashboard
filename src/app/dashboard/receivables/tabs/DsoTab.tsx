@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Cell,
   ReferenceLine,
   Line,
@@ -19,6 +18,7 @@ import { Clock, RefreshCw, Landmark, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
@@ -292,10 +292,9 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         description="각 조직이 매출채권을 회수하는 데 평균 며칠이 걸리는지 보여줍니다. DSO(매출채권 회수기간)가 짧을수록 현금 회수가 빠르며 자금 관리가 효율적입니다."
         benchmark="건자재/인프라 업종 평균 DSO는 45일입니다. 30일 미만이면 최상위 수준입니다"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <BarChart data={dsoChartData} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 type="number"
                 tick={{ fontSize: 11 }}
@@ -308,7 +307,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 labelFormatter={(label) => `조직: ${label}`}
               />
               <ReferenceLine x={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "top", fontSize: 10 }} />
-              <Bar dataKey="dso" name="DSO" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="dso" name="DSO" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {dsoChartData.map((entry, index) => (
                   <Cell
                     key={index}
@@ -317,8 +316,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* DSO Trend */}
@@ -329,10 +327,9 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           description="월별 DSO 변화를 보여줍니다. DSO가 지속적으로 상승하면 채권 회수가 느려지고 있다는 신호이며, 하락하면 회수가 개선되고 있다는 의미입니다."
           benchmark="DSO 추세가 3개월 연속 상승하면 즉각적인 수금 관리 강화가 필요합니다"
         >
-          <div className="h-64 md:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-64 md:h-80">
               <ComposedChart data={dsoTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis
                   yAxisId="dso"
@@ -353,11 +350,10 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 />
                 <Legend />
                 <ReferenceLine yAxisId="dso" y={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "right", fontSize: 10 }} />
-                <Bar yAxisId="amount" dataKey="monthlySales" name="월매출" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.4} />
-                <Line yAxisId="dso" type="monotone" dataKey="dso" name="DSO" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} />
+                <Bar yAxisId="amount" dataKey="monthlySales" name="월매출" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} opacity={0.4} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Line yAxisId="dso" type="monotone" dataKey="dso" name="DSO" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
               </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       )}
 
@@ -369,10 +365,9 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           description="매월 매출 대비 수금 비율의 변화를 보여줍니다. 수금율이 100% 이상이면 이전 미수금까지 회수하고 있다는 뜻이고, 100% 미만이면 미수금이 쌓이고 있다는 의미입니다."
           benchmark="수금율이 90% 이상이면 양호, 80% 미만이면 채권 관리 강화가 필요합니다"
         >
-          <div className="h-64 md:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-64 md:h-80">
               <ComposedChart data={collectionRateTrend}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis dataKey="month" tick={{ fontSize: 12 }} />
                 <YAxis
                   yAxisId="amount"
@@ -394,12 +389,11 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 />
                 <Legend />
                 <ReferenceLine yAxisId="rate" y={100} stroke="hsl(142, 76%, 36%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "100%", position: "right", fontSize: 10 }} />
-                <Bar yAxisId="amount" dataKey="매출" name="매출" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} opacity={0.5} />
-                <Bar yAxisId="amount" dataKey="수금" name="수금" fill={CHART_COLORS[2]} radius={[4, 4, 0, 0]} opacity={0.5} />
-                <Line yAxisId="rate" type="monotone" dataKey="수금율" name="수금율" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} />
+                <Bar yAxisId="amount" dataKey="매출" name="매출" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} opacity={0.5} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar yAxisId="amount" dataKey="수금" name="수금" fill={CHART_COLORS[2]} radius={BAR_RADIUS_TOP} opacity={0.5} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Line yAxisId="rate" type="monotone" dataKey="수금율" name="수금율" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
               </ComposedChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       )}
 

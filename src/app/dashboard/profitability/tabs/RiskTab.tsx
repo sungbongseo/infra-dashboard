@@ -10,13 +10,13 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   ReferenceLine,
   LabelList,
 } from "recharts";
 import { Star, Shield, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { ChartContainer, GRID_PROPS } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatPercent, CHART_COLORS } from "@/lib/utils";
 import { calcProfitRiskMatrixEx, calcQuadrantSummary } from "@/lib/analysis/profitRiskMatrix";
@@ -72,10 +72,9 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
         benchmark="영업이익율 5% 기준선과 리스크 점수 40점 기준선으로 4개 사분면(스타, 안정형, 주의, 위험)으로 분류"
       >
         <ErrorBoundary>
-          <div className="h-72 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-96">
               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis
                   dataKey="profitMargin"
                   name="영업이익율"
@@ -140,8 +139,7 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
                   <LabelList dataKey="name" position="top" fontSize={10} offset={8} />
                 </Scatter>
               </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
 

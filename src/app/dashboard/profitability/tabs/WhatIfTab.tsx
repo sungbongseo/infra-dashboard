@@ -8,13 +8,13 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
   ComposedChart,
   Line,
 } from "recharts";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcWhatIfScenario, calcScenarioSummary, calcSensitivity } from "@/lib/analysis/whatif";
@@ -82,37 +82,33 @@ export function WhatIfTab({ filteredOrgProfit }: WhatIfTabProps) {
 
       {/* Base vs Scenario comparison bar */}
       <ChartCard title="조직별 Base vs 시나리오 영업이익" formula="회색 막대 = 기준(Base) 영업이익, 파란 막대 = 시나리오 영업이익" description="각 조직의 현재 영업이익(Base)과 시나리오 적용 후 예상 영업이익을 나란히 비교합니다. 두 막대 차이가 클수록 해당 시나리오 변수에 민감한 조직이며, 시나리오 막대가 더 크면 개선 효과, 더 작으면 악화 효과입니다." benchmark="시나리오 막대가 Base보다 크면 긍정적 효과, 작으면 부정적 효과입니다">
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <BarChart data={scenarioResults.slice(0, 10)}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="org" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip formatter={(v: any) => formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
-              <Bar dataKey="baseOperatingProfit" name="Base" fill={CHART_COLORS[5]} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="scenarioOperatingProfit" name="시나리오" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="baseOperatingProfit" name="Base" fill={CHART_COLORS[5]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="scenarioOperatingProfit" name="시나리오" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* Sensitivity chart */}
       <ChartCard title="매출 변동 민감도 분석" formula="매출이 -20%에서 +20%까지 변할 때 영업이익과 영업이익율의 변화" description="매출이 일정 비율로 증가하거나 감소할 때 영업이익(막대)과 영업이익율(꺾은선)이 어떻게 변하는지 보여줍니다. 막대와 꺾은선의 기울기가 가파를수록 매출 변동에 민감한 수익 구조입니다. 매출 감소 시 영업이익이 급격히 줄어드는 구간을 주의해야 합니다." benchmark="매출 10% 감소 시에도 영업이익이 양수이면 비교적 안전한 수익 구조입니다">
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={sensitivityData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="paramValue" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
               <RechartsTooltip formatter={(v: any, name: any) => name === "operatingMargin" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
-              <Bar dataKey="operatingProfit" name="영업이익" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" />
+              <Bar dataKey="operatingProfit" name="영업이익" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

@@ -29,374 +29,249 @@ export interface InsightConfig {
   outsourcingRatio?: number;
 }
 
+// ─── 선언적 규칙 엔진 ──────────────────────────────────────────────
+
+interface AlertRule {
+  id: string;
+  title: string;
+  category: Insight["category"];
+  metric?: string;
+  /** 값 추출기 - config에서 평가할 숫자를 반환. undefined이면 규칙 스킵 */
+  getValue: (c: InsightConfig) => number | undefined;
+  /** 임계값 기반 조건 배열 (위→아래 순서로 첫 매칭 사용) */
+  conditions: {
+    test: (v: number) => boolean;
+    severity: InsightSeverity;
+    titleSuffix: string;
+    message: (v: number, c: InsightConfig) => string;
+  }[];
+}
+
+const safe = (v: number | undefined) => (v !== undefined && isFinite(v) ? v : undefined);
+
+const RULES: AlertRule[] = [
+  // Rule 1: 순수 수금율
+  {
+    id: "col",
+    title: "순수 수금율",
+    category: "수금",
+    metric: "netCollectionRate",
+    getValue: (c) => safe(c.netCollectionRate ?? c.kpis.collectionRate),
+    conditions: [
+      { test: (v) => v >= 95, severity: "positive", titleSuffix: "우수", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 매우 양호합니다 (선수금 제외 기준).` },
+      { test: (v) => v < 70, severity: "critical", titleSuffix: "저조 경고", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 목표(70%) 미달입니다 (선수금 제외 기준). 연체 거래처 집중 관리가 필요합니다.` },
+      { test: (v) => v < 85, severity: "warning", titleSuffix: "주의", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 개선이 필요합니다 (선수금 제외 기준).` },
+    ],
+  },
+  // Rule 2: 영업이익율
+  {
+    id: "op",
+    title: "영업이익율",
+    category: "수익성",
+    metric: "operatingProfitRate",
+    getValue: (c) => safe(c.kpis.operatingProfitRate),
+    conditions: [
+      { test: (v) => v < 0, severity: "critical", titleSuffix: "적자 발생", message: (v) => `영업이익율 ${v.toFixed(1)}%로 적자 상태입니다. 비용 구조 점검이 시급합니다.` },
+      { test: (v) => v < 5, severity: "warning", titleSuffix: "저조", message: (v) => `영업이익율 ${v.toFixed(1)}%로 수익성 개선이 필요합니다. 원가절감 또는 고마진 제품 확대를 검토하세요.` },
+      { test: (v) => v >= 10, severity: "positive", titleSuffix: "양호", message: (v) => `영업이익율 ${v.toFixed(1)}%로 수익성이 양호합니다.` },
+    ],
+  },
+  // Rule 3: 매출 계획 달성율
+  {
+    id: "plan",
+    title: "매출 계획",
+    category: "매출",
+    metric: "salesPlanAchievement",
+    getValue: (c) => safe(c.kpis.salesPlanAchievement),
+    conditions: [
+      { test: (v) => v >= 100, severity: "positive", titleSuffix: "초과 달성", message: (v) => `매출계획달성률 ${v.toFixed(1)}%로 목표를 초과 달성했습니다.` },
+      { test: (v) => v < 80, severity: "warning", titleSuffix: "미달", message: (v) => `매출계획달성률 ${v.toFixed(1)}%로 목표(80%) 미달입니다. 영업 활동 강화가 필요합니다.` },
+    ],
+  },
+  // Rule 4: DSO (매출채권 회수기간)
+  {
+    id: "dso",
+    title: "DSO",
+    category: "미수금",
+    metric: "dso",
+    getValue: (c) => safe(c.dso),
+    conditions: [
+      { test: (v) => v > 90, severity: "critical", titleSuffix: "과다", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 매우 길어 현금흐름에 부정적입니다. 채권 회수 속도 개선이 시급합니다.` },
+      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 업종 평균(60일) 이상입니다.` },
+      { test: (v) => v <= 30, severity: "positive", titleSuffix: "우수", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 현금 회수가 빠릅니다.` },
+    ],
+  },
+  // Rule 5: CCC (현금전환주기)
+  {
+    id: "ccc",
+    title: "현금전환주기",
+    category: "수금",
+    getValue: (c) => safe(c.ccc),
+    conditions: [
+      { test: (v) => v < 0, severity: "positive", titleSuffix: "우수", message: (v) => `CCC ${v.toFixed(0)}일로 매입 결제 전에 매출 회수가 이루어지고 있습니다.` },
+      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `CCC ${v.toFixed(0)}일로 운전자본 부담이 큽니다. DSO 단축과 DPO 연장을 동시에 추진하세요.` },
+    ],
+  },
+  // Rule 6: 예측 정확도
+  {
+    id: "fc",
+    title: "예측 정확도",
+    category: "매출",
+    getValue: (c) => c.forecastAccuracy,
+    conditions: [
+      { test: (v) => v < 70, severity: "warning", titleSuffix: "저조", message: (v) => `매출 예측 정확도 ${v.toFixed(1)}%로 계획 수립 프로세스 개선이 필요합니다.` },
+      { test: (v) => v >= 90, severity: "positive", titleSuffix: "우수", message: (v) => `매출 예측 정확도 ${v.toFixed(1)}%로 계획 신뢰도가 높습니다.` },
+    ],
+  },
+  // Rule 7: 공헌이익률
+  {
+    id: "cm",
+    title: "공헌이익률",
+    category: "수익성",
+    getValue: (c) => c.contributionMarginRate,
+    conditions: [
+      { test: (v) => v < 20, severity: "warning", titleSuffix: "저조", message: (v) => `공헌이익률 ${v.toFixed(1)}%로 고정비 회수가 어려울 수 있습니다.` },
+    ],
+  },
+  // Rule 8: 매출총이익률
+  {
+    id: "gpm",
+    title: "매출총이익률",
+    category: "수익성",
+    metric: "grossProfitMargin",
+    getValue: (c) => safe(c.grossProfitMargin),
+    conditions: [
+      { test: (v) => v < 15, severity: "critical", titleSuffix: "위험", message: (v) => `매출총이익률 ${v.toFixed(1)}%로 원가 부담이 큽니다. 가격 정책 또는 원가 구조 재검토가 필요합니다.` },
+      { test: (v) => v >= 30, severity: "positive", titleSuffix: "양호", message: (v) => `매출총이익률 ${v.toFixed(1)}%로 원가 관리가 잘 되고 있습니다.` },
+    ],
+  },
+  // Rule 9: 영업레버리지
+  {
+    id: "olev",
+    title: "영업레버리지",
+    category: "수익성",
+    metric: "operatingLeverage",
+    getValue: (c) => safe(c.operatingLeverage),
+    conditions: [
+      { test: (v) => v < 80, severity: "warning", titleSuffix: "저하", message: (v) => `영업레버리지 ${v.toFixed(1)}%로 계획 대비 이익율이 크게 하락했습니다. 비용 증가 또는 저마진 판매 증가를 점검하세요.` },
+      { test: (v) => v >= 120, severity: "positive", titleSuffix: "초과 달성", message: (v) => `영업레버리지 ${v.toFixed(1)}%로 계획 대비 수익 구조가 개선되었습니다.` },
+    ],
+  },
+  // Rule 10: 매출 추세
+  {
+    id: "trend",
+    title: "매출 추세",
+    category: "매출",
+    metric: "avgGrowthRate",
+    getValue: (c) => {
+      if (!c.salesTrend || c.avgGrowthRate === undefined || !isFinite(c.avgGrowthRate)) return undefined;
+      return c.avgGrowthRate;
+    },
+    conditions: [
+      { test: (v) => v < -5, severity: "warning", titleSuffix: "하락", message: (v) => `매출이 월평균 ${v.toFixed(1)}% 감소하는 하락 추세입니다. 원인 분석과 영업 전략 수정이 필요합니다.` },
+      { test: (v) => v > 5, severity: "positive", titleSuffix: "성장", message: (v) => `매출이 월평균 ${v.toFixed(1)}% 성장하는 상승 추세입니다.` },
+    ],
+  },
+  // Rule 11: 수주/매출 비율
+  {
+    id: "pipeline",
+    title: "수주 파이프라인",
+    category: "수주",
+    metric: "orderToSalesRatio",
+    getValue: (c) => {
+      if (c.kpis.totalOrders <= 0 || c.kpis.totalSales <= 0) return undefined;
+      const ratio = (c.kpis.totalOrders / c.kpis.totalSales) * 100;
+      return isFinite(ratio) ? ratio : undefined;
+    },
+    conditions: [
+      { test: (v) => v < 80, severity: "warning", titleSuffix: "부족", message: (v) => `수주/매출 비율 ${v.toFixed(0)}%로 향후 매출 확보를 위한 수주 활동 강화가 필요합니다.` },
+      { test: (v) => v >= 120, severity: "positive", titleSuffix: "양호", message: (v) => `수주/매출 비율 ${v.toFixed(0)}%로 향후 매출 성장 기반이 확보되어 있습니다.` },
+    ],
+  },
+  // Rule 12: 미수금/매출 비율
+  {
+    id: "ar",
+    title: "미수금 비중",
+    category: "미수금",
+    metric: "receivablesToSalesRatio",
+    getValue: (c) => {
+      if (c.kpis.totalReceivables <= 0 || c.kpis.totalSales <= 0) return undefined;
+      const ratio = (c.kpis.totalReceivables / c.kpis.totalSales) * 100;
+      return isFinite(ratio) ? ratio : undefined;
+    },
+    conditions: [
+      { test: (v) => v > 50, severity: "warning", titleSuffix: "과다", message: (v) => `미수금이 매출의 ${v.toFixed(0)}%에 달합니다. 채권 회수 강화 또는 신용 한도 재검토가 필요합니다.` },
+    ],
+  },
+  // Rule 13: 매출원가율
+  {
+    id: "cogs",
+    title: "매출원가율",
+    category: "수익성",
+    metric: "costOfGoodsRatio",
+    getValue: (c) => safe(c.costOfGoodsRatio),
+    conditions: [
+      { test: (v) => v > 85, severity: "critical", titleSuffix: "과다", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익 확보가 어렵습니다. 원가 절감 또는 가격 인상을 검토하세요.` },
+      { test: (v) => v > 75, severity: "warning", titleSuffix: "주의", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익성 관리에 주의가 필요합니다.` },
+    ],
+  },
+  // Rule 14: 원재료비율
+  {
+    id: "material",
+    title: "원재료비 비중",
+    category: "수익성",
+    metric: "materialCostRatio",
+    getValue: (c) => safe(c.materialCostRatio),
+    conditions: [
+      { test: (v) => v > 40, severity: "warning", titleSuffix: "과다", message: (v) => `원재료비가 매출원가의 ${v.toFixed(1)}%를 차지합니다. 조달 단가 협상 또는 대체 원자재 검토가 필요합니다.` },
+    ],
+  },
+  // Rule 15: 외주가공비율
+  {
+    id: "outsourcing",
+    title: "외주가공비 비중",
+    category: "수익성",
+    metric: "outsourcingRatio",
+    getValue: (c) => safe(c.outsourcingRatio),
+    conditions: [
+      { test: (v) => v > 30, severity: "warning", titleSuffix: "높음", message: (v) => `외주가공비가 매출원가의 ${v.toFixed(1)}%에 달합니다. 내재화 검토 또는 외주 단가 재협상을 고려하세요.` },
+    ],
+  },
+];
+
+// ─── 규칙 엔진 실행 ─────────────────────────────────────────────────
+
+const SEVERITY_ORDER: Record<InsightSeverity, number> = {
+  critical: 0,
+  warning: 1,
+  neutral: 2,
+  positive: 3,
+};
+
 export function generateInsights(config: InsightConfig): Insight[] {
   const insights: Insight[] = [];
-  const { kpis } = config;
 
-  const safe = (v: number) => isFinite(v) ? v : 0;
+  for (const rule of RULES) {
+    const value = rule.getValue(config);
+    if (value === undefined) continue;
 
-  // Rule 1: Collection rate (순수 수금율 사용 - 선수금 제외)
-  const effectiveCollectionRate = safe(config.netCollectionRate ?? kpis.collectionRate);
-  if (effectiveCollectionRate >= 95) {
-    insights.push({
-      id: "col-high",
-      title: "순수 수금율 우수",
-      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 매우 양호합니다 (선수금 제외 기준).`,
-      severity: "positive",
-      category: "수금",
-      metric: "netCollectionRate",
-      value: effectiveCollectionRate,
-    });
-  } else if (effectiveCollectionRate < 70) {
-    insights.push({
-      id: "col-low",
-      title: "순수 수금율 저조 경고",
-      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 목표(70%) 미달입니다 (선수금 제외 기준). 연체 거래처 집중 관리가 필요합니다.`,
-      severity: "critical",
-      category: "수금",
-      metric: "netCollectionRate",
-      value: effectiveCollectionRate,
-    });
-  } else if (effectiveCollectionRate < 85) {
-    insights.push({
-      id: "col-med",
-      title: "순수 수금율 주의",
-      message: `순수 수금율 ${effectiveCollectionRate.toFixed(1)}%로 개선이 필요합니다 (선수금 제외 기준).`,
-      severity: "warning",
-      category: "수금",
-      metric: "netCollectionRate",
-      value: effectiveCollectionRate,
-    });
-  }
-
-  // Rule 2: Operating profit rate
-  if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate < 0) {
-    insights.push({
-      id: "op-neg",
-      title: "영업적자 발생",
-      message: `영업이익율 ${kpis.operatingProfitRate.toFixed(1)}%로 적자 상태입니다. 비용 구조 점검이 시급합니다.`,
-      severity: "critical",
-      category: "수익성",
-      metric: "operatingProfitRate",
-      value: kpis.operatingProfitRate,
-    });
-  } else if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate < 5) {
-    insights.push({
-      id: "op-low",
-      title: "영업이익율 저조",
-      message: `영업이익율 ${kpis.operatingProfitRate.toFixed(1)}%로 수익성 개선이 필요합니다. 원가절감 또는 고마진 제품 확대를 검토하세요.`,
-      severity: "warning",
-      category: "수익성",
-      metric: "operatingProfitRate",
-      value: kpis.operatingProfitRate,
-    });
-  } else if (isFinite(kpis.operatingProfitRate) && kpis.operatingProfitRate >= 10) {
-    insights.push({
-      id: "op-high",
-      title: "영업이익율 양호",
-      message: `영업이익율 ${kpis.operatingProfitRate.toFixed(1)}%로 수익성이 양호합니다.`,
-      severity: "positive",
-      category: "수익성",
-      metric: "operatingProfitRate",
-      value: kpis.operatingProfitRate,
-    });
-  }
-
-  // Rule 3: Sales plan achievement
-  if (isFinite(kpis.salesPlanAchievement) && kpis.salesPlanAchievement >= 100) {
-    insights.push({
-      id: "plan-over",
-      title: "매출 계획 초과 달성",
-      message: `매출계획달성률 ${kpis.salesPlanAchievement.toFixed(1)}%로 목표를 초과 달성했습니다.`,
-      severity: "positive",
-      category: "매출",
-      metric: "salesPlanAchievement",
-      value: kpis.salesPlanAchievement,
-    });
-  } else if (isFinite(kpis.salesPlanAchievement) && kpis.salesPlanAchievement < 80) {
-    insights.push({
-      id: "plan-low",
-      title: "매출 계획 미달",
-      message: `매출계획달성률 ${kpis.salesPlanAchievement.toFixed(1)}%로 목표(80%) 미달입니다. 영업 활동 강화가 필요합니다.`,
-      severity: "warning",
-      category: "매출",
-      metric: "salesPlanAchievement",
-      value: kpis.salesPlanAchievement,
-    });
-  }
-
-  // Rule 4: DSO
-  if (config.dso !== undefined && isFinite(config.dso)) {
-    if (config.dso > 90) {
-      insights.push({
-        id: "dso-high",
-        title: "DSO 과다",
-        message: `매출채권 회수기간 ${config.dso.toFixed(0)}일로 매우 길어 현금흐름에 부정적입니다. 채권 회수 속도 개선이 시급합니다.`,
-        severity: "critical",
-        category: "미수금",
-        metric: "dso",
-        value: config.dso,
-      });
-    } else if (config.dso > 60) {
-      insights.push({
-        id: "dso-med",
-        title: "DSO 주의",
-        message: `매출채권 회수기간 ${config.dso.toFixed(0)}일로 업종 평균(60일) 이상입니다.`,
-        severity: "warning",
-        category: "미수금",
-        metric: "dso",
-        value: config.dso,
-      });
-    } else if (config.dso <= 30) {
-      insights.push({
-        id: "dso-low",
-        title: "DSO 우수",
-        message: `매출채권 회수기간 ${config.dso.toFixed(0)}일로 현금 회수가 빠릅니다.`,
-        severity: "positive",
-        category: "미수금",
-        metric: "dso",
-        value: config.dso,
-      });
-    }
-  }
-
-  // Rule 5: CCC
-  if (config.ccc !== undefined && isFinite(config.ccc)) {
-    if (config.ccc < 0) {
-      insights.push({
-        id: "ccc-neg",
-        title: "현금전환주기 우수",
-        message: `CCC ${config.ccc.toFixed(0)}일로 매입 결제 전에 매출 회수가 이루어지고 있습니다.`,
-        severity: "positive",
-        category: "수금",
-      });
-    } else if (config.ccc > 60) {
-      insights.push({
-        id: "ccc-high",
-        title: "현금전환주기 주의",
-        message: `CCC ${config.ccc.toFixed(0)}일로 운전자본 부담이 큽니다. DSO 단축과 DPO 연장을 동시에 추진하세요.`,
-        severity: "warning",
-        category: "수금",
-      });
-    }
-  }
-
-  // Rule 6: Forecast accuracy
-  if (config.forecastAccuracy !== undefined) {
-    if (config.forecastAccuracy < 70) {
-      insights.push({
-        id: "fc-low",
-        title: "예측 정확도 저조",
-        message: `매출 예측 정확도 ${config.forecastAccuracy.toFixed(1)}%로 계획 수립 프로세스 개선이 필요합니다.`,
-        severity: "warning",
-        category: "매출",
-      });
-    } else if (config.forecastAccuracy >= 90) {
-      insights.push({
-        id: "fc-high",
-        title: "예측 정확도 우수",
-        message: `매출 예측 정확도 ${config.forecastAccuracy.toFixed(1)}%로 계획 신뢰도가 높습니다.`,
-        severity: "positive",
-        category: "매출",
-      });
-    }
-  }
-
-  // Rule 7: Contribution margin
-  if (config.contributionMarginRate !== undefined) {
-    if (config.contributionMarginRate < 20) {
-      insights.push({
-        id: "cm-low",
-        title: "공헌이익률 저조",
-        message: `공헌이익률 ${config.contributionMarginRate.toFixed(1)}%로 고정비 회수가 어려울 수 있습니다.`,
-        severity: "warning",
-        category: "수익성",
-      });
-    }
-  }
-
-  // Rule 8: Gross profit margin
-  if (config.grossProfitMargin !== undefined && isFinite(config.grossProfitMargin)) {
-    if (config.grossProfitMargin < 15) {
-      insights.push({
-        id: "gpm-low",
-        title: "매출총이익률 위험",
-        message: `매출총이익률 ${config.grossProfitMargin.toFixed(1)}%로 원가 부담이 큽니다. 가격 정책 또는 원가 구조 재검토가 필요합니다.`,
-        severity: "critical",
-        category: "수익성",
-        metric: "grossProfitMargin",
-        value: config.grossProfitMargin,
-      });
-    } else if (config.grossProfitMargin >= 30) {
-      insights.push({
-        id: "gpm-high",
-        title: "매출총이익률 양호",
-        message: `매출총이익률 ${config.grossProfitMargin.toFixed(1)}%로 원가 관리가 잘 되고 있습니다.`,
-        severity: "positive",
-        category: "수익성",
-        metric: "grossProfitMargin",
-        value: config.grossProfitMargin,
-      });
-    }
-  }
-
-  // Rule 9: Operating leverage (plan vs actual margin)
-  if (config.operatingLeverage !== undefined && isFinite(config.operatingLeverage)) {
-    if (config.operatingLeverage < 80) {
-      insights.push({
-        id: "olev-low",
-        title: "영업레버리지 저하",
-        message: `영업레버리지 ${config.operatingLeverage.toFixed(1)}%로 계획 대비 이익율이 크게 하락했습니다. 비용 증가 또는 저마진 판매 증가를 점검하세요.`,
-        severity: "warning",
-        category: "수익성",
-        metric: "operatingLeverage",
-        value: config.operatingLeverage,
-      });
-    } else if (config.operatingLeverage >= 120) {
-      insights.push({
-        id: "olev-high",
-        title: "영업레버리지 초과 달성",
-        message: `영업레버리지 ${config.operatingLeverage.toFixed(1)}%로 계획 대비 수익 구조가 개선되었습니다.`,
-        severity: "positive",
-        category: "수익성",
-        metric: "operatingLeverage",
-        value: config.operatingLeverage,
-      });
-    }
-  }
-
-  // Rule 10: Sales trend
-  if (config.salesTrend && config.avgGrowthRate !== undefined && isFinite(config.avgGrowthRate)) {
-    if (config.salesTrend === "down" && config.avgGrowthRate < -5) {
-      insights.push({
-        id: "trend-down",
-        title: "매출 하락 추세",
-        message: `매출이 월평균 ${config.avgGrowthRate.toFixed(1)}% 감소하는 하락 추세입니다. 원인 분석과 영업 전략 수정이 필요합니다.`,
-        severity: "warning",
-        category: "매출",
-        metric: "avgGrowthRate",
-        value: config.avgGrowthRate,
-      });
-    } else if (config.salesTrend === "up" && config.avgGrowthRate > 5) {
-      insights.push({
-        id: "trend-up",
-        title: "매출 성장 추세",
-        message: `매출이 월평균 ${config.avgGrowthRate.toFixed(1)}% 성장하는 상승 추세입니다.`,
-        severity: "positive",
-        category: "매출",
-        metric: "avgGrowthRate",
-        value: config.avgGrowthRate,
-      });
-    }
-  }
-
-  // Rule 11: Order vs Sales ratio (pipeline health)
-  if (kpis.totalOrders > 0 && kpis.totalSales > 0) {
-    const orderToSalesRatio = (kpis.totalOrders / kpis.totalSales) * 100;
-    if (isFinite(orderToSalesRatio)) {
-      if (orderToSalesRatio < 80) {
+    // 첫 번째 매칭 조건 사용
+    for (const cond of rule.conditions) {
+      if (cond.test(value)) {
         insights.push({
-          id: "pipeline-low",
-          title: "수주 파이프라인 부족",
-          message: `수주/매출 비율 ${orderToSalesRatio.toFixed(0)}%로 향후 매출 확보를 위한 수주 활동 강화가 필요합니다.`,
-          severity: "warning",
-          category: "수주",
-          metric: "orderToSalesRatio",
-          value: orderToSalesRatio,
+          id: `${rule.id}-${cond.severity === "positive" ? "high" : cond.severity === "critical" ? "neg" : "low"}`,
+          title: `${rule.title} ${cond.titleSuffix}`,
+          message: cond.message(value, config),
+          severity: cond.severity,
+          category: rule.category,
+          metric: rule.metric,
+          value,
         });
-      } else if (orderToSalesRatio >= 120) {
-        insights.push({
-          id: "pipeline-high",
-          title: "수주 파이프라인 양호",
-          message: `수주/매출 비율 ${orderToSalesRatio.toFixed(0)}%로 향후 매출 성장 기반이 확보되어 있습니다.`,
-          severity: "positive",
-          category: "수주",
-          metric: "orderToSalesRatio",
-          value: orderToSalesRatio,
-        });
+        break;
       }
     }
   }
 
-  // Rule 12: Receivables to sales ratio
-  if (kpis.totalReceivables > 0 && kpis.totalSales > 0) {
-    const receivablesToSalesRatio = (kpis.totalReceivables / kpis.totalSales) * 100;
-    if (isFinite(receivablesToSalesRatio) && receivablesToSalesRatio > 50) {
-      insights.push({
-        id: "ar-high",
-        title: "미수금 비중 과다",
-        message: `미수금이 매출의 ${receivablesToSalesRatio.toFixed(0)}%에 달합니다. 채권 회수 강화 또는 신용 한도 재검토가 필요합니다.`,
-        severity: "warning",
-        category: "미수금",
-        metric: "receivablesToSalesRatio",
-        value: receivablesToSalesRatio,
-      });
-    }
-  }
-
-  // Rule 13: COGS ratio (매출원가율)
-  if (config.costOfGoodsRatio !== undefined && isFinite(config.costOfGoodsRatio)) {
-    if (config.costOfGoodsRatio > 85) {
-      insights.push({
-        id: "cogs-critical",
-        title: "매출원가율 과다",
-        message: `매출원가율 ${config.costOfGoodsRatio.toFixed(1)}%로 수익 확보가 어렵습니다. 원가 절감 또는 가격 인상을 검토하세요.`,
-        severity: "critical",
-        category: "수익성",
-        metric: "costOfGoodsRatio",
-        value: config.costOfGoodsRatio,
-      });
-    } else if (config.costOfGoodsRatio > 75) {
-      insights.push({
-        id: "cogs-warning",
-        title: "매출원가율 주의",
-        message: `매출원가율 ${config.costOfGoodsRatio.toFixed(1)}%로 수익성 관리에 주의가 필요합니다.`,
-        severity: "warning",
-        category: "수익성",
-        metric: "costOfGoodsRatio",
-        value: config.costOfGoodsRatio,
-      });
-    }
-  }
-
-  // Rule 14: Material cost ratio (원재료비율)
-  if (config.materialCostRatio !== undefined && isFinite(config.materialCostRatio)) {
-    if (config.materialCostRatio > 40) {
-      insights.push({
-        id: "material-high",
-        title: "원재료비 비중 과다",
-        message: `원재료비가 매출원가의 ${config.materialCostRatio.toFixed(1)}%를 차지합니다. 조달 단가 협상 또는 대체 원자재 검토가 필요합니다.`,
-        severity: "warning",
-        category: "수익성",
-        metric: "materialCostRatio",
-        value: config.materialCostRatio,
-      });
-    }
-  }
-
-  // Rule 15: Outsourcing cost ratio (외주비율)
-  if (config.outsourcingRatio !== undefined && isFinite(config.outsourcingRatio)) {
-    if (config.outsourcingRatio > 30) {
-      insights.push({
-        id: "outsourcing-high",
-        title: "외주가공비 비중 높음",
-        message: `외주가공비가 매출원가의 ${config.outsourcingRatio.toFixed(1)}%에 달합니다. 내재화 검토 또는 외주 단가 재협상을 고려하세요.`,
-        severity: "warning",
-        category: "수익성",
-        metric: "outsourcingRatio",
-        value: config.outsourcingRatio,
-      });
-    }
-  }
-
-  // Sort: critical first, then warning, then neutral, then positive
-  const severityOrder: Record<InsightSeverity, number> = {
-    critical: 0,
-    warning: 1,
-    neutral: 2,
-    positive: 3,
-  };
-  insights.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
-
+  insights.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
   return insights;
 }

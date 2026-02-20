@@ -1,9 +1,10 @@
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
   PieChart, Pie, Legend,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { CostProfileType } from "@/lib/analysis/kpi";
 
@@ -55,10 +56,9 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
           benchmark="원재료비 비중 30% 이상이면 자체생산형, 상품매입 30% 이상이면 구매직납형 비용 구조"
           className="xl:col-span-2"
         >
-          <div className="h-80 md:h-[500px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-[500px]">
               <BarChart data={costBarData} layout="vertical" margin={{ left: 75 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={70} />
                 <RechartsTooltip
@@ -86,11 +86,12 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
                     stackId="cost"
                     fill={COST_BAR_COLORS[key]}
                     name={key}
+                    activeBar={ACTIVE_BAR}
+                    {...ANIMATION_CONFIG}
                   />
                 ))}
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         {/* Profile Distribution Pie */}
@@ -100,8 +101,7 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
           description="각 담당자의 비용 구조를 분석하여 4가지 유형으로 자동 분류한 결과입니다. 자체생산형은 원재료를 직접 가공하는 유형, 구매직납형은 완제품을 사서 파는 유형, 외주의존형은 외부 업체에 가공을 맡기는 유형입니다. 비용 유형별로 원가 절감 전략이 다릅니다."
           benchmark="자체생산형은 원재료 단가 관리가, 구매직납형은 매입처 협상이, 외주의존형은 외주비 효율화가 핵심입니다"
         >
-          <div className="h-56 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-56 md:h-72">
               <PieChart>
                 <Pie
                   data={profileDist}
@@ -119,8 +119,7 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
                 <RechartsTooltip {...TOOLTIP_STYLE} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
               </PieChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       </div>
 

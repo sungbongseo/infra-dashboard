@@ -10,13 +10,13 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
   Cell,
 } from "recharts";
 import { ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { O2CPipelineResult } from "@/lib/analysis/pipeline";
 
@@ -86,14 +86,13 @@ export function PipelineTab({
         description="O2C(주문-수금 프로세스)의 전체 흐름을 퍼널(깔때기) 형태로 보여줍니다. 수금완료는 선수금을 제외한 순수 수금액입니다. 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리하여 미수잔액을 정확히 산출합니다."
         benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C(주문-수금) 프로세스입니다"
       >
-        <div className="h-56 md:h-72">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-56 md:h-72">
             <BarChart
               data={funnelData}
               layout="vertical"
               margin={{ left: 20, right: 80 }}
             >
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 type="number"
                 tick={{ fontSize: 11 }}
@@ -116,7 +115,9 @@ export function PipelineTab({
               <Bar
                 dataKey="금액"
                 name="금액"
-                radius={[0, 4, 4, 0]}
+                radius={BAR_RADIUS_RIGHT}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
                 label={({ x, y, width: w, height: h, value, index }: any) => {
                   const stage = funnelData[index];
                   return (
@@ -138,8 +139,7 @@ export function PipelineTab({
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       <ChartCard
@@ -148,10 +148,9 @@ export function PipelineTab({
         description="매월 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 보여줍니다. 두 비율이 안정적으로 높게 유지되면 주문에서 수금까지의 흐름이 건전하다는 의미입니다."
         benchmark="전환율과 수금율 모두 80% 이상으로 안정 유지되면 양호합니다"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={monthlyConversion}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="month" tick={{ fontSize: 12 }} />
               <YAxis
                 yAxisId="left"
@@ -179,24 +178,30 @@ export function PipelineTab({
                 dataKey="수주"
                 fill={CHART_COLORS[0]}
                 name="수주"
-                radius={[4, 4, 0, 0]}
+                radius={BAR_RADIUS_TOP}
                 opacity={0.8}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
               />
               <Bar
                 yAxisId="left"
                 dataKey="매출"
                 fill={CHART_COLORS[1]}
                 name="매출"
-                radius={[4, 4, 0, 0]}
+                radius={BAR_RADIUS_TOP}
                 opacity={0.8}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
               />
               <Bar
                 yAxisId="left"
                 dataKey="수금"
                 fill={CHART_COLORS[2]}
                 name="수금"
-                radius={[4, 4, 0, 0]}
+                radius={BAR_RADIUS_TOP}
                 opacity={0.8}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
               />
               <Line
                 yAxisId="right"
@@ -207,6 +212,8 @@ export function PipelineTab({
                 name="전환율"
                 dot={{ r: 3 }}
                 strokeDasharray="0"
+                activeDot={{ r: 6, strokeWidth: 2 }}
+                {...ANIMATION_CONFIG}
               />
               <Line
                 yAxisId="right"
@@ -217,10 +224,11 @@ export function PipelineTab({
                 name="수금율"
                 dot={{ r: 3 }}
                 strokeDasharray="5 5"
+                activeDot={{ r: 6, strokeWidth: 2 }}
+                {...ANIMATION_CONFIG}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

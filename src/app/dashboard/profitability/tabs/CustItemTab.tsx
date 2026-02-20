@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
   ComposedChart,
   Line,
@@ -17,6 +16,7 @@ import {
 import { Package, Users, Calendar } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcABCAnalysis, calcCustomerPortfolio, calcCrossProfitability } from "@/lib/analysis/customerItemAnalysis";
 
@@ -81,10 +81,9 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
 
       {/* ABC Pareto 차트 */}
       <ChartCard title="품목 ABC 분석 (Pareto)" formula="매출액 기준 내림차순 정렬 → 누적비중 80%=A, 95%=B, 100%=C" description="품목을 매출 기여도 순으로 정렬하고 누적 비중을 표시합니다. A등급 품목이 매출의 80%를 차지하며, 이들에 집중 관리가 필요합니다." benchmark="일반적으로 20%의 품목이 80%의 매출을 차지합니다 (파레토 법칙)">
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={abcItems.slice(0, 30)}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="product" tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 8)} angle={-45} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
@@ -93,17 +92,16 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
                 {...TOOLTIP_STYLE}
               />
               <Legend />
-              <Bar dataKey="sales" name="매출액" radius={[4, 4, 0, 0]}>
+              <Bar dataKey="sales" name="매출액" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {abcItems.slice(0, 30).map((item, idx) => (
                   <Cell key={idx} fill={item.grade === "A" ? CHART_COLORS[0] : item.grade === "B" ? CHART_COLORS[5] : CHART_COLORS[6]} />
                 ))}
               </Bar>
-              <Line type="monotone" dataKey="cumulativeShare" name="누적비중(%)" stroke={CHART_COLORS[4]} strokeWidth={2} yAxisId="right" dot={false} />
+              <Line type="monotone" dataKey="cumulativeShare" name="누적비중(%)" stroke={CHART_COLORS[4]} strokeWidth={2} yAxisId="right" dot={false} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
               <ReferenceLine y={80} yAxisId="right" stroke="#f97316" strokeDasharray="5 5" label={{ value: "80%", position: "right", fontSize: 10 }} />
               <ReferenceLine y={95} yAxisId="right" stroke="#ef4444" strokeDasharray="5 5" label={{ value: "95%", position: "right", fontSize: 10 }} />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* 거래처×품목 매출 Top 20 조합 */}

@@ -4,8 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+  Tooltip as RechartsTooltip, Legend,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { RepTrend } from "@/lib/analysis/profiling";
 
@@ -67,20 +68,18 @@ export function TrendTab({ repTrend }: TrendTabProps) {
         description="선택된 영업사원의 월별 매출(막대), 수주(막대), 수금(선) 추이를 보여줍니다. 수주가 매출보다 높으면 파이프라인이 건전하고, 수금이 매출을 따라가면 현금흐름이 양호합니다."
         benchmark="수주가 매출 이상이면 성장 중, 수금이 매출의 80% 이상이면 수금 관리 양호"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={repTrend.monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
               <Legend />
-              <Bar dataKey="sales" fill={CHART_COLORS[0]} name="매출" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="orders" fill={CHART_COLORS[1]} name="수주" radius={[4, 4, 0, 0]} />
-              <Line type="monotone" dataKey="collections" stroke={CHART_COLORS[4]} strokeWidth={2} name="수금" dot={{ r: 3 }} />
+              <Bar dataKey="sales" fill={CHART_COLORS[0]} name="매출" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="orders" fill={CHART_COLORS[1]} name="수주" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Line type="monotone" dataKey="collections" stroke={CHART_COLORS[4]} strokeWidth={2} name="수금" dot={{ r: 3 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

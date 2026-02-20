@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Cell,
   Legend,
   ComposedChart,
@@ -17,12 +16,14 @@ import {
 import { DollarSign, TrendingUp, BarChart3, Globe } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCurrencySales, calcMonthlyFxTrend, calcFxPnL } from "@/lib/analysis/fx";
+import type { SalesRecord } from "@/types";
 
 interface FxTabProps {
-  filteredSales: any[];
+  filteredSales: SalesRecord[];
 }
 
 export function FxTab({ filteredSales }: FxTabProps) {
@@ -83,10 +84,9 @@ export function FxTab({ filteredSales }: FxTabProps) {
         description="매월 내수 매출(파랑 막대)과 해외 매출(보라 막대)이 어떻게 변하는지 보여줍니다. 오른쪽 축의 선은 해외매출 비중(%)을 나타냅니다. 해외매출 비중이 급변하면 환율 리스크 관리 전략을 재검토해야 합니다."
         benchmark="해외매출 비중 추이가 안정적이면 양호, 급등 또는 급락 시 원인 분석 필요"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <ComposedChart data={monthlyFxTrend}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis
                 yAxisId="left"
@@ -115,6 +115,8 @@ export function FxTab({ filteredSales }: FxTabProps) {
                 stackId="fxStack"
                 fill={CHART_COLORS[0]}
                 radius={[0, 0, 0, 0]}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
               />
               <Bar
                 yAxisId="left"
@@ -122,7 +124,9 @@ export function FxTab({ filteredSales }: FxTabProps) {
                 name="해외 매출"
                 stackId="fxStack"
                 fill={CHART_COLORS[3]}
-                radius={[4, 4, 0, 0]}
+                radius={BAR_RADIUS_TOP}
+                activeBar={ACTIVE_BAR}
+                {...ANIMATION_CONFIG}
               />
               <Line
                 yAxisId="right"
@@ -132,10 +136,11 @@ export function FxTab({ filteredSales }: FxTabProps) {
                 stroke={CHART_COLORS[4]}
                 strokeWidth={2}
                 dot={{ r: 3 }}
+                activeDot={{ r: 6, strokeWidth: 2 }}
+                {...ANIMATION_CONFIG}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* 통화별 매출 분포 */}
@@ -146,14 +151,13 @@ export function FxTab({ filteredSales }: FxTabProps) {
           description="KRW(원화), USD(달러), EUR(유로) 등 거래에 사용된 통화별 매출 규모를 비교합니다. 원화 외에 특정 외화에 매출이 집중되어 있으면 해당 통화의 환율 변동이 실적에 큰 영향을 미칩니다."
           benchmark="특정 외화 의존도가 50%를 넘으면 통화 분산 또는 환헤지 필요"
         >
-          <div className="h-72 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-96">
               <BarChart
                 data={fxImpact.currencyBreakdown}
                 layout="vertical"
                 margin={{ left: 10 }}
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis
                   type="number"
                   tick={{ fontSize: 11 }}
@@ -183,7 +187,9 @@ export function FxTab({ filteredSales }: FxTabProps) {
                 <Bar
                   dataKey="bookAmount"
                   name="매출액(원화)"
-                  radius={[0, 4, 4, 0]}
+                  radius={BAR_RADIUS_RIGHT}
+                  activeBar={ACTIVE_BAR}
+                  {...ANIMATION_CONFIG}
                 >
                   {fxImpact.currencyBreakdown.map((entry, i) => (
                     <Cell
@@ -197,8 +203,7 @@ export function FxTab({ filteredSales }: FxTabProps) {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         {/* 통화별 환율 및 FX 손익 */}

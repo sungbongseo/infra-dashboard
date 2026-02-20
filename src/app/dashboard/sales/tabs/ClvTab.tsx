@@ -8,20 +8,22 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   ScatterChart,
   Scatter,
 } from "recharts";
 import { TrendingUp, Users, BarChart3, Crown } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcClv, calcClvSummary } from "@/lib/analysis/clv";
+import type { SalesRecord } from "@/types";
+import type { OrgProfitRecord } from "@/types/profitability";
 
 interface ClvTabProps {
-  filteredSales: any[];
-  filteredOrgProfit: any[];
+  filteredSales: SalesRecord[];
+  filteredOrgProfit: OrgProfitRecord[];
 }
 
 export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
@@ -80,8 +82,7 @@ export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
           description="고객 생애가치가 높은 상위 15개 고객입니다. CLV가 높다는 것은 해당 고객이 장기적으로 꾸준히 수익을 가져다줄 가능성이 크다는 의미이며, 이들에 대한 맞춤형 관리가 중요합니다."
           benchmark="상위 20% 고객의 CLV가 전체의 80% 이상이면 핵심 고객 집중 관리 필요"
         >
-          <div className="h-72 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-96">
               <BarChart
                 data={clvResults.slice(0, 15).map((c) => ({
                   name: c.customerName || c.customer,
@@ -90,7 +91,7 @@ export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
                 layout="vertical"
                 margin={{ left: 10 }}
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis
                   type="category"
@@ -103,10 +104,9 @@ export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
                   {...TOOLTIP_STYLE}
                   formatter={(value: any) => [formatCurrency(Number(value)), "CLV"]}
                 />
-                <Bar dataKey="clv" name="CLV" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="clv" name="CLV" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         {/* CLV vs 현재 매출 산점도 */}
@@ -116,10 +116,9 @@ export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
           description="현재 매출과 장기 예상 가치를 비교합니다. 대각선 위쪽 고객은 현재 매출은 적지만 장기 가치가 높아 적극 육성 대상입니다. 대각선 아래쪽 고객은 현재 매출은 많지만 장기 가치가 낮아 관계 강화가 필요합니다."
           benchmark="CLV가 현재 매출의 1.5배 이상이면 고성장 잠재 고객으로 분류"
         >
-          <div className="h-72 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-96">
               <ScatterChart margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis
                   type="number"
                   dataKey="currentSales"
@@ -151,8 +150,7 @@ export function ClvTab({ filteredSales, filteredOrgProfit }: ClvTabProps) {
                   fillOpacity={0.7}
                 />
               </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       </div>
     </>

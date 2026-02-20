@@ -3,9 +3,10 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
   PieChart, Pie, Legend, ReferenceLine,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Package, TrendingUp, Calendar } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
@@ -117,8 +118,7 @@ export function ProductTab({
         benchmark="양수(녹색)는 이익 품목, 음수(빨간색)는 손실 품목으로 원가 구조 점검 필요"
       >
         <ErrorBoundary>
-          <div className="h-80 md:h-[500px]">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-[500px]">
               <BarChart
                 data={productProfitability.slice(0, 15).map((p) => ({
                   name: p.product.length > 10 ? p.product.substring(0, 10) + "..." : p.product,
@@ -130,7 +130,7 @@ export function ProductTab({
                 layout="vertical"
                 margin={{ left: 90 }}
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={85} />
                 <RechartsTooltip
@@ -148,14 +148,13 @@ export function ProductTab({
                     );
                   }}
                 />
-                <Bar dataKey="매출총이익" name="매출총이익" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="매출총이익" name="매출총이익" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                   {productProfitability.slice(0, 15).map((p, i) => (
                     <Cell key={i} fill={p.grossProfit >= 0 ? CHART_COLORS[1] : CHART_COLORS[4]} />
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
 
@@ -166,8 +165,7 @@ export function ProductTab({
         benchmark="단일 품목 비중이 30% 이상이면 집중도가 높아 리스크 관리 필요"
       >
         <ErrorBoundary>
-          <div className="h-80 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-96">
               <PieChart>
                 <Pie
                   data={productPieData}
@@ -225,8 +223,7 @@ export function ProductTab({
                   formatter={(value) => (value as string).length > 20 ? (value as string).substring(0, 20) + "..." : value}
                 />
               </PieChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
 
@@ -281,10 +278,9 @@ export function ProductTab({
           benchmark="마진 침식이 -5%p 이상이면 긴급 원인 분석이 필요합니다. 가격 재설정, 원가 절감, 또는 해당 품목 전략 재검토를 권장합니다."
         >
           <ErrorBoundary>
-            <div className="h-80 md:h-[500px]">
-              <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height="h-80 md:h-[500px]">
                 <BarChart data={marginErosion.slice(0, 20)} layout="vertical" margin={{ left: 90 }}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid {...GRID_PROPS} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 12)} />
                   <RechartsTooltip
@@ -307,14 +303,13 @@ export function ProductTab({
                     }}
                   />
                   <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" />
-                  <Bar dataKey="impactAmount" name="영향액" radius={[0, 4, 4, 0]}>
+                  <Bar dataKey="impactAmount" name="영향액" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                     {marginErosion.slice(0, 20).map((item, idx) => (
                       <Cell key={idx} fill={item.impactAmount < 0 ? "#ef4444" : "#059669"} />
                     ))}
                   </Bar>
                 </BarChart>
-              </ResponsiveContainer>
-            </div>
+            </ChartContainer>
           </ErrorBoundary>
         </ChartCard>
       )}

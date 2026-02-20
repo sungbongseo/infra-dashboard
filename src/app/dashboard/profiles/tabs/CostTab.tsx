@@ -2,8 +2,9 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
+  Tooltip as RechartsTooltip, Legend,
 } from "recharts";
+import { ChartContainer } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { SalesRepProfile, CostEfficiency } from "@/lib/analysis/profiling";
@@ -73,8 +74,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
           description="개인의 비용 구조를 소속 조직의 평균값과 비교한 레이더 차트입니다. 파란색 영역(개인)이 점선(조직 평균)보다 안쪽이면 비용 관리가 효율적이라는 뜻이고, 바깥이면 해당 비용 항목의 개선이 필요합니다."
           benchmark="개인의 비용 비율이 조직 평균보다 5%p 이상 높으면 비용 절감 검토가 필요합니다"
         >
-          <div className="h-72 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-96">
               <RadarChart data={costRadarData}>
                 <PolarGrid className="stroke-muted" />
                 <PolarAngleAxis dataKey="subject" tick={{ fontSize: 11 }} />
@@ -84,8 +84,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
                 <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${Number(v).toFixed(1)}%`} />
                 <Legend />
               </RadarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       )}
 

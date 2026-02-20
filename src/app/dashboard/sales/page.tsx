@@ -12,7 +12,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -27,6 +26,7 @@ import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
@@ -168,10 +168,9 @@ export default function SalesAnalysisPage() {
             benchmark="상위 20% 거래처가 매출의 80%를 차지하면 전형적인 파레토 분포 (80:20 법칙)"
             action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
           >
-            <div className="h-72 md:h-96">
-              <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height="h-72 md:h-96">
                 <ComposedChart data={paretoData}>
-                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <CartesianGrid {...GRID_PROPS} />
                   <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
                   <YAxis yAxisId="left" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} domain={[0, 100]} />
@@ -179,14 +178,13 @@ export default function SalesAnalysisPage() {
                     name === "cumPercent" ? `${Number(value).toFixed(1)}%` : formatCurrency(Number(value))
                   } />
                   <Legend />
-                  <Bar yAxisId="left" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
                   <Line yAxisId="right" type="monotone" dataKey="cumPercent" stroke={CHART_COLORS[4]} strokeWidth={2} name="누적비율" dot={{ r: 3 }} />
                   {/* ABC 등급 경계선 */}
                   <ReferenceLine yAxisId="right" y={80} stroke="hsl(142, 76%, 36%)" strokeDasharray="5 5" strokeWidth={1.5} label={{ value: "A (80%)", position: "right", fontSize: 10, fill: "hsl(142, 76%, 36%)" }} />
                   <ReferenceLine yAxisId="right" y={95} stroke="hsl(38, 92%, 50%)" strokeDasharray="5 5" strokeWidth={1.5} label={{ value: "B (95%)", position: "right", fontSize: 10, fill: "hsl(38, 92%, 50%)" }} />
                 </ComposedChart>
-              </ResponsiveContainer>
-            </div>
+            </ChartContainer>
           </ChartCard>
         </TabsContent>
 
@@ -197,8 +195,7 @@ export default function SalesAnalysisPage() {
             description="각 품목의 매출 규모를 면적(네모칸) 크기로 보여줍니다. 면적이 클수록 해당 품목의 매출 비중이 높습니다. 상위 20개 품목을 표시하며, 어떤 제품이 매출을 주도하는지 한눈에 파악할 수 있습니다."
             benchmark="특정 품목이 전체 매출의 50% 이상이면 제품 다각화 필요"
           >
-            <div className="h-72 md:h-96">
-              <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height="h-72 md:h-96">
                 <Treemap
                   data={treemapData}
                   dataKey="size"
@@ -220,8 +217,7 @@ export default function SalesAnalysisPage() {
                     );
                   }}
                 />
-              </ResponsiveContainer>
-            </div>
+            </ChartContainer>
           </ChartCard>
         </TabsContent>
 
@@ -232,8 +228,7 @@ export default function SalesAnalysisPage() {
             description="전체 매출 중 내수(국내 판매)와 수출(해외 판매)의 비율을 도넛 차트로 보여줍니다. 수출 비중이 높으면 환율 변동에 따라 실적이 크게 흔들릴 수 있으므로 환리스크 관리가 중요합니다."
             benchmark="내수와 수출이 적절히 분산되면 안정적, 한쪽 비중이 80% 이상이면 편중 주의"
           >
-            <div className="h-72 md:h-96">
-              <ResponsiveContainer width="100%" height="100%">
+            <ChartContainer height="h-72 md:h-96">
                 <PieChart>
                   <Pie
                     data={donutData}
@@ -250,8 +245,7 @@ export default function SalesAnalysisPage() {
                   </Pie>
                   <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                 </PieChart>
-              </ResponsiveContainer>
-            </div>
+            </ChartContainer>
           </ChartCard>
         </TabsContent>
 

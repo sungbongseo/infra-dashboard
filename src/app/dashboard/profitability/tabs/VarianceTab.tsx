@@ -2,9 +2,10 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
   ReferenceLine, Legend,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Target, TrendingUp, Calendar, AlertTriangle } from "lucide-react";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
@@ -113,10 +114,9 @@ export function VarianceTab({ planSummary, orgAchievement, topContributors, marg
         description="각 조직의 매출 계획 달성율을 비교합니다. 100% 기준선을 넘으면 초과 달성, 미달이면 추가 영업 노력이 필요합니다."
         benchmark="100% 기준선: 달성, 빨간 막대는 미달 조직"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <BarChart data={orgAchievement} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
               <RechartsTooltip
@@ -136,14 +136,13 @@ export function VarianceTab({ planSummary, orgAchievement, topContributors, marg
                 }}
               />
               <ReferenceLine x={100} stroke="#666" strokeDasharray="3 3" label={{ value: "100%", fontSize: 10 }} />
-              <Bar dataKey="salesAchievement" name="매출달성율" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="salesAchievement" name="매출달성율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {orgAchievement.map((r, i) => (
                   <Cell key={i} fill={r.salesAchievement >= 100 ? CHART_COLORS[0] : r.salesAchievement >= 80 ? CHART_COLORS[3] : CHART_COLORS[6]} />
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* 조직별 이익율 변동 */}
@@ -153,10 +152,9 @@ export function VarianceTab({ planSummary, orgAchievement, topContributors, marg
         description="각 조직의 계획 매출총이익율(회색)과 실적(파란색)을 비교합니다. 실적이 계획보다 낮으면 이익율이 악화된 것이며, 원가 상승이나 저마진 판매 증가가 원인일 수 있습니다."
         benchmark="실적(파란색)이 계획(회색)보다 높으면 이익율 개선"
       >
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <BarChart data={orgAchievement}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="org" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
               <RechartsTooltip
@@ -164,11 +162,10 @@ export function VarianceTab({ planSummary, orgAchievement, topContributors, marg
                 {...TOOLTIP_STYLE}
               />
               <Legend />
-              <Bar dataKey="plannedGPRate" name="계획 이익율" fill={CHART_COLORS[5]} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="actualGPRate" name="실적 이익율" fill={CHART_COLORS[0]} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="plannedGPRate" name="계획 이익율" fill={CHART_COLORS[5]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="actualGPRate" name="실적 이익율" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* Top 기여 / 악화 거래처 */}

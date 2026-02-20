@@ -3,9 +3,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
   PieChart, Pie,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Star, Trophy, TrendingUp, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
@@ -26,21 +27,19 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
         description="총 점수가 높은 순서대로 상위 20명의 순위를 보여줍니다. 현재 선택된 영업사원은 주황색으로 강조 표시됩니다. 자신의 상대적 위치와 동료들의 성과 수준을 한눈에 파악할 수 있습니다."
         benchmark="상위 20%는 핵심 인재로 관리하고, 하위 20%는 역량 개발 코칭이 필요합니다"
       >
-        <div className="h-80 md:h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={rankingData} layout="vertical" margin={{ left: 60 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" domain={[0, 100]} tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" tick={{ fontSize: 10 }} width={55} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${v}점`} />
-              <Bar dataKey="score" name="총점" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="score" name="총점" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {rankingData.map((entry, i) => (
                   <Cell key={i} fill={entry.isSelected ? CHART_COLORS[3] : CHART_COLORS[0]} />
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {selected && (
@@ -148,14 +147,14 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
               </div>
               <div className="h-64 md:h-80">
                 {customerPieData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ChartContainer height="h-64 md:h-80">
                     <PieChart>
                       <Pie data={customerPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={100} label={({ name, value }: any) => `${name} ${value}%`} labelLine={{ strokeWidth: 1 }}>
                         {customerPieData.map((entry, i) => (<Cell key={i} fill={entry.fill} />))}
                       </Pie>
                       <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any, name: any, props: any) => { const amt = props.payload?.amount; return amt ? [`${value}% (${formatCurrency(amt, true)})`, name] : [`${value}%`, name]; }} />
                     </PieChart>
-                  </ResponsiveContainer>
+                  </ChartContainer>
                 ) : (
                   <div className="h-full flex items-center justify-center text-muted-foreground text-sm">거래처 데이터 없음</div>
                 )}

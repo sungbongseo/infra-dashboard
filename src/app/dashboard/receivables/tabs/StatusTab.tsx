@@ -8,12 +8,12 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
 } from "recharts";
 import { CreditCard, AlertTriangle, Shield } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
 import type { AgingSummary } from "@/lib/analysis/aging";
 
@@ -89,24 +89,22 @@ export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
         description="조직별로 미수채권이 얼마나 오래되었는지 색상으로 구분하여 보여줍니다. 녹색은 최근 발생한 채권, 빨간색은 오래된 채권입니다. 빨간색 비중이 클수록 회수 위험이 높습니다."
         benchmark="3개월 이상 비율이 20% 미만이면 양호합니다. 6개월 초과 비중이 높으면 대손(회수 불능) 위험이 있습니다"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <BarChart data={agingStackedData}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="org" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
               <Legend />
-              <Bar dataKey="1개월" stackId="a" fill="hsl(142, 76%, 36%)" />
-              <Bar dataKey="2개월" stackId="a" fill="hsl(80, 60%, 45%)" />
-              <Bar dataKey="3개월" stackId="a" fill="hsl(45, 93%, 47%)" />
-              <Bar dataKey="4개월" stackId="a" fill="hsl(30, 90%, 50%)" />
-              <Bar dataKey="5개월" stackId="a" fill="hsl(15, 85%, 50%)" />
-              <Bar dataKey="6개월" stackId="a" fill="hsl(0, 70%, 55%)" />
-              <Bar dataKey="6개월+" stackId="a" fill="hsl(0, 84%, 40%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="1개월" stackId="a" fill="hsl(142, 76%, 36%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="2개월" stackId="a" fill="hsl(80, 60%, 45%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="3개월" stackId="a" fill="hsl(45, 93%, 47%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="4개월" stackId="a" fill="hsl(30, 90%, 50%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="5개월" stackId="a" fill="hsl(15, 85%, 50%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="6개월" stackId="a" fill="hsl(0, 70%, 55%)" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="6개월+" stackId="a" fill="hsl(0, 84%, 40%)" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

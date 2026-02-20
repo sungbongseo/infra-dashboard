@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
   ComposedChart,
   ScatterChart,
@@ -22,6 +21,7 @@ import { Users, Target, Calendar } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerConcentration, calcCustomerRanking, calcCustomerSegments } from "@/lib/analysis/customerProfitAnalysis";
 
@@ -127,30 +127,27 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
       {/* 거래처 세그먼트 분포 */}
       <ChartCard title="거래처 세그먼트별 매출 분포" formula="세그먼트별 매출 비중(%) = 세그먼트 매출 ÷ 전체 매출 × 100" description="거래처 대분류 기준으로 매출, 수익, 마진을 비교합니다. 세그먼트별 수익성 차이를 통해 전략적 집중이 필요한 영역을 파악할 수 있습니다." benchmark="특정 세그먼트가 매출의 50% 이상이면 의존도가 높아 리스크 분산이 필요합니다">
         <ErrorBoundary>
-        <div className="h-64 md:h-80">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={custSegments} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis type="category" dataKey="segment" width={80} tick={{ fontSize: 11 }} />
               <RechartsTooltip formatter={(v: any, name: any) => name.includes("율") || name.includes("비중") ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
-              <Bar dataKey="totalSales" name="매출액" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} />
-              <Bar dataKey="totalGrossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={[0, 4, 4, 0]} />
-              <Bar dataKey="totalOperatingProfit" name="영업이익" fill={CHART_COLORS[2]} radius={[0, 4, 4, 0]} />
+              <Bar dataKey="totalSales" name="매출액" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="totalGrossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="totalOperatingProfit" name="영업이익" fill={CHART_COLORS[2]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
 
       {/* 거래처 Top/Bottom 랭킹 */}
       <div className="grid gap-4 md:grid-cols-2">
         <ChartCard title="매출 Top 15 거래처" formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100" description="매출액 기준 상위 15개 거래처입니다. 막대 색상은 영업이익율에 따라 녹색(양호)~적색(부진)으로 표시됩니다." benchmark="상위 20% 거래처가 전체 매출의 80%를 차지하면 파레토 법칙에 부합합니다">
-          <div className="h-80 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-96">
               <BarChart data={custRanking.slice(0, 15)} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="name" width={90} tick={{ fontSize: 10 }} tickFormatter={(v) => String(v).substring(0, 12)} />
                 <RechartsTooltip
@@ -161,21 +158,19 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                   }}
                   {...TOOLTIP_STYLE}
                 />
-                <Bar dataKey="sales" name="매출액" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="sales" name="매출액" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                   {custRanking.slice(0, 15).map((entry, idx) => (
                     <Cell key={idx} fill={entry.opMargin >= 5 ? CHART_COLORS[1] : entry.opMargin >= 0 ? CHART_COLORS[5] : CHART_COLORS[4]} />
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         <ChartCard title="거래처 수익성 Scatter" formula="X축 = 매출액, Y축 = 영업이익율(%)" description="X축=매출액, Y축=영업이익율로 각 거래처의 위치를 보여줍니다. 우상단이 매출도 크고 수익성도 높은 우량 거래처입니다." benchmark="우상단(고매출+고수익): 핵심 거래처, 좌상단(저매출+고수익): 육성 대상, 우하단(고매출+저수익): 조건 재협상 필요">
-          <div className="h-80 md:h-96">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-96">
               <ScatterChart>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" dataKey="sales" name="매출액" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="number" dataKey="opMargin" name="영업이익율(%)" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
                 <ZAxis type="number" dataKey="grossProfit" range={[30, 300]} />
@@ -192,8 +187,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                   <LabelList dataKey="name" position="top" style={{ fontSize: 9 }} formatter={(v: any) => String(v).substring(0, 8)} />
                 </Scatter>
               </ScatterChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       </div>
 

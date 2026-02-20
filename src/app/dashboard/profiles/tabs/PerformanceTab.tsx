@@ -3,8 +3,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  ResponsiveContainer, Tooltip as RechartsTooltip, Legend,
+  Tooltip as RechartsTooltip, Legend,
 } from "recharts";
+import { ChartContainer } from "@/components/charts";
 import { Users } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
@@ -103,8 +104,7 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
         description={descText}
         benchmark="총점 70점 이상이면 우수, 50~70점이면 보통, 50점 미만이면 개선이 필요합니다"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <RadarChart data={radarData}>
               <PolarGrid className="stroke-muted" />
               <PolarAngleAxis dataKey="subject" tick={{ fontSize: 12 }} />
@@ -114,8 +114,7 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${Number(v).toFixed(1)}점`} />
               <Legend />
             </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

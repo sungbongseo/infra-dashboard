@@ -2,8 +2,9 @@ import { useState, useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Legend,
+  Tooltip as RechartsTooltip, Legend,
 } from "recharts";
+import { ChartContainer } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { OrgRatioMetric } from "@/lib/analysis/kpi";
 
@@ -103,8 +104,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
           </div>
         }
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <RadarChart data={radarData}>
               <PolarGrid />
               <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
@@ -132,8 +132,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
                 }}
               />
             </RadarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       {/* Heatmap */}

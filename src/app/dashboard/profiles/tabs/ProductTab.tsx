@@ -2,9 +2,10 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  PieChart, Pie, ResponsiveContainer,
+  PieChart, Pie,
   Tooltip as RechartsTooltip, Cell,
 } from "recharts";
+import { ChartContainer } from "@/components/charts";
 import { Package } from "lucide-react";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -84,8 +85,7 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
         description="담당자가 취급하는 품목 중 매출 상위 10개를 원형 차트로 보여줍니다. 특정 품목에 과도하게 집중되어 있으면 해당 품목 수요 변화에 취약합니다."
         benchmark="단일 품목 비중 30% 이상이면 집중 리스크가 있으므로 포트폴리오 다변화 검토 필요"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <PieChart>
               <Pie
                 data={productPortfolio.topProducts.slice(0, 10).map((p) => ({ name: p.productName || p.product, value: Math.round(p.sharePercent * 10) / 10 }))}
@@ -103,8 +103,7 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
               </Pie>
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${v}%`} />
             </PieChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       <ChartCard

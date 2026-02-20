@@ -3,8 +3,9 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { TrendingUp, Target } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
@@ -69,10 +70,9 @@ export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData }:
         benchmark="매출총이익율 30% 이상, 영업이익율 10% 이상이면 양호한 수익 구조"
       >
         <ErrorBoundary>
-          <div className="h-64 md:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-64 md:h-80">
               <BarChart data={waterfallData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <RechartsTooltip
@@ -88,15 +88,14 @@ export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData }:
                     );
                   }}
                 />
-                <Bar dataKey="base" stackId="waterfall" fill="transparent" />
-                <Bar dataKey="value" stackId="waterfall" radius={[4, 4, 0, 0]}>
+                <Bar dataKey="base" stackId="waterfall" fill="transparent" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar dataKey="value" stackId="waterfall" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                   {waterfallData.map((entry, i) => (
                     <Cell key={i} fill={entry.fill} />
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
     </>

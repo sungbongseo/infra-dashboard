@@ -7,7 +7,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   Legend,
   ComposedChart,
   Line,
@@ -15,6 +14,7 @@ import {
 import { Wallet, Landmark, Building2, Percent } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
 import type { PrepaymentSummary, OrgPrepayment, MonthlyPrepayment } from "@/lib/analysis/prepayment";
 
@@ -86,10 +86,9 @@ export function PrepaymentTab({
         description="선수금이 가장 많은 상위 10개 조직입니다. 특정 조직에 선수금이 집중되어 있다면 해당 조직의 납품 이행 능력과 일정을 점검해야 합니다."
         benchmark="단일 조직의 선수금이 전체의 30% 이상이면 집중도가 과도한 상태입니다"
       >
-        <div className="h-80 md:h-[500px]">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={orgPrepayments.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip
@@ -101,10 +100,9 @@ export function PrepaymentTab({
                 labelFormatter={(label) => `조직: ${label}`}
               />
               <Legend formatter={(value) => (value === "prepayment" ? "선수금" : "장부선수금")} />
-              <Bar dataKey="prepayment" name="prepayment" fill="hsl(221.2, 83.2%, 53.3%)" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="prepayment" name="prepayment" fill="hsl(221.2, 83.2%, 53.3%)" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
 
       <ChartCard
@@ -113,10 +111,9 @@ export function PrepaymentTab({
         description="매월 선수금이 얼마나 발생했는지 추이를 보여줍니다. 선수금(막대)과 장부선수금(선)의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."
         benchmark="월별 변동폭이 크면 계절적 요인이나 대형 프로젝트의 영향을 확인해야 합니다"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <ComposedChart data={monthlyPrepayments}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip
@@ -127,7 +124,7 @@ export function PrepaymentTab({
                 ]}
               />
               <Legend formatter={(value) => (value === "prepayment" ? "선수금" : "장부선수금")} />
-              <Bar dataKey="prepayment" name="prepayment" fill="hsl(221.2, 83.2%, 53.3%)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="prepayment" name="prepayment" fill="hsl(221.2, 83.2%, 53.3%)" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Line
                 type="monotone"
                 dataKey="bookPrepayment"
@@ -135,11 +132,11 @@ export function PrepaymentTab({
                 stroke="hsl(24.6, 95%, 53.1%)"
                 strokeWidth={2}
                 dot={{ r: 4 }}
-                activeDot={{ r: 6 }}
+                activeDot={{ r: 6, strokeWidth: 2 }}
+                {...ANIMATION_CONFIG}
               />
             </ComposedChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

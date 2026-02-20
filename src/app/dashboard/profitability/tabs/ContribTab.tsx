@@ -2,9 +2,10 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, ResponsiveContainer, Cell,
+  Tooltip as RechartsTooltip, Cell,
   PieChart, Pie, Legend, ReferenceLine,
 } from "recharts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Users } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
@@ -71,10 +72,9 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           benchmark="일반적으로 상위 20% 담당자가 전체 공헌이익의 약 80%를 차지합니다 (파레토 법칙)"
           className="xl:col-span-2"
         >
-          <div style={{ height: Math.max(320, contribRanking.length * 28 + 40) }}>
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-80 md:h-[500px]">
               <BarChart data={contribRanking} layout="vertical" margin={{ left: 90 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
                 <RechartsTooltip
@@ -92,10 +92,9 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                     );
                   }}
                 />
-                <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={[0, 4, 4, 0]} />
+                <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         <ChartCard
@@ -104,8 +103,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           description="전체 공헌이익 중 각 조직이 차지하는 비율을 원형 차트로 보여줍니다. 한 조직에 지나치게 편중되면 해당 조직 실적 부진 시 전체 수익에 큰 타격을 받으므로, 적절한 분산이 중요합니다."
           benchmark="특정 조직 비중이 50%를 넘으면 수익 집중 리스크를 검토해야 합니다"
         >
-          <div className="h-56 md:h-72">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-56 md:h-72">
               <PieChart>
                 <Pie
                   data={orgContribPie}
@@ -127,8 +125,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                 <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
               </PieChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
           {excludedNegativeContribCount > 0 && (
             <p className="text-xs text-muted-foreground mt-1 px-1">
               * 공헌이익 음수 조직 {excludedNegativeContribCount}개 제외됨
@@ -143,10 +140,9 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
         description="각 담당자의 매출 100원당 변동비를 빼고 남는 이익 비율입니다. 공헌이익율이 높을수록 적은 매출로도 고정비 회수에 크게 기여하며, 변동비 관리를 효율적으로 하고 있다는 의미입니다."
         benchmark="공헌이익율 20% 이상이면 양호, 음수인 경우 매출보다 변동비가 더 큰 적자 상태"
       >
-        <div style={{ height: Math.max(320, contribByRate.length * 28 + 40) }}>
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={contribByRate} layout="vertical" margin={{ left: 90 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
               <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
               <RechartsTooltip
@@ -165,14 +161,13 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                 }}
               />
               <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
-              <Bar dataKey="공헌이익율" name="공헌이익율" radius={[0, 4, 4, 0]}>
+              <Bar dataKey="공헌이익율" name="공헌이익율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {contribByRate.map((entry, i) => (
                   <Cell key={i} fill={entry.공헌이익율 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );

@@ -69,10 +69,12 @@ export const TOOLTIP_STYLE = {
     border: "1px solid hsl(var(--border))",
     backgroundColor: "hsl(var(--card))",
     color: "hsl(var(--card-foreground))",
-    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
+    boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)",
     fontSize: 12,
+    zIndex: 50,
   },
   labelStyle: { fontWeight: 600 },
+  cursor: { fill: "hsl(var(--muted))", fillOpacity: 0.3 },
 };
 
 // Date utilities

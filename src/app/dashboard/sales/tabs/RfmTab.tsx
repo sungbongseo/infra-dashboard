@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -18,6 +17,7 @@ import {
   ZAxis,
 } from "recharts";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcRfmScores, calcRfmSegmentSummary } from "@/lib/analysis/rfm";
@@ -31,8 +31,10 @@ const RFM_COLORS: Record<string, string> = {
   Lost: "#ef4444",
 };
 
+import type { SalesRecord } from "@/types";
+
 interface RfmTabProps {
-  filteredSales: any[];
+  filteredSales: SalesRecord[];
 }
 
 export function RfmTab({ filteredSales }: RfmTabProps) {
@@ -51,8 +53,7 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
           description="RFM 분석은 고객을 3가지 기준으로 평가합니다. R(최근성): 마지막 거래가 얼마나 최근인지, F(빈도): 얼마나 자주 거래하는지, M(금액): 총 거래 금액이 얼마인지. 이 점수를 조합하여 VIP(최우수), Loyal(충성), Potential(잠재), At-risk(위험), Dormant(휴면), Lost(이탈) 등 6개 그룹으로 나눕니다."
           benchmark="VIP + Loyal 거래처가 전체의 30% 이상이면 건전한 고객 포트폴리오"
         >
-          <div className="h-72 md:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-80">
               <PieChart>
                 <Pie
                   data={rfmSummary}
@@ -102,8 +103,7 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
                 />
                 {rfmSummary.length > 6 && <Legend />}
               </PieChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
 
         <ChartCard
@@ -112,17 +112,16 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
           description="각 고객 등급(세그먼트)이 전체 매출에서 차지하는 금액을 비교합니다. 보통 VIP 소수 고객이 전체 매출의 대부분을 차지하며, 이들의 이탈 방지가 매출 유지의 핵심입니다."
           benchmark="VIP 세그먼트 매출 비중이 60% 이상이면 핵심 고객 관리 프로그램 강화 필요"
         >
-          <div className="h-72 md:h-80">
-            <ResponsiveContainer width="100%" height="100%">
+          <ChartContainer height="h-72 md:h-80">
               <BarChart data={rfmSummary} layout="vertical" margin={{ left: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="segment" tick={{ fontSize: 11 }} width={65} />
                 <RechartsTooltip
                   {...TOOLTIP_STYLE}
                   formatter={(value: any) => [formatCurrency(Number(value)), "매출액"]}
                 />
-                <Bar dataKey="totalSales" name="매출액" radius={[0, 4, 4, 0]}>
+                <Bar dataKey="totalSales" name="매출액" radius={BAR_RADIUS_RIGHT}>
                   {rfmSummary.map((entry) => (
                     <Cell
                       key={entry.segment}
@@ -131,8 +130,7 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
-          </div>
+          </ChartContainer>
         </ChartCard>
       </div>
 
@@ -143,10 +141,9 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
         description="고객을 최근성(가로축)과 매출 규모(세로축)로 배치한 산점도입니다. 점이 클수록 거래 빈도가 높은 고객입니다. 왼쪽 위(최근 거래 + 높은 매출)에 있는 고객이 VIP이고, 오른쪽 아래(오래된 거래 + 낮은 매출)에 있는 고객은 이탈 위험군입니다."
         benchmark="왼쪽 위에 큰 점이 많을수록 건전한 고객 구조"
       >
-        <div className="h-72 md:h-96">
-          <ResponsiveContainer width="100%" height="100%">
+        <ChartContainer height="h-72 md:h-96">
             <ScatterChart margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>
-              <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+              <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 type="number"
                 dataKey="recency"
@@ -190,8 +187,7 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
                 ))}
               </Scatter>
             </ScatterChart>
-          </ResponsiveContainer>
-        </div>
+        </ChartContainer>
       </ChartCard>
     </>
   );
