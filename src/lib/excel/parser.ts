@@ -449,7 +449,9 @@ export function parseExcelFile(
         ["영업그룹"],
         ["영업조직팀"],
       ]);
-      parsed = filledTeam.filter((r: any) => r.매출액.실적 !== 0); // 매출액 0 제외
+      // 영업담당사번이 있는 모든 행 보존 (매출 미발생 담당자도 포함)
+      // 소계/합계 행은 이미 SKIP_ROW로 제거됨
+      parsed = filledTeam;
       skippedRows = r.skipped;
       break;
     }
