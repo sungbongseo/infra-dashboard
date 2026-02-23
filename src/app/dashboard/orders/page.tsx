@@ -2,13 +2,13 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
-import { useFilterStore } from "@/stores/filterStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { filterByOrg, filterByDateRange, extractMonth } from "@/lib/utils";
+import { extractMonth } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { useFilteredOrders, useFilteredSales, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
 import { StatusTab } from "./tabs/StatusTab";
 import { AnalysisTab } from "./tabs/AnalysisTab";
@@ -17,27 +17,10 @@ import { PipelineTab } from "./tabs/PipelineTab";
 import { O2CFlowTab } from "./tabs/O2CFlowTab";
 
 export default function OrdersAnalysisPage() {
-  const { orderList, salesList, collectionList, orgNames } = useDataStore();
   const isLoading = useDataStore((s) => s.isLoading);
-  const { selectedOrgs, dateRange } = useFilterStore();
-
-  const effectiveOrgNames = useMemo(() => {
-    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
-    return orgNames;
-  }, [selectedOrgs, orgNames]);
-
-  const filteredOrders = useMemo(() => {
-    const byOrg = filterByOrg(orderList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수주일");
-  }, [orderList, effectiveOrgNames, dateRange]);
-  const filteredSales = useMemo(() => {
-    const byOrg = filterByOrg(salesList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "매출일");
-  }, [salesList, effectiveOrgNames, dateRange]);
-  const filteredCollections = useMemo(() => {
-    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수금일");
-  }, [collectionList, effectiveOrgNames, dateRange]);
+  const { filteredOrders } = useFilteredOrders();
+  const { filteredSales } = useFilteredSales();
+  const { filteredCollections } = useFilteredCollections();
 
   const monthlyOrders = useMemo(() => {
     const map = new Map<string, { month: string; 수주금액: number; 수주건수: number }>();

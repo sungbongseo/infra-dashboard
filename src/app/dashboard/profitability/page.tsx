@@ -2,14 +2,14 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
-import { useFilterStore } from "@/stores/filterStore";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateToCustomerLevel, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, CHART_COLORS } from "@/lib/utils";
+import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
 import {
   calcCostStructure,
   calcOrgRatioMetrics,
@@ -38,28 +38,17 @@ import { CustProfitTab } from "./tabs/CustProfitTab";
 import { CustItemTab } from "./tabs/CustItemTab";
 
 export default function ProfitabilityPage() {
-  const orgProfit = useDataStore((s) => s.orgProfit);
   const teamContribution = useDataStore((s) => s.teamContribution);
   const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
   const receivableAging = useDataStore((s) => s.receivableAging);
   const salesList = useDataStore((s) => s.salesList);
-  const orgNames = useDataStore((s) => s.orgNames);
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
-  const { selectedOrgs, dateRange } = useFilterStore();
 
-  const effectiveOrgNames = useMemo(() => {
-    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
-    return orgNames;
-  }, [selectedOrgs, orgNames]);
-
-  const filteredOrgProfit = useMemo(() => {
-    const filtered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
-    const leafOnly = filterOrgProfitLeafOnly(filtered);
-    return aggregateOrgProfit(leafOnly);
-  }, [orgProfit, effectiveOrgNames]);
+  const { effectiveOrgNames, dateRange } = useFilterContext();
+  const { filteredOrgProfit } = useFilteredOrgProfit();
   const filteredTeamContribution = useMemo(() => {
     const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
     return orgFiltered.filter((r: any) => {

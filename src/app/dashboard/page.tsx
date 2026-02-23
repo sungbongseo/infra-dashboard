@@ -2,7 +2,6 @@
 
 import { useMemo, useEffect, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
-import { useFilterStore } from "@/stores/filterStore";
 import { useAlertStore } from "@/stores/alertStore";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
@@ -32,9 +31,10 @@ import {
 } from "recharts";
 import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE, formatPercent } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE, formatPercent } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { useFilterContext, useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredOrgProfit, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
 const INSIGHT_STYLES: Record<InsightSeverity, string> = {
   critical: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
@@ -59,43 +59,17 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function OverviewPage() {
-  const { salesList, orderList, collectionList, orgProfit, teamContribution, receivableAging, orgNames, isLoading } = useDataStore();
-  const { selectedOrgs, dateRange, comparisonRange } = useFilterStore();
+  const isLoading = useDataStore((s) => s.isLoading);
   const evaluate = useAlertStore((s) => s.evaluate);
   const [showAllInsights, setShowAllInsights] = useState(false);
 
-  const effectiveOrgNames = useMemo(() => {
-    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
-    return orgNames;
-  }, [selectedOrgs, orgNames]);
-
-  const filteredSales = useMemo(() => {
-    const byOrg = filterByOrg(salesList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "매출일");
-  }, [salesList, effectiveOrgNames, dateRange]);
-
-  const filteredOrders = useMemo(() => {
-    const byOrg = filterByOrg(orderList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수주일");
-  }, [orderList, effectiveOrgNames, dateRange]);
-
-  const filteredCollections = useMemo(() => {
-    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수금일");
-  }, [collectionList, effectiveOrgNames, dateRange]);
-
-  const filteredOrgProfit = useMemo(() => {
-    const filtered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
-    const leafOnly = filterOrgProfitLeafOnly(filtered);
-    return aggregateOrgProfit(leafOnly);
-  }, [orgProfit, effectiveOrgNames]);
-
-  const flattenedAging = useMemo(() => {
-    const all: import("@/types").ReceivableAgingRecord[] = [];
-    receivableAging.forEach((records) => all.push(...records));
-    if (effectiveOrgNames.size === 0) return all;
-    return all.filter((r) => effectiveOrgNames.has(r.영업조직));
-  }, [receivableAging, effectiveOrgNames]);
+  const { effectiveOrgNames, comparisonRange } = useFilterContext();
+  const { filteredSales, salesList } = useFilteredSales();
+  const { filteredOrders, orderList } = useFilteredOrders();
+  const { filteredCollections, collectionList } = useFilteredCollections();
+  const { filteredOrgProfit } = useFilteredOrgProfit();
+  const { filteredTeamContrib } = useFilteredTeamContribution();
+  const { filteredRecords: flattenedAging } = useFilteredReceivables();
 
   const kpis = useMemo(
     () => calcOverviewKpis(filteredSales, filteredOrders, filteredCollections, filteredOrgProfit, flattenedAging),
@@ -131,11 +105,6 @@ export default function OverviewPage() {
     if (flattenedAging.length === 0 || filteredSales.length === 0) return undefined;
     return calcOverallDSO(flattenedAging, filteredSales);
   }, [flattenedAging, filteredSales]);
-
-  const filteredTeamContrib = useMemo(
-    () => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"),
-    [teamContribution, effectiveOrgNames]
-  );
 
   const overallCcc = useMemo(() => {
     if (overallDso === undefined) return undefined;

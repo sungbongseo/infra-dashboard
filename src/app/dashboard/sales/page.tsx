@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
-import { useFilterStore } from "@/stores/filterStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
@@ -25,9 +24,10 @@ import {
 import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { useFilterContext, useFilteredSales } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
 import { ClvTab } from "./tabs/ClvTab";
@@ -35,19 +35,10 @@ import { MigrationTab } from "./tabs/MigrationTab";
 import { FxTab } from "./tabs/FxTab";
 
 export default function SalesAnalysisPage() {
-  const { salesList, orgNames, orgProfit } = useDataStore();
+  const orgProfit = useDataStore((s) => s.orgProfit);
   const isLoading = useDataStore((s) => s.isLoading);
-  const { selectedOrgs, dateRange } = useFilterStore();
-
-  const effectiveOrgNames = useMemo(() => {
-    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
-    return orgNames;
-  }, [selectedOrgs, orgNames]);
-
-  const filteredSales = useMemo(() => {
-    const byOrg = filterByOrg(salesList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "매출일");
-  }, [salesList, effectiveOrgNames, dateRange]);
+  const { effectiveOrgNames } = useFilterContext();
+  const { filteredSales } = useFilteredSales();
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
   const itemSales = useMemo(() => calcItemSales(filteredSales), [filteredSales]);

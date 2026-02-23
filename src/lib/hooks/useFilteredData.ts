@@ -82,17 +82,24 @@ export function useFilteredReceivables() {
   const receivableAging = useDataStore((s) => s.receivableAging);
   const { effectiveOrgNames } = useFilterContext();
 
-  const allRecords = useMemo(() => {
-    const records: any[] = [];
-    Array.from(receivableAging.values()).forEach((arr) => records.push(...arr));
-    return records;
-  }, [receivableAging]);
+  const filteredAgingMap = useMemo(() => {
+    const filtered = new Map<string, any[]>();
+    for (const [key, records] of Array.from(receivableAging.entries())) {
+      const filteredRecords = filterByOrg(records, effectiveOrgNames, "영업조직");
+      if (filteredRecords.length > 0) {
+        filtered.set(key, filteredRecords);
+      }
+    }
+    return filtered;
+  }, [receivableAging, effectiveOrgNames]);
 
   const filteredRecords = useMemo(() => {
-    return filterByOrg(allRecords, effectiveOrgNames);
-  }, [allRecords, effectiveOrgNames]);
+    const records: any[] = [];
+    Array.from(filteredAgingMap.values()).forEach((arr) => records.push(...arr));
+    return records;
+  }, [filteredAgingMap]);
 
-  return { allRecords, filteredRecords, receivableAging };
+  return { filteredRecords, filteredAgingMap, receivableAging };
 }
 
 // ─── 조직손익 데이터 필터링 (소계 제거 + 합산) ────────────────────

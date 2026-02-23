@@ -2,15 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
-import { useFilterStore } from "@/stores/filterStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcPerformanceScores, calcCostEfficiency, calcRepTrend, calcRepProductPortfolio } from "@/lib/analysis/profiling";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { filterByOrg, filterByDateRange, CHART_COLORS } from "@/lib/utils";
+import { CHART_COLORS } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
-import type { ReceivableAgingRecord } from "@/types";
+import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
 import { PerformanceTab } from "./tabs/PerformanceTab";
 import { RankingTab } from "./tabs/RankingTab";
@@ -19,41 +18,18 @@ import { TrendTab } from "./tabs/TrendTab";
 import { ProductTab } from "./tabs/ProductTab";
 
 export default function ProfilesPage() {
-  const { salesList, orderList, collectionList, teamContribution, customerItemDetail, receivableAging, orgNames } = useDataStore();
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
-  const { selectedOrgs, dateRange } = useFilterStore();
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
 
-  const effectiveOrgNames = useMemo(() => {
-    if (selectedOrgs.length > 0) return new Set(selectedOrgs);
-    return orgNames;
-  }, [selectedOrgs, orgNames]);
-
-  const filteredSales = useMemo(() => {
-    const byOrg = filterByOrg(salesList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "매출일");
-  }, [salesList, effectiveOrgNames, dateRange]);
-  const filteredOrders = useMemo(() => {
-    const byOrg = filterByOrg(orderList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수주일");
-  }, [orderList, effectiveOrgNames, dateRange]);
-  const filteredCollections = useMemo(() => {
-    const byOrg = filterByOrg(collectionList, effectiveOrgNames);
-    return filterByDateRange(byOrg, dateRange, "수금일");
-  }, [collectionList, effectiveOrgNames, dateRange]);
-  const filteredTeamContribution = useMemo(() => filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀"), [teamContribution, effectiveOrgNames]);
+  const { filteredSales } = useFilteredSales();
+  const { filteredOrders } = useFilteredOrders();
+  const { filteredCollections } = useFilteredCollections();
+  const { filteredTeamContrib: filteredTeamContribution } = useFilteredTeamContribution();
+  const { filteredRecords: allAgingRecords } = useFilteredReceivables();
   // customerItemDetail: 영업조직팀 값이 DEFAULT_INFRA_ORG_NAMES와 불일치할 수 있으므로 org 필터 제거
   // 대신 calcRepProductPortfolio에서 personId/personName으로 필터링함
   const filteredCustomerItemDetail = customerItemDetail;
-
-  // 미수채권연령: Map의 모든 values를 flat()하여 단일 배열로 + orgNames 필터
-  const allAgingRecords: ReceivableAgingRecord[] = useMemo(() => {
-    const allRecords: ReceivableAgingRecord[] = [];
-    for (const records of Array.from(receivableAging.values())) {
-      allRecords.push(...records);
-    }
-    return filterByOrg(allRecords, effectiveOrgNames, "영업조직");
-  }, [receivableAging, effectiveOrgNames]);
 
   const hasAgingData = allAgingRecords.length > 0;
 
