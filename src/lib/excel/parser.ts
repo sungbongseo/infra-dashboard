@@ -467,9 +467,13 @@ export function parseExcelFile(
         return record;
       }, warnings, "팀원별공헌이익", false);
       // rawData pre-pass에서 이미 fill-down 완료 → fillDownMultiLevel 불필요
-      // 영업담당사번이 있는 모든 행 보존 (매출 미발생 담당자도 포함)
-      // 소계/합계 행은 이미 SKIP_ROW로 제거됨
-      parsed = r.parsed;
+      // Excel에 요약/상세 두 섹션이 있어 동일 사번이 중복됨 → 사번별 중복 제거
+      // 나중에 나오는 행(상세 섹션)이 더 완전한 데이터이므로 후순위 우선
+      const deduped = new Map<string, (typeof r.parsed)[0]>();
+      for (const row of r.parsed) {
+        deduped.set(row.영업담당사번, row);
+      }
+      parsed = Array.from(deduped.values());
       skippedRows = r.skipped;
       break;
     }
