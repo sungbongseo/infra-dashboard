@@ -397,6 +397,28 @@ export function parseExcelFile(
       parsed = fillDownHierarchicalOrg(parseOrgProfit(rawData, warnings));
       break;
     case "teamContribution": {
+      // Pre-pass: rawData에서 영업그룹/영업조직팀 fill-down 수행
+      // SKIP_ROW가 소계 행(영업담당사번 없음)을 제거하기 전에 조직명을 채움
+      // → 이후 상세 행이 올바른 조직명을 갖게 됨
+      {
+        let curGroup = "";
+        let curTeam = "";
+        for (let i = 2; i < rawData.length; i++) {
+          const row = rawData[i];
+          const g = String(row[1] || "").trim();
+          const t = String(row[2] || "").trim();
+          if (g && g !== "합계" && g !== "소계") {
+            if (g !== curGroup) { curGroup = g; curTeam = ""; }
+          } else if (!g && curGroup) {
+            row[1] = curGroup;
+          }
+          if (t && t !== "합계" && t !== "소계") {
+            curTeam = t;
+          } else if (!t && curTeam) {
+            row[2] = curTeam;
+          }
+        }
+      }
       // teamContribution has wide rows (index up to 112), use safe parsing
       // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows(rawData, 2, (row) => {
@@ -444,14 +466,10 @@ export function parseExcelFile(
 
         return record;
       }, warnings, "팀원별공헌이익", false);
-      // SAP 병합 셀 fill-down: 영업그룹/영업조직팀이 팀 단위로 병합되어 있을 수 있음
-      const filledTeam = fillDownMultiLevel(r.parsed, [
-        ["영업그룹"],
-        ["영업조직팀"],
-      ]);
+      // rawData pre-pass에서 이미 fill-down 완료 → fillDownMultiLevel 불필요
       // 영업담당사번이 있는 모든 행 보존 (매출 미발생 담당자도 포함)
       // 소계/합계 행은 이미 SKIP_ROW로 제거됨
-      parsed = filledTeam;
+      parsed = r.parsed;
       skippedRows = r.skipped;
       break;
     }
