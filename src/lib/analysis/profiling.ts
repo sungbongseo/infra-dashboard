@@ -185,15 +185,56 @@ export interface PerformanceScoresResult {
   nameToId: Map<string, string>;
 }
 
+export interface ProfilingWeights {
+  sales?: number;      // default 20
+  profit?: number;     // default 20
+  collection?: number; // default 20
+  growth?: number;     // default 20 (order score)
+  diversity?: number;  // default 20 (receivable health score)
+}
+
+/** 가중치를 합계 totalMax로 정규화합니다. */
+function normalizeWeights(
+  weights: ProfilingWeights | undefined,
+  totalMax: number
+): { sales: number; profit: number; collection: number; growth: number; diversity: number } {
+  const raw = {
+    sales: weights?.sales ?? (totalMax / 5),
+    profit: weights?.profit ?? (totalMax / 5),
+    collection: weights?.collection ?? (totalMax / 5),
+    growth: weights?.growth ?? (totalMax / 5),
+    diversity: weights?.diversity ?? (totalMax / 5),
+  };
+  const sum = raw.sales + raw.profit + raw.collection + raw.growth + raw.diversity;
+  if (sum <= 0) {
+    const eq = totalMax / 5;
+    return { sales: eq, profit: eq, collection: eq, growth: eq, diversity: eq };
+  }
+  const factor = totalMax / sum;
+  return {
+    sales: raw.sales * factor,
+    profit: raw.profit * factor,
+    collection: raw.collection * factor,
+    growth: raw.growth * factor,
+    diversity: raw.diversity * factor,
+  };
+}
+
 export function calcPerformanceScores(
   sales: SalesRecord[],
   orders: OrderRecord[],
   collections: CollectionRecord[],
   teamContrib: TeamContributionRecord[],
-  agingRecords?: ReceivableAgingRecord[]
+  agingRecords?: ReceivableAgingRecord[],
+  weights?: ProfilingWeights
 ): PerformanceScoresResult {
   const is5Axis = agingRecords && agingRecords.length > 0;
-  const axisMax = is5Axis ? 20 : 25;
+  const totalMax = 100;
+  // 5축 모드: 5개 가중치 정규화 / 4축 모드: diversity=0, 나머지 4개로 정규화
+  const w = normalizeWeights(
+    is5Axis ? weights : { ...weights, diversity: 0 },
+    totalMax
+  );
 
   // Group sales by person
   const personSales = new Map<
@@ -280,7 +321,7 @@ export function calcPerformanceScores(
 
   // Receivable risk scores (5축 모드, 이름 키 → 사번 키로 변환)
   const rawReceivableScores = is5Axis
-    ? calcReceivableRiskScore(agingRecords, axisMax)
+    ? calcReceivableRiskScore(agingRecords, w.diversity)
     : new Map<string, number>();
   const receivableScores = new Map<string, number>();
   for (const [key, score] of Array.from(rawReceivableScores.entries())) {
@@ -312,16 +353,16 @@ export function calcPerformanceScores(
     const collectAmt = personCollections.get(id) || 0;
     const contribRate = personContrib.get(id)?.rate || 0;
 
-    const salesScore = (salesAmt / maxSales) * axisMax;
-    const orderScore = (orderAmt / maxOrders) * axisMax;
+    const salesScore = (salesAmt / maxSales) * w.sales;
+    const orderScore = (orderAmt / maxOrders) * w.growth;
     const profitScore =
-      maxContribRate > 0 ? (contribRate / maxContribRate) * axisMax : 0;
+      maxContribRate > 0 ? (contribRate / maxContribRate) * w.profit : 0;
     const collectionRate = salesAmt > 0 ? collectAmt / salesAmt : 0;
-    const collectionScore = Math.min(collectionRate, 1) * axisMax;
+    const collectionScore = Math.min(collectionRate, 1) * w.collection;
 
     // 5축: 미수금 건전성 점수 / 4축: 0
     const receivableScore = is5Axis
-      ? receivableScores.get(id) ?? axisMax // 미수금 데이터 없는 담당자는 만점
+      ? receivableScores.get(id) ?? w.diversity // 미수금 데이터 없는 담당자는 만점
       : 0;
 
     const totalScore =

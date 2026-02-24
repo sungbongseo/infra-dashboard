@@ -47,7 +47,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
   },
   {
     fileType: "orgProfit",
-    pattern: /조직별\s*손익/,
+    pattern: /조직별\s*(?!거래처)손익/,
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,

@@ -150,7 +150,7 @@ function safeParseRows<T>(
   let skipped = 0;
   const parsed: T[] = [];
   const rows = filterEmptyFirstCol
-    ? data.slice(skipRows).filter(r => r[0])
+    ? data.slice(skipRows).filter(r => r[0] !== null && r[0] !== undefined && r[0] !== "")
     : data.slice(skipRows).filter(r =>
         r.some(cell => cell !== "" && cell !== null && cell !== undefined)
       );

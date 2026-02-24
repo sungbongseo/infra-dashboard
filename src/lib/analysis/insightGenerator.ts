@@ -275,3 +275,84 @@ export function generateInsights(config: InsightConfig): Insight[] {
   insights.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]);
   return insights;
 }
+
+// ─── 트렌드 패턴 감지 ──────────────────────────────────────────────────
+
+export interface TrendInsight {
+  type: "consecutive_increase" | "consecutive_decrease";
+  metric: string;
+  months: number;
+  startMonth: string;
+  endMonth: string;
+  totalChange: number;
+  changePercent: number;
+}
+
+/**
+ * 월별 데이터에서 연속 증가/감소 패턴(streak)을 감지합니다.
+ * minConsecutive 개월 이상 연속된 방향성 변화를 TrendInsight로 반환합니다.
+ */
+export function detectTrendPatterns(
+  monthlyData: Array<{ month: string; value: number }>,
+  metricName: string,
+  minConsecutive: number = 3
+): TrendInsight[] {
+  if (monthlyData.length < minConsecutive) return [];
+
+  const sorted = [...monthlyData].sort((a, b) => a.month.localeCompare(b.month));
+  const insights: TrendInsight[] = [];
+
+  let streakType: "increase" | "decrease" | null = null;
+  let streakStart = 0;
+  let streakLength = 1;
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1].value;
+    const curr = sorted[i].value;
+    const direction = curr > prev ? "increase" : curr < prev ? "decrease" : null;
+
+    if (direction && direction === streakType) {
+      streakLength++;
+    } else {
+      // Check if previous streak qualifies
+      if (streakLength >= minConsecutive && streakType) {
+        const startVal = sorted[streakStart].value;
+        const endVal = sorted[streakStart + streakLength - 1].value;
+        insights.push({
+          type: streakType === "increase" ? "consecutive_increase" : "consecutive_decrease",
+          metric: metricName,
+          months: streakLength,
+          startMonth: sorted[streakStart].month,
+          endMonth: sorted[streakStart + streakLength - 1].month,
+          totalChange: endVal - startVal,
+          changePercent: startVal !== 0 ? ((endVal - startVal) / Math.abs(startVal)) * 100 : 0,
+        });
+      }
+      // Reset
+      streakType = direction;
+      streakStart = i - 1;
+      streakLength = direction ? 2 : 1;
+      if (!direction) {
+        streakStart = i;
+        streakLength = 1;
+      }
+    }
+  }
+
+  // Check final streak
+  if (streakLength >= minConsecutive && streakType) {
+    const startVal = sorted[streakStart].value;
+    const endVal = sorted[streakStart + streakLength - 1].value;
+    insights.push({
+      type: streakType === "increase" ? "consecutive_increase" : "consecutive_decrease",
+      metric: metricName,
+      months: streakLength,
+      startMonth: sorted[streakStart].month,
+      endMonth: sorted[streakStart + streakLength - 1].month,
+      totalChange: endVal - startVal,
+      changePercent: startVal !== 0 ? ((endVal - startVal) / Math.abs(startVal)) * 100 : 0,
+    });
+  }
+
+  return insights;
+}

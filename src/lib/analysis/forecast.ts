@@ -236,19 +236,32 @@ export function calcSalesForecast(
     movingAvg6: ma6[i] ?? undefined,
   }));
 
-  // 7. Extend forecast points
+  // 7. Extend forecast points with distance-proportional 95% confidence interval
   const n = amounts.length;
+  // Sum of squared deviations from mean x for prediction interval
+  const meanX = (n - 1) / 2;
+  let sumXDevSq = 0;
+  for (let j = 0; j < n; j++) {
+    sumXDevSq += (j - meanX) * (j - meanX);
+  }
+
   let lastMonth = months[months.length - 1];
   for (let i = 0; i < forecastMonths; i++) {
     const xIndex = n + i;
     const forecastValue = slope * xIndex + intercept;
     lastMonth = nextMonth(lastMonth);
 
+    // Prediction interval widens with distance from data center
+    const distance = xIndex - meanX;
+    const predictionSE = sumXDevSq > 0
+      ? stdDev * Math.sqrt(1 + 1 / n + (distance * distance) / sumXDevSq)
+      : stdDev;
+
     points.push({
       month: lastMonth,
       forecast: forecastValue,
-      upperBound: forecastValue + stdDev,
-      lowerBound: forecastValue - stdDev,
+      upperBound: forecastValue + 1.96 * predictionSE, // 95% CI
+      lowerBound: forecastValue - 1.96 * predictionSE,
     });
   }
 

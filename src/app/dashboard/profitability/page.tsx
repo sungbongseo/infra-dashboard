@@ -6,6 +6,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, CHART_COLORS } from "@/lib/utils";
@@ -36,6 +37,8 @@ import { RiskTab } from "./tabs/RiskTab";
 import { WhatIfTab } from "./tabs/WhatIfTab";
 import { CustProfitTab } from "./tabs/CustProfitTab";
 import { CustItemTab } from "./tabs/CustItemTab";
+import DetailedProfitTab from "./tabs/DetailedProfitTab";
+import { SensitivityTab } from "./tabs/SensitivityTab";
 
 export default function ProfitabilityPage() {
   const teamContribution = useDataStore((s) => s.teamContribution);
@@ -329,15 +332,17 @@ export default function ProfitabilityPage() {
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
 
   // ─── KPI 합계 ──────────────────────────────
-  const { totalGP, totalContrib, opRate, gpRate } = useMemo(() => {
+  const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp, totalCost } = useMemo(() => {
     const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
     const op = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
     const gp = filteredOrgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
     const contrib = filteredOrgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
+    const cost = filteredOrgProfit.reduce((s, r) => s + r.실적매출원가.실적, 0);
     return {
       totalGP: gp, totalContrib: contrib,
       opRate: sales > 0 ? (op / sales) * 100 : 0,
       gpRate: sales > 0 ? (gp / sales) * 100 : 0,
+      totalSales: sales, totalOp: op, totalCost: cost,
     };
   }, [filteredOrgProfit]);
 
@@ -371,6 +376,13 @@ export default function ProfitabilityPage() {
         />
       </div>
 
+      {isUsingDateFiltered && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
+          <span className="font-medium">📊 스마트 데이터소스 활성</span>
+          <span>기간 필터 적용 → 거래처별품목별 손익(100) 데이터 기준으로 분석</span>
+        </div>
+      )}
+
       <Tabs defaultValue="pnl" className="space-y-4">
         <TooltipProvider delayDuration={300}>
         <TabsList className="flex-wrap h-auto gap-1">
@@ -394,72 +406,112 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="custItem" disabled={effectiveHqCustItemProfit.length === 0}>
             거래처×품목{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
+          <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>
+            상세수익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+          </TabsTrigger>
+          <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도 분석</TabsTrigger>
         </TabsList>
         </TooltipProvider>
 
         <TabsContent value="pnl" className="space-y-6">
-          <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} />
+          <ErrorBoundary>
+            <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
-          <OrgTab bubbleData={bubbleData} />
+          <ErrorBoundary>
+            <OrgTab bubbleData={bubbleData} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="contrib" className="space-y-6">
-          <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} />
+          <ErrorBoundary>
+            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
-          <CostTab costBarData={costBarData} profileDist={profileDist} costEfficiency={costEfficiency} />
+          <ErrorBoundary>
+            <CostTab costBarData={costBarData} profileDist={profileDist} costEfficiency={costEfficiency} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="plan" className="space-y-6">
-          <PlanTab orgRatioMetrics={orgRatioMetrics} heatmapData={heatmapData} />
+          <ErrorBoundary>
+            <PlanTab orgRatioMetrics={orgRatioMetrics} heatmapData={heatmapData} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="product" className="space-y-6">
-          <ProductTab
-            productProfitability={productProfitability}
-            productPieData={productPieData}
-            customerProfitability={customerProfitability}
-            productWeightedGPRate={productWeightedGPRate}
-            marginErosion={marginErosion}
-            isUsingDateFiltered={isUsingDateFiltered}
-            profAnalysisIsFallback={profAnalysisIsFallback}
-            dateRange={dateRange}
-            hasData={effectiveProfAnalysis.length > 0}
-          />
+          <ErrorBoundary>
+            <ProductTab
+              productProfitability={productProfitability}
+              productPieData={productPieData}
+              customerProfitability={customerProfitability}
+              productWeightedGPRate={productWeightedGPRate}
+              marginErosion={marginErosion}
+              isUsingDateFiltered={isUsingDateFiltered}
+              profAnalysisIsFallback={profAnalysisIsFallback}
+              dateRange={dateRange}
+              hasData={effectiveProfAnalysis.length > 0}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
-          <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} />
+          <ErrorBoundary>
+            <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="variance" className="space-y-6">
-          <VarianceTab
-            planSummary={planSummary}
-            orgAchievement={orgAchievement}
-            topContributors={topContributors}
-            marginDriftItems={marginDriftItems}
-            isUsingDateFiltered={isUsingDateFiltered}
-            dateRange={dateRange}
-          />
+          <ErrorBoundary>
+            <VarianceTab
+              planSummary={planSummary}
+              orgAchievement={orgAchievement}
+              topContributors={topContributors}
+              marginDriftItems={marginDriftItems}
+              isUsingDateFiltered={isUsingDateFiltered}
+              dateRange={dateRange}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="breakeven" className="space-y-6">
-          <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} />
+          <ErrorBoundary>
+            <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="whatif" className="space-y-6">
-          <WhatIfTab filteredOrgProfit={filteredOrgProfit} />
+          <ErrorBoundary>
+            <WhatIfTab filteredOrgProfit={filteredOrgProfit} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="custProfit" className="space-y-6">
-          <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+          <ErrorBoundary>
+            <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="custItem" className="space-y-6">
-          <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+          <ErrorBoundary>
+            <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="detailed" className="space-y-6">
+          <ErrorBoundary>
+            <DetailedProfitTab data={filteredCustItemDetail} isDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="sensitivity" className="space-y-6">
+          <ErrorBoundary>
+            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} baseCost={totalCost} />
+          </ErrorBoundary>
         </TabsContent>
 
       </Tabs>

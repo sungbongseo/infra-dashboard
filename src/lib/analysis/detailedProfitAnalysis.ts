@@ -45,30 +45,33 @@ export function calcParetoAnalysis(
     map.set(code, entry);
   }
 
-  // Sort by value descending
-  const items = Array.from(map.values()).sort((a, b) => b.value - a.value);
+  // Separate positive and negative items for accurate Pareto
+  const allItems = Array.from(map.values());
+  const positiveItems = allItems.filter((item) => item.value > 0).sort((a, b) => b.value - a.value);
+  const negativeItems = allItems.filter((item) => item.value <= 0).sort((a, b) => a.value - b.value);
 
-  // Calculate total (sum of absolute values for share calculation)
-  const total = items.reduce((sum, item) => sum + Math.abs(item.value), 0);
+  // Calculate total from positive values only (prevents negative inflation)
+  const positiveTotal = positiveItems.reduce((sum, item) => sum + item.value, 0);
 
-  // Calculate share, cumulative share, and grade
+  // Build Pareto for positive items first, then append negatives at the end
   let cumValue = 0;
-  return items.map((item) => {
-    cumValue += Math.abs(item.value);
-    const share = total !== 0 ? (Math.abs(item.value) / total) * 100 : 0;
-    const cumShare = total !== 0 ? (cumValue / total) * 100 : 0;
-    const grade: "A" | "B" | "C" =
-      total === 0 ? "C" : cumShare <= 80 ? "A" : cumShare <= 95 ? "B" : "C";
+  const result: ParetoItem[] = [];
 
-    return {
-      name: item.name,
-      code: item.code,
-      value: item.value,
-      share,
-      cumShare,
-      grade,
-    };
-  });
+  for (const item of positiveItems) {
+    cumValue += item.value;
+    const share = positiveTotal !== 0 ? (item.value / positiveTotal) * 100 : 0;
+    const cumShare = positiveTotal !== 0 ? (cumValue / positiveTotal) * 100 : 0;
+    const grade: "A" | "B" | "C" =
+      positiveTotal === 0 ? "C" : cumShare <= 80 ? "A" : cumShare <= 95 ? "B" : "C";
+    result.push({ name: item.name, code: item.code, value: item.value, share, cumShare, grade });
+  }
+
+  // Negative items get grade "C" and 0% share (반품/환입 등)
+  for (const item of negativeItems) {
+    result.push({ name: item.name, code: item.code, value: item.value, share: 0, cumShare: 100, grade: "C" });
+  }
+
+  return result;
 }
 
 // ── Product Group Analysis ───────────────────────────────────────

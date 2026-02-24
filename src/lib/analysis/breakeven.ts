@@ -85,15 +85,19 @@ export function calcTeamBreakeven(
     }
 
     // Operating leverage = 공헌이익 / 영업이익
-    // Edge case: 영업이익 = 0 -> Infinity
+    // Edge case: 영업이익 = 0 -> cap at ±999
     const contributionMargin = r.공헌이익.실적;
     const operatingProfit = r.영업이익.실적;
     let operatingLeverage: number;
     if (operatingProfit === 0) {
-      operatingLeverage = contributionMargin === 0 ? 0 : Infinity;
+      operatingLeverage = contributionMargin === 0 ? 0 : contributionMargin > 0 ? 999 : -999;
     } else {
       operatingLeverage = contributionMargin / operatingProfit;
     }
+    // Cap extreme values for safe display
+    if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
+    if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
 
     results.push({
       org: r.영업조직팀,
@@ -168,10 +172,14 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     const operatingProfit = r.영업이익.실적;
     let operatingLeverage: number;
     if (operatingProfit === 0) {
-      operatingLeverage = r.공헌이익.실적 === 0 ? 0 : Infinity;
+      operatingLeverage = r.공헌이익.실적 === 0 ? 0 : r.공헌이익.실적 > 0 ? 999 : -999;
     } else {
       operatingLeverage = r.공헌이익.실적 / operatingProfit;
     }
+    // Cap extreme values for safe display
+    if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
+    if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
 
     results.push({
       org: r.영업조직팀,
@@ -260,10 +268,14 @@ export function calcOrgBreakevenFromTeam(
 
     let operatingLeverage: number;
     if (v.operatingProfit === 0) {
-      operatingLeverage = v.contributionMargin === 0 ? 0 : Infinity;
+      operatingLeverage = v.contributionMargin === 0 ? 0 : v.contributionMargin > 0 ? 999 : -999;
     } else {
       operatingLeverage = v.contributionMargin / v.operatingProfit;
     }
+    // Cap extreme values for safe display
+    if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
+    if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
 
     results.push({
       org,
@@ -320,4 +332,45 @@ export function calcBreakevenChart(
   }
 
   return points;
+}
+
+// ─── Weighted Multi-Product BEP ──────────────────────────────
+
+export interface WeightedBepResult {
+  weightedContribMarginRatio: number;
+  totalFixedCosts: number;
+  weightedBepSales: number;
+  productMix: Array<{ org: string; weight: number; contribMarginRatio: number }>;
+}
+
+/**
+ * 다제품(조직별) 가중 손익분기점 계산.
+ * 각 조직의 매출 비중(weight)으로 공헌이익률을 가중평균하여
+ * 전사 수준의 복합 BEP 매출액을 산출합니다.
+ *
+ * calcOrgBreakeven() 또는 calcOrgBreakevenFromTeam()의 결과를 입력으로 사용합니다.
+ */
+export function calcWeightedBep(orgBreakeven: BreakevenResult[]): WeightedBepResult {
+  if (orgBreakeven.length === 0) {
+    return { weightedContribMarginRatio: 0, totalFixedCosts: 0, weightedBepSales: 0, productMix: [] };
+  }
+
+  const totalSales = orgBreakeven.reduce((s, r) => s + r.sales, 0);
+  const totalFixed = orgBreakeven.reduce((s, r) => s + r.fixedCosts, 0);
+
+  const productMix = orgBreakeven.map(r => ({
+    org: r.org,
+    weight: totalSales > 0 ? r.sales / totalSales : 0,
+    contribMarginRatio: r.contributionMarginRatio,
+  }));
+
+  const weightedCMR = productMix.reduce((s, p) => s + p.weight * p.contribMarginRatio, 0);
+  const weightedBep = weightedCMR > 0 ? totalFixed / weightedCMR : 0;
+
+  return {
+    weightedContribMarginRatio: weightedCMR,
+    totalFixedCosts: totalFixed,
+    weightedBepSales: isFinite(weightedBep) ? weightedBep : 0,
+    productMix,
+  };
 }

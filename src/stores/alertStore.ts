@@ -29,13 +29,23 @@ interface KpiInput {
   salesPlanAchievement: number;
 }
 
+export interface AlertHistoryEntry {
+  id: string;
+  title: string;
+  severity: string;
+  timestamp: number;
+}
+
 interface AlertState {
   rules: AlertRule[];
   alerts: Alert[];
+  alertHistory: AlertHistoryEntry[];
   evaluate: (kpis: KpiInput, dso?: number, creditUsageRate?: number) => void;
   dismissAlert: (id: string) => void;
   dismissAll: () => void;
   activeAlertCount: () => number;
+  addToHistory: (alert: { id: string; title: string; severity: string }) => void;
+  clearHistory: () => void;
 }
 
 const DEFAULT_RULES: AlertRule[] = [
@@ -148,6 +158,7 @@ function buildMessage(
 export const useAlertStore = create<AlertState>((set, get) => ({
   rules: DEFAULT_RULES,
   alerts: [],
+  alertHistory: [],
 
   evaluate: (kpis, dso, creditUsageRate) => {
     const { rules, alerts: existingAlerts } = get();
@@ -186,6 +197,15 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       }
     }
 
+    // Add triggered alerts to history
+    for (const alert of newAlerts) {
+      get().addToHistory({
+        id: alert.id,
+        title: alert.ruleName,
+        severity: alert.severity,
+      });
+    }
+
     set({ alerts: [...dismissed, ...newAlerts] });
   },
 
@@ -205,5 +225,22 @@ export const useAlertStore = create<AlertState>((set, get) => ({
 
   activeAlertCount: () => {
     return get().alerts.filter((a) => !a.dismissed).length;
+  },
+
+  addToHistory: (alert) => {
+    set((state) => {
+      const entry: AlertHistoryEntry = {
+        id: alert.id,
+        title: alert.title,
+        severity: alert.severity,
+        timestamp: Date.now(),
+      };
+      const updated = [entry, ...state.alertHistory];
+      return { alertHistory: updated.slice(0, 20) };
+    });
+  },
+
+  clearHistory: () => {
+    set({ alertHistory: [] });
   },
 }));

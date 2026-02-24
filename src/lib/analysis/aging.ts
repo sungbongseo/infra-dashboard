@@ -155,3 +155,46 @@ export function calcCreditSummaryByOrg(records: ReceivableAgingRecord[]): Credit
     warningCount: data.warningCount,
   })).sort((a, b) => b.utilizationRate - a.utilizationRate);
 }
+
+// ─── 금액 가중 평균 연체일수 ─────────────────────────────────────────────
+
+export interface WeightedAgingResult {
+  weightedAvgDays: number;
+  totalAmount: number;
+  bucketCount: number;
+}
+
+/**
+ * Aging 버킷별 중간값(midpoint)을 금액 가중 평균하여
+ * 전체 미수금의 평균 연체일수를 산출합니다.
+ */
+export function calcWeightedAverageDays(records: any[]): WeightedAgingResult {
+  if (records.length === 0) return { weightedAvgDays: 0, totalAmount: 0, bucketCount: 0 };
+
+  // Aging bucket midpoints (days)
+  const bucketMidpoints: Record<string, number> = {
+    "30일이하": 15, "60일이하": 45, "90일이하": 75, "120일이하": 105,
+    "150일이하": 135, "180일이하": 165, "360일이하": 270, "360일초과": 540,
+  };
+
+  let totalWeightedDays = 0;
+  let totalAmount = 0;
+  let bucketCount = 0;
+
+  for (const r of records) {
+    for (const [bucket, midpoint] of Object.entries(bucketMidpoints)) {
+      const amount = Math.abs(Number(r[bucket]) || 0);
+      if (amount > 0) {
+        totalWeightedDays += amount * midpoint;
+        totalAmount += amount;
+        bucketCount++;
+      }
+    }
+  }
+
+  return {
+    weightedAvgDays: totalAmount > 0 ? totalWeightedDays / totalAmount : 0,
+    totalAmount,
+    bucketCount,
+  };
+}

@@ -7,6 +7,7 @@ import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments } from "@/lib/analysis/aging";
 import { calcPrepaymentSummary, calcOrgPrepayments, calcMonthlyPrepayments } from "@/lib/analysis/prepayment";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
 import { StatusTab } from "./tabs/StatusTab";
@@ -61,38 +62,48 @@ export default function ReceivablesPage() {
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
-          <StatusTab summary={summary} byOrg={byOrg} highRiskCount={highRiskCount} />
+          <ErrorBoundary>
+            <StatusTab summary={summary} byOrg={byOrg} highRiskCount={highRiskCount} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
-          <RiskTab
-            byPerson={byPerson}
-            risks={risks}
-            highRiskCount={highRiskCount}
-            mediumRiskCount={mediumRiskCount}
-          />
+          <ErrorBoundary>
+            <RiskTab
+              byPerson={byPerson}
+              risks={risks}
+              highRiskCount={highRiskCount}
+              mediumRiskCount={mediumRiskCount}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="credit" className="space-y-6">
-          <CreditTab allRecords={allRecords} />
+          <ErrorBoundary>
+            <CreditTab allRecords={allRecords} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="dso" className="space-y-6">
-          <DsoTab
-            allRecords={allRecords}
-            filteredSales={filteredSales}
-            filteredTeamContrib={filteredTeamContrib}
-            filteredCollections={filteredCollections}
-          />
+          <ErrorBoundary>
+            <DsoTab
+              allRecords={allRecords}
+              filteredSales={filteredSales}
+              filteredTeamContrib={filteredTeamContrib}
+              filteredCollections={filteredCollections}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="prepayment" className="space-y-6">
-          <PrepaymentTab
-            prepaymentSummary={prepaymentSummary}
-            orgPrepayments={orgPrepayments}
-            monthlyPrepayments={monthlyPrepayments}
-            hasCollections={filteredCollections.length > 0}
-          />
+          <ErrorBoundary>
+            <PrepaymentTab
+              prepaymentSummary={prepaymentSummary}
+              orgPrepayments={orgPrepayments}
+              monthlyPrepayments={monthlyPrepayments}
+              hasCollections={filteredCollections.length > 0}
+            />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>

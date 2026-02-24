@@ -9,6 +9,7 @@ import { calcPerformanceScores, calcCostEfficiency, calcRepTrend, calcRepProduct
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CHART_COLORS } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
 import { PerformanceTab } from "./tabs/PerformanceTab";
@@ -222,45 +223,55 @@ export default function ProfilesPage() {
         </TabsList>
 
         <TabsContent value="performance" className="space-y-6">
-          <PerformanceTab
-            selected={selected}
-            hasAgingData={hasAgingData}
-            axisMax={axisMax}
-            radarData={radarData}
-            profilesLength={profiles.length}
-            formulaText={formulaText}
-            descText={descText}
-          />
+          <ErrorBoundary>
+            <PerformanceTab
+              selected={selected}
+              hasAgingData={hasAgingData}
+              axisMax={axisMax}
+              radarData={radarData}
+              profilesLength={profiles.length}
+              formulaText={formulaText}
+              descText={descText}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="ranking" className="space-y-6">
-          <RankingTab
-            selected={selected}
-            rankingData={rankingData}
-            customerPieData={customerPieData}
-            rankFormulaText={rankFormulaText}
-          />
+          <ErrorBoundary>
+            <RankingTab
+              selected={selected}
+              rankingData={rankingData}
+              customerPieData={customerPieData}
+              rankFormulaText={rankFormulaText}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
-          <CostTab
-            hasTeamContribution={filteredTeamContribution.length > 0}
-            selected={selected}
-            selectedCostData={selectedCostData}
-            costRadarData={costRadarData}
-            costEfficiencyData={costEfficiencyData}
-          />
+          <ErrorBoundary>
+            <CostTab
+              hasTeamContribution={filteredTeamContribution.length > 0}
+              selected={selected}
+              selectedCostData={selectedCostData}
+              costRadarData={costRadarData}
+              costEfficiencyData={costEfficiencyData}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="trend" className="space-y-6">
-          <TrendTab repTrend={repTrend} />
+          <ErrorBoundary>
+            <TrendTab repTrend={repTrend} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="product" className="space-y-6">
-          <ProductTab
-            hasCustomerItemDetail={filteredCustomerItemDetail.length > 0}
-            productPortfolio={productPortfolio}
-          />
+          <ErrorBoundary>
+            <ProductTab
+              hasCustomerItemDetail={filteredCustomerItemDetail.length > 0}
+              productPortfolio={productPortfolio}
+            />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>

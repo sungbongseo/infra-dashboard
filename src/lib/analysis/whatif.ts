@@ -184,3 +184,33 @@ export function calcSensitivity(
     };
   });
 }
+
+// ─── Multi-Scenario Comparison ───────────────────────────────
+
+export interface ScenarioComparison {
+  scenarioName: string;
+  adjustedSales: number;
+  adjustedGrossProfit: number;
+  adjustedOperatingProfit: number;
+  salesChange: number;
+  gpChange: number;
+  opChange: number;
+}
+
+/**
+ * 복수 시나리오 결과를 베이스 데이터 대비 변동률로 비교합니다.
+ */
+export function compareScenarios(
+  baseData: { totalSales: number; totalGrossProfit: number; totalOperatingProfit: number },
+  scenarios: Array<{ name: string; result: { adjustedSales: number; adjustedGrossProfit: number; adjustedOperatingProfit: number } }>
+): ScenarioComparison[] {
+  return scenarios.map(s => ({
+    scenarioName: s.name,
+    adjustedSales: s.result.adjustedSales,
+    adjustedGrossProfit: s.result.adjustedGrossProfit,
+    adjustedOperatingProfit: s.result.adjustedOperatingProfit,
+    salesChange: baseData.totalSales !== 0 ? ((s.result.adjustedSales - baseData.totalSales) / Math.abs(baseData.totalSales)) * 100 : 0,
+    gpChange: baseData.totalGrossProfit !== 0 ? ((s.result.adjustedGrossProfit - baseData.totalGrossProfit) / Math.abs(baseData.totalGrossProfit)) * 100 : 0,
+    opChange: baseData.totalOperatingProfit !== 0 ? ((s.result.adjustedOperatingProfit - baseData.totalOperatingProfit) / Math.abs(baseData.totalOperatingProfit)) * 100 : 0,
+  }));
+}

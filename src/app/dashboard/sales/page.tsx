@@ -27,12 +27,17 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterContext, useFilteredSales } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
 import { ClvTab } from "./tabs/ClvTab";
 import { MigrationTab } from "./tabs/MigrationTab";
 import { FxTab } from "./tabs/FxTab";
+import { AnomalyTab } from "./tabs/AnomalyTab";
+import { CohortTab } from "./tabs/CohortTab";
+import { ChurnTab } from "./tabs/ChurnTab";
+import { DecompositionTab } from "./tabs/DecompositionTab";
 
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
@@ -149,9 +154,14 @@ export default function SalesAnalysisPage() {
           <TabsTrigger value="clv">CLV 분석</TabsTrigger>
           <TabsTrigger value="migration">거래처 이동</TabsTrigger>
           <TabsTrigger value="fx">FX 분석</TabsTrigger>
+          <TabsTrigger value="anomaly">이상치 탐지</TabsTrigger>
+          <TabsTrigger value="cohort">코호트 분석</TabsTrigger>
+          <TabsTrigger value="churn">이탈 예측</TabsTrigger>
+          <TabsTrigger value="decomposition">시계열 분해</TabsTrigger>
         </TabsList>
 
         <TabsContent value="customer" className="space-y-6">
+          <ErrorBoundary>
           <ChartCard
             title="거래처별 매출 (ABC 분석)"
             formula="누적 비율(%) = 누적 매출 ÷ 총 매출 × 100"
@@ -177,9 +187,11 @@ export default function SalesAnalysisPage() {
                 </ComposedChart>
             </ChartContainer>
           </ChartCard>
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="item" className="space-y-6">
+          <ErrorBoundary>
           <ChartCard
             title="품목별 매출 비중"
             formula="품목별로 장부금액을 합산하여 비교"
@@ -210,9 +222,11 @@ export default function SalesAnalysisPage() {
                 />
             </ChartContainer>
           </ChartCard>
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="type" className="space-y-6">
+          <ErrorBoundary>
           <ChartCard
             title="내수/수출 비중"
             formula="내수와 수출 유형별로 장부금액을 각각 합산"
@@ -238,26 +252,61 @@ export default function SalesAnalysisPage() {
                 </PieChart>
             </ChartContainer>
           </ChartCard>
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="channel" className="space-y-6">
-          <ChannelTab filteredSales={filteredSales} />
+          <ErrorBoundary>
+            <ChannelTab filteredSales={filteredSales} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="rfm" className="space-y-6">
-          <RfmTab filteredSales={filteredSales} />
+          <ErrorBoundary>
+            <RfmTab filteredSales={filteredSales} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="clv" className="space-y-6">
-          <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} />
+          <ErrorBoundary>
+            <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="migration" className="space-y-6">
-          <MigrationTab filteredSales={filteredSales} />
+          <ErrorBoundary>
+            <MigrationTab filteredSales={filteredSales} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="fx" className="space-y-6">
-          <FxTab filteredSales={filteredSales} />
+          <ErrorBoundary>
+            <FxTab filteredSales={filteredSales} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="anomaly" className="space-y-6">
+          <ErrorBoundary>
+            <AnomalyTab filteredSales={filteredSales} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="cohort" className="space-y-6">
+          <ErrorBoundary>
+            <CohortTab filteredSales={filteredSales} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="churn" className="space-y-6">
+          <ErrorBoundary>
+            <ChurnTab filteredSales={filteredSales} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="decomposition" className="space-y-6">
+          <ErrorBoundary>
+            <DecompositionTab filteredSales={filteredSales} />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>

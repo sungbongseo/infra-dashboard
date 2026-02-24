@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { extractMonth } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilteredOrders, useFilteredSales, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
 import { StatusTab } from "./tabs/StatusTab";
@@ -167,41 +168,51 @@ export default function OrdersAnalysisPage() {
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
-          <StatusTab
-            totalOrders={totalOrders}
-            conversionRate={conversionRate}
-            outstandingOrders={outstandingOrders}
-            orderCount={filteredOrders.length}
-            monthlyOrders={monthlyOrders}
-          />
+          <ErrorBoundary>
+            <StatusTab
+              totalOrders={totalOrders}
+              conversionRate={conversionRate}
+              outstandingOrders={outstandingOrders}
+              orderCount={filteredOrders.length}
+              monthlyOrders={monthlyOrders}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
-          <AnalysisTab orderTypes={orderTypes} leadTimes={leadTimes} />
+          <ErrorBoundary>
+            <AnalysisTab orderTypes={orderTypes} leadTimes={leadTimes} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
-          <OrgTab orgOrders={orgOrders} monthlyGap={monthlyGap} />
+          <ErrorBoundary>
+            <OrgTab orgOrders={orgOrders} monthlyGap={monthlyGap} />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="pipeline" className="space-y-6">
-          <PipelineTab
-            orderToSalesRate={orderToSalesRate}
-            salesToCollectionRate={salesToCollectionRate}
-            outstandingAmount={outstandingAmount}
-            pipelineResult={pipelineResult}
-            pipelineStages={pipelineStages}
-            monthlyConversion={monthlyConversion}
-          />
+          <ErrorBoundary>
+            <PipelineTab
+              orderToSalesRate={orderToSalesRate}
+              salesToCollectionRate={salesToCollectionRate}
+              outstandingAmount={outstandingAmount}
+              pipelineResult={pipelineResult}
+              pipelineStages={pipelineStages}
+              monthlyConversion={monthlyConversion}
+            />
+          </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="o2c-flow" className="space-y-6">
-          <O2CFlowTab
-            pipelineStages={pipelineStages}
-            salesToCollectionRate={salesToCollectionRate}
-            prepaymentAmount={pipelineResult.prepaymentAmount}
-            grossCollections={pipelineResult.grossCollections}
-          />
+          <ErrorBoundary>
+            <O2CFlowTab
+              pipelineStages={pipelineStages}
+              salesToCollectionRate={salesToCollectionRate}
+              prepaymentAmount={pipelineResult.prepaymentAmount}
+              grossCollections={pipelineResult.grossCollections}
+            />
+          </ErrorBoundary>
         </TabsContent>
       </Tabs>
     </div>

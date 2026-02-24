@@ -44,7 +44,10 @@ function assignQuintiles(
 
   for (let i = 0; i < n; i++) {
     // quintile position: 1-5 based on rank
-    const rawScore = Math.min(5, Math.floor((i / n) * 5) + 1);
+    // For small datasets (n < 5), use ceil-based distribution for better spread
+    const rawScore = n < 5
+      ? Math.min(5, Math.max(1, Math.ceil(((i + 1) / n) * 5)))
+      : Math.min(5, Math.floor((i / n) * 5) + 1);
     const score = invertScore ? (6 - rawScore) : rawScore;
     scoreMap.set(sorted[i].index, score);
   }
@@ -253,4 +256,19 @@ export function calcRfmSegmentSummary(scores: RfmScore[]): RfmSegmentSummary[] {
     });
 
   return results;
+}
+
+// ─── Segment action mapping ─────────────────────────────────
+
+export const RFM_SEGMENT_ACTIONS: Record<string, { action: string; description: string; priority: "high" | "medium" | "low" }> = {
+  VIP: { action: "VIP 전용 혜택 유지", description: "개인화된 서비스와 우선 지원으로 이탈 방지", priority: "high" },
+  Loyal: { action: "크로스셀/업셀 추진", description: "신규 제품군 제안 및 주문량 확대 유도", priority: "high" },
+  Potential: { action: "육성 프로그램 적용", description: "정기 방문 및 샘플 제공으로 거래 빈도 증가 유도", priority: "medium" },
+  "At-risk": { action: "긴급 리텐션 캠페인", description: "할인 또는 특별 조건 제안, 이탈 원인 파악", priority: "high" },
+  Dormant: { action: "재활성화 캠페인", description: "한정 프로모션으로 재구매 유도", priority: "medium" },
+  Lost: { action: "원인 분석 후 선별 접근", description: "이탈 원인 분석, ROI 높은 고객만 선별 재접근", priority: "low" },
+};
+
+export function getSegmentAction(segment: string) {
+  return RFM_SEGMENT_ACTIONS[segment] || { action: "모니터링", description: "정기적인 거래 현황 모니터링", priority: "low" as const };
 }

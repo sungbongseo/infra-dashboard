@@ -155,7 +155,7 @@ export function useFilteredProfitability() {
   const dateFilteredCustomerItems = useMemo(() => {
     if (!isUsingDateFiltered) return [];
     const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
-    return filterByDateRange(orgFiltered, dateRange, "전기일");
+    return filterByDateRange(orgFiltered, dateRange, "매출연월");
   }, [customerItemDetail, effectiveOrgNames, dateRange, isUsingDateFiltered]);
 
   // 거래처 단위 집계 (Smart Data Source용)

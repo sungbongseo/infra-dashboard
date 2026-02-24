@@ -35,6 +35,7 @@ import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_S
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterContext, useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredOrgProfit, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
+import { BenchmarkReportTab } from "@/components/dashboard/BenchmarkReportTab";
 
 const INSIGHT_STYLES: Record<InsightSeverity, string> = {
   critical: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
@@ -150,6 +151,14 @@ export default function OverviewPage() {
       }),
     [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast, costRatios]
   );
+
+  // ─── Benchmark + Report 데이터 ────────────────────────────────
+  const salesGrowth = useMemo(() => forecast?.stats.avgGrowthRate ?? 0, [forecast]);
+  const topBottomOrg = useMemo(() => {
+    if (orgRanking.length === 0) return { top: "-", bottom: "-" };
+    return { top: orgRanking[0].org, bottom: orgRanking[orgRanking.length - 1].org };
+  }, [orgRanking]);
+  const uniqueCustomerCount = useMemo(() => new Set(filteredSales.map(r => r.매출처).filter(Boolean)).size, [filteredSales]);
 
   // ─── Insight 요약 집계 ─────────────────────────────────────────
   const insightSummary = useMemo(() => {
@@ -306,6 +315,7 @@ export default function OverviewPage() {
           <TabsTrigger value="core-kpi">핵심 지표</TabsTrigger>
           <TabsTrigger value="org-analysis">조직 분석</TabsTrigger>
           <TabsTrigger value="financial-health">재무 건전성</TabsTrigger>
+          <TabsTrigger value="benchmark-report">벤치마크/보고서</TabsTrigger>
         </TabsList>
 
         <TabsContent value="core-kpi" className="space-y-6">
@@ -640,6 +650,20 @@ export default function OverviewPage() {
               </div>
             </ChartCard>
           )}
+        </TabsContent>
+
+        <TabsContent value="benchmark-report" className="space-y-6">
+          <BenchmarkReportTab
+            kpis={kpis}
+            gpRate={grossProfitMargin}
+            dso={overallDso}
+            salesGrowth={salesGrowth}
+            topOrg={topBottomOrg.top}
+            bottomOrg={topBottomOrg.bottom}
+            atRiskCustomers={0}
+            totalCustomers={uniqueCustomerCount}
+            contributionMarginRate={contributionMarginRate}
+          />
         </TabsContent>
       </Tabs>
     </div>

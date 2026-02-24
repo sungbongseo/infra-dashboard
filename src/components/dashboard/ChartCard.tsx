@@ -12,9 +12,10 @@ interface ChartCardProps {
   children: React.ReactNode;
   className?: string;
   action?: React.ReactNode;
+  isEmpty?: boolean;
 }
 
-export function ChartCard({ title, formula, description, benchmark, children, className, action }: ChartCardProps) {
+export function ChartCard({ title, formula, description, benchmark, children, className, action, isEmpty }: ChartCardProps) {
   return (
     <Card className={className}>
       <CardHeader className="pb-2">
@@ -29,7 +30,13 @@ export function ChartCard({ title, formula, description, benchmark, children, cl
         </div>
       </CardHeader>
       <CardContent>
-        <ErrorBoundary>{children}</ErrorBoundary>
+        {isEmpty ? (
+          <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+            데이터가 없습니다
+          </div>
+        ) : (
+          <ErrorBoundary>{children}</ErrorBoundary>
+        )}
       </CardContent>
     </Card>
   );
