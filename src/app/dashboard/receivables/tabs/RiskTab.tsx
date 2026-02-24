@@ -142,8 +142,8 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount }: Ris
       <ChartCard
         title="리스크 등급 현황"
         formula="고위험: 연체비율 50% 초과 또는 6개월 이상 1억 초과\n주의: 연체비율 30~50% 또는 3개월 이상 5천만 초과\n양호: 위 조건에 해당하지 않는 거래처"
-        description="연체 기간과 금액을 기준으로 거래처를 3단계(양호/주의/고위험) 등급으로 분류한 표입니다. 고위험 거래처는 즉시 추심 조치가 필요합니다."
-        benchmark="고위험 0건, 주의 등급의 미수금이 전체의 10% 이내이면 이상적입니다"
+        description="거래처별 미수금 잔액과 연령(aging) 분포를 보여줍니다. 미수금이 특정 거래처에 집중되면 회수 실패 시 큰 손실 위험이 있어 분산 관리가 필요합니다."
+        benchmark="단일 거래처 미수금이 전체의 20% 이상이면 집중 관리"
       >
         <DataTable
           data={risks}

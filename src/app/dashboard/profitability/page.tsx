@@ -332,17 +332,16 @@ export default function ProfitabilityPage() {
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
 
   // ─── KPI 합계 ──────────────────────────────
-  const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp, totalCost } = useMemo(() => {
+  const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
     const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
     const op = filteredOrgProfit.reduce((s, r) => s + r.영업이익.실적, 0);
     const gp = filteredOrgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
     const contrib = filteredOrgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
-    const cost = filteredOrgProfit.reduce((s, r) => s + r.실적매출원가.실적, 0);
     return {
       totalGP: gp, totalContrib: contrib,
       opRate: sales > 0 ? (op / sales) * 100 : 0,
       gpRate: sales > 0 ? (gp / sales) * 100 : 0,
-      totalSales: sales, totalOp: op, totalCost: cost,
+      totalSales: sales, totalOp: op,
     };
   }, [filteredOrgProfit]);
 
@@ -510,7 +509,7 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="sensitivity" className="space-y-6">
           <ErrorBoundary>
-            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} baseCost={totalCost} />
+            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} />
           </ErrorBoundary>
         </TabsContent>
 

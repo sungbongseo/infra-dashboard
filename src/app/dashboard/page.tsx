@@ -584,7 +584,9 @@ export default function OverviewPage() {
             <div className="space-y-4">
               <ChartCard
                 title="핵심 재무 지표 요약"
-                description="주요 재무 지표를 한눈에 파악합니다."
+                formula="각 지표별 현재값을 산업 평균 기준(양호/경고)으로 색상 분류"
+                description="DSO, CCC, 수금율, 이익율 등 핵심 재무 지표를 한눈에 보여줍니다. 녹색은 양호, 황색은 보통, 적색은 주의가 필요한 상태입니다."
+                benchmark="7개 지표 중 5개 이상 양호(녹색)이면 재무 건전성 우수"
               >
                 <div className="divide-y">
                   {[
@@ -619,7 +621,9 @@ export default function OverviewPage() {
           {insights.length > 0 && (
             <ChartCard
               title="경영 진단 인사이트"
-              description={`총 ${insights.length}개의 진단 결과가 발견되었습니다.`}
+              formula="매출, 수금, 수익성, 수주, 미수금 5개 영역에 대해 규칙 기반 자동 진단"
+              description={`총 ${insights.length}개의 진단 결과가 발견되었습니다. 위험/주의 항목이 있으면 우선적으로 대응하고, 양호 항목은 현 수준을 유지합니다.`}
+              benchmark="위험(빨강) 0건 + 주의(황색) 2건 이하이면 안정적 경영 상태"
             >
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {insights.map((insight) => (

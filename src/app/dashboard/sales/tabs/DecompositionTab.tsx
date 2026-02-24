@@ -14,7 +14,7 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Activity, Waves } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Activity, Waves, Info } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
@@ -87,6 +87,18 @@ export function DecompositionTab({ filteredSales }: DecompositionTabProps) {
 
   return (
     <>
+      {/* Data quality warning */}
+      {decomposition.dataQuality === "limited" && (
+        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div>
+            <span className="font-medium">데이터 부족 주의:</span>{" "}
+            현재 {monthlyData.length}개월 데이터로 분석 중입니다. 시계열 분해의 신뢰도를 높이려면 24개월 이상의 데이터가 권장됩니다.
+            계절성 패턴은 참고 수준으로 활용하세요.
+          </div>
+        </div>
+      )}
+
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard
@@ -154,7 +166,8 @@ export function DecompositionTab({ filteredSales }: DecompositionTabProps) {
         <ChartCard
           title="계절 성분"
           formula="계절 성분 = 비추세(원본-추세)의 동일 월 평균"
-          description="각 월의 계절적 기여도입니다. 양수면 해당 월이 평균 이상, 음수면 평균 이하의 매출을 보이는 경향입니다."
+          description="각 월의 계절적 기여도입니다. 양수이면 해당 월이 연평균 이상의 매출을 보이는 시기이고, 음수이면 비수기입니다. 자원 배분(인력, 재고)에 활용하세요."
+          benchmark="계절 성분 편차가 월 매출의 20% 이상이면 계절성 뚜렷"
         >
           <ChartContainer height="h-56 md:h-72">
             <ComposedChart data={decomposition.points} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>

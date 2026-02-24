@@ -44,9 +44,10 @@ function assignQuintiles(
 
   for (let i = 0; i < n; i++) {
     // quintile position: 1-5 based on rank
-    // For small datasets (n < 5), use ceil-based distribution for better spread
+    // For small datasets (n < 5), use evenly-spaced distribution
+    // e.g. n=3 → [1,3,5], n=4 → [1,2,4,5], n=2 → [1,5], n=1 → [3]
     const rawScore = n < 5
-      ? Math.min(5, Math.max(1, Math.ceil(((i + 1) / n) * 5)))
+      ? (n === 1 ? 3 : Math.round(1 + (i / (n - 1)) * 4))
       : Math.min(5, Math.floor((i / n) * 5) + 1);
     const score = invertScore ? (6 - rawScore) : rawScore;
     scoreMap.set(sorted[i].index, score);

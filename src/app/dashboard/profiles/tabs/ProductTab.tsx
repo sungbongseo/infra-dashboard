@@ -48,6 +48,7 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
             </div>
             <p className="text-2xl font-bold">{productPortfolio.totalProducts}</p>
             <p className="text-xs text-muted-foreground">{productPortfolio.totalProductGroups}개 제품군</p>
+            <p className="text-[10px] text-muted-foreground mt-1">취급 제품이 5종 이하이면 리스크 집중, 다양할수록 안정적</p>
           </CardContent>
         </Card>
         <Card>
@@ -82,8 +83,8 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
       <ChartCard
         title="품목별 매출 비중 (Top 10)"
         formula="매출 비중(%) = 품목 매출액 ÷ 담당자 총 매출 × 100"
-        description="담당자가 취급하는 품목 중 매출 상위 10개를 원형 차트로 보여줍니다. 특정 품목에 과도하게 집중되어 있으면 해당 품목 수요 변화에 취약합니다."
-        benchmark="단일 품목 비중 30% 이상이면 집중 리스크가 있으므로 포트폴리오 다변화 검토 필요"
+        description="영업사원별 제품 구성 비율을 보여줍니다. 다양한 제품을 균형 있게 판매하면 시장 변동에 따른 리스크가 분산됩니다."
+        benchmark="단일 제품 의존도가 50% 이상이면 포트폴리오 분산 필요"
       >
         <ChartContainer height="h-72 md:h-96">
             <PieChart>

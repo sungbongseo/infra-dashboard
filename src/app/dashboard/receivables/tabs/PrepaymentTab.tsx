@@ -83,8 +83,8 @@ export function PrepaymentTab({
       <ChartCard
         title="조직별 선수금 현황"
         formula="영업조직별 선수금액을 합산하여 상위 10개 조직을 표시"
-        description="선수금이 가장 많은 상위 10개 조직입니다. 특정 조직에 선수금이 집중되어 있다면 해당 조직의 납품 이행 능력과 일정을 점검해야 합니다."
-        benchmark="단일 조직의 선수금이 전체의 30% 이상이면 집중도가 과도한 상태입니다"
+        description="거래처별 선수금 잔액 분포를 보여줍니다. 선수금이 특정 거래처에 집중되면 해당 거래처 변동에 따른 현금흐름 리스크가 커집니다."
+        benchmark="상위 3개 거래처가 선수금 70% 이상이면 의존도 높음"
       >
         <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={orgPrepayments.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>

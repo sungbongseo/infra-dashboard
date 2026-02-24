@@ -59,6 +59,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           title="평균 공헌이익율"
           value={contribRanking.length > 0 ? contribRanking.reduce((s, r) => s + r.공헌이익율, 0) / contribRanking.length : 0}
           format="percent"
+          formula="전체 공헌이익 합계 ÷ 전체 매출액 합계 × 100"
           description="담당자별 공헌이익율의 산술 평균입니다. 20% 이상이면 양호합니다."
           benchmark="20% 이상 양호, 음수이면 변동비가 매출보다 큰 적자 상태"
         />

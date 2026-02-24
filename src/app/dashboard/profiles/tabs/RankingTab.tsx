@@ -24,8 +24,8 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
       <ChartCard
         title="성과 점수 랭킹"
         formula={rankFormulaText}
-        description="총 점수가 높은 순서대로 상위 20명의 순위를 보여줍니다. 현재 선택된 영업사원은 주황색으로 강조 표시됩니다. 자신의 상대적 위치와 동료들의 성과 수준을 한눈에 파악할 수 있습니다."
-        benchmark="상위 20%는 핵심 인재로 관리하고, 하위 20%는 역량 개발 코칭이 필요합니다"
+        description="영업사원을 매출 실적 순으로 정렬한 순위표입니다. 상위 소수에 매출이 집중되면 퇴사/이동 시 매출 급감 위험이 있어 저성과자 육성이 필요합니다."
+        benchmark="상위 20% 영업사원이 매출 60% 이상 기여하면 인력 의존 리스크"
       >
         <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={rankingData} layout="vertical" margin={{ left: 60 }}>
@@ -53,6 +53,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 </div>
                 <p className="text-2xl font-bold">{selected.customerCount}</p>
                 <p className="text-xs text-muted-foreground">활성 거래처 수</p>
+                <p className="text-[10px] text-muted-foreground mt-1">거래처 수가 팀 평균의 1.5배 이상이면 관리 부하 점검</p>
               </CardContent>
             </Card>
             <Card>

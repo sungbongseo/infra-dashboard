@@ -67,16 +67,16 @@ export function StatusTab({
           format="number"
           icon={<Clock className="h-5 w-5" />}
           formula="기간 내 수주 리스트의 총 건수"
-          description="분석 기간 내 접수된 총 수주 건수입니다."
-          benchmark="전기 대비 건수 증가면 영업 활발, 건수↓ 금액↑이면 대형화 추세"
+          description="현재 기간 내 접수된 총 수주 건수입니다. 건수와 금액을 함께 분석하면 수주 패턴의 변화(대형→소형 전환 등)를 파악할 수 있습니다."
+          benchmark="수주 건수 증가 + 건당 금액 감소이면 수익성 점검"
         />
       </div>
 
       <ChartCard
         title="월별 수주 추이"
         formula="월별 수주 건수와 수주 금액(장부금액 합계)을 각각 집계"
-        description="매월 수주 건수(선)와 금액(막대)을 보여줍니다."
-        benchmark="수주 금액이 매출 금액과 동등하거나 높으면 파이프라인 양호"
+        description="기간별 수주 금액과 매출 전환 현황을 비교합니다. 수주가 매출보다 지속적으로 높으면 미래 매출 파이프라인이 충분합니다."
+        benchmark="수주잔고가 월 매출의 2배 이상이면 파이프라인 충분"
       >
         <ChartContainer>
           <ComposedChart data={monthlyOrders}>

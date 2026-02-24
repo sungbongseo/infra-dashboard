@@ -1,9 +1,11 @@
+import type { Insight } from "./insightGenerator";
+
 // ─── Interfaces ───────────────────────────────────────────────
 
 export interface ReportSection {
   title: string;
   content: string;
-  type: "summary" | "highlight" | "risk" | "recommendation";
+  type: "summary" | "highlight" | "risk" | "recommendation" | "insight";
   priority: "high" | "medium" | "low";
 }
 
@@ -43,7 +45,7 @@ function fmt(n: number): string {
 /**
  * Generate monthly executive report text from KPI data.
  */
-export function generateMonthlyReport(input: ReportInput, period: string): MonthlyReport {
+export function generateMonthlyReport(input: ReportInput, period: string, insights?: Insight[]): MonthlyReport {
   const sections: ReportSection[] = [];
 
   // 1. Executive Summary
@@ -136,6 +138,29 @@ export function generateMonthlyReport(input: ReportInput, period: string): Month
       type: "recommendation",
       priority: "high",
     });
+  }
+
+  // 8. InsightGenerator 결과 통합 (선택적)
+  if (insights && insights.length > 0) {
+    const criticalInsights = insights.filter(i => i.severity === "critical" || i.severity === "warning");
+    const positiveInsights = insights.filter(i => i.severity === "positive");
+
+    if (criticalInsights.length > 0) {
+      sections.push({
+        title: "주요 경영 인사이트 (경고)",
+        content: criticalInsights.map(i => `[${i.category}] ${i.title}: ${i.message}`).join("\n"),
+        type: "insight",
+        priority: "high",
+      });
+    }
+    if (positiveInsights.length > 0) {
+      sections.push({
+        title: "긍정적 인사이트",
+        content: positiveInsights.map(i => `[${i.category}] ${i.title}: ${i.message}`).join("\n"),
+        type: "insight",
+        priority: "low",
+      });
+    }
   }
 
   return {

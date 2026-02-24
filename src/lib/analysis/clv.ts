@@ -167,7 +167,9 @@ export function calcClv(
         ? Math.min(1, purchaseFrequency / avgFrequency) * 0.8 + 0.2
         : 0.5;
 
-    const BASE_LIFESPAN_YEARS = 3; // Industry default
+    // 인프라/건설 B2B 평균 프로젝트 사이클 기준 (일반 프로젝트 1-2년, 장기 계약 3-5년)
+    // retentionFactor로 고객별 활동 빈도에 따라 0.6~3.0년 범위로 조정됨
+    const BASE_LIFESPAN_YEARS = 3;
     const estimatedLifespan = BASE_LIFESPAN_YEARS * retentionFactor;
 
     const clv = customerValue * avgProfitMargin * estimatedLifespan;

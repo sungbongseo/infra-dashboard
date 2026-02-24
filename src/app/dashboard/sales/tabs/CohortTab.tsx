@@ -9,7 +9,7 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
 } from "recharts";
-import { Users, Repeat, Crown } from "lucide-react";
+import { Users, Repeat, Crown, Info } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
@@ -89,6 +89,16 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
 
   return (
     <>
+      {/* B2B 인프라 주의사항 */}
+      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+        <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-medium">B2B 인프라 참고사항:</span>{" "}
+          인프라/건설 B2B에서는 프로젝트 기반 불규칙 거래가 일반적이므로, 코호트 리텐션율은 참고 지표로 활용하세요.
+          B2C 대비 낮은 리텐션율이 반드시 고객 이탈을 의미하지는 않습니다.
+        </div>
+      </div>
+
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KpiCard
@@ -116,6 +126,7 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
           icon={<Crown className="h-5 w-5" />}
           formula="코호트 중 최대 고객 수"
           description="가장 많은 신규 고객이 유입된 코호트의 고객 수입니다. 마케팅 캠페인이나 계절적 요인으로 특정 월에 대량 유입이 발생할 수 있습니다."
+          benchmark="전체 고객의 20% 이상이 한 코호트에 집중되면 특정 시기 의존도 높음"
         />
       </div>
 

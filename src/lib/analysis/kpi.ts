@@ -407,6 +407,7 @@ export interface MonthlyCostProfile {
   원재료비율: number;
   상품매입비율: number;
   외주비율: number;
+  isSynthetic?: boolean; // true = salesWeight 기반 합성 데이터 (teamContrib 비율 배분)
   판관비율: number;
 }
 
@@ -472,6 +473,7 @@ export function calcMonthlyCostProfiles(
       상품매입비율: Math.round(basePurchaseRatio * varianceFactor * 10) / 10,
       외주비율: Math.round(baseOutsourcingRatio * varianceFactor * 10) / 10,
       판관비율: Math.round(baseSgaRatio * (2 - varianceFactor) * 10) / 10,
+      isSynthetic: true,
     };
   });
 }

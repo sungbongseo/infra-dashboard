@@ -59,6 +59,7 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
     totalAmount: number;
     frequency: number;
     months: Set<string>;
+    monthlyAmounts: Map<string, number>;
   }>();
 
   for (const r of sales) {
@@ -73,10 +74,12 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
       totalAmount: 0,
       frequency: 0,
       months: new Set<string>(),
+      monthlyAmounts: new Map<string, number>(),
     };
     entry.totalAmount += r.장부금액;
     entry.frequency++;
     entry.months.add(month);
+    entry.monthlyAmounts.set(month, (entry.monthlyAmounts.get(month) || 0) + r.장부금액);
     if (!entry.lastMonth || month > entry.lastMonth) entry.lastMonth = month;
     custMap.set(cust, entry);
   }
@@ -92,19 +95,20 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
     const signals: string[] = [];
     let score = 0;
 
-    // Recency signal (0-40 points)
-    if (monthsSinceLast >= 6) {
+    // Recency signal (0-40 points) — B2B 인프라 사업 기준
+    // 프로젝트 사이클 6-12개월이 일반적이므로 임계값 상향 조정
+    if (monthsSinceLast >= 12) {
       score += 40;
-      signals.push("6개월 이상 미거래");
-    } else if (monthsSinceLast >= 4) {
+      signals.push("12개월 이상 미거래");
+    } else if (monthsSinceLast >= 9) {
       score += 30;
-      signals.push("4~5개월 미거래");
-    } else if (monthsSinceLast >= 3) {
+      signals.push("9~11개월 미거래");
+    } else if (monthsSinceLast >= 6) {
       score += 20;
-      signals.push("3개월 미거래");
-    } else if (monthsSinceLast >= 2) {
+      signals.push("6~8개월 미거래");
+    } else if (monthsSinceLast >= 3) {
       score += 10;
-      signals.push("2개월 미거래");
+      signals.push("3~5개월 미거래");
     }
 
     // Frequency signal (0-30 points)
@@ -116,13 +120,25 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
       signals.push("거래 빈도 낮음");
     }
 
-    // Amount decline signal (0-30 points)
+    // Amount decline signal (0-30 points) — 실제 금액 비교 기반
     const sortedMonths = Array.from(data.months).sort();
     if (sortedMonths.length >= 3) {
-      // Compare first half vs second half activity density
-      if (monthsSinceLast >= 2 && data.frequency > 3) {
-        score += 20;
-        signals.push("최근 거래량 감소 추세");
+      const mid = Math.floor(sortedMonths.length / 2);
+      const firstHalfMonths = sortedMonths.slice(0, mid);
+      const secondHalfMonths = sortedMonths.slice(mid);
+
+      const firstHalfAvg = firstHalfMonths.length > 0
+        ? firstHalfMonths.reduce((s, m) => s + (data.monthlyAmounts.get(m) || 0), 0) / firstHalfMonths.length
+        : 0;
+      const secondHalfAvg = secondHalfMonths.length > 0
+        ? secondHalfMonths.reduce((s, m) => s + (data.monthlyAmounts.get(m) || 0), 0) / secondHalfMonths.length
+        : 0;
+
+      // 최근 절반 기간 평균 금액이 이전 절반 대비 20%+ 감소
+      if (firstHalfAvg > 0 && secondHalfAvg < firstHalfAvg * 0.8) {
+        const declineRate = ((firstHalfAvg - secondHalfAvg) / firstHalfAvg) * 100;
+        score += declineRate >= 50 ? 30 : 20;
+        signals.push(`거래 금액 ${declineRate.toFixed(0)}% 감소`);
       }
     }
 

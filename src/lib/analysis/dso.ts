@@ -111,6 +111,7 @@ export interface DSOTrendPoint {
   dso: number;
   totalReceivables: number;
   monthlySales: number;
+  isSynthetic?: boolean; // true = 미수금 비례배분 추정치
 }
 
 /**
@@ -184,6 +185,7 @@ export function calcDSOTrend(
         dso,
         totalReceivables: Math.round(monthlyReceivables),
         monthlySales,
+        isSynthetic: true, // 미수금 비례배분 추정치 (스냅샷 데이터 기반)
       });
     }
   }

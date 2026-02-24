@@ -121,17 +121,18 @@ export function calcCohortAnalysis(sales: SalesRecord[]): CohortAnalysisResult {
     };
   });
 
-  // 5. Average retention by period
-  const periodMap = new Map<number, { totalRate: number; count: number }>();
+  // 5. Average retention by period — weighted by cohort size
+  const periodMap = new Map<number, { weightedRateSum: number; totalWeight: number }>();
   for (const cell of cells) {
-    const entry = periodMap.get(cell.periodIndex) || { totalRate: 0, count: 0 };
-    entry.totalRate += cell.retentionRate;
-    entry.count++;
+    const entry = periodMap.get(cell.periodIndex) || { weightedRateSum: 0, totalWeight: 0 };
+    // Weight by cohort size (totalCustomers) so larger cohorts have more influence
+    entry.weightedRateSum += cell.retentionRate * cell.totalCustomers;
+    entry.totalWeight += cell.totalCustomers;
     periodMap.set(cell.periodIndex, entry);
   }
 
   const avgRetentionByPeriod = Array.from(periodMap.entries())
-    .map(([period, data]) => ({ period, rate: data.count > 0 ? data.totalRate / data.count : 0 }))
+    .map(([period, data]) => ({ period, rate: data.totalWeight > 0 ? data.weightedRateSum / data.totalWeight : 0 }))
     .sort((a, b) => a.period - b.period);
 
   return { cells, cohorts, avgRetentionByPeriod };

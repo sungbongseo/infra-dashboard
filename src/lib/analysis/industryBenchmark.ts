@@ -23,7 +23,7 @@ const INFRA_BENCHMARKS: Record<string, { value: number; unit: string }> = {
   매출총이익율: { value: 20, unit: "%" },
   영업이익율: { value: 8, unit: "%" },
   수금율: { value: 85, unit: "%" },
-  DSO: { value: 60, unit: "일" },
+  DSO: { value: 75, unit: "일" },  // 건설/인프라 업종 실제 평균 75-90일
   매출성장률: { value: 5, unit: "%" },
   계획달성률: { value: 100, unit: "%" },
   공헌이익율: { value: 15, unit: "%" },

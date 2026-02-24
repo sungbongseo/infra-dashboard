@@ -90,7 +90,8 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
           format="number"
           icon={<Users className="h-5 w-5" />}
           formula="매출 데이터에서 중복 없이 매출처 수 집계"
-          description="분석 대상 전체 거래처 수입니다."
+          description="거래 이력이 있는 전체 거래처 수입니다. 이탈 분석의 모집단이 되며, 이 수 대비 위험 등급 비율로 포트폴리오 건전성을 판단합니다."
+          benchmark="활성 거래처가 50개 미만이면 소수 의존 리스크"
         />
         <KpiCard
           title="이탈 위험 거래처"

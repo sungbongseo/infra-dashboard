@@ -36,7 +36,6 @@ export function calcSensitivityGrid(
   baseSales: number,
   baseGrossProfit: number,
   baseOpProfit: number,
-  _baseCost: number,
   priceSteps: number[] = [-20, -15, -10, -5, 0, 5, 10, 15, 20],
   volumeSteps: number[] = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
 ): SensitivityResult {

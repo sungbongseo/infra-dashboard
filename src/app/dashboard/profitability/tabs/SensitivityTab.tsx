@@ -24,7 +24,6 @@ interface SensitivityTabProps {
   baseSales: number;
   baseGrossProfit: number;
   baseOpProfit: number;
-  baseCost: number; // 매출원가
 }
 
 // ─── Metric selector type ───────────────────────────────────────
@@ -83,14 +82,13 @@ export function SensitivityTab({
   baseSales,
   baseGrossProfit,
   baseOpProfit,
-  baseCost,
 }: SensitivityTabProps) {
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("op");
 
   // Compute sensitivity grid
   const result = useMemo(
-    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, baseCost, STEPS, STEPS),
-    [baseSales, baseGrossProfit, baseOpProfit, baseCost]
+    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, STEPS, STEPS),
+    [baseSales, baseGrossProfit, baseOpProfit]
   );
 
   // Build lookup map for heatmap: key = "price_volume"

@@ -324,8 +324,8 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         <ChartCard
           title="월별 DSO 추세"
           formula="DSO(일) = 해당월 추정 미수금 ÷ 3개월 이동평균 매출 × 30\n미수금은 월별 매출 비중으로 배분하여 추정"
-          description="월별 DSO 변화를 보여줍니다. DSO가 지속적으로 상승하면 채권 회수가 느려지고 있다는 신호이며, 하락하면 회수가 개선되고 있다는 의미입니다."
-          benchmark="DSO 추세가 3개월 연속 상승하면 즉각적인 수금 관리 강화가 필요합니다"
+          description="월별 DSO(매출채권 회수일수) 변화를 추적합니다. DSO가 지속적으로 증가하면 현금흐름 악화 신호이므로 수금 프로세스를 재점검해야 합니다."
+          benchmark="3개월 연속 DSO 증가면 수금 전략 점검"
         >
           <ChartContainer height="h-64 md:h-80">
               <ComposedChart data={dsoTrend}>

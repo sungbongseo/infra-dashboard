@@ -27,7 +27,7 @@ export function OrgTab({ orgOrders, monthlyGap }: OrgTabProps) {
         title="조직별 수주 비중"
         formula="영업조직별 장부금액 합계를 구한 뒤 금액 순으로 정렬"
         description="영업조직별 수주 금액 순위를 보여줍니다. 특정 조직에 수주가 지나치게 집중되어 있다면 매출 리스크를 분산하는 전략이 필요합니다."
-        benchmark="상위 3개 조직이 전체 수주의 60% 이상이면 집중도가 높은 편입니다"
+        benchmark="조직 간 수주 편차가 2배 이상이면 자원 재배분 검토"
       >
         <ChartContainer height="h-64 md:h-80">
             <BarChart
@@ -55,7 +55,7 @@ export function OrgTab({ orgOrders, monthlyGap }: OrgTabProps) {
         title="월별 수주 vs 매출 전환 갭"
         formula="갭(원) = 수주금액 − 매출금액\n양수이면 수주잔고가 쌓이는 중, 음수이면 과거 수주를 소진하는 중"
         description="매월 수주금액과 매출금액의 차이를 비교합니다. 갭이 양수이면 주문이 매출보다 많아 수주잔고가 늘어나는 것이고, 음수이면 과거에 받은 주문을 납품하며 잔고를 줄이고 있다는 뜻입니다."
-        benchmark="갭이 꾸준히 양수이면 매출 파이프라인이 건전한 상태입니다"
+        benchmark="평균 수주액이 전사 평균의 50% 미만이면 거래 구조 점검"
       >
         <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={monthlyGap}>

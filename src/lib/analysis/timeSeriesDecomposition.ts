@@ -13,6 +13,7 @@ export interface DecompositionResult {
   seasonalPattern: Array<{ monthIndex: number; factor: number }>; // 1-12
   trendDirection: "up" | "down" | "flat";
   seasonalStrength: number; // 0-1, how strong seasonal pattern is
+  dataQuality: "sufficient" | "limited" | "minimal"; // 24+: sufficient, 13-23: limited, <13: minimal
 }
 
 // ─── Core Function ────────────────────────────────────────────
@@ -26,11 +27,16 @@ export function decomposeTimeSeries(
   monthlyData: Array<{ month: string; value: number }>,
   period: number = 12
 ): DecompositionResult {
+  const dataQuality: "sufficient" | "limited" | "minimal" =
+    monthlyData.length >= 24 ? "sufficient" :
+    monthlyData.length >= period + 1 ? "limited" : "minimal";
+
   const empty: DecompositionResult = {
     points: [],
     seasonalPattern: [],
     trendDirection: "flat",
     seasonalStrength: 0,
+    dataQuality,
   };
 
   if (monthlyData.length < period + 1) return empty;
@@ -135,5 +141,5 @@ export function decomposeTimeSeries(
     ? Math.max(0, Math.min(1, 1 - varResidual / varDetrended))
     : 0;
 
-  return { points, seasonalPattern, trendDirection, seasonalStrength };
+  return { points, seasonalPattern, trendDirection, seasonalStrength, dataQuality };
 }

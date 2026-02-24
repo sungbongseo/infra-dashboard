@@ -61,8 +61,8 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             value={selectedCostData.fixedCostRate}
             format="percent"
             formula="판관고정비율 = 판관고정비 ÷ 매출액 × 100"
-            description="매출 대비 고정비(감가상각비, 경비, 노무비) 비중입니다. 매출이 줄어도 고정비는 변하지 않아 수익성에 직접 영향합니다."
-            benchmark="고정비율이 높으면 매출 감소 시 적자 전환 위험이 커집니다"
+            description="매출 대비 고정비(감가상각비, 경비, 노무비) 비중입니다. 1인당 급여 수준이 업계 대비 높으면 비용 효율이 낮고, 너무 낮으면 인재 유출 위험이 있습니다."
+            benchmark="1인당 급여가 업계 중위수 대비 ±10% 이내이면 적정"
           />
         </div>
       )}

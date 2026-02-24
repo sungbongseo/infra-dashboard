@@ -86,6 +86,12 @@ const SECTION_CONFIG: Record<ReportSection["type"], {
     bgColor: "bg-blue-50 dark:bg-blue-950/20",
     iconColor: "text-blue-600 dark:text-blue-400",
   },
+  insight: {
+    icon: <Lightbulb className="h-4 w-4" />,
+    borderColor: "border-l-purple-500",
+    bgColor: "bg-purple-50 dark:bg-purple-950/20",
+    iconColor: "text-purple-600 dark:text-purple-400",
+  },
 };
 
 const PRIORITY_VARIANT: Record<ReportSection["priority"], "destructive" | "warning" | "secondary"> = {
