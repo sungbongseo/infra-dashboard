@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments } from "@/lib/analysis/aging";
 import { calcPrepaymentSummary, calcOrgPrepayments, calcMonthlyPrepayments } from "@/lib/analysis/prepayment";
+import { calcPersonPortfolio, calcPersonHealthData, calcCustomerRepDetail } from "@/lib/analysis/receivableInsight";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
@@ -15,6 +16,7 @@ import { RiskTab } from "./tabs/RiskTab";
 import { CreditTab } from "./tabs/CreditTab";
 import { DsoTab } from "./tabs/DsoTab";
 import { PrepaymentTab } from "./tabs/PrepaymentTab";
+import { PersonInsightTab } from "./tabs/PersonInsightTab";
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -39,6 +41,11 @@ export default function ReceivablesPage() {
   const orgPrepayments = useMemo(() => calcOrgPrepayments(filteredCollections), [filteredCollections]);
   const monthlyPrepayments = useMemo(() => calcMonthlyPrepayments(filteredCollections), [filteredCollections]);
 
+  // 담당자 인사이트 분석
+  const personPortfolio = useMemo(() => calcPersonPortfolio(allRecords), [allRecords]);
+  const personHealthData = useMemo(() => calcPersonHealthData(allRecords), [allRecords]);
+  const customerRepDetail = useMemo(() => calcCustomerRepDetail(allRecords), [allRecords]);
+
   const highRiskCount = risks.filter((r) => r.riskGrade === "high").length;
   const mediumRiskCount = risks.filter((r) => r.riskGrade === "medium").length;
 
@@ -59,6 +66,7 @@ export default function ReceivablesPage() {
           <TabsTrigger value="credit">여신 관리</TabsTrigger>
           <TabsTrigger value="dso">DSO/CCC</TabsTrigger>
           <TabsTrigger value="prepayment">선수금</TabsTrigger>
+          <TabsTrigger value="person-insight">담당자 인사이트</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -102,6 +110,16 @@ export default function ReceivablesPage() {
               orgPrepayments={orgPrepayments}
               monthlyPrepayments={monthlyPrepayments}
               hasCollections={filteredCollections.length > 0}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="person-insight" className="space-y-6">
+          <ErrorBoundary>
+            <PersonInsightTab
+              portfolio={personPortfolio}
+              healthData={personHealthData}
+              customerRepDetail={customerRepDetail}
             />
           </ErrorBoundary>
         </TabsContent>

@@ -42,6 +42,24 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount }: Ris
         ),
       },
       {
+        accessorKey: "담당자",
+        header: "담당자",
+        cell: ({ getValue }) => (
+          <span className="truncate max-w-[80px] block" title={getValue<string>()}>
+            {getValue<string>() || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "영업조직",
+        header: "조직",
+        cell: ({ getValue }) => (
+          <span className="truncate max-w-[64px] block" title={getValue<string>()}>
+            {getValue<string>() || "-"}
+          </span>
+        ),
+      },
+      {
         accessorKey: "총미수금",
         header: () => <span className="block text-right">미수금</span>,
         cell: ({ getValue }) => (
