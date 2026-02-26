@@ -8,6 +8,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { calcOverviewKpis, calcMonthlyTrends, calcOrgRanking, calcForecastAccuracy, calcCollectionEfficiency, calcOperatingLeverage, calcContributionMarginRate, calcGrossProfitMargin, calcCollectionRateDetail } from "@/lib/analysis/kpi";
+import { calcRiskAssessments } from "@/lib/analysis/aging";
 import { calcSalesForecast } from "@/lib/analysis/forecast";
 import { generateInsights, type InsightSeverity } from "@/lib/analysis/insightGenerator";
 import { calcOverallDSO } from "@/lib/analysis/dso";
@@ -75,6 +76,11 @@ export default function OverviewPage() {
   const kpis = useMemo(
     () => calcOverviewKpis(filteredSales, filteredOrders, filteredCollections, filteredOrgProfit, flattenedAging),
     [filteredSales, filteredOrders, filteredCollections, filteredOrgProfit, flattenedAging]
+  );
+
+  const highRiskCount = useMemo(
+    () => flattenedAging.length > 0 ? calcRiskAssessments(flattenedAging).filter((r) => r.riskGrade === "high").length : 0,
+    [flattenedAging]
   );
 
   const trends = useMemo(
@@ -201,8 +207,8 @@ export default function OverviewPage() {
 
   const compKpis = useMemo(() => {
     if (!comparisonRange) return null;
-    return calcOverviewKpis(compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging);
-  }, [comparisonRange, compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging]);
+    return calcOverviewKpis(compSales, compOrders, compCollections, [], []);
+  }, [comparisonRange, compSales, compOrders, compCollections]);
 
   // ─── Sparkline data ────────────────────────────────────────────
   const sparklines = useMemo(() => {
@@ -383,7 +389,6 @@ export default function OverviewPage() {
             <KpiCard
               title="미수금 합계"
               value={kpis.totalReceivables}
-              previousValue={compKpis?.totalReceivables}
               format="currency"
               icon={<CreditCard className="h-5 w-5" />}
               formula={flattenedAging.length > 0 ? "미수금 합계 = 미수금 에이징의 모든 장부금액 합산" : "미수금 합계(추정) = 총 매출액 − 총 수금액"}
@@ -396,7 +401,6 @@ export default function OverviewPage() {
             <KpiCard
               title="영업이익율"
               value={kpis.operatingProfitRate}
-              previousValue={compKpis?.operatingProfitRate}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
               formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
@@ -406,7 +410,6 @@ export default function OverviewPage() {
             <KpiCard
               title="매출 계획 달성율"
               value={kpis.salesPlanAchievement}
-              previousValue={compKpis?.salesPlanAchievement}
               format="percent"
               icon={<Target className="h-5 w-5" />}
               formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100"
@@ -664,7 +667,7 @@ export default function OverviewPage() {
             salesGrowth={salesGrowth}
             topOrg={topBottomOrg.top}
             bottomOrg={topBottomOrg.bottom}
-            atRiskCustomers={0}
+            atRiskCustomers={highRiskCount}
             totalCustomers={uniqueCustomerCount}
             contributionMarginRate={contributionMarginRate}
           />

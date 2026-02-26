@@ -8,8 +8,8 @@ import {
   filterByDateRange,
   filterOrgProfitLeafOnly,
   aggregateOrgProfit,
-  aggregateToCustomerLevel,
 } from "@/lib/utils";
+import type { ReceivableAgingRecord } from "@/types";
 
 /**
  * 공통 필터링 훅 - 모든 대시보드 페이지의 데이터 필터링 패턴을 통합
@@ -83,7 +83,7 @@ export function useFilteredReceivables() {
   const { effectiveOrgNames } = useFilterContext();
 
   const filteredAgingMap = useMemo(() => {
-    const filtered = new Map<string, any[]>();
+    const filtered = new Map<string, ReceivableAgingRecord[]>();
     for (const [key, records] of Array.from(receivableAging.entries())) {
       const filteredRecords = filterByOrg(records, effectiveOrgNames, "영업조직");
       if (filteredRecords.length > 0) {
@@ -94,7 +94,7 @@ export function useFilteredReceivables() {
   }, [receivableAging, effectiveOrgNames]);
 
   const filteredRecords = useMemo(() => {
-    const records: any[] = [];
+    const records: ReceivableAgingRecord[] = [];
     Array.from(filteredAgingMap.values()).forEach((arr) => records.push(...arr));
     return records;
   }, [filteredAgingMap]);
@@ -128,51 +128,6 @@ export function useFilteredTeamContribution() {
   }, [teamContribution, effectiveOrgNames]);
 
   return { filteredTeamContrib, teamContribution };
-}
-
-// ─── 수익성분석 데이터 필터링 (fallback 로직 포함) ─────────────────
-
-export function useFilteredProfitability() {
-  const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
-  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
-  const { effectiveOrgNames, dateRange } = useFilterContext();
-
-  const { filteredProfAnalysis, profAnalysisIsFallback } = useMemo(() => {
-    const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
-    const hasSales = filtered.some((r) => r.매출액?.실적 !== 0);
-    const isFallback = effectiveOrgNames.size > 0 && !hasSales && profitabilityAnalysis.length > 0;
-    return {
-      filteredProfAnalysis: isFallback ? profitabilityAnalysis : filtered,
-      profAnalysisIsFallback: isFallback,
-    };
-  }, [profitabilityAnalysis, effectiveOrgNames]);
-
-  // Smart data source: dateRange 활성시 customerItemDetail 사용
-  const isUsingDateFiltered = useMemo(() => {
-    return !!(dateRange?.from && dateRange?.to && customerItemDetail.length > 0);
-  }, [dateRange, customerItemDetail]);
-
-  const dateFilteredCustomerItems = useMemo(() => {
-    if (!isUsingDateFiltered) return [];
-    const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
-    return filterByDateRange(orgFiltered, dateRange, "매출연월");
-  }, [customerItemDetail, effectiveOrgNames, dateRange, isUsingDateFiltered]);
-
-  // 거래처 단위 집계 (Smart Data Source용)
-  const dateFilteredCustomerAggregated = useMemo(() => {
-    if (!isUsingDateFiltered || dateFilteredCustomerItems.length === 0) return [];
-    return aggregateToCustomerLevel(dateFilteredCustomerItems);
-  }, [dateFilteredCustomerItems, isUsingDateFiltered]);
-
-  return {
-    filteredProfAnalysis,
-    profAnalysisIsFallback,
-    isUsingDateFiltered,
-    dateFilteredCustomerItems,
-    dateFilteredCustomerAggregated,
-    profitabilityAnalysis,
-    customerItemDetail,
-  };
 }
 
 // ─── 거래처손익 데이터 필터링 ──────────────────────────────────────
