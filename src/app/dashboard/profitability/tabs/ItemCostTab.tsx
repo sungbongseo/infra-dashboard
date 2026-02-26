@@ -112,7 +112,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
   // Table columns
   const tableColumns: ColumnDef<ProductContribution, any>[] = useMemo(
     () => [
-      { accessorKey: "rank", header: () => <span title="매출액 기준 내림차순 순위">#</span>, size: 40 },
+      { accessorKey: "rank", header: () => <span title="공헌이익 금액 기준 내림차순 순위">#</span>, size: 40 },
       { accessorKey: "product", header: "품목", size: 160,
         cell: ({ getValue }: any) => {
           const v = getValue() as string;
@@ -184,7 +184,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           return <span className={v >= 30 ? "text-green-600" : v >= 15 ? "text-amber-600" : "text-red-600"}>{formatPercent(v)}</span>;
         },
       },
-      { accessorKey: "grade", header: () => <span title="파레토 ABC 분류. A=매출 상위 80%(핵심), B=80~95%(일반), C=95%~(보조). 음수 매출 품목은 자동 C등급">ABC</span>,
+      { accessorKey: "grade", header: () => <span title="복합 ABC 분류. ①공헌이익 금액 기준 파레토(A=상위80%, B=80~95%, C=95%~) ②공헌이익률 15% 미만 시 한 등급 하향. 공헌이익≤0 또는 매출≤0은 자동 C등급">ABC</span>,
         cell: ({ getValue }: any) => {
           const g = getValue() as string;
           const colors: Record<string, string> = {
@@ -341,7 +341,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         )}
 
         {/* Pareto: 공헌이익 + 누적 매출 비중 */}
-        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" description="매출 상위 20개 품목의 공헌이익(바)과 누적 매출 비중(라인)입니다. 80% 기준선까지가 A등급(핵심 품목), 95%까지가 B등급(일반), 이후가 C등급(보조)">
+        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" description="공헌이익 상위 20개 품목입니다. 바=공헌이익 금액, 라인=누적 공헌이익 비중. 80% 기준선까지가 A등급 후보(핵심), 95%까지 B등급(일반), 이후 C등급(보조). 단, 공헌이익률 15% 미만이면 한 등급 하향됩니다">
           <ChartContainer minHeight={360}>
             <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -414,7 +414,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
       </div>
 
       {/* Table */}
-      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급(A=핵심/B=일반/C=보조), 원가유형 배지, 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다">
+      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급은 공헌이익 금액 파레토 + 공헌이익률 15% 미만 페널티 복합 기준입니다. 원가유형 배지, 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다">
         <DataTable
           data={ranking}
           columns={tableColumns}

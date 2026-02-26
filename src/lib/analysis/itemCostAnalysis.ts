@@ -237,19 +237,36 @@ export function calcProductContributionRanking(data: ItemCostDetailRecord[]): Pr
       grossMargin: e.sales !== 0 ? (e.gp / e.sales) * 100 : 0,
     }));
 
-  // 양수/음수 분리 — 음수 매출(반품 등)이 파레토 분모를 부풀리는 것 방지
-  const positiveItems = allItems.filter((i) => i.sales > 0).sort((a, b) => b.sales - a.sales);
-  const negativeItems = allItems.filter((i) => i.sales <= 0).sort((a, b) => a.sales - b.sales);
+  // ── 복합 ABC: 공헌이익 기반 파레토 + 이익률 페널티 ──
+  // 기준 1: 공헌이익 금액 기준 파레토 (매출이 아닌 실제 수익 기여도)
+  // 기준 2: 공헌이익률 < 15% → 한 등급 하향 (A→B, B→C)
+  // 강제 C: 공헌이익 ≤ 0 또는 매출 ≤ 0
 
-  const positiveTotal = positiveItems.reduce((s, i) => s + i.sales, 0);
-  let cumSales = 0;
+  const positiveItems = allItems
+    .filter((i) => i.sales > 0 && i.contributionMargin > 0)
+    .sort((a, b) => b.contributionMargin - a.contributionMargin);
+  const negativeItems = allItems
+    .filter((i) => i.sales <= 0 || i.contributionMargin <= 0)
+    .sort((a, b) => a.contributionMargin - b.contributionMargin);
+
+  const positiveTotal = positiveItems.reduce((s, i) => s + i.contributionMargin, 0);
+  let cumContrib = 0;
   const result: ProductContribution[] = [];
 
-  // 양수 품목: 정상 파레토 ABC 계산
   for (let idx = 0; idx < positiveItems.length; idx++) {
     const item = positiveItems[idx];
-    cumSales += item.sales;
-    const cumShare = positiveTotal > 0 ? (cumSales / positiveTotal) * 100 : 0;
+    cumContrib += item.contributionMargin;
+    const cumShare = positiveTotal > 0 ? (cumContrib / positiveTotal) * 100 : 0;
+
+    // 기준 1: 공헌이익 파레토 등급
+    let grade: "A" | "B" | "C" = cumShare <= 80 ? "A" : cumShare <= 95 ? "B" : "C";
+
+    // 기준 2: 이익률 페널티 — 공헌이익률 < 15%면 한 등급 하향
+    if (item.contributionRate < 15) {
+      if (grade === "A") grade = "B";
+      else if (grade === "B") grade = "C";
+    }
+
     result.push({
       rank: idx + 1,
       product: item.product, org: item.org,
@@ -257,11 +274,11 @@ export function calcProductContributionRanking(data: ItemCostDetailRecord[]): Pr
       contributionMargin: item.contributionMargin, contributionRate: item.contributionRate,
       grossProfit: item.gp, grossMargin: item.grossMargin,
       cumSalesShare: cumShare,
-      grade: cumShare <= 80 ? "A" as const : cumShare <= 95 ? "B" as const : "C" as const,
+      grade,
     });
   }
 
-  // 음수 매출 품목: 무조건 C등급 (반품/환입 등)
+  // 공헌이익 ≤ 0 또는 매출 ≤ 0: 무조건 C등급
   for (let idx = 0; idx < negativeItems.length; idx++) {
     const item = negativeItems[idx];
     result.push({
