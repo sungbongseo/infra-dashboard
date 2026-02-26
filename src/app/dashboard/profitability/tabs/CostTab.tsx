@@ -1,12 +1,11 @@
+import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, Cell,
-  PieChart, Pie, Legend,
+  Tooltip as RechartsTooltip, Cell, Legend,
 } from "recharts";
-import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG, BAR_RADIUS_TOP } from "@/components/charts";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import type { CostProfileType } from "@/lib/analysis/kpi";
 
 // ─── 비용 구조 상수 (CostTab 전용) ───
 const COST_BAR_COLORS: Record<string, string> = {
@@ -20,18 +19,17 @@ const COST_BAR_COLORS: Record<string, string> = {
   고정비: "hsl(0, 0%, 55%)",
 };
 
-const PROFILE_COLORS: Record<CostProfileType, string> = {
-  자체생산형: CHART_COLORS[0],
-  구매직납형: CHART_COLORS[2],
-  외주의존형: CHART_COLORS[3],
-  혼합형: CHART_COLORS[5],
-};
-
 const COST_KEYS = ["원재료비", "상품매입", "외주가공비", "운반비", "지급수수료", "노무비", "기타변동비", "고정비"] as const;
+
+const COST_RATE_BINS = [
+  { label: "우수 (<70%)", min: -Infinity, max: 70, fill: "hsl(145, 60%, 42%)" },
+  { label: "보통 (70~85%)", min: 70, max: 85, fill: CHART_COLORS[1] },
+  { label: "주의 (85~95%)", min: 85, max: 95, fill: "hsl(35, 70%, 50%)" },
+  { label: "위험 (≥95%)", min: 95, max: Infinity, fill: "hsl(0, 65%, 55%)" },
+];
 
 interface CostTabProps {
   costBarData: Array<Record<string, any>>;
-  profileDist: Array<{ name: string; value: number; fill: string }>;
   costEfficiency: Array<{
     id: string;
     org: string;
@@ -39,12 +37,20 @@ interface CostTabProps {
     원재료비율: number;
     상품매입비율: number;
     외주비율: number;
-    profileType: CostProfileType;
+    매출원가율: number;
     orgAvg: { 원재료비율: number; 상품매입비율: number; 외주비율: number };
   }>;
 }
 
-export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabProps) {
+export function CostTab({ costBarData, costEfficiency }: CostTabProps) {
+  // 원가율 분포 히스토그램 데이터
+  const costRateHistogram = useMemo(() => {
+    return COST_RATE_BINS.map((bin) => {
+      const count = costEfficiency.filter((r) => r.매출원가율 >= bin.min && r.매출원가율 < bin.max).length;
+      return { name: bin.label, count, fill: bin.fill };
+    });
+  }, [costEfficiency]);
+
   return (
     <>
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -53,7 +59,7 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
           title="담당자별 비용 구성"
           formula="비용 구성 = 원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비"
           description="각 담당자의 매출을 만들기 위해 들어간 비용을 8가지 항목으로 나누어 쌓아 보여줍니다. 어떤 비용이 가장 큰 비중을 차지하는지, 담당자별로 비용 구조가 어떻게 다른지 한눈에 비교할 수 있습니다."
-          benchmark="원재료비 비중 30% 이상이면 자체생산형, 상품매입 30% 이상이면 구매직납형 비용 구조"
+          benchmark="원재료비 비중이 높으면 원재료 단가 관리가, 상품매입 비중이 높으면 매입처 협상이, 외주비 비중이 높으면 외주비 효율화가 원가 절감의 핵심"
           className="xl:col-span-2"
         >
           <ChartContainer height="h-80 md:h-[500px]">
@@ -94,31 +100,28 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
           </ChartContainer>
         </ChartCard>
 
-        {/* Profile Distribution Pie */}
+        {/* 원가율 분포 히스토그램 (NEW-B) */}
         <ChartCard
-          title="프로파일 유형 분포"
-          formula="원재료비율 30% 이상: 자체생산형, 상품매입 30% 이상: 구매직납형, 외주비율 20% 이상: 외주의존형, 그 외: 혼합형"
-          description="각 담당자의 비용 구조를 분석하여 4가지 유형으로 자동 분류한 결과입니다. 자체생산형은 원재료를 직접 가공하는 유형, 구매직납형은 완제품을 사서 파는 유형, 외주의존형은 외부 업체에 가공을 맡기는 유형입니다. 비용 유형별로 원가 절감 전략이 다릅니다."
-          benchmark="자체생산형은 원재료 단가 관리가, 구매직납형은 매입처 협상이, 외주의존형은 외주비 효율화가 핵심입니다"
+          title="매출원가율 분포"
+          formula="매출원가율 = (8개 원가항목 합계) ÷ 매출액 × 100"
+          description="담당자별 매출원가율을 4구간으로 나누어 분포를 보여줍니다. 우수(<70%)는 원가 관리가 양호, 보통(70~85%)은 일반적 수준, 주의(85~95%)는 이익 여력 부족, 위험(≥95%)은 손익분기 근접/적자 상태입니다."
+          benchmark="매출원가율 70% 미만이면 원가 관리 우수, 85% 초과 시 이익 구조 점검 필요"
         >
           <ChartContainer height="h-56 md:h-72">
-              <PieChart>
-                <Pie
-                  data={profileDist}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  label={({ name, value }) => `${name} (${value})`}
-                >
-                  {profileDist.map((entry, i) => (
-                    <Cell key={i} fill={entry.fill} />
-                  ))}
-                </Pie>
-                <RechartsTooltip {...TOOLTIP_STYLE} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
-              </PieChart>
+            <BarChart data={costRateHistogram} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+              <RechartsTooltip
+                {...TOOLTIP_STYLE}
+                formatter={(v: any, _name: any) => [`${v}명`, "담당자 수"]}
+              />
+              <Bar dataKey="count" name="담당자 수" radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG}>
+                {costRateHistogram.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
           </ChartContainer>
         </ChartCard>
       </div>
@@ -126,8 +129,8 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
       {/* Cost Efficiency Table */}
       <ChartCard
         title="비용 효율성 비교"
-        formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100"
-        description="각 담당자의 원재료비율, 상품매입비율, 외주비율을 소속 조직의 평균값과 나란히 비교하는 표입니다. 조직 평균보다 크게 높은 항목(빨간색 표시)은 비용 절감이 필요한 영역이며, 원인 분석과 개선 조치가 필요합니다."
+        formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100 | 매출원가율 = 총비용 ÷ 매출액 × 100"
+        description="각 담당자의 원재료비율, 상품매입비율, 외주비율, 매출원가율을 소속 조직의 평균값과 나란히 비교하는 표입니다. 조직 평균보다 크게 높은 항목(빨간색 표시)은 비용 절감이 필요한 영역입니다."
         benchmark="조직 평균 대비 5%p(퍼센트포인트) 이상 높으면 주의가 필요합니다"
       >
         <div className="overflow-x-auto">
@@ -136,8 +139,8 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
               <tr className="border-b bg-muted/50">
                 <th className="text-left p-2 font-medium">담당자</th>
                 <th className="text-left p-2 font-medium">조직</th>
-                <th className="text-left p-2 font-medium">프로파일</th>
                 <th className="text-right p-2 font-medium">매출액</th>
+                <th className="text-right p-2 font-medium">매출원가율</th>
                 <th className="text-right p-2 font-medium">원재료비율</th>
                 <th className="text-right p-2 font-medium">조직평균</th>
                 <th className="text-right p-2 font-medium">상품매입비율</th>
@@ -147,33 +150,34 @@ export function CostTab({ costBarData, profileDist, costEfficiency }: CostTabPro
               </tr>
             </thead>
             <tbody>
-              {costEfficiency.map((r, i) => (
-                <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
-                  <td className="p-2 font-mono text-xs">{r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15)}</td>
-                  <td className="p-2 text-xs">{r.org}</td>
-                  <td className="p-2">
-                    <span
-                      className="inline-block px-2 py-0.5 rounded-full text-xs font-medium text-white"
-                      style={{ backgroundColor: PROFILE_COLORS[r.profileType] }}
-                    >
-                      {r.profileType}
-                    </span>
-                  </td>
-                  <td className="p-2 text-right font-mono text-xs">{formatCurrency(r.매출액, true)}</td>
-                  <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                    {formatPercent(r.원재료비율, 1)}
-                  </td>
-                  <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.원재료비율, 1)}</td>
-                  <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                    {formatPercent(r.상품매입비율, 1)}
-                  </td>
-                  <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.상품매입비율, 1)}</td>
-                  <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                    {formatPercent(r.외주비율, 1)}
-                  </td>
-                  <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.외주비율, 1)}</td>
-                </tr>
-              ))}
+              {costEfficiency.map((r, i) => {
+                const costRateColor = r.매출원가율 >= 95 ? "text-red-600 dark:text-red-400 font-bold"
+                  : r.매출원가율 >= 85 ? "text-amber-600 dark:text-amber-400 font-semibold"
+                  : r.매출원가율 < 70 ? "text-green-600 dark:text-green-400"
+                  : "";
+                return (
+                  <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
+                    <td className="p-2 font-mono text-xs">{r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15)}</td>
+                    <td className="p-2 text-xs">{r.org}</td>
+                    <td className="p-2 text-right font-mono text-xs">{formatCurrency(r.매출액, true)}</td>
+                    <td className={`p-2 text-right font-mono text-xs ${costRateColor}`}>
+                      {formatPercent(r.매출원가율, 1)}
+                    </td>
+                    <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
+                      {formatPercent(r.원재료비율, 1)}
+                    </td>
+                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.원재료비율, 1)}</td>
+                    <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
+                      {formatPercent(r.상품매입비율, 1)}
+                    </td>
+                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.상품매입비율, 1)}</td>
+                    <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
+                      {formatPercent(r.외주비율, 1)}
+                    </td>
+                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.외주비율, 1)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

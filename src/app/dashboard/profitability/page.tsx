@@ -16,7 +16,6 @@ import {
   calcOrgRatioMetrics,
   calcPlanVsActualHeatmap,
 } from "@/lib/analysis/kpi";
-import type { CostProfileType } from "@/lib/analysis/kpi";
 import {
   calcProductProfitability,
   calcCustomerProfitability,
@@ -32,7 +31,7 @@ import {
   calcContributionWaterfall,
   calcCostBucketBreakdown,
   calcItemVarianceRanking,
-  calcItemCostProfile,
+  calcPlanAchievementQuadrant,
   calcUnitCostAnalysis,
   calcCostDriverAnalysis,
 } from "@/lib/analysis/itemCostAnalysis";
@@ -224,27 +223,6 @@ export default function ProfitabilityPage() {
       }));
   }, [costStructure]);
 
-  const profileDist = useMemo(() => {
-    const counts: Record<CostProfileType, number> = {
-      자체생산형: 0, 구매직납형: 0, 외주의존형: 0, 혼합형: 0,
-    };
-    for (const r of costStructure) {
-      counts[r.profileType]++;
-    }
-    return Object.entries(counts)
-      .filter(([, v]) => v > 0)
-      .map(([name, value]) => ({
-        name,
-        value,
-        fill: ({
-          자체생산형: CHART_COLORS[0],
-          구매직납형: CHART_COLORS[2],
-          외주의존형: CHART_COLORS[3],
-          혼합형: CHART_COLORS[5],
-        } as Record<string, string>)[name] || CHART_COLORS[5],
-      }));
-  }, [costStructure]);
-
   const costEfficiency = useMemo(() => {
     if (costStructure.length === 0) return [];
     const orgMap = new Map<string, { count: number; 원재료비율: number; 상품매입비율: number; 외주비율: number }>();
@@ -358,7 +336,7 @@ export default function ProfitabilityPage() {
   const contribWaterfall = useMemo(() => calcContributionWaterfall(filteredItemCostDetail), [filteredItemCostDetail]);
   const costBucketBreakdown = useMemo(() => calcCostBucketBreakdown(filteredItemCostDetail), [filteredItemCostDetail]);
   const itemVarianceRanking = useMemo(() => calcItemVarianceRanking(filteredItemCostDetail, 15), [filteredItemCostDetail]);
-  const itemCostProfile = useMemo(() => calcItemCostProfile(filteredItemCostDetail), [filteredItemCostDetail]);
+  const planAchievementQuadrant = useMemo(() => calcPlanAchievementQuadrant(filteredItemCostDetail), [filteredItemCostDetail]);
   const unitCostAnalysis = useMemo(() => calcUnitCostAnalysis(filteredItemCostDetail, 30), [filteredItemCostDetail]);
   const costDriverAnalysis = useMemo(() => calcCostDriverAnalysis(filteredItemCostDetail), [filteredItemCostDetail]);
 
@@ -465,7 +443,7 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="cost" className="space-y-6">
           <ErrorBoundary>
-            <CostTab costBarData={costBarData} profileDist={profileDist} costEfficiency={costEfficiency} />
+            <CostTab costBarData={costBarData} costEfficiency={costEfficiency} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -554,7 +532,7 @@ export default function ProfitabilityPage() {
               teamEfficiency={teamCostEfficiency}
               waterfall={contribWaterfall}
               bucketBreakdown={costBucketBreakdown}
-              costProfile={itemCostProfile}
+              planAchievementQuadrant={planAchievementQuadrant}
               unitCost={unitCostAnalysis}
             />
           </ErrorBoundary>

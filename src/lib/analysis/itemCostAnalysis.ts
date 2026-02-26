@@ -1,7 +1,6 @@
 import type {
   ItemCostDetailRecord, CostCategoryKey, CostBucketKey,
-  ItemVarianceEntry, ItemCostProfile, ItemCostProfileType,
-  CostProfileDistribution, UnitCostEntry, CostDriverEntry,
+  ItemVarianceEntry, PlanAchievementItem, UnitCostEntry, CostDriverEntry,
 } from "@/types";
 import { COST_CATEGORIES, COST_CATEGORIES_WITH_SUBTOTAL, COST_BUCKETS } from "@/types";
 
@@ -482,99 +481,55 @@ export function calcItemVarianceRanking(data: ItemCostDetailRecord[], topN = 15)
     .slice(0, topN);
 }
 
-// ── NEW-2: calcItemCostProfile ──────────────────────────────────
-// 품목별 원가구조 프로파일 분류
+// ── NEW-2: calcPlanAchievementQuadrant ──────────────────────────
+// 품목별 매출/이익 달성율 4사분면 분석 (501 실제 데이터 기반)
 
-export function calcItemCostProfile(data: ItemCostDetailRecord[]): {
-  items: ItemCostProfile[];
-  distribution: CostProfileDistribution[];
-} {
-  if (data.length === 0) return { items: [], distribution: [] };
-
-  const bucketKeys = Object.keys(COST_BUCKETS) as CostBucketKey[];
+export function calcPlanAchievementQuadrant(data: ItemCostDetailRecord[]): PlanAchievementItem[] {
+  if (data.length === 0) return [];
 
   // Aggregate by product + org
   const map = new Map<string, {
-    product: string; org: string; sales: number; totalCost: number;
-    buckets: Record<CostBucketKey, number>;
+    product: string; org: string;
+    salesPlan: number; salesActual: number;
+    profitPlan: number; profitActual: number;
   }>();
 
   for (const r of data) {
     const key = `${r.영업조직팀}__${r.품목}`;
     const entry = map.get(key) || {
-      product: r.품목, org: r.영업조직팀, sales: 0, totalCost: 0,
-      buckets: Object.fromEntries(bucketKeys.map((k) => [k, 0])) as Record<CostBucketKey, number>,
+      product: r.품목, org: r.영업조직팀,
+      salesPlan: 0, salesActual: 0,
+      profitPlan: 0, profitActual: 0,
     };
-    entry.sales += r.매출액.실적;
-    entry.totalCost += r.실적매출원가.실적;
-    for (const bk of bucketKeys) {
-      const cats = COST_BUCKETS[bk] as readonly string[];
-      for (const cat of cats) {
-        entry.buckets[bk] += (r[cat as keyof ItemCostDetailRecord] as any)?.실적 ?? 0;
-      }
-    }
+    entry.salesPlan += r.매출액.계획;
+    entry.salesActual += r.매출액.실적;
+    entry.profitPlan += r.공헌이익.계획;
+    entry.profitActual += r.공헌이익.실적;
     map.set(key, entry);
   }
 
-  const items: ItemCostProfile[] = Array.from(map.values()).map((e) => {
-    const totalBucket = bucketKeys.reduce((s, k) => s + e.buckets[k], 0);
-
-    // Find dominant bucket
-    let dominantBucket: CostBucketKey = "재료비";
-    let dominantAmt = 0;
-    for (const bk of bucketKeys) {
-      if (e.buckets[bk] > dominantAmt) {
-        dominantBucket = bk;
-        dominantAmt = e.buckets[bk];
-      }
-    }
-    const dominantRatio = totalBucket > 0 ? (dominantAmt / totalBucket) * 100 : 0;
-
-    // Classify profile type
-    let profileType: ItemCostProfileType = "혼합형";
-    const matRatio = totalBucket > 0 ? (e.buckets["재료비"] / totalBucket) * 100 : 0;
-    const purchRatio = totalBucket > 0 ? (e.buckets["상품매입비"] / totalBucket) * 100 : 0;
-    const outsRatio = totalBucket > 0 ? (e.buckets["외주비"] / totalBucket) * 100 : 0;
-    const laborRatio = totalBucket > 0 ? (e.buckets["인건비"] / totalBucket) * 100 : 0;
-    const facRatio = totalBucket > 0 ? (e.buckets["설비비"] / totalBucket) * 100 : 0;
-
-    if (purchRatio >= 50) profileType = "구매직납형";
-    else if (matRatio >= 40) profileType = "자체생산형";
-    else if (outsRatio >= 35) profileType = "외주의존형";
-    else if (laborRatio >= 35) profileType = "인건비집중형";
-    else if (facRatio >= 30) profileType = "설비집중형";
-
-    return {
-      product: e.product,
-      org: e.org,
-      profileType,
-      dominantBucket,
-      dominantRatio,
-      sales: e.sales,
-      totalCost: e.totalCost,
-    };
-  });
-
-  // Distribution
-  const distMap = new Map<ItemCostProfileType, { count: number; totalSales: number; totalCost: number }>();
-  for (const item of items) {
-    const entry = distMap.get(item.profileType) || { count: 0, totalSales: 0, totalCost: 0 };
-    entry.count++;
-    entry.totalSales += item.sales;
-    entry.totalCost += item.totalCost;
-    distMap.set(item.profileType, entry);
-  }
-
-  const distribution: CostProfileDistribution[] = Array.from(distMap.entries())
-    .map(([type, e]) => ({
-      type,
-      count: e.count,
-      totalSales: e.totalSales,
-      avgCostRate: e.totalSales > 0 ? (e.totalCost / e.totalSales) * 100 : 0,
-    }))
-    .sort((a, b) => b.count - a.count);
-
-  return { items, distribution };
+  return Array.from(map.values())
+    .filter((e) => e.salesPlan !== 0) // 계획이 0인 품목 제외
+    .map((e) => {
+      const salesAch = (e.salesActual / e.salesPlan) * 100;
+      const profitAch = e.profitPlan !== 0 ? (e.profitActual / e.profitPlan) * 100 : 0;
+      const quadrant: 1 | 2 | 3 | 4 =
+        salesAch >= 100 && profitAch >= 100 ? 1 :  // 스타
+        salesAch < 100 && profitAch >= 100 ? 2 :   // 효율
+        salesAch < 100 && profitAch < 100 ? 3 :    // 부진
+        4;                                          // 주의
+      return {
+        product: e.product,
+        org: e.org,
+        salesAchievement: salesAch,
+        profitAchievement: profitAch,
+        quadrant,
+        salesPlan: e.salesPlan,
+        salesActual: e.salesActual,
+        profitPlan: e.profitPlan,
+        profitActual: e.profitActual,
+      };
+    });
 }
 
 // ── NEW-3: calcUnitCostAnalysis ─────────────────────────────────

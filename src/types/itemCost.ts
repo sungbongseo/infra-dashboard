@@ -75,30 +75,17 @@ export interface ItemVarianceEntry {
   marginDrift: number;
 }
 
-// ── NEW-2: 품목별 원가 프로파일 ──
-export type ItemCostProfileType =
-  | "자체생산형"
-  | "구매직납형"
-  | "외주의존형"
-  | "인건비집중형"
-  | "설비집중형"
-  | "혼합형";
-
-export interface ItemCostProfile {
+// ── NEW-2: 계획 달성율 4사분면 분석 ──
+export interface PlanAchievementItem {
   product: string;
   org: string;
-  profileType: ItemCostProfileType;
-  dominantBucket: string;
-  dominantRatio: number;
-  sales: number;
-  totalCost: number;
-}
-
-export interface CostProfileDistribution {
-  type: ItemCostProfileType;
-  count: number;
-  totalSales: number;
-  avgCostRate: number;
+  salesAchievement: number;   // 매출 달성율 (%)
+  profitAchievement: number;  // 공헌이익 달성율 (%)
+  quadrant: 1 | 2 | 3 | 4;   // I=스타, II=효율, III=부진, IV=주의
+  salesPlan: number;
+  salesActual: number;
+  profitPlan: number;
+  profitActual: number;
 }
 
 // ── NEW-3: 품목별 단가 분석 ──

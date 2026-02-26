@@ -8,6 +8,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell, PieChart, Pie,
   ComposedChart, Line, ReferenceLine,
+  ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, PieOuterLabel } from "@/components/charts";
 import { Package, TrendingUp, Percent, Target } from "lucide-react";
@@ -20,7 +21,7 @@ import type {
   WaterfallItem,
   CostBucketItem,
 } from "@/lib/analysis/itemCostAnalysis";
-import type { ItemCostProfile, CostProfileDistribution, UnitCostEntry } from "@/types";
+import type { PlanAchievementItem, UnitCostEntry } from "@/types";
 
 interface ItemCostTabProps {
   summary: ItemCostSummary;
@@ -28,7 +29,7 @@ interface ItemCostTabProps {
   teamEfficiency: TeamCostEfficiency[];
   waterfall: WaterfallItem[];
   bucketBreakdown: CostBucketItem[];
-  costProfile: { items: ItemCostProfile[]; distribution: CostProfileDistribution[] };
+  planAchievementQuadrant: PlanAchievementItem[];
   unitCost: UnitCostEntry[];
 }
 
@@ -42,16 +43,17 @@ const BUCKET_COLORS: Record<string, string> = {
   일반경비: CHART_COLORS[6],
 };
 
-const PROFILE_COLORS: Record<string, string> = {
-  자체생산형: "hsl(210, 70%, 50%)",
-  구매직납형: "hsl(145, 60%, 42%)",
-  외주의존형: "hsl(35, 70%, 50%)",
-  인건비집중형: "hsl(280, 60%, 55%)",
-  설비집중형: "hsl(180, 55%, 45%)",
-  혼합형: "hsl(0, 0%, 60%)",
+const QUADRANT_COLORS: Record<number, string> = {
+  1: "hsl(145, 60%, 42%)",  // 스타 — green
+  2: "hsl(210, 70%, 50%)",  // 효율 — blue
+  3: "hsl(0, 0%, 60%)",     // 부진 — gray
+  4: "hsl(35, 70%, 50%)",   // 주의 — amber
+};
+const QUADRANT_LABELS: Record<number, string> = {
+  1: "스타", 2: "효율", 3: "부진", 4: "주의",
 };
 
-export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucketBreakdown, costProfile, unitCost }: ItemCostTabProps) {
+export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucketBreakdown, planAchievementQuadrant, unitCost }: ItemCostTabProps) {
   // Pareto: 매출 기준 누적 비중 + 공헌이익
   const paretoData = useMemo(() => {
     const top = ranking.slice(0, 20);
@@ -79,17 +81,32 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
     [teamEfficiency]
   );
 
-  // Profile distribution pie
-  const profilePieData = useMemo(() =>
-    costProfile.distribution.map((d) => ({
-      name: d.type,
-      value: d.count,
-      fill: PROFILE_COLORS[d.type] || CHART_COLORS[5],
-      avgCostRate: d.avgCostRate,
-      totalSales: d.totalSales,
-    })),
-    [costProfile.distribution]
+  // 4사분면 scatter data
+  const quadrantData = useMemo(() =>
+    planAchievementQuadrant
+      .filter((d) => isFinite(d.salesAchievement) && isFinite(d.profitAchievement))
+      .map((d) => ({
+        x: Math.min(Math.max(d.salesAchievement, 0), 300), // clamp for display
+        y: Math.min(Math.max(d.profitAchievement, -100), 300),
+        product: d.product,
+        org: d.org,
+        quadrant: d.quadrant,
+        salesPlan: d.salesPlan,
+        salesActual: d.salesActual,
+        profitPlan: d.profitPlan,
+        profitActual: d.profitActual,
+        fill: QUADRANT_COLORS[d.quadrant],
+      })),
+    [planAchievementQuadrant]
   );
+
+  const quadrantSummary = useMemo(() => {
+    const counts = { 1: 0, 2: 0, 3: 0, 4: 0 };
+    for (const d of planAchievementQuadrant) {
+      counts[d.quadrant]++;
+    }
+    return counts;
+  }, [planAchievementQuadrant]);
 
   // Build a lookup map for unit cost by product+org
   const unitCostMap = useMemo(() => {
@@ -99,15 +116,6 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
     }
     return m;
   }, [unitCost]);
-
-  // Build a lookup map for profile by product+org
-  const profileMap = useMemo(() => {
-    const m = new Map<string, ItemCostProfile>();
-    for (const p of costProfile.items) {
-      m.set(`${p.org}__${p.product}`, p);
-    }
-    return m;
-  }, [costProfile.items]);
 
   // Table columns
   const tableColumns: ColumnDef<ProductContribution, any>[] = useMemo(
@@ -121,32 +129,6 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         },
       },
       { accessorKey: "org", header: () => <span title="해당 품목이 속한 영업조직팀">팀</span>, size: 90 },
-      {
-        id: "profileType",
-        header: "원가유형",
-        size: 90,
-        accessorFn: (row: any) => {
-          const p = profileMap.get(`${row.org}__${row.product}`);
-          return p?.profileType || "-";
-        },
-        cell: ({ getValue }: any) => {
-          const type = getValue() as string;
-          if (type === "-") return "-";
-          const colors: Record<string, string> = {
-            자체생산형: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
-            구매직납형: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
-            외주의존형: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
-            인건비집중형: "bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300",
-            설비집중형: "bg-teal-100 text-teal-700 dark:bg-teal-900 dark:text-teal-300",
-            혼합형: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
-          };
-          return (
-            <span className={`text-[10px] px-1.5 py-0.5 rounded ${colors[type] || ""}`}>
-              {type}
-            </span>
-          );
-        },
-      },
       { accessorKey: "sales", header: () => <span title="해당 품목의 총 매출 금액 (실적 기준)">매출액</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
@@ -200,7 +182,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         },
       },
     ],
-    [profileMap, unitCostMap]
+    [unitCostMap]
   );
 
   return (
@@ -241,7 +223,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           icon={<Target className="h-5 w-5" />}
           description={`전체 원가에서 가장 큰 비중을 차지하는 항목: ${summary.topCostCategory} (${formatCurrency(summary.topCostAmount)})`}
           formula="17개 독립 원가항목 중 실적 합계가 가장 큰 항목의 비중 (소계 제외)"
-          benchmark="원재료비 50%↑ = 자체생산형(원재료 가격 리스크), 상품매입 50%↑ = 구매직납형(공급처 의존)"
+          benchmark="원재료비 50%↑ = 원재료 가격 리스크, 상품매입 50%↑ = 공급처 의존"
         />
       </div>
 
@@ -297,45 +279,64 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         </ChartCard>
       </div>
 
-      {/* Charts Row 2: Profile Distribution + Pareto */}
+      {/* Charts Row 2: 4사분면 + Pareto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 원가 프로파일 분포 */}
-        {profilePieData.length > 0 && (
-          <ChartCard title="원가구조 프로파일 분포" description="각 품목의 원가 구성 비율에 따라 6가지 유형으로 분류합니다. 자체생산형(재료비≥40%), 구매직납형(상품매입≥50%), 외주의존형(외주비≥35%), 인건비집중형(인건비≥35%), 설비집중형(설비비≥30%), 혼합형(특정 항목 지배 없음)">
+        {/* 계획 달성율 4사분면 (NEW-A) */}
+        {quadrantData.length > 0 && (
+          <ChartCard
+            title="계획 달성율 4사분면"
+            formula="매출 달성율 = 매출액.실적/매출액.계획×100 | 이익 달성율 = 공헌이익.실적/공헌이익.계획×100"
+            description="품목별 매출과 공헌이익의 계획 달성율을 비교합니다. ■스타(I): 매출·이익 모두 달성, ■효율(II): 매출 미달이나 이익 달성, ■부진(III): 모두 미달, ■주의(IV): 매출 달성했으나 이익 미달(원가 문제)"
+          >
+            <div className="flex gap-2 mb-2 px-2">
+              {([1,2,3,4] as const).map((q) => (
+                <span key={q} className="text-[10px] px-1.5 py-0.5 rounded text-white" style={{ backgroundColor: QUADRANT_COLORS[q] }}>
+                  {QUADRANT_LABELS[q]} {quadrantSummary[q]}개
+                </span>
+              ))}
+            </div>
             <ChartContainer minHeight={360}>
-              <PieChart>
-                <Pie
-                  data={profilePieData}
-                  dataKey="value"
-                  nameKey="name"
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={100}
-                  label={(props: any) => PieOuterLabel(props)}
-                  labelLine={false}
-                  {...ANIMATION_CONFIG}
-                >
-                  {profilePieData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.fill} />
-                  ))}
-                </Pie>
+              <ScatterChart margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis
+                  type="number"
+                  dataKey="x"
+                  name="매출 달성율"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v: any) => `${v}%`}
+                  label={{ value: "매출 달성율 (%)", position: "bottom", fontSize: 11, offset: -5 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="y"
+                  name="이익 달성율"
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(v: any) => `${v}%`}
+                  label={{ value: "공헌이익 달성율 (%)", angle: -90, position: "insideLeft", fontSize: 11 }}
+                />
+                <ZAxis range={[40, 40]} />
+                <ReferenceLine x={100} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
+                <ReferenceLine y={100} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" />
                 <RechartsTooltip
-                  {...TOOLTIP_STYLE}
                   content={({ active, payload }: any) => {
                     if (!active || !payload?.[0]) return null;
                     const d = payload[0].payload;
                     return (
-                      <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
-                        <p className="font-semibold">{d.name}</p>
-                        <p>{d.value}개 품목</p>
-                        <p>총 매출: {formatCurrency(d.totalSales)}</p>
-                        <p>평균 원가율: {isFinite(d.avgCostRate) ? `${d.avgCostRate.toFixed(1)}%` : "-"}</p>
+                      <div className="bg-popover border rounded-lg p-2 text-xs shadow-md max-w-[240px]">
+                        <p className="font-semibold truncate">{d.product}</p>
+                        <p className="text-muted-foreground">{d.org} · {QUADRANT_LABELS[d.quadrant]}</p>
+                        <p>매출 달성: {isFinite(d.x) ? `${d.x.toFixed(1)}%` : "-"} ({formatCurrency(d.salesActual)} / {formatCurrency(d.salesPlan)})</p>
+                        <p>이익 달성: {isFinite(d.y) ? `${d.y.toFixed(1)}%` : "-"} ({formatCurrency(d.profitActual)} / {formatCurrency(d.profitPlan)})</p>
                       </div>
                     );
                   }}
                 />
-              </PieChart>
+                <Scatter data={quadrantData} {...ANIMATION_CONFIG}>
+                  {quadrantData.map((entry, idx) => (
+                    <Cell key={idx} fill={entry.fill} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
             </ChartContainer>
           </ChartCard>
         )}
@@ -414,7 +415,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
       </div>
 
       {/* Table */}
-      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급은 공헌이익 금액 파레토 + 공헌이익률 15% 미만 페널티 복합 기준입니다. 원가유형 배지, 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다">
+      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급은 공헌이익 금액 파레토 + 공헌이익률 15% 미만 페널티 복합 기준입니다. 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다">
         <DataTable
           data={ranking}
           columns={tableColumns}

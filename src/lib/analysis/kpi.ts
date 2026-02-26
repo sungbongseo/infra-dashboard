@@ -189,8 +189,6 @@ export function calcCollectionRateDetail(
 
 // ─── 비용 구조 프로파일링 ───────────────────────────────────────────
 
-export type CostProfileType = "자체생산형" | "구매직납형" | "외주의존형" | "혼합형";
-
 export interface CostStructureRow {
   id: string;
   org: string;
@@ -206,14 +204,7 @@ export interface CostStructureRow {
   원재료비율: number;
   상품매입비율: number;
   외주비율: number;
-  profileType: CostProfileType;
-}
-
-function classifyCostProfile(원재료비율: number, 상품매입비율: number, 외주비율: number): CostProfileType {
-  if (원재료비율 >= 30) return "자체생산형";
-  if (상품매입비율 >= 30) return "구매직납형";
-  if (외주비율 >= 20) return "외주의존형";
-  return "혼합형";
+  매출원가율: number;
 }
 
 export function calcCostStructure(teamContribData: TeamContributionRecord[]): CostStructureRow[] {
@@ -268,7 +259,7 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
         원재료비율,
         상품매입비율,
         외주비율,
-        profileType: classifyCostProfile(원재료비율, 상품매입비율, 외주비율),
+        매출원가율: sales > 0 ? ((원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비) / sales) * 100 : 0,
       };
     });
 }
