@@ -143,6 +143,19 @@ export function useFilteredOrgCustomerProfit() {
   return { filteredOrgCustomerProfit, orgCustomerProfit };
 }
 
+// ─── 품목별 매출원가 상세 ──────────────────────────────────────────
+
+export function useFilteredItemCostDetail() {
+  const itemCostDetail = useDataStore((s) => s.itemCostDetail);
+  const { effectiveOrgNames } = useFilterContext();
+
+  const filteredItemCostDetail = useMemo(() => {
+    return filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀");
+  }, [itemCostDetail, effectiveOrgNames]);
+
+  return { filteredItemCostDetail, itemCostDetail };
+}
+
 // ─── 본부 거래처 품목 손익 ─────────────────────────────────────────
 
 export function useFilteredHqCustomerItemProfit() {

@@ -37,6 +37,7 @@ import type {
   OrgCustomerProfitRecord,
   HqCustomerItemProfitRecord,
   CustomerItemDetailRecord,
+  ItemCostDetailRecord,
   ReceivableAgingRecord,
   Organization,
   UploadedFile,
@@ -76,6 +77,7 @@ interface DataState {
   orgCustomerProfit: OrgCustomerProfitRecord[];
   hqCustomerItemProfit: HqCustomerItemProfitRecord[];
   customerItemDetail: CustomerItemDetailRecord[];
+  itemCostDetail: ItemCostDetailRecord[];
   receivableAging: Map<string, ReceivableAgingRecord[]>;
   uploadedFiles: UploadedFile[];
   isLoading: boolean;
@@ -94,6 +96,7 @@ interface DataState {
   setOrgCustomerProfit: (data: OrgCustomerProfitRecord[]) => void;
   setHqCustomerItemProfit: (data: HqCustomerItemProfitRecord[]) => void;
   setCustomerItemDetail: (data: CustomerItemDetailRecord[]) => void;
+  setItemCostDetail: (data: ItemCostDetailRecord[]) => void;
   setReceivableAging: (source: string, data: ReceivableAgingRecord[]) => void;
   addUploadedFile: (file: UploadedFile) => void;
   updateUploadedFile: (id: string, updates: Partial<UploadedFile>) => void;
@@ -117,6 +120,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   orgCustomerProfit: [],
   hqCustomerItemProfit: [],
   customerItemDetail: [],
+  itemCostDetail: [],
   receivableAging: new Map(),
   uploadedFiles: [],
   isLoading: false,
@@ -175,6 +179,10 @@ export const useDataStore = create<DataState>((set, get) => ({
     set({ customerItemDetail: data });
     saveDataset("customerItemDetail", data).catch(console.error);
   },
+  setItemCostDetail: (data) => {
+    set({ itemCostDetail: data });
+    saveDataset("itemCostDetail", data).catch(console.error);
+  },
   setReceivableAging: (source, data) => {
     set((s) => {
       const next = new Map(s.receivableAging);
@@ -212,6 +220,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       orgCustomerProfit: [],
       hqCustomerItemProfit: [],
       customerItemDetail: [],
+      itemCostDetail: [],
       receivableAging: new Map(),
       uploadedFiles: [],
       hasStoredData: false,
@@ -239,6 +248,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         orgCustomerProfit,
         hqCustomerItemProfit,
         customerItemDetail,
+        itemCostDetail,
         agingMap,
         storedFiles,
         orgFilter,
@@ -253,6 +263,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         loadDataset("orgCustomerProfit"),
         loadDataset("hqCustomerItemProfit"),
         loadDataset("customerItemDetail"),
+        loadDataset("itemCostDetail"),
         loadAllAgingData(),
         loadUploadedFiles(),
         loadOrgFilter(),
@@ -290,6 +301,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         orgCustomerProfit: (orgCustomerProfit as OrgCustomerProfitRecord[]) ?? [],
         hqCustomerItemProfit: (hqCustomerItemProfit as HqCustomerItemProfitRecord[]) ?? [],
         customerItemDetail: (customerItemDetail as CustomerItemDetailRecord[]) ?? [],
+        itemCostDetail: (itemCostDetail as ItemCostDetailRecord[]) ?? [],
         receivableAging: agingMap,
         uploadedFiles,
         orgNames,
@@ -316,6 +328,7 @@ export const useDataStore = create<DataState>((set, get) => ({
     saveDataset("orgCustomerProfit", state.orgCustomerProfit).catch(console.error);
     saveDataset("hqCustomerItemProfit", state.hqCustomerItemProfit).catch(console.error);
     saveDataset("customerItemDetail", state.customerItemDetail).catch(console.error);
+    saveDataset("itemCostDetail", state.itemCostDetail).catch(console.error);
 
     // Aging 데이터: 소스별로 저장
     Array.from(state.receivableAging.entries()).forEach(([source, data]) => {

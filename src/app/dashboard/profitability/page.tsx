@@ -24,6 +24,14 @@ import {
 import { calcPlanAchievementSummary, calcOrgAchievement, calcTopContributors, calcMarginDrift } from "@/lib/analysis/planAchievement";
 import { calcOrgBreakeven, calcOrgBreakevenFromTeam, calcBreakevenChart } from "@/lib/analysis/breakeven";
 import { calcMarginErosion } from "@/lib/analysis/detailedProfitAnalysis";
+import {
+  calcItemCostSummary,
+  calcCostCategoryVariance,
+  calcProductContributionRanking,
+  calcTeamCostEfficiency,
+  calcContributionWaterfall,
+  calcCostBucketBreakdown,
+} from "@/lib/analysis/itemCostAnalysis";
 
 import { PnlTab } from "./tabs/PnlTab";
 import { OrgTab } from "./tabs/OrgTab";
@@ -39,6 +47,8 @@ import { CustProfitTab } from "./tabs/CustProfitTab";
 import { CustItemTab } from "./tabs/CustItemTab";
 import DetailedProfitTab from "./tabs/DetailedProfitTab";
 import { SensitivityTab } from "./tabs/SensitivityTab";
+import { ItemCostTab } from "./tabs/ItemCostTab";
+import { CostVarianceTab } from "./tabs/CostVarianceTab";
 
 export default function ProfitabilityPage() {
   const teamContribution = useDataStore((s) => s.teamContribution);
@@ -48,6 +58,7 @@ export default function ProfitabilityPage() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
+  const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const isLoading = useDataStore((s) => s.isLoading);
 
   const { effectiveOrgNames, dateRange } = useFilterContext();
@@ -331,6 +342,18 @@ export default function ProfitabilityPage() {
   // ─── 마진 침식 분석 ──────────────────────────────
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
 
+  // ─── 품목별 매출원가 분석 (501) ──────────────────────────────
+  const filteredItemCostDetail = useMemo(
+    () => filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀"),
+    [itemCostDetail, effectiveOrgNames]
+  );
+  const itemCostSummary = useMemo(() => calcItemCostSummary(filteredItemCostDetail), [filteredItemCostDetail]);
+  const costCategoryVariance = useMemo(() => calcCostCategoryVariance(filteredItemCostDetail), [filteredItemCostDetail]);
+  const productContribRanking = useMemo(() => calcProductContributionRanking(filteredItemCostDetail), [filteredItemCostDetail]);
+  const teamCostEfficiency = useMemo(() => calcTeamCostEfficiency(filteredItemCostDetail), [filteredItemCostDetail]);
+  const contribWaterfall = useMemo(() => calcContributionWaterfall(filteredItemCostDetail), [filteredItemCostDetail]);
+  const costBucketBreakdown = useMemo(() => calcCostBucketBreakdown(filteredItemCostDetail), [filteredItemCostDetail]);
+
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
     const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
@@ -409,6 +432,8 @@ export default function ProfitabilityPage() {
             상세수익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도 분석</TabsTrigger>
+          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가 구조</TabsTrigger>
+          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가 차이분석</TabsTrigger>
         </TabsList>
         </TooltipProvider>
 
@@ -510,6 +535,27 @@ export default function ProfitabilityPage() {
         <TabsContent value="sensitivity" className="space-y-6">
           <ErrorBoundary>
             <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="itemCost" className="space-y-6">
+          <ErrorBoundary>
+            <ItemCostTab
+              summary={itemCostSummary}
+              ranking={productContribRanking}
+              teamEfficiency={teamCostEfficiency}
+              waterfall={contribWaterfall}
+              bucketBreakdown={costBucketBreakdown}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="costVariance" className="space-y-6">
+          <ErrorBoundary>
+            <CostVarianceTab
+              variance={costCategoryVariance}
+              teamEfficiency={teamCostEfficiency}
+            />
           </ErrorBoundary>
         </TabsContent>
 

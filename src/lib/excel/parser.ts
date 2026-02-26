@@ -8,6 +8,7 @@ import type {
   OrgCustomerProfitRecord,
   HqCustomerItemProfitRecord,
   CustomerItemDetailRecord,
+  ItemCostDetailRecord,
   ReceivableAgingRecord,
   PlanActualDiff,
   AgingAmounts,
@@ -606,6 +607,52 @@ export function parseExcelFile(
         ["매출거래처", "매출거래처명"],
         ["품목", "품목명", "제품군"],
       ]);
+      skippedRows = r.skipped;
+      break;
+    }
+    case "itemCostDetail": {
+      const r = safeParseRows<ItemCostDetailRecord>(rawData, 2, (row) => ({
+        No: num(row[0]),
+        판매사업본부: str(row[1]),
+        영업조직팀: str(row[2]),
+        품목: str(row[3]),
+        매출수량: parsePlanActualDiff(row, 4),
+        매출액: parsePlanActualDiff(row, 7),
+        실적매출원가: parsePlanActualDiff(row, 10),
+        원재료비: parsePlanActualDiff(row, 13),
+        부재료비: parsePlanActualDiff(row, 16),
+        상품매입: parsePlanActualDiff(row, 19),
+        노무비: parsePlanActualDiff(row, 22),
+        복리후생비: parsePlanActualDiff(row, 25),
+        소모품비: parsePlanActualDiff(row, 28),
+        수도광열비: parsePlanActualDiff(row, 31),
+        수선비: parsePlanActualDiff(row, 34),
+        연료비: parsePlanActualDiff(row, 37),
+        외주가공비: parsePlanActualDiff(row, 40),
+        운반비: parsePlanActualDiff(row, 43),
+        전력비: parsePlanActualDiff(row, 46),
+        지급수수료: parsePlanActualDiff(row, 49),
+        견본비: parsePlanActualDiff(row, 52),
+        제조변동비소계: parsePlanActualDiff(row, 55),
+        제조고정노무비: parsePlanActualDiff(row, 58),
+        감가상각비: parsePlanActualDiff(row, 61),
+        기타경비: parsePlanActualDiff(row, 64),
+        제조변동비: parsePlanActualDiff(row, 67),
+        제조고정비: parsePlanActualDiff(row, 70),
+        매출총이익: parsePlanActualDiff(row, 73),
+        공헌이익: parsePlanActualDiff(row, 76),
+      }), warnings, "품목별매출원가상세", false);
+
+      // SAP 계층 fill-down: 판매사업본부 → 영업조직팀
+      let filled = fillDownMultiLevel(r.parsed, [
+        ["판매사업본부"],
+        ["영업조직팀"],
+      ]);
+      // Infra사업본부만 유지 + 설계영업팀 제외
+      filled = filled.filter(
+        (row) => row.판매사업본부 === "Infra사업본부" && row.영업조직팀 !== "설계영업팀"
+      );
+      parsed = filled;
       skippedRows = r.skipped;
       break;
     }

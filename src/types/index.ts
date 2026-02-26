@@ -3,6 +3,7 @@ export * from "./sales";
 export * from "./orders";
 export * from "./profitability";
 export * from "./receivables";
+export * from "./itemCost";
 
 export type FileType =
   | "organization"
@@ -16,6 +17,7 @@ export type FileType =
   | "orgCustomerProfit"      // C1: 303
   | "hqCustomerItemProfit"   // C2: 304
   | "customerItemDetail"     // C3: 100
+  | "itemCostDetail"         // 501: 품목별매출원가(상세)
 ;
 
 export interface UploadedFile {

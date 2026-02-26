@@ -35,7 +35,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 
 ### Zustand Stores (src/stores/)
 
-- **dataStore**: All parsed data (sales, orders, collections, orgProfit, teamContribution, profitabilityAnalysis, receivableAging Map, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail), uploaded file list, org filter (orgNames Set). Primary store with IndexedDB persistence via Dexie.
+- **dataStore**: All parsed data (sales, orders, collections, orgProfit, teamContribution, profitabilityAnalysis, receivableAging Map, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail), uploaded file list, org filter (orgNames Set). Primary store with IndexedDB persistence via Dexie.
 - **filterStore**: Active filtering state (dateRange, selectedOrgs, selectedPerson, comparisonRange, comparisonPreset). Supports YoY/MoM comparison periods with auto-calculation. Persisted to IndexedDB.
 - **uiStore**: Sidebar state, dark mode, active tab.
 - **alertStore**: KPI threshold monitoring with alert rules engine. Evaluates collectionRate, operatingProfitRate, salesPlanAchievement against configurable thresholds.
@@ -45,16 +45,17 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/app/dashboard/` — Page routes (overview, sales, profitability, receivables, data, orders, profiles)
 - `src/components/dashboard/` — Shared: KpiCard (with sparklines), ChartCard, FileUploader, EmptyState, AnalysisTooltip, GlobalFilterBar, DataTable, ErrorBoundary, LoadingSkeleton, ExportButton, AlertPanel
 - `src/components/ui/` — Radix UI-based primitives
-- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 11 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
+- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 12 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
+- `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (`useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, etc.) that encapsulate the common filter pattern
 - `src/lib/db.ts` — Dexie IndexedDB persistence for all parsed data and filter state
 - `src/lib/orgMapping.ts` — Centralized fuzzy matching for 영업조직 ↔ 영업조직팀 name resolution
 - `src/lib/utils.ts` — formatCurrency (억/만원), formatPercent, extractMonth, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateToCustomerLevel, CHART_COLORS, TOOLTIP_STYLE
-- `src/types/` — TypeScript interfaces for all data structures
+- `src/types/` — TypeScript interfaces split by domain (organization, sales, orders, profitability, receivables, itemCost), re-exported from `index.ts`
 
 ### Analysis Modules (src/lib/analysis/)
 
-Core analytics (Phase 5):
+Core analytics:
 - `kpi.ts` — 매출/수주/비용구조/레이더(OrgRatioMetric)/히트맵(PlanVsActualHeatmap)
 - `aging.ts` — 미수금 aging/risk/credit analysis
 - `profiling.ts` — 영업사원 성과 scoring (HHI, PerformanceScore, 5-axis)
@@ -64,7 +65,7 @@ Core analytics (Phase 5):
 - `profitability.ts` — Product-level profitability
 - `profitRiskMatrix.ts` — Profitability risk matrix with fuzzy org matching
 
-Advanced analytics (Phase 6):
+Advanced analytics:
 - `channel.ts` — 결제조건별 매출 분포
 - `prepayment.ts` — 선수금 총괄/분석 (with org-level split)
 - `variance.ts` — SAP CO-PA 3-way variance (price/volume/mix)
@@ -80,19 +81,30 @@ Advanced analytics (Phase 6):
 - `customerProfitAnalysis.ts` — 거래처 계층 트리, HHI 집중도, 랭킹, 세그먼트
 - `customerItemAnalysis.ts` — 교차 수익성, ABC 분석, 거래처 포트폴리오, 품목×거래처 매트릭스
 - `detailedProfitAnalysis.ts` — Pareto 분석, 제품군별 분석, 마진 침식 감지
+- `itemCostAnalysis.ts` — 품목별 매출원가 상세 분석
+- `receivableInsight.ts` / `receivableDetail.ts` / `longTermReceivable.ts` — 미수금 담당자 인사이트, 상세, 장기 미수
+- `anomalyDetection.ts` — 이상치 탐지
+- `cohortAnalysis.ts` — 코호트 분석
+- `churnPrediction.ts` — 이탈 예측
+- `industryBenchmark.ts` — 산업 벤치마크
+- `autoReport.ts` — 자동 보고서 생성
+- `sensitivityAnalysis.ts` — 민감도 분석
+- `timeSeriesDecomposition.ts` — 시계열 분해
 
-### 11 Excel File Types (lib/excel/schemas.ts)
+### 12 Excel File Types (lib/excel/schemas.ts)
 
-Each file type is detected by filename regex. Some use merged headers (rows 0-1). Organization filtering uses different field names per type.
+Each file type is detected by filename regex (order matters — `orgCustomerProfit` must precede `orgProfit`). Some use merged headers (rows 0-1). Organization filtering uses different field names per type.
 
 | Type | Filter Field | Notes |
 |------|-------------|-------|
 | organization | — | Org master data |
-| salesList, collectionList, orderList, receivableAging | 영업조직 | |
+| salesList, collectionList, orderList | 영업조직 | |
+| receivableAging | 영업조직 | Map-based storage keyed by source name |
 | orgProfit, teamContribution, profitabilityAnalysis | 영업조직팀 | |
-| orgCustomerProfit (303) | 영업조직팀 | Phase 6-C: 조직별 거래처별 손익 |
-| hqCustomerItemProfit (304) | 영업조직팀 | Phase 6-C: 본부 거래처 품목 손익 |
-| customerItemDetail (100) | 영업조직팀 | Phase 6-C: 거래처별 품목별 손익 |
+| orgCustomerProfit (303) | 영업조직팀 | 조직별 거래처별 손익 |
+| hqCustomerItemProfit (304) | 영업조직팀 | 본부 거래처 품목 손익 |
+| customerItemDetail (100) | 영업조직팀 | 거래처별 품목별 손익 |
+| itemCostDetail (501) | 영업조직팀 | 품목별 매출원가 상세 |
 
 ### Page Pattern
 
@@ -107,25 +119,20 @@ Each dashboard page follows the same pattern:
 8. Show `EmptyState` when no data loaded, `LoadingSkeleton` during loading
 9. Wrap in `ErrorBoundary` for graceful error handling
 
+Alternatively, pages can use the shared hooks from `useFilteredData.ts` (e.g., `useFilterContext()`, `useFilteredSales()`) which encapsulate steps 1-5.
+
 ### Tab Component Extraction
 
-All pages extract tab content into separate components under `tabs/` subdirectories:
-- `sales/tabs/` — ChannelTab, RfmTab, ClvTab, MigrationTab, FxTab
-- `profitability/tabs/` — PnlTab, OrgTab, ContribTab, CostTab, PlanTab, ProductTab, VarianceTab, BreakevenTab, RiskTab, WhatIfTab, CustProfitTab, CustItemTab
-- `receivables/tabs/` — StatusTab, RiskTab, CreditTab, DsoTab, PrepaymentTab
-- `orders/tabs/` — StatusTab, AnalysisTab, OrgTab, PipelineTab, O2CFlowTab
-- `profiles/tabs/` — PerformanceTab, RankingTab, CostTab, TrendTab, ProductTab
-
-Tab components receive filtered data as props from the parent page rather than accessing stores directly.
+All pages extract tab content into separate components under `tabs/` subdirectories. Tab components receive filtered data as props from the parent page rather than accessing stores directly.
 
 ### Page Tab Structure
 
 | Page | Tabs |
 |------|------|
 | Overview (`/dashboard`) | 핵심 지표, 조직 분석 |
-| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, RFM, CLV, 거래처 이동, FX (8 tabs) |
-| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 계획 달성 분석, 손익분기, 시나리오, 거래처 손익, 거래처×품목 (12 tabs) |
-| Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 선수금 (5 tabs) |
+| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, RFM, CLV, 거래처 이동, FX, 이상치, 코호트, 이탈, 시계열 (12 tabs) |
+| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 손익분기, 시나리오, 거래처 손익, 거래처×품목, 상세 수익, 민감도, 품목원가, 원가차이 (15 tabs) |
+| Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 선수금, 담당자 인사이트, 채권 상세, 장기 미수 (8 tabs) |
 | Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우 (5 tabs) |
 | Profiles (`/dashboard/profiles`) | 종합 성과, 순위/거래처, 비용 효율, 실적 트렌드, 제품 포트폴리오 (5 tabs) |
 
@@ -146,6 +153,7 @@ When dateRange filter is active and `customerItemDetail` data exists, profitabil
 - `TOOLTIP_STYLE` constant for consistent Recharts tooltip styling
 - `KpiCard` accepts `formula` (calculation explanation) and `benchmark` (industry reference) string props for tooltip context
 - `NaN`/`Infinity` safety: always guard `.toFixed()` calls with `isFinite()` check; use `formatCurrency()`/`formatPercent()` which handle this automatically
+- Recharts tooltip formatter: always type params as `(v: any, name: any)` to avoid string|undefined error
 
 ### Charting Patterns
 
@@ -170,3 +178,4 @@ When dateRange filter is active and `customerItemDetail` data exists, profitabil
 - Recharts Pie label: typed as `(props: any)` to avoid PieLabelRenderProps incompatibility
 - Upload validation: 100MB file size limit
 - `profitabilityAnalysis` fallback: if org filter leaves zero-valued data → use full dataset with warning
+- FILE_SCHEMAS order matters: more specific patterns (e.g., `orgCustomerProfit`) must come before generic ones (e.g., `orgProfit`) since `detectFileType()` returns on first regex match

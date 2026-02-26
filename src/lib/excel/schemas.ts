@@ -86,6 +86,14 @@ export const FILE_SCHEMAS: FileSchema[] = [
     orgFilterField: "영업조직팀",
   },
   {
+    fileType: "itemCostDetail",
+    pattern: /품목별.*매출원가.*상세|501.*품목/i,
+    headerRow: 0,
+    hasMergedHeader: true,
+    subHeaderRow: 1,
+    orgFilterField: "영업조직팀",
+  },
+  {
     fileType: "receivableAging",
     pattern: /미수채권연령/,
     headerRow: 0,
