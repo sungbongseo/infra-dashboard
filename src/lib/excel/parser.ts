@@ -637,16 +637,18 @@ export function parseExcelFile(
         제조고정노무비: parsePlanActualDiff(row, 58),
         감가상각비: parsePlanActualDiff(row, 61),
         기타경비: parsePlanActualDiff(row, 64),
-        제조변동비: parsePlanActualDiff(row, 67),
-        제조고정비: parsePlanActualDiff(row, 70),
-        매출총이익: parsePlanActualDiff(row, 73),
-        공헌이익: parsePlanActualDiff(row, 76),
+        제조고정비소계: parsePlanActualDiff(row, 67),
+        매출총이익: parsePlanActualDiff(row, 70),
+        공헌이익: parsePlanActualDiff(row, 73),
+        공헌이익율: parsePlanActualDiff(row, 76),
       }), warnings, "품목별매출원가상세", false);
 
-      // SAP 계층 fill-down: 판매사업본부 → 영업조직팀
+      // SAP 계층 fill-down: 판매사업본부 → 영업조직팀 → 품목
+      // 품목이 lastLevelPrimary → 품목 비어있는 팀소계행은 non-detail로 제거됨
       let filled = fillDownMultiLevel(r.parsed, [
         ["판매사업본부"],
         ["영업조직팀"],
+        ["품목"],
       ]);
       // Infra사업본부만 유지 + 설계영업팀 제외
       const beforeFilterCount = filled.length;

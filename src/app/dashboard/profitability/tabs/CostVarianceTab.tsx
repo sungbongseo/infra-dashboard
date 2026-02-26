@@ -196,7 +196,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 gap-4">
         {/* Chart 1: Plan vs Actual by category */}
-        <ChartCard title="원가 항목별 계획 vs 실적" description="17개 독립 원가 항목 + 제조변동비소계 비교 (소계 항목은 참고용)">
+        <ChartCard title="원가 항목별 계획 vs 실적" description="17개 독립 원가 항목 + 2개 소계(제조변동비/제조고정비) 비교 (소계 항목은 참고용)">
           <ChartContainer minHeight={360}>
             <BarChart data={planVsActualData} margin={{ top: 10, right: 20, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -351,7 +351,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       </div>
 
       {/* Table */}
-      <ChartCard title="원가 항목별 상세 차이" description="17개 독립항목 + 소계 (회색 배경) 포함. 차이 기여도(%) = 해당 항목 차이 / 전체 차이">
+      <ChartCard title="원가 항목별 상세 차이" description="17개 독립항목 + 2개 소계 (회색 배경) 포함. 차이 기여도(%) = 해당 항목 차이 / 전체 차이">
         <DataTable
           data={variance.categories}
           columns={varColumns}

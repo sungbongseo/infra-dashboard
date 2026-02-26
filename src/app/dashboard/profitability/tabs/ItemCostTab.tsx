@@ -54,7 +54,7 @@ const PROFILE_COLORS: Record<string, string> = {
 export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucketBreakdown, costProfile, unitCost }: ItemCostTabProps) {
   // Pareto: 매출 기준 누적 비중 + 공헌이익
   const paretoData = useMemo(() => {
-    const top = ranking.slice(0, 15);
+    const top = ranking.slice(0, 20);
     return top.map((r) => ({
       name: r.product.length > 12 ? r.product.substring(0, 12) + ".." : r.product,
       fullName: r.product,
@@ -113,10 +113,11 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
   const tableColumns: ColumnDef<ProductContribution, any>[] = useMemo(
     () => [
       { accessorKey: "rank", header: "#", size: 40 },
-      { accessorKey: "product", header: "품목", size: 140,
+      { accessorKey: "product", header: "품목", size: 160,
         cell: ({ getValue }: any) => {
           const v = getValue() as string;
-          return v.length > 18 ? v.substring(0, 18) + "..." : v;
+          if (v.length <= 20) return v;
+          return <span title={v}>{v.substring(0, 20)}...</span>;
         },
       },
       { accessorKey: "org", header: "팀", size: 90 },
@@ -329,7 +330,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         )}
 
         {/* Pareto: 공헌이익 + 누적 매출 비중 */}
-        <ChartCard title="품목별 공헌이익 파레토 (Top 15)" description="바: 공헌이익 / 라인: 누적 매출 비중(%). 80%/95% 기준선 표시">
+        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" description="바: 공헌이익 / 라인: 누적 매출 비중(%). 80%/95% 기준선 표시">
           <ChartContainer minHeight={360}>
             <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -407,7 +408,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           data={ranking}
           columns={tableColumns}
           searchPlaceholder="품목 검색..."
-          defaultPageSize={20}
+          defaultPageSize={30}
         />
       </ChartCard>
     </>
