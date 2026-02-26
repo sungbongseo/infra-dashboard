@@ -1,5 +1,9 @@
-import type { ItemCostDetailRecord, CostCategoryKey, CostBucketKey } from "@/types";
-import { COST_CATEGORIES, COST_BUCKETS } from "@/types";
+import type {
+  ItemCostDetailRecord, CostCategoryKey, CostBucketKey,
+  ItemVarianceEntry, ItemCostProfile, ItemCostProfileType,
+  CostProfileDistribution, UnitCostEntry, CostDriverEntry,
+} from "@/types";
+import { COST_CATEGORIES, COST_CATEGORIES_WITH_SUBTOTAL, COST_BUCKETS } from "@/types";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -21,6 +25,8 @@ export interface CostCategoryVariance {
   variance: number;
   variancePct: number;
   isOverBudget: boolean;
+  isSubtotal: boolean;
+  contributionToTotal: number;
 }
 
 export interface CostVarianceSummary {
@@ -96,7 +102,12 @@ function sumCostActual(r: ItemCostDetailRecord, keys: CostCategoryKey[]): number
   return keys.reduce((s, k) => s + ((r[k] as any)?.실적 ?? 0), 0);
 }
 
+function sumCostPlan(r: ItemCostDetailRecord, keys: CostCategoryKey[]): number {
+  return keys.reduce((s, k) => s + ((r[k] as any)?.계획 ?? 0), 0);
+}
+
 // ── Function 1: calcItemCostSummary ─────────────────────────────
+// BUG-2 FIX: uses COST_CATEGORIES (17개, 소계 제외) → topCostCategory가 실제 항목
 
 export function calcItemCostSummary(data: ItemCostDetailRecord[]): ItemCostSummary {
   if (data.length === 0) {
@@ -114,7 +125,7 @@ export function calcItemCostSummary(data: ItemCostDetailRecord[]): ItemCostSumma
   const totalVariable = data.reduce((s, r) => s + sumCostActual(r, VARIABLE_COST_KEYS), 0);
   const totalContrib = totalSales - totalVariable;
 
-  // Find top cost category
+  // Find top cost category — COST_CATEGORIES (17개, 소계 제외)
   const catTotals = new Map<string, number>();
   for (const cat of COST_CATEGORIES) {
     const amt = data.reduce((s, r) => s + ((r[cat] as any)?.실적 ?? 0), 0);
@@ -142,6 +153,7 @@ export function calcItemCostSummary(data: ItemCostDetailRecord[]): ItemCostSumma
 }
 
 // ── Function 2: calcCostCategoryVariance ────────────────────────
+// BUG-1 FIX: total 합산에서 소계(제조변동비소계) 제외. 디스플레이는 18개 유지.
 
 export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVarianceSummary {
   if (data.length === 0) {
@@ -151,7 +163,8 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
     };
   }
 
-  const categories: CostCategoryVariance[] = COST_CATEGORIES.map((cat) => {
+  // 디스플레이: 18개 (소계 포함) — isSubtotal 플래그로 구분
+  const categories: CostCategoryVariance[] = COST_CATEGORIES_WITH_SUBTOTAL.map((cat) => {
     const plan = data.reduce((s, r) => s + ((r[cat] as any)?.계획 ?? 0), 0);
     const actual = data.reduce((s, r) => s + ((r[cat] as any)?.실적 ?? 0), 0);
     const variance = actual - plan;
@@ -162,15 +175,26 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
       variance,
       variancePct: plan !== 0 ? (variance / Math.abs(plan)) * 100 : 0,
       isOverBudget: actual > plan,
+      isSubtotal: cat === "제조변동비소계",
+      contributionToTotal: 0, // filled after total calc
     };
   });
 
   // Sort by |variance| descending
   categories.sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance));
 
-  const totalPlanCost = categories.reduce((s, c) => s + c.plan, 0);
-  const totalActualCost = categories.reduce((s, c) => s + c.actual, 0);
+  // BUG-1 FIX: total은 소계(제조변동비소계) 제외한 17개만 합산
+  const nonSubtotal = categories.filter((c) => !c.isSubtotal);
+  const totalPlanCost = nonSubtotal.reduce((s, c) => s + c.plan, 0);
+  const totalActualCost = nonSubtotal.reduce((s, c) => s + c.actual, 0);
   const totalVariance = totalActualCost - totalPlanCost;
+
+  // Fill contributionToTotal
+  for (const c of categories) {
+    c.contributionToTotal = totalVariance !== 0
+      ? (c.variance / Math.abs(totalVariance)) * 100
+      : 0;
+  }
 
   return {
     categories,
@@ -178,7 +202,7 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
     totalActualCost,
     totalVariance,
     totalVariancePct: totalPlanCost !== 0 ? (totalVariance / Math.abs(totalPlanCost)) * 100 : 0,
-    overBudgetCount: categories.filter((c) => c.isOverBudget).length,
+    overBudgetCount: nonSubtotal.filter((c) => c.isOverBudget).length,
   };
 }
 
@@ -187,7 +211,6 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
 export function calcProductContributionRanking(data: ItemCostDetailRecord[]): ProductContribution[] {
   if (data.length === 0) return [];
 
-  // Aggregate by product + org
   const map = new Map<string, {
     product: string; org: string;
     sales: number; variable: number; fixed: number; gp: number;
@@ -379,4 +402,236 @@ export function calcCostBucketBreakdown(data: ItemCostDetailRecord[]): CostBucke
   }
 
   return bucketAmounts.sort((a, b) => b.amount - a.amount);
+}
+
+// ── NEW-1: calcItemVarianceRanking ──────────────────────────────
+// 품목별 원가 차이 랭킹: 어떤 품목이 예산을 가장 크게 초과/절감했는지
+
+export function calcItemVarianceRanking(data: ItemCostDetailRecord[], topN = 15): ItemVarianceEntry[] {
+  if (data.length === 0) return [];
+
+  const map = new Map<string, {
+    product: string; org: string;
+    planCost: number; actualCost: number;
+    planSales: number; actualSales: number;
+  }>();
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}__${r.품목}`;
+    const entry = map.get(key) || {
+      product: r.품목, org: r.영업조직팀,
+      planCost: 0, actualCost: 0, planSales: 0, actualSales: 0,
+    };
+    entry.planCost += sumCostPlan(r, [...VARIABLE_COST_KEYS, ...FIXED_COST_KEYS]);
+    entry.actualCost += sumCostActual(r, [...VARIABLE_COST_KEYS, ...FIXED_COST_KEYS]);
+    entry.planSales += r.매출액.계획;
+    entry.actualSales += r.매출액.실적;
+    map.set(key, entry);
+  }
+
+  return Array.from(map.values())
+    .map((e) => {
+      const variance = e.actualCost - e.planCost;
+      const planMargin = e.planSales > 0 ? ((e.planSales - e.planCost) / e.planSales) * 100 : 0;
+      const actualMargin = e.actualSales > 0 ? ((e.actualSales - e.actualCost) / e.actualSales) * 100 : 0;
+      return {
+        product: e.product,
+        org: e.org,
+        planCost: e.planCost,
+        actualCost: e.actualCost,
+        variance,
+        variancePct: e.planCost !== 0 ? (variance / Math.abs(e.planCost)) * 100 : 0,
+        marginDrift: actualMargin - planMargin,
+      };
+    })
+    .sort((a, b) => Math.abs(b.variance) - Math.abs(a.variance))
+    .slice(0, topN);
+}
+
+// ── NEW-2: calcItemCostProfile ──────────────────────────────────
+// 품목별 원가구조 프로파일 분류
+
+export function calcItemCostProfile(data: ItemCostDetailRecord[]): {
+  items: ItemCostProfile[];
+  distribution: CostProfileDistribution[];
+} {
+  if (data.length === 0) return { items: [], distribution: [] };
+
+  const bucketKeys = Object.keys(COST_BUCKETS) as CostBucketKey[];
+
+  // Aggregate by product + org
+  const map = new Map<string, {
+    product: string; org: string; sales: number; totalCost: number;
+    buckets: Record<CostBucketKey, number>;
+  }>();
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}__${r.품목}`;
+    const entry = map.get(key) || {
+      product: r.품목, org: r.영업조직팀, sales: 0, totalCost: 0,
+      buckets: Object.fromEntries(bucketKeys.map((k) => [k, 0])) as Record<CostBucketKey, number>,
+    };
+    entry.sales += r.매출액.실적;
+    entry.totalCost += r.실적매출원가.실적;
+    for (const bk of bucketKeys) {
+      const cats = COST_BUCKETS[bk] as readonly string[];
+      for (const cat of cats) {
+        entry.buckets[bk] += (r[cat as keyof ItemCostDetailRecord] as any)?.실적 ?? 0;
+      }
+    }
+    map.set(key, entry);
+  }
+
+  const items: ItemCostProfile[] = Array.from(map.values()).map((e) => {
+    const totalBucket = bucketKeys.reduce((s, k) => s + e.buckets[k], 0);
+
+    // Find dominant bucket
+    let dominantBucket: CostBucketKey = "재료비";
+    let dominantAmt = 0;
+    for (const bk of bucketKeys) {
+      if (e.buckets[bk] > dominantAmt) {
+        dominantBucket = bk;
+        dominantAmt = e.buckets[bk];
+      }
+    }
+    const dominantRatio = totalBucket > 0 ? (dominantAmt / totalBucket) * 100 : 0;
+
+    // Classify profile type
+    let profileType: ItemCostProfileType = "혼합형";
+    const matRatio = totalBucket > 0 ? (e.buckets["재료비"] / totalBucket) * 100 : 0;
+    const purchRatio = totalBucket > 0 ? (e.buckets["상품매입비"] / totalBucket) * 100 : 0;
+    const outsRatio = totalBucket > 0 ? (e.buckets["외주비"] / totalBucket) * 100 : 0;
+    const laborRatio = totalBucket > 0 ? (e.buckets["인건비"] / totalBucket) * 100 : 0;
+    const facRatio = totalBucket > 0 ? (e.buckets["설비비"] / totalBucket) * 100 : 0;
+
+    if (purchRatio >= 50) profileType = "구매직납형";
+    else if (matRatio >= 40) profileType = "자체생산형";
+    else if (outsRatio >= 35) profileType = "외주의존형";
+    else if (laborRatio >= 35) profileType = "인건비집중형";
+    else if (facRatio >= 30) profileType = "설비집중형";
+
+    return {
+      product: e.product,
+      org: e.org,
+      profileType,
+      dominantBucket,
+      dominantRatio,
+      sales: e.sales,
+      totalCost: e.totalCost,
+    };
+  });
+
+  // Distribution
+  const distMap = new Map<ItemCostProfileType, { count: number; totalSales: number; totalCost: number }>();
+  for (const item of items) {
+    const entry = distMap.get(item.profileType) || { count: 0, totalSales: 0, totalCost: 0 };
+    entry.count++;
+    entry.totalSales += item.sales;
+    entry.totalCost += item.totalCost;
+    distMap.set(item.profileType, entry);
+  }
+
+  const distribution: CostProfileDistribution[] = Array.from(distMap.entries())
+    .map(([type, e]) => ({
+      type,
+      count: e.count,
+      totalSales: e.totalSales,
+      avgCostRate: e.totalSales > 0 ? (e.totalCost / e.totalSales) * 100 : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  return { items, distribution };
+}
+
+// ── NEW-3: calcUnitCostAnalysis ─────────────────────────────────
+// 품목별 단가 분석
+
+export function calcUnitCostAnalysis(data: ItemCostDetailRecord[], topN = 30): UnitCostEntry[] {
+  if (data.length === 0) return [];
+
+  const map = new Map<string, {
+    product: string; org: string;
+    planSales: number; actualSales: number;
+    planCost: number; actualCost: number;
+    planQty: number; actualQty: number;
+  }>();
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}__${r.품목}`;
+    const entry = map.get(key) || {
+      product: r.품목, org: r.영업조직팀,
+      planSales: 0, actualSales: 0, planCost: 0, actualCost: 0,
+      planQty: 0, actualQty: 0,
+    };
+    entry.planSales += r.매출액.계획;
+    entry.actualSales += r.매출액.실적;
+    entry.planCost += sumCostPlan(r, [...VARIABLE_COST_KEYS, ...FIXED_COST_KEYS]);
+    entry.actualCost += sumCostActual(r, [...VARIABLE_COST_KEYS, ...FIXED_COST_KEYS]);
+    entry.planQty += r.매출수량.계획;
+    entry.actualQty += r.매출수량.실적;
+    map.set(key, entry);
+  }
+
+  return Array.from(map.values())
+    .filter((e) => e.actualQty > 0) // skip zero-quantity
+    .map((e) => {
+      const planUnitPrice = e.planQty > 0 ? e.planSales / e.planQty : 0;
+      const actualUnitPrice = e.actualQty > 0 ? e.actualSales / e.actualQty : 0;
+      const planUnitCost = e.planQty > 0 ? e.planCost / e.planQty : 0;
+      const actualUnitCost = e.actualQty > 0 ? e.actualCost / e.actualQty : 0;
+      const planUnitContrib = planUnitPrice - planUnitCost;
+      const actualUnitContrib = actualUnitPrice - actualUnitCost;
+
+      return {
+        product: e.product,
+        org: e.org,
+        planUnitPrice,
+        actualUnitPrice,
+        planUnitCost,
+        actualUnitCost,
+        planUnitContrib,
+        actualUnitContrib,
+        priceDrift: planUnitPrice !== 0 ? ((actualUnitPrice - planUnitPrice) / Math.abs(planUnitPrice)) * 100 : 0,
+        costDrift: planUnitCost !== 0 ? ((actualUnitCost - planUnitCost) / Math.abs(planUnitCost)) * 100 : 0,
+        quantity: e.actualQty,
+      };
+    })
+    .sort((a, b) => Math.abs(b.actualUnitContrib * b.quantity) - Math.abs(a.actualUnitContrib * a.quantity))
+    .slice(0, topN);
+}
+
+// ── NEW-4: calcCostDriverAnalysis ───────────────────────────────
+// 원가 드라이버 분석: 비중 × |변동률| 복합지표
+
+export function calcCostDriverAnalysis(data: ItemCostDetailRecord[]): CostDriverEntry[] {
+  if (data.length === 0) return [];
+
+  // 17개 독립항목만 사용 (소계 제외)
+  const catData = COST_CATEGORIES.map((cat) => {
+    const plan = data.reduce((s, r) => s + ((r[cat] as any)?.계획 ?? 0), 0);
+    const actual = data.reduce((s, r) => s + ((r[cat] as any)?.실적 ?? 0), 0);
+    return { category: cat, plan, actual };
+  });
+
+  const totalActual = catData.reduce((s, c) => s + c.actual, 0);
+
+  return catData
+    .map((c) => {
+      const costShare = totalActual > 0 ? (c.actual / totalActual) * 100 : 0;
+      const variancePct = c.plan !== 0 ? ((c.actual - c.plan) / Math.abs(c.plan)) * 100 : 0;
+      const impactScore = (costShare * Math.abs(variancePct)) / 100;
+      const direction: "increase" | "decrease" | "neutral" =
+        c.actual > c.plan ? "increase" : c.actual < c.plan ? "decrease" : "neutral";
+
+      return {
+        category: c.category,
+        costShare,
+        variancePct,
+        impactScore,
+        direction,
+        plan: c.plan,
+        actual: c.actual,
+      };
+    })
+    .sort((a, b) => b.impactScore - a.impactScore);
 }

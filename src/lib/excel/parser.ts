@@ -649,9 +649,14 @@ export function parseExcelFile(
         ["영업조직팀"],
       ]);
       // Infra사업본부만 유지 + 설계영업팀 제외
+      const beforeFilterCount = filled.length;
       filled = filled.filter(
         (row) => row.판매사업본부 === "Infra사업본부" && row.영업조직팀 !== "설계영업팀"
       );
+      if (filled.length === 0 && beforeFilterCount > 0) {
+        console.warn(`[parser] itemCostDetail: fillDown 후 ${beforeFilterCount}행 중 Infra필터 결과 0행. 판매사업본부/영업조직팀 값을 확인하세요.`);
+        warnings.push(`품목별매출원가: ${beforeFilterCount}행 중 Infra사업본부 필터 후 0행 — 데이터 확인 필요`);
+      }
       parsed = filled;
       skippedRows = r.skipped;
       break;

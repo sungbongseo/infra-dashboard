@@ -31,6 +31,10 @@ import {
   calcTeamCostEfficiency,
   calcContributionWaterfall,
   calcCostBucketBreakdown,
+  calcItemVarianceRanking,
+  calcItemCostProfile,
+  calcUnitCostAnalysis,
+  calcCostDriverAnalysis,
 } from "@/lib/analysis/itemCostAnalysis";
 
 import { PnlTab } from "./tabs/PnlTab";
@@ -353,6 +357,10 @@ export default function ProfitabilityPage() {
   const teamCostEfficiency = useMemo(() => calcTeamCostEfficiency(filteredItemCostDetail), [filteredItemCostDetail]);
   const contribWaterfall = useMemo(() => calcContributionWaterfall(filteredItemCostDetail), [filteredItemCostDetail]);
   const costBucketBreakdown = useMemo(() => calcCostBucketBreakdown(filteredItemCostDetail), [filteredItemCostDetail]);
+  const itemVarianceRanking = useMemo(() => calcItemVarianceRanking(filteredItemCostDetail, 15), [filteredItemCostDetail]);
+  const itemCostProfile = useMemo(() => calcItemCostProfile(filteredItemCostDetail), [filteredItemCostDetail]);
+  const unitCostAnalysis = useMemo(() => calcUnitCostAnalysis(filteredItemCostDetail, 30), [filteredItemCostDetail]);
+  const costDriverAnalysis = useMemo(() => calcCostDriverAnalysis(filteredItemCostDetail), [filteredItemCostDetail]);
 
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
@@ -546,6 +554,8 @@ export default function ProfitabilityPage() {
               teamEfficiency={teamCostEfficiency}
               waterfall={contribWaterfall}
               bucketBreakdown={costBucketBreakdown}
+              costProfile={itemCostProfile}
+              unitCost={unitCostAnalysis}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -555,6 +565,8 @@ export default function ProfitabilityPage() {
             <CostVarianceTab
               variance={costCategoryVariance}
               teamEfficiency={teamCostEfficiency}
+              itemVarianceRanking={itemVarianceRanking}
+              costDrivers={costDriverAnalysis}
             />
           </ErrorBoundary>
         </TabsContent>

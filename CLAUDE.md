@@ -81,7 +81,7 @@ Advanced analytics:
 - `customerProfitAnalysis.ts` — 거래처 계층 트리, HHI 집중도, 랭킹, 세그먼트
 - `customerItemAnalysis.ts` — 교차 수익성, ABC 분석, 거래처 포트폴리오, 품목×거래처 매트릭스
 - `detailedProfitAnalysis.ts` — Pareto 분석, 제품군별 분석, 마진 침식 감지
-- `itemCostAnalysis.ts` — 품목별 매출원가 상세 분석
+- `itemCostAnalysis.ts` — 품목별 매출원가 상세 분석 (6기본 + 4신규: 품목차이랭킹, 원가프로파일, 단가분석, 원가드라이버)
 - `receivableInsight.ts` / `receivableDetail.ts` / `longTermReceivable.ts` — 미수금 담당자 인사이트, 상세, 장기 미수
 - `anomalyDetection.ts` — 이상치 탐지
 - `cohortAnalysis.ts` — 코호트 분석
@@ -179,3 +179,4 @@ When dateRange filter is active and `customerItemDetail` data exists, profitabil
 - Upload validation: 100MB file size limit
 - `profitabilityAnalysis` fallback: if org filter leaves zero-valued data → use full dataset with warning
 - FILE_SCHEMAS order matters: more specific patterns (e.g., `orgCustomerProfit`) must come before generic ones (e.g., `orgProfit`) since `detectFileType()` returns on first regex match
+- `COST_CATEGORIES` (17개): 독립 원가항목만 포함 (분석/합산용). `COST_CATEGORIES_WITH_SUBTOTAL` (18개): 제조변동비소계 포함 (디스플레이용). 합산 시 반드시 COST_CATEGORIES 사용하여 이중카운팅 방지
