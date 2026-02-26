@@ -229,36 +229,53 @@ export function calcProductContributionRanking(data: ItemCostDetailRecord[]): Pr
     map.set(key, entry);
   }
 
-  const items = Array.from(map.values())
+  const allItems = Array.from(map.values())
     .map((e) => ({
       ...e,
       contributionMargin: e.sales - e.variable,
       contributionRate: e.sales !== 0 ? ((e.sales - e.variable) / e.sales) * 100 : 0,
       grossMargin: e.sales !== 0 ? (e.gp / e.sales) * 100 : 0,
-    }))
-    .sort((a, b) => b.sales - a.sales);
+    }));
 
-  const totalSales = items.reduce((s, i) => s + Math.abs(i.sales), 0);
+  // 양수/음수 분리 — 음수 매출(반품 등)이 파레토 분모를 부풀리는 것 방지
+  const positiveItems = allItems.filter((i) => i.sales > 0).sort((a, b) => b.sales - a.sales);
+  const negativeItems = allItems.filter((i) => i.sales <= 0).sort((a, b) => a.sales - b.sales);
+
+  const positiveTotal = positiveItems.reduce((s, i) => s + i.sales, 0);
   let cumSales = 0;
+  const result: ProductContribution[] = [];
 
-  return items.map((item, idx) => {
-    cumSales += Math.abs(item.sales);
-    const cumShare = totalSales > 0 ? (cumSales / totalSales) * 100 : 0;
-    return {
+  // 양수 품목: 정상 파레토 ABC 계산
+  for (let idx = 0; idx < positiveItems.length; idx++) {
+    const item = positiveItems[idx];
+    cumSales += item.sales;
+    const cumShare = positiveTotal > 0 ? (cumSales / positiveTotal) * 100 : 0;
+    result.push({
       rank: idx + 1,
-      product: item.product,
-      org: item.org,
-      sales: item.sales,
-      variableCost: item.variable,
-      fixedCost: item.fixed,
-      contributionMargin: item.contributionMargin,
-      contributionRate: item.contributionRate,
-      grossProfit: item.gp,
-      grossMargin: item.grossMargin,
+      product: item.product, org: item.org,
+      sales: item.sales, variableCost: item.variable, fixedCost: item.fixed,
+      contributionMargin: item.contributionMargin, contributionRate: item.contributionRate,
+      grossProfit: item.gp, grossMargin: item.grossMargin,
       cumSalesShare: cumShare,
       grade: cumShare <= 80 ? "A" as const : cumShare <= 95 ? "B" as const : "C" as const,
-    };
-  });
+    });
+  }
+
+  // 음수 매출 품목: 무조건 C등급 (반품/환입 등)
+  for (let idx = 0; idx < negativeItems.length; idx++) {
+    const item = negativeItems[idx];
+    result.push({
+      rank: positiveItems.length + idx + 1,
+      product: item.product, org: item.org,
+      sales: item.sales, variableCost: item.variable, fixedCost: item.fixed,
+      contributionMargin: item.contributionMargin, contributionRate: item.contributionRate,
+      grossProfit: item.gp, grossMargin: item.grossMargin,
+      cumSalesShare: 100,
+      grade: "C" as const,
+    });
+  }
+
+  return result;
 }
 
 // ── Function 4: calcTeamCostEfficiency ──────────────────────────

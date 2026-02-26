@@ -112,7 +112,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
   // Table columns
   const tableColumns: ColumnDef<ProductContribution, any>[] = useMemo(
     () => [
-      { accessorKey: "rank", header: "#", size: 40 },
+      { accessorKey: "rank", header: () => <span title="매출액 기준 내림차순 순위">#</span>, size: 40 },
       { accessorKey: "product", header: "품목", size: 160,
         cell: ({ getValue }: any) => {
           const v = getValue() as string;
@@ -120,7 +120,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           return <span title={v}>{v.substring(0, 20)}...</span>;
         },
       },
-      { accessorKey: "org", header: "팀", size: 90 },
+      { accessorKey: "org", header: () => <span title="해당 품목이 속한 영업조직팀">팀</span>, size: 90 },
       {
         id: "profileType",
         header: "원가유형",
@@ -147,12 +147,12 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           );
         },
       },
-      { accessorKey: "sales", header: "매출액",
+      { accessorKey: "sales", header: () => <span title="해당 품목의 총 매출 금액 (실적 기준)">매출액</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
       {
         id: "unitPrice",
-        header: "매출단가",
+        header: () => <span title="매출액 / 판매수량. 품목 1개당 평균 판매가격">매출단가</span>,
         size: 80,
         accessorFn: (row: any) => {
           const u = unitCostMap.get(`${row.org}__${row.product}`);
@@ -163,32 +163,40 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           return v != null && isFinite(v) ? formatCurrency(v) : "-";
         },
       },
-      { accessorKey: "variableCost", header: "변동비",
+      { accessorKey: "variableCost", header: () => <span title="매출량에 비례하여 변하는 비용 (원재료비, 외주가공비 등 14개 항목 합계)">변동비</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
-      { accessorKey: "grossProfit", header: "매출총이익",
+      { accessorKey: "grossProfit", header: () => <span title="매출액 - 매출원가(변동비+고정비). 제조 활동의 수익성을 나타냅니다">매출총이익</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
-      { accessorKey: "grossMargin", header: "매출총이익율",
+      { accessorKey: "grossMargin", header: () => <span title="매출총이익 / 매출액 × 100. 초록(≥20%) 양호 / 주황(10~20%) 보통 / 빨강(<10%) 주의">매출총이익율</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
           return <span className={v >= 20 ? "text-green-600" : v >= 10 ? "text-amber-600" : "text-red-600"}>{formatPercent(v)}</span>;
         },
       },
-      { accessorKey: "contributionMargin", header: "공헌이익",
+      { accessorKey: "contributionMargin", header: () => <span title="매출액 - 변동비. 고정비를 감당하고 이익을 내는 데 기여하는 금액">공헌이익</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
-      { accessorKey: "contributionRate", header: "공헌이익율",
+      { accessorKey: "contributionRate", header: () => <span title="공헌이익 / 매출액 × 100. 초록(≥30%) 우수 / 주황(15~30%) 보통 / 빨강(<15%) 주의">공헌이익율</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
           return <span className={v >= 30 ? "text-green-600" : v >= 15 ? "text-amber-600" : "text-red-600"}>{formatPercent(v)}</span>;
         },
       },
-      { accessorKey: "grade", header: "ABC",
+      { accessorKey: "grade", header: () => <span title="파레토 ABC 분류. A=매출 상위 80%(핵심), B=80~95%(일반), C=95%~(보조). 음수 매출 품목은 자동 C등급">ABC</span>,
         cell: ({ getValue }: any) => {
           const g = getValue() as string;
-          const color = g === "A" ? "text-green-600 font-bold" : g === "B" ? "text-amber-600" : "text-muted-foreground";
-          return <span className={color}>{g}</span>;
+          const colors: Record<string, string> = {
+            A: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 font-bold",
+            B: "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300",
+            C: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+          };
+          return (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded ${colors[g] || ""}`}>
+              {g}
+            </span>
+          );
         },
       },
     ],
@@ -204,39 +212,42 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           value={summary.productCount}
           format="number"
           icon={<Package className="h-5 w-5" />}
+          description="현재 분석에 포함된 고유 제품/자재 종류의 수입니다"
           formula="501 품목별매출원가 데이터에서 Infra사업본부(설계영업팀 제외) 소속 고유 품목 수"
-          benchmark="품목 다양성이 높을수록 포트폴리오 리스크 분산"
+          benchmark="품목 수가 많으면 매출이 분산되어 리스크가 줄어듭니다. 소수 품목 집중 시 해당 품목 의존도가 높아집니다"
         />
         <KpiCard
           title="평균 매출총이익율"
           value={summary.avgGrossMargin}
           format="percent"
           icon={<TrendingUp className="h-5 w-5" />}
-          formula="가중평균 매출총이익율 = Σ매출총이익.실적 / Σ매출액.실적 × 100"
-          benchmark="제조업 평균 20~30%, 30% 이상이면 양호"
+          description="매출에서 제조원가를 빼고 남는 이익의 비율입니다. 높을수록 수익성이 좋습니다"
+          formula="가중평균 매출총이익율 = Σ매출총이익 / Σ매출액 × 100"
+          benchmark="제조업 평균 20~30%. 30% 이상이면 양호, 10% 미만이면 원가 구조 점검 필요"
         />
         <KpiCard
           title="평균 공헌이익율"
           value={summary.avgContributionRate}
           format="percent"
           icon={<Percent className="h-5 w-5" />}
-          formula="공헌이익율 = (매출액 - 변동비) / 매출액 × 100. 변동비 = 14개 변동원가항목 합계"
-          benchmark="50% 이상이면 고정비 커버 충분, 30% 미만이면 손익분기 위험"
+          description="매출액에서 변동비(매출량에 따라 변하는 비용)를 뺀 이익의 비율입니다. 고정비를 감당할 수 있는 여력을 보여줍니다"
+          formula="공헌이익율 = (매출액 - 변동비) / 매출액 × 100. 변동비 = 원재료비, 외주비 등 14개 변동원가항목 합계"
+          benchmark="50% 이상이면 고정비 충분히 커버, 30~50% 보통, 30% 미만이면 손익분기 위험"
         />
         <KpiCard
           title="최대 원가 항목"
           value={summary.topCostRatio}
           format="percent"
           icon={<Target className="h-5 w-5" />}
-          description={`${summary.topCostCategory} (${formatCurrency(summary.topCostAmount)})`}
-          formula="17개 독립 원가항목 중 실적 합계가 가장 큰 항목 (소계 제외)"
-          benchmark="원재료비 50% 이상 = 자체생산형, 상품매입 50% 이상 = 구매직납형"
+          description={`전체 원가에서 가장 큰 비중을 차지하는 항목: ${summary.topCostCategory} (${formatCurrency(summary.topCostAmount)})`}
+          formula="17개 독립 원가항목 중 실적 합계가 가장 큰 항목의 비중 (소계 제외)"
+          benchmark="원재료비 50%↑ = 자체생산형(원재료 가격 리스크), 상품매입 50%↑ = 구매직납형(공급처 의존)"
         />
       </div>
 
       {/* Charts Row 1: Waterfall + Cost Bucket Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="공헌이익 워터폴" description="매출액 → 변동비 → 공헌이익 → 고정비 → 매출총이익">
+        <ChartCard title="공헌이익 워터폴" description="매출액에서 각 비용을 단계별로 차감하는 흐름입니다. 매출액 → 변동비 차감 → 공헌이익 → 고정비 차감 → 매출총이익. 빨간색=비용 차감, 초록색=이익 잔액">
           <ChartContainer minHeight={320}>
             <BarChart data={waterfall} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -258,7 +269,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
           </ChartContainer>
         </ChartCard>
 
-        <ChartCard title="원가 구성 비중" description="7대 원가 그룹별 비중 (COST_BUCKETS)">
+        <ChartCard title="원가 구성 비중" description="전체 원가를 7대 그룹(재료비, 상품매입비, 인건비, 설비비, 외주비, 물류비, 일반경비)으로 나눈 비중입니다. 가장 큰 조각이 원가 절감의 핵심 대상입니다">
           <ChartContainer minHeight={320}>
             <PieChart>
               <Pie
@@ -290,7 +301,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 원가 프로파일 분포 */}
         {profilePieData.length > 0 && (
-          <ChartCard title="원가구조 프로파일 분포" description="품목별 원가구조 유형 분류 (재료비≥40%=자체생산, 상품매입≥50%=구매직납, 외주≥35%=외주의존 등)">
+          <ChartCard title="원가구조 프로파일 분포" description="각 품목의 원가 구성 비율에 따라 6가지 유형으로 분류합니다. 자체생산형(재료비≥40%), 구매직납형(상품매입≥50%), 외주의존형(외주비≥35%), 인건비집중형(인건비≥35%), 설비집중형(설비비≥30%), 혼합형(특정 항목 지배 없음)">
             <ChartContainer minHeight={360}>
               <PieChart>
                 <Pie
@@ -330,7 +341,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
         )}
 
         {/* Pareto: 공헌이익 + 누적 매출 비중 */}
-        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" description="바: 공헌이익 / 라인: 누적 매출 비중(%). 80%/95% 기준선 표시">
+        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" description="매출 상위 20개 품목의 공헌이익(바)과 누적 매출 비중(라인)입니다. 80% 기준선까지가 A등급(핵심 품목), 95%까지가 B등급(일반), 이후가 C등급(보조)">
           <ChartContainer minHeight={360}>
             <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -378,7 +389,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
 
       {/* Charts Row 3: Team Cost Structure */}
       <div className="grid grid-cols-1 gap-4">
-        <ChartCard title="팀별 원가 구성" description="팀별 7대 원가 그룹 비율 (100% Stacked)">
+        <ChartCard title="팀별 원가 구성" description="각 팀의 원가를 7대 그룹 비율(%)로 보여줍니다. 막대 전체가 100%이며, 각 색상 영역의 넓이가 해당 원가 그룹의 비중입니다. 팀 간 원가 구조 차이를 비교할 수 있습니다">
           <ChartContainer minHeight={360}>
             <BarChart data={teamStackedData} margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -403,7 +414,7 @@ export function ItemCostTab({ summary, ranking, teamEfficiency, waterfall, bucke
       </div>
 
       {/* Table */}
-      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익 상세 (원가유형 배지, 매출단가, ABC 등급 포함)">
+      <ChartCard title="품목별 원가 상세" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급(A=핵심/B=일반/C=보조), 원가유형 배지, 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다">
         <DataTable
           data={ranking}
           columns={tableColumns}

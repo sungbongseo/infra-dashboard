@@ -120,37 +120,39 @@ export function calcABCAnalysis(
     }
   }
 
-  // Sort by sales descending
-  const sorted = Array.from(map.values()).sort((a, b) => b.sales - a.sales);
+  // 양수/음수 분리 — 음수 매출(반품 등)이 파레토 분모를 부풀리는 것 방지
+  const allItems = Array.from(map.values());
+  const positiveItems = allItems.filter((v) => v.sales > 0).sort((a, b) => b.sales - a.sales);
+  const negativeItems = allItems.filter((v) => v.sales <= 0).sort((a, b) => a.sales - b.sales);
 
-  const totalSales = sorted.reduce((sum, v) => sum + Math.abs(v.sales), 0);
+  const positiveTotal = positiveItems.reduce((sum, v) => sum + v.sales, 0);
   let cumulative = 0;
+  const results: ABCItem[] = [];
 
-  const results: ABCItem[] = sorted.map((v) => {
-    cumulative += Math.abs(v.sales);
-    const cumulativeShare =
-      totalSales !== 0 ? (cumulative / totalSales) * 100 : 0;
-
-    let grade: "A" | "B" | "C";
-    if (cumulativeShare <= 80) {
-      grade = "A";
-    } else if (cumulativeShare <= 95) {
-      grade = "B";
-    } else {
-      grade = "C";
-    }
-
-    return {
-      product: v.product,
-      productCode: v.productCode,
-      sales: v.sales,
-      cumulativeShare,
-      grade,
+  // 양수 품목: 정상 파레토 ABC 계산
+  for (const v of positiveItems) {
+    cumulative += v.sales;
+    const cumulativeShare = positiveTotal !== 0 ? (cumulative / positiveTotal) * 100 : 0;
+    const grade: "A" | "B" | "C" = cumulativeShare <= 80 ? "A" : cumulativeShare <= 95 ? "B" : "C";
+    results.push({
+      product: v.product, productCode: v.productCode,
+      sales: v.sales, cumulativeShare, grade,
       grossProfit: v.grossProfit,
       grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
       customerCount: v.customers.size,
-    };
-  });
+    });
+  }
+
+  // 음수 매출 품목: 무조건 C등급
+  for (const v of negativeItems) {
+    results.push({
+      product: v.product, productCode: v.productCode,
+      sales: v.sales, cumulativeShare: 100, grade: "C",
+      grossProfit: v.grossProfit,
+      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      customerCount: v.customers.size,
+    });
+  }
 
   return results;
 }

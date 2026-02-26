@@ -103,7 +103,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
   const varColumns: ColumnDef<typeof variance.categories[0], any>[] = useMemo(
     () => [
       {
-        accessorKey: "category", header: "원가항목", size: 120,
+        accessorKey: "category", header: () => <span title="17개 독립 원가 항목 + 2개 소계. 회색 배경이 소계 행입니다">원가항목</span>, size: 120,
         cell: ({ row }: any) => {
           const v = row.original;
           return (
@@ -113,20 +113,20 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
           );
         },
       },
-      { accessorKey: "plan", header: "계획",
+      { accessorKey: "plan", header: () => <span title="해당 원가 항목의 예산(계획) 금액">계획</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
-      { accessorKey: "actual", header: "실적",
+      { accessorKey: "actual", header: () => <span title="해당 원가 항목의 실제 발생 금액">실적</span>,
         cell: ({ getValue }: any) => formatCurrency(getValue() as number),
       },
-      { accessorKey: "variance", header: "차이",
+      { accessorKey: "variance", header: () => <span title="실적 - 계획. 양수(빨강)=예산 초과, 음수(초록)=절감">차이</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
           const color = v > 0 ? "text-red-600" : v < 0 ? "text-green-600" : "";
           return <span className={color}>{formatCurrency(v)}</span>;
         },
       },
-      { accessorKey: "variancePct", header: "차이율(%)",
+      { accessorKey: "variancePct", header: () => <span title="차이 / |계획| × 100. 계획 대비 몇 % 초과/절감했는지를 나타냅니다">차이율(%)</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
           const color = v > 0 ? "text-red-600" : v < 0 ? "text-green-600" : "";
@@ -135,7 +135,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       },
       {
         id: "costShare",
-        header: "원가비중(%)",
+        header: () => <span title="해당 항목 실적 / 전체 실적 원가 × 100. 전체 원가에서 이 항목이 차지하는 비율">원가비중(%)</span>,
         accessorFn: (row: any) => {
           const total = variance.totalActualCost;
           return total > 0 ? (row.actual / total) * 100 : 0;
@@ -143,7 +143,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
         cell: ({ getValue }: any) => `${(getValue() as number).toFixed(1)}%`,
       },
       {
-        accessorKey: "contributionToTotal", header: "차이 기여도(%)",
+        accessorKey: "contributionToTotal", header: () => <span title="해당 항목의 차이 / 전체 차이 × 100. 이 항목이 전체 원가 변동에 얼마나 영향을 주었는지를 보여줍니다">차이 기여도(%)</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
           return isFinite(v) ? `${v.toFixed(1)}%` : "-";
@@ -162,32 +162,34 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
           value={variance.totalVariance}
           format="currency"
           icon={<TrendingDown className="h-5 w-5" />}
+          description="전체 원가의 실적과 계획의 차이입니다. 양수면 예산을 초과한 것이고, 음수면 원가를 절감한 것입니다"
           formula="17개 독립항목 실적합계 - 계획합계 (소계 제외하여 이중카운팅 방지)"
-          benchmark="양수 = 예산 초과(원가 상승), 음수 = 원가 절감"
+          benchmark="양수 = 예산 초과(원가 상승), 음수 = 원가 절감. 계획 대비 ±5% 이내가 정상 범위"
         />
         <KpiCard
           title="원가 효율"
           value={costEfficiencyRate}
           format="percent"
           icon={<Target className="h-5 w-5" />}
-          formula="원가 효율 = 계획 원가 / 실적 원가 × 100 (높을수록 원가 절감)"
-          benchmark="100% 이상 = 원가 절감 달성, 95~100% 양호"
+          description="계획 대비 실제 원가를 얼마나 효율적으로 사용했는지를 보여줍니다. 100%보다 높으면 계획보다 원가를 절감한 것입니다"
+          formula="원가 효율 = 계획 원가 / 실적 원가 × 100"
+          benchmark="100% 이상 = 원가 절감 달성, 95~100% 양호, 95% 미만 = 원가 관리 개선 필요"
         />
         <KpiCard
           title="예산 초과 항목 수"
           value={variance.overBudgetCount}
           format="number"
           icon={<AlertTriangle className="h-5 w-5" />}
-          description={`17개 원가 항목 중 ${variance.overBudgetCount}개 초과`}
+          description={`17개 원가 항목 중 ${variance.overBudgetCount}개가 계획보다 실적이 초과했습니다`}
           formula="17개 독립 원가 항목 중 실적 > 계획인 항목 수"
-          benchmark="50% 이상이면 전반적 원가 관리 체계 점검 필요"
+          benchmark="절반(9개) 이상이면 전반적 원가 관리 체계 점검 필요. 적을수록 원가 통제가 잘 되고 있다는 의미"
         />
         <KpiCard
           title="최대 초과 금액"
           value={worstItem.amount}
           format="currency"
           icon={<BarChart3 className="h-5 w-5" />}
-          description={worstItem.name}
+          description={`가장 크게 예산을 초과한 항목: ${worstItem.name}. 이 항목의 원가 상승 원인을 우선 분석해야 합니다`}
           formula="계획 대비 실적이 가장 크게 초과한 원가 항목의 차이 금액"
           benchmark="전체 원가의 5% 이상이면 긴급 원인 분석 필요"
         />
@@ -196,7 +198,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 gap-4">
         {/* Chart 1: Plan vs Actual by category */}
-        <ChartCard title="원가 항목별 계획 vs 실적" description="17개 독립 원가 항목 + 2개 소계(제조변동비/제조고정비) 비교 (소계 항목은 참고용)">
+        <ChartCard title="원가 항목별 계획 vs 실적" description="각 원가 항목의 계획 금액(파랑)과 실적 금액(주황)을 비교합니다. 실적이 계획보다 높으면 예산 초과입니다. 소계 2개(제조변동비/제조고정비)는 참고용입니다">
           <ChartContainer minHeight={360}>
             <BarChart data={planVsActualData} margin={{ top: 10, right: 20, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -220,7 +222,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Chart 2: Top 10 Variance Horizontal */}
-        <ChartCard title="원가 차이 Top 10 (항목별)" description="|차이| 상위 10개 항목 (초과: 빨간색, 절감: 초록색)">
+        <ChartCard title="원가 차이 Top 10 (항목별)" description="계획 대비 차이가 가장 큰 10개 원가 항목입니다. 빨간색=예산 초과(원가 상승), 초록색=예산 절감. 차이 절대값이 큰 순서로 정렬됩니다">
           <ChartContainer minHeight={360}>
             <BarChart
               data={top10Variance}
@@ -246,7 +248,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
 
         {/* NEW: 품목별 원가 차이 Top 15 */}
         {itemVarianceChartData.length > 0 && (
-          <ChartCard title="품목별 원가 차이 Top 15" description="예산 초과(빨강) / 절감(초록) 상위 품목">
+          <ChartCard title="품목별 원가 차이 Top 15" description="개별 품목 단위로 원가 차이가 큰 15개입니다. 빨간색 = 해당 품목의 원가가 계획보다 높음, 초록색 = 원가 절감됨. 금액이 클수록 경영 영향이 큽니다">
             <ChartContainer minHeight={360}>
               <BarChart
                 data={itemVarianceChartData}
@@ -276,7 +278,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* NEW: 원가 드라이버 버블 차트 */}
         {driverBubbleData.length > 0 && (
-          <ChartCard title="원가 드라이버 분석" description="X=원가비중(%), Y=차이율(%), 크기=임팩트 스코어 (비중×|차이율|/100)">
+          <ChartCard title="원가 드라이버 분석" description="버블 위치와 크기로 원가 관리 우선순위를 파악합니다. X축=해당 항목이 전체 원가에서 차지하는 비중, Y축=계획 대비 변동률(위=초과, 아래=절감), 버블 크기=비중과 변동률의 복합 영향도. 오른쪽 위의 큰 버블이 가장 시급한 관리 대상입니다">
             <ChartContainer minHeight={380}>
               <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                 <CartesianGrid {...GRID_PROPS} />
@@ -330,7 +332,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
         )}
 
         {/* Chart 3: Team Cost Rate vs GP Rate */}
-        <ChartCard title="팀별 원가율 비교" description="팀별 원가율과 매출총이익율 비교">
+        <ChartCard title="팀별 원가율 비교" description="각 팀의 원가율(매출원가/매출액)과 매출총이익율을 비교합니다. 원가율이 낮고 이익율이 높은 팀이 효율적입니다. 점선(25%)은 업계 평균 기준입니다">
           <ChartContainer minHeight={380}>
             <BarChart data={teamCompareData} margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -351,7 +353,7 @@ export function CostVarianceTab({ variance, teamEfficiency, itemVarianceRanking,
       </div>
 
       {/* Table */}
-      <ChartCard title="원가 항목별 상세 차이" description="17개 독립항목 + 2개 소계 (회색 배경) 포함. 차이 기여도(%) = 해당 항목 차이 / 전체 차이">
+      <ChartCard title="원가 항목별 상세 차이" description="17개 독립 원가 항목과 2개 소계(회색 배경)의 계획/실적/차이 상세입니다. 빨간색=초과, 초록색=절감. 차이 기여도는 각 항목이 전체 차이에 얼마나 영향을 주었는지를 보여줍니다">
         <DataTable
           data={variance.categories}
           columns={varColumns}
