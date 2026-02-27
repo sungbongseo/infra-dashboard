@@ -9,14 +9,12 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
-  PieChart,
-  Pie,
   Cell,
 } from "recharts";
 import { FileText, Globe, Building2, Clock } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, PieOuterLabel } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, formatPercent, TOOLTIP_STYLE, CHART_COLORS } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -69,12 +67,6 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
         "6개월+": p.overdue,
       })),
     [profiles]
-  );
-
-  // 통화별 Pie 데이터
-  const currencyPieData = useMemo(
-    () => currencyExposure.map((c) => ({ name: c.통화, value: c.장부금액 })),
-    [currencyExposure]
   );
 
   // 테이블 컬럼
@@ -195,8 +187,8 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
           value={totalGap}
           format="currency"
           icon={<FileText className="h-5 w-5" />}
-          formula="Σ(출고금액 - 장부금액): 전 거래처의 출고가와 장부가 차이 합산"
-          description="출고금액과 장부금액 사이의 차이 합계입니다. 괴리가 크면 매출 인식 시점 차이, 할인/반품 미반영 등을 점검해야 합니다."
+          formula="출고금액(납품 시 청구액) - 장부금액(현재 회계 잔액)의 합계"
+          description="출고금액은 물품 납품 시 청구한 금액이고, 장부금액은 수금·대손처리·환율변동 등을 반영한 현재 회계상 잔액입니다. 양수(+)이면 일부가 이미 수금되었거나 대손/환차손이 반영된 것이고, 음수(−)이면 연체이자·추가청구 등으로 장부가 늘어난 것입니다."
           benchmark="총 미수금의 5% 이내이면 양호, 10% 이상이면 원인 분석 필요"
           reason="출고-장부 괴리는 매출 인식 오류나 할인/반품 미반영의 신호로, 재무제표 정확성과 내부 통제 건전성을 점검합니다."
         />
@@ -260,8 +252,8 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
       {/* 차트 2: 조직별 출고-장부 괴리 (Grouped Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="조직별 출고-장부 괴리"
-        formula="조직별로 출고금액과 장부금액을 비교, 괴리금액 = 출고금액 - 장부금액"
-        description="영업조직별 출고금액과 장부금액을 비교합니다. 괴리가 클수록 매출 인식 시점 차이나 할인/반품 미반영 가능성이 있습니다."
+        formula="조직별 괴리금액 = Σ 출고금액(납품 시 청구액) − Σ 장부금액(현재 회계 잔액)"
+        description="영업조직별 출고금액(납품 청구액)과 장부금액(회계 잔액)을 비교합니다. 차이가 발생하는 주요 원인은 ① 부분 수금 반영, ② 대손상각 처리, ③ 환율 변동(외화 거래), ④ 할인/반품 미반영 등입니다. 괴리가 큰 조직은 회계 처리 지연 여부를 점검하세요."
         benchmark="괴리율 5% 이내가 양호, 10% 이상이면 점검 필요"
         reason="조직별 괴리를 비교하여 회계 처리 정확성 이슈가 집중된 조직을 식별하고, 내부 통제 강화 대상을 선정합니다."
       >
@@ -283,39 +275,6 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
             <Bar dataKey="출고합계" name="출고금액" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             <Bar dataKey="장부합계" name="장부금액" fill={CHART_COLORS[1]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
           </BarChart>
-        </ChartContainer>
-      </ChartCard>
-
-      {/* 차트 3: 통화별 미수금 분포 (Pie/Donut) */}
-      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
-        title="통화별 미수금 분포"
-        formula="미수채권 데이터의 통화(Currency) 필드 기준으로 장부금액 합산"
-        description="통화별 미수금 분포를 보여줍니다. 외화 비중이 높으면 환율 변동에 따른 환차손 위험에 노출됩니다."
-        benchmark="외화 비중 30% 이상 시 환 헤지 검토"
-        reason="통화별 익스포저를 시각화하여 환율 리스크에 노출된 채권 규모를 파악하고, 환 헤지 전략 수립의 근거를 마련합니다."
-      >
-        <ChartContainer height="h-72 md:h-96">
-          <PieChart>
-            <Pie
-              data={currencyPieData}
-              cx="50%"
-              cy="50%"
-              innerRadius={80}
-              outerRadius={130}
-              dataKey="value"
-              nameKey="name"
-              label={currencyPieData.length <= 8 ? PieOuterLabel : false}
-            >
-              {currencyPieData.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-              ))}
-            </Pie>
-            <RechartsTooltip
-              {...TOOLTIP_STYLE}
-              formatter={(value: any) => formatCurrency(Number(value))}
-            />
-            {currencyPieData.length > 8 && <Legend />}
-          </PieChart>
         </ChartContainer>
       </ChartCard>
 

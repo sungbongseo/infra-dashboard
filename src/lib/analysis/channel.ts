@@ -146,7 +146,7 @@ export function calcSalesByItemCategory(
   >();
 
   for (const row of sales) {
-    const category = (row.품목범주 || row.제품군 || "미분류").trim() || "미분류";
+    const category = (row.품목범주 || row.제품군 || row.대분류 || "미분류").trim() || "미분류";
     const amount = row.판매금액 || 0;
     const qty = row.수량 || 0;
     const existing = map.get(category);

@@ -30,13 +30,13 @@ function SeverityBadge({ severity }: { severity: number }) {
   let label: string;
   let className: string;
   if (severity >= 3) {
-    label = `극심 (${severity.toFixed(1)}σ)`;
+    label = "극심";
     className = "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
   } else if (severity >= 2) {
-    label = `높음 (${severity.toFixed(1)}σ)`;
+    label = "높음";
     className = "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
   } else {
-    label = `보통 (${severity.toFixed(1)}σ)`;
+    label = "보통";
     className = "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
   }
   return (
@@ -93,8 +93,8 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
           value={stats.anomalies.length}
           format="number"
           icon={<AlertTriangle className="h-5 w-5" />}
-          formula="IQR 범위(Q1-1.5*IQR ~ Q3+1.5*IQR) 벗어난 월 수"
-          description="사분위수 범위(IQR) 기반으로 탐지된 월별 매출 이상치 건수입니다. 이상치는 정상적인 매출 변동 범위를 크게 벗어난 월을 의미합니다."
+          formula="정상 매출 범위(하한~상한 기준선)를 벗어난 월 수"
+          description="통계적 기법으로 탐지된 비정상 매출 월 수입니다. 정상 범위를 크게 벗어난 달은 대형 계약, 데이터 오류, 시장 급변 등 특수 요인이 있을 수 있습니다."
           benchmark="전체 데이터의 5% 이내면 정상적인 변동 범위"
           reason="매출 데이터의 이상치를 자동 탐지하여 입력 오류, 비정상 거래, 급변 추세를 조기 발견하고, 데이터 품질을 확보합니다."
         />
@@ -109,21 +109,21 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
           reason="이상치 발생 빈도를 파악하여 매출 변동의 안정성을 평가하고, 높은 비율일 경우 구조적 원인(시장 변화, 특수 거래 등)을 조사합니다."
         />
         <KpiCard
-          title="Q1 (하위 25%)"
+          title="매출 하한 기준"
           value={stats.q1}
           format="currency"
           icon={<TrendingDown className="h-5 w-5" />}
-          formula="월별 매출을 오름차순 정렬 후 25번째 백분위값"
-          description="월별 매출의 1사분위수(Q1)입니다. 이 값 아래로 떨어지면 매출이 하위 25%에 해당합니다."
+          formula="전체 월 매출 중 하위 25% 수준의 금액 (하위 1/4 경계)"
+          description="월 매출이 이 금액 아래로 떨어지면 하위 25%에 해당합니다. 비수기 또는 이상 상황으로 주의가 필요합니다."
           reason="매출 하한 기준선을 설정하여 월 매출이 이 수준 이하로 떨어질 때 비수기 또는 이상 상황을 인지하고, 선제적 영업 활동을 전개합니다."
         />
         <KpiCard
-          title="Q3 (상위 25%)"
+          title="매출 상한 기준"
           value={stats.q3}
           format="currency"
           icon={<Target className="h-5 w-5" />}
-          formula="월별 매출을 오름차순 정렬 후 75번째 백분위값"
-          description="월별 매출의 3사분위수(Q3)입니다. 이 값을 넘으면 매출이 상위 25%에 해당합니다."
+          formula="전체 월 매출 중 상위 25% 수준의 금액 (상위 1/4 경계)"
+          description="월 매출이 이 금액을 넘으면 상위 25%에 해당합니다. 대형 계약이나 일시적 수요 등 특수 요인 확인이 필요합니다."
           reason="매출 상한 기준선을 파악하여 월 매출이 이 수준을 초과할 때 특수 요인(대형 계약, 일시적 수요 등)을 식별하고, 지속 가능성을 검증합니다."
         />
       </div>
@@ -131,8 +131,8 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
       {/* Main chart: monthly sales with anomaly highlighting and reference lines */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 매출 이상치 탐지"
-        formula="IQR 방식: Q1-1.5×IQR 미만 또는 Q3+1.5×IQR 초과 시 이상치"
-        description="각 월의 매출액을 막대그래프로 표시하고, IQR 기반 상한/하한 경계를 기준선으로 나타냅니다. 빨간색 막대는 경계를 벗어난 이상치입니다."
+        formula="월 매출이 정상 범위의 상한/하한 기준선을 크게 벗어나면 이상치로 판정"
+        description="각 월의 매출액을 막대로 표시합니다. 점선은 정상 매출 범위의 상한/하한 기준선이며, 빨간색 막대는 기준선을 벗어난 비정상 매출 월입니다."
         benchmark="이상치가 연속 2개월 이상 나타나면 구조적 문제 점검 필요"
         reason="통계적 기법으로 정상 매출 범위를 시각화하여 비정상적 월을 즉시 식별하고, 원인 규명을 통해 반복 방지 또는 성공 요인 확산에 활용합니다."
       >
@@ -166,7 +166,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
                 stroke={CHART_COLORS[4]}
                 strokeDasharray="4 4"
                 strokeWidth={2}
-                label={{ value: "상한", position: "insideTopRight", fontSize: 11, fill: CHART_COLORS[4] }}
+                label={{ value: "상한 기준선", position: "insideTopRight", fontSize: 11, fill: CHART_COLORS[4] }}
               />
             )}
             {stats.lowerFence > 0 && (
@@ -175,7 +175,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
                 stroke={CHART_COLORS[3]}
                 strokeDasharray="4 4"
                 strokeWidth={2}
-                label={{ value: "하한", position: "insideBottomRight", fontSize: 11, fill: CHART_COLORS[3] }}
+                label={{ value: "하한 기준선", position: "insideBottomRight", fontSize: 11, fill: CHART_COLORS[3] }}
               />
             )}
           </ComposedChart>
@@ -186,7 +186,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
       {stats.enhancedAnomalies.length > 0 && (
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="이상치 상세 분석"
-          description="탐지된 이상치의 월별 상세 정보와 원인 분석을 제공합니다. 행을 클릭하면 주요 변동 거래처를 확인할 수 있습니다."
+          description="기준선을 벗어난 월의 상세 정보입니다. 행을 클릭하면 매출 변동의 주요 원인 거래처를 확인할 수 있습니다."
           reason="이상치 발생 월별 상세 정보를 제공하여 개별 이상치의 원인(특수 계약, 시장 이벤트, 데이터 오류 등)을 추적하고, 후속 조치 우선순위를 결정합니다."
         >
           <div className="overflow-x-auto">
@@ -197,7 +197,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
                   <th className="py-2 px-3 font-medium">월</th>
                   <th className="py-2 px-3 font-medium text-right">매출액</th>
                   <th className="py-2 px-3 font-medium text-center">유형</th>
-                  <th className="py-2 px-3 font-medium text-right">이탈 금액</th>
+                  <th className="py-2 px-3 font-medium text-right">기준선 초과/미달액</th>
                   <th className="py-2 px-3 font-medium text-right">건수</th>
                   <th className="py-2 px-3 font-medium text-right">전월비</th>
                   <th className="py-2 px-3 font-medium text-center">심각도</th>

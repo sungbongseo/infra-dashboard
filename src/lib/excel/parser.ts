@@ -465,7 +465,7 @@ export function parseExcelFile(
         환율: num(row[32]), 판매단가: num(row[35]), 판매금액: num(row[36]),
         장부단가: num(row[37]), 장부금액: num(row[38]), 부가세: num(row[39]),
         총금액: num(row[40]), 영업조직: str(row[42]), 유통경로: str(row[43]),
-        제품군: str(row[44]), 사업부: str(row[46]), 영업그룹: str(row[47]),
+        제품군: str(row[44]), 품목범주: str(row[45]), 사업부: str(row[46]), 영업그룹: str(row[47]),
         영업담당자: str(row[48]), 영업담당자명: str(row[49]), 수주번호: str(row[57]),
         수주유형: str(row[76]), 출고일: str(row[64]),
       }), warnings, "매출리스트");
