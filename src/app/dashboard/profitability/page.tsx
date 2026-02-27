@@ -74,14 +74,18 @@ export default function ProfitabilityPage() {
       return person !== "";
     });
   }, [teamContribution, effectiveOrgNames]);
-  const { filteredProfAnalysis, profAnalysisIsFallback } = useMemo(() => {
+  // 폴백 로직 제거: 필터링 결과가 매출 0이어도 전체 데이터로 대체하지 않음
+  // 대신 hasNoSales 플래그로 UI 경고 표시
+  const { filteredProfAnalysis, profAnalysisHasNoSales, profAnalysisIsFallback } = useMemo(() => {
     const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
     const hasSales = filtered.some((r) => r.매출액?.실적 !== 0);
-    const isFallback = profitabilityAnalysis.length > 0 && filtered.length > 0 && !hasSales;
-    const data = (filtered.length > 0 && hasSales) ? filtered
-      : isFallback ? profitabilityAnalysis
-      : filtered;
-    return { filteredProfAnalysis: data, profAnalysisIsFallback: isFallback };
+    // 필터링된 데이터가 있지만 매출이 없는 경우 경고 표시용 플래그
+    const hasNoSales = filtered.length > 0 && !hasSales;
+    return {
+      filteredProfAnalysis: filtered,  // 항상 필터링된 데이터 사용 (폴백 없음)
+      profAnalysisHasNoSales: hasNoSales,
+      profAnalysisIsFallback: false,  // 더 이상 폴백 사용 안 함
+    };
   }, [profitabilityAnalysis, effectiveOrgNames]);
   const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
   const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
@@ -389,6 +393,13 @@ export default function ProfitabilityPage() {
         <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
           <span className="font-medium">📊 스마트 데이터소스 활성</span>
           <span>기간 필터 적용 → 거래처별품목별 손익(100) 데이터 기준으로 분석</span>
+        </div>
+      )}
+
+      {profAnalysisHasNoSales && !isUsingDateFiltered && (
+        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <span className="font-medium">⚠️ 데이터 없음</span>
+          <span>선택한 조직의 수익성분석 데이터에 매출이 없습니다. 조직 필터를 확인하거나 다른 데이터 파일을 업로드해주세요.</span>
         </div>
       )}
 

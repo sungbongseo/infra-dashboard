@@ -44,6 +44,39 @@ function parsePlanActualDiff(row: unknown[], startIdx: number): PlanActualDiff {
   };
 }
 
+/**
+ * 합계/소계 행 여부 판별 (개선된 정규식)
+ * "합계", "총합계", "소계", "구간합계", "전체합계", "(합계)" 등 다양한 변형 감지
+ */
+const TOTAL_PATTERN = /^(합계|총합계|소계|구간합계|전체합계|총계)$|\(합계\)$|합계$/i;
+
+function isTotalRow(value: string): boolean {
+  const normalized = value.trim();
+  if (!normalized) return false;
+  return TOTAL_PATTERN.test(normalized);
+}
+
+/**
+ * 빈 조직명 비율 검증 - 10% 이상 비어있으면 경고
+ */
+function validateOrgField<T extends Record<string, any>>(
+  records: T[],
+  field: string,
+  warnings: string[],
+  fileType: string
+): void {
+  if (records.length === 0) return;
+
+  const emptyCount = records.filter(r => !String(r[field] || "").trim()).length;
+  const emptyRatio = emptyCount / records.length;
+
+  if (emptyRatio > 0.1) {
+    warnings.push(
+      `[${fileType}] ⚠️ ${field} 필드가 ${(emptyRatio * 100).toFixed(1)}% 비어있음 (${emptyCount}/${records.length}행) - 병합 셀 처리 확인 필요`
+    );
+  }
+}
+
 function parseAgingAmounts(row: unknown[], startIdx: number): AgingAmounts {
   return {
     출고금액: num(row[startIdx]),
@@ -56,43 +89,75 @@ function parseAgingAmounts(row: unknown[], startIdx: number): AgingAmounts {
  * SAP 리포트 병합 셀 처리: 영업조직팀 필드를 하위 행에 전파(fill-down)
  * SAP 계층 리포트에서 영업조직팀은 소계 행에만 표시되고 하위 상세 행은 비어있으므로,
  * 소계 행의 영업조직팀 값을 이후 비어있는 상세 행에 채워넣는다.
- * "합계" 행은 제외하여 전체 합산 중복 방지.
+ *
+ * 개선: 양방향 fill-down으로 역순 병합도 처리
+ * - 1차: 순방향 (위→아래) fill-down
+ * - 2차: 역방향 (아래→위) fill-down (역순 병합 대응)
+ * - "합계/소계" 변형 정규식으로 다양한 패턴 감지
  */
 function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
   records: T[],
+  warnings?: string[],
+  fileType?: string
 ): T[] {
+  // 1차: 순방향 fill-down (기존 로직)
   let currentOrg = "";
   for (const rec of records) {
     const org = rec.영업조직팀.trim();
-    if (org !== "" && org !== "합계") {
+    if (org !== "" && !isTotalRow(org)) {
       currentOrg = org;
     } else if (org === "" && currentOrg !== "") {
       rec.영업조직팀 = currentOrg;
     }
   }
-  // "합계" 행 제거 (전체 소계 → 조직별 상세와 중복)
-  return records.filter((r) => r.영업조직팀.trim() !== "합계");
+
+  // 2차: 역방향 fill-down (역순 병합 대응)
+  // 아직 빈 값인 행을 아래→위로 채움
+  currentOrg = "";
+  for (let i = records.length - 1; i >= 0; i--) {
+    const rec = records[i];
+    const org = rec.영업조직팀.trim();
+    if (org !== "" && !isTotalRow(org)) {
+      currentOrg = org;
+    } else if (org === "" && currentOrg !== "") {
+      rec.영업조직팀 = currentOrg;
+    }
+  }
+
+  // 빈 조직명 검증 (fill-down 후에도 빈 값이 있으면 경고)
+  if (warnings && fileType) {
+    validateOrgField(records, "영업조직팀", warnings, fileType);
+  }
+
+  // "합계/소계" 행 제거 (전체 소계 → 조직별 상세와 중복)
+  return records.filter((r) => !isTotalRow(r.영업조직팀.trim()));
 }
 
 /**
  * SAP 다중 레벨 계층 리포트 fill-down.
  * levels는 상위→하위 순으로 [주필드, ...연관필드] 배열.
  * 상위 레벨 값이 바뀌면 하위 레벨을 리셋하여 교차 오염 방지.
- * "합계"/"소계" 행은 제외.
+ *
+ * 개선: 양방향 fill-down으로 역순 병합도 처리
+ * - 1차: 순방향 (위→아래) fill-down
+ * - 2차: 역방향 (아래→위) fill-down (역순 병합 대응)
+ * - "합계/소계" 변형 정규식으로 다양한 패턴 감지
  */
 function fillDownMultiLevel<T extends Record<string, any>>(
   records: T[],
   levels: string[][],
+  warnings?: string[],
+  fileType?: string
 ): T[] {
   const lastLevelPrimary = levels[levels.length - 1][0];
 
   // 1단계: 최하위 레벨이 원본에서 채워져 있는 행만 상세행으로 표시
   const isDetailRow = records.map((rec) => {
     const val = String(rec[lastLevelPrimary] || "").trim();
-    return val !== "" && val !== "합계" && val !== "소계";
+    return val !== "" && !isTotalRow(val);
   });
 
-  // 2단계: fill-down 수행
+  // 2단계: 순방향 fill-down 수행
   const current: Record<string, string> = {};
   for (const rec of records) {
     for (let i = 0; i < levels.length; i++) {
@@ -100,7 +165,7 @@ function fillDownMultiLevel<T extends Record<string, any>>(
       const primary = fields[0];
       const val = String(rec[primary] || "").trim();
 
-      if (val !== "" && val !== "합계" && val !== "소계") {
+      if (val !== "" && !isTotalRow(val)) {
         // 새 값 감지 → 현재값 갱신
         if (current[primary] !== val) {
           for (const f of fields) {
@@ -124,13 +189,33 @@ function fillDownMultiLevel<T extends Record<string, any>>(
     }
   }
 
-  // 3단계: 상세행만 유지 (소계/합계 행 및 중간 레벨 소계 제거)
+  // 3단계: 역방향 fill-down (역순 병합 대응)
+  // 최상위 레벨(영업조직팀 등)만 역방향 처리 (하위 레벨은 역방향 시 교차 오염 위험)
+  const topLevelFields = levels[0];
+  const topLevelPrimary = topLevelFields[0];
+  let currentTop = "";
+  for (let i = records.length - 1; i >= 0; i--) {
+    const rec = records[i];
+    const val = String(rec[topLevelPrimary] || "").trim();
+    if (val !== "" && !isTotalRow(val)) {
+      currentTop = val;
+    } else if (val === "" && currentTop !== "") {
+      (rec as Record<string, any>)[topLevelPrimary] = currentTop;
+    }
+  }
+
+  // 4단계: 빈 조직명 검증 (fill-down 후에도 빈 값이 있으면 경고)
+  if (warnings && fileType) {
+    validateOrgField(records, topLevelPrimary, warnings, fileType);
+  }
+
+  // 5단계: 상세행만 유지 (소계/합계 행 및 중간 레벨 소계 제거)
   return records.filter((r, idx) => {
     if (!isDetailRow[idx]) return false;
     // 모든 레벨에서 합계/소계 체크
     for (const level of levels) {
       const v = String(r[level[0]] || "").trim();
-      if (v === "합계" || v === "소계") return false;
+      if (isTotalRow(v)) return false;
     }
     return true;
   });
@@ -395,7 +480,7 @@ export function parseExcelFile(
       break;
     case "orgProfit":
       // 방어적 fill-down: 현재 행당 1개 조직 요약이라 no-op이지만, SAP 형식 변경 대비
-      parsed = fillDownHierarchicalOrg(parseOrgProfit(rawData, warnings));
+      parsed = fillDownHierarchicalOrg(parseOrgProfit(rawData, warnings), warnings, "조직별손익");
       break;
     case "teamContribution": {
       // Pre-pass: rawData에서 영업그룹/영업조직팀 fill-down 수행
@@ -408,12 +493,12 @@ export function parseExcelFile(
           const row = rawData[i];
           const g = String(row[1] || "").trim();
           const t = String(row[2] || "").trim();
-          if (g && g !== "합계" && g !== "소계") {
+          if (g && !isTotalRow(g)) {
             if (g !== curGroup) { curGroup = g; curTeam = ""; }
           } else if (!g && curGroup) {
             row[1] = curGroup;
           }
-          if (t && t !== "합계" && t !== "소계") {
+          if (t && !isTotalRow(t)) {
             curTeam = t;
           } else if (!t && curTeam) {
             row[2] = curTeam;
@@ -498,7 +583,7 @@ export function parseExcelFile(
         영업이익: parsePlanActualDiff(row, 32),
       }), warnings, "수익성분석", false);
       // SAP 계층 리포트: 영업조직팀이 소계 행에만 존재하므로 하위 행에 전파
-      parsed = fillDownHierarchicalOrg(r.parsed);
+      parsed = fillDownHierarchicalOrg(r.parsed, warnings, "수익성분석");
       skippedRows = r.skipped;
       break;
     }
@@ -530,7 +615,7 @@ export function parseExcelFile(
         ["거래처중분류"],
         ["거래처소분류"],
         ["매출거래처", "매출거래처명"],
-      ]);
+      ], warnings, "조직별거래처별손익");
       skippedRows = r.skipped;
       break;
     }
@@ -560,7 +645,7 @@ export function parseExcelFile(
         ["영업조직팀"],
         ["매출거래처", "매출거래처명"],
         ["품목", "품목명"],
-      ]);
+      ], warnings, "본부거래처품목손익");
       skippedRows = r.skipped;
       break;
     }
@@ -606,7 +691,7 @@ export function parseExcelFile(
         ["영업조직팀"],
         ["매출거래처", "매출거래처명"],
         ["품목", "품목명", "제품군"],
-      ]);
+      ], warnings, "거래처별품목별손익");
       skippedRows = r.skipped;
       break;
     }
@@ -649,7 +734,7 @@ export function parseExcelFile(
         ["판매사업본부"],
         ["영업조직팀"],
         ["품목"],
-      ]);
+      ], warnings, "품목별매출원가상세");
       // Infra사업본부만 유지 + 설계영업팀 제외
       const beforeFilterCount = filled.length;
       filled = filled.filter(

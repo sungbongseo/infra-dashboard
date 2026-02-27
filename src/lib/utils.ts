@@ -174,7 +174,10 @@ export function aggregateOrgProfit(data: OrgProfitRecord[]): OrgProfitRecord[] {
   const map = new Map<string, OrgProfitRecord>();
 
   for (const row of data) {
-    const key = row.영업조직팀;
+    // 빈 조직명 스킵 (병합 셀 fill-down 실패 시 발생 가능)
+    const key = row.영업조직팀?.trim();
+    if (!key) continue;
+
     const existing = map.get(key);
 
     if (!existing) {
@@ -242,7 +245,12 @@ export function aggregateToCustomerLevel(
   const map = new Map<string, OrgCustomerProfitRecord>();
 
   for (const row of data) {
-    const key = `${row.영업조직팀}||${row.매출거래처}`;
+    // 빈 조직명 또는 빈 거래처 스킵 (병합 셀 fill-down 실패 시 발생 가능)
+    const org = row.영업조직팀?.trim();
+    const customer = row.매출거래처?.trim();
+    if (!org || !customer) continue;
+
+    const key = `${org}||${customer}`;
     const existing = map.get(key);
 
     if (!existing) {
