@@ -14,6 +14,7 @@ import {
   Legend,
   ComposedChart,
   Line,
+  LabelList,
 } from "recharts";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
@@ -22,6 +23,8 @@ import {
   calcSalesByPaymentTerm,
   calcSalesByCustomerCategory,
   calcSalesByItemCategory,
+  groupSmallCategories,
+  groupSmallItemCategories,
 } from "@/lib/analysis/channel";
 import type { SalesRecord } from "@/types";
 
@@ -32,8 +35,14 @@ interface ChannelTabProps {
 
 export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
   const paymentTermSales = useMemo(() => calcSalesByPaymentTerm(filteredSales), [filteredSales]);
-  const customerCategorySales = useMemo(() => calcSalesByCustomerCategory(filteredSales), [filteredSales]);
-  const itemCategorySales = useMemo(() => calcSalesByItemCategory(filteredSales), [filteredSales]);
+  const customerCategorySales = useMemo(
+    () => groupSmallCategories(calcSalesByCustomerCategory(filteredSales), 3),
+    [filteredSales]
+  );
+  const itemCategorySales = useMemo(
+    () => groupSmallItemCategories(calcSalesByItemCategory(filteredSales), 3),
+    [filteredSales]
+  );
 
   return (
     <>
@@ -52,8 +61,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => {
-                if (name === "amount") return [formatCurrency(Number(value)), "매출액"];
-                if (name === "count") return [Number(value).toLocaleString(), "건수"];
+                if (name === "매출액") return [formatCurrency(Number(value)), "매출액"];
                 return [value, name];
               }}
             />
@@ -64,7 +72,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="거래처소분류별 매출"
-        formula="거래처소분류별로 판매금액을 합산하여 비교"
+        formula="거래처소분류별로 판매금액을 합산하여 비교 (3% 미만은 '기타'로 병합)"
         description="거래처 유형별 매출 비중을 보여줍니다."
         benchmark="단일 거래처 유형 의존도 60% 이하가 바람직"
         reason="거래처 유형별 매출 구성을 파악하여 특정 업종/유형 편중 리스크를 진단하고, 신규 시장 개척 방향을 설정합니다."
@@ -117,11 +125,11 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
       </ChartCard>
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-        title="품목범주별 매출 및 평균 단가"
-        formula="품목범주별로 판매금액과 평균 단가를 비교"
-        description="품목 유형별 매출 규모와 평균 단가를 보여줍니다."
-        benchmark="구매직납 비중 30~40%가 적정"
-        reason="품목 범주별 매출 규모와 단가 수준을 비교하여 고마진 품목군의 확대 기회를 발굴하고, 범주 간 가격 경쟁력을 점검합니다."
+        title="제품군별 매출 및 평균 단가"
+        formula="제품군별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)"
+        description="제품군별 매출 규모와 평균 단가를 보여줍니다."
+        benchmark="상위 3개 제품군 집중도 70% 이하가 바람직"
+        reason="제품군별 매출 규모와 단가 수준을 비교하여 고마진 제품군의 확대 기회를 발굴하고, 제품군 간 가격 경쟁력을 점검합니다."
       >
         <ChartContainer height="h-72 md:h-96">
           <ComposedChart data={itemCategorySales}>
@@ -143,15 +151,21 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
             />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
-              formatter={(value: any, name?: string) => {
+              formatter={(value: any, name: any) => {
                 if (name === "매출액") return formatCurrency(Number(value));
                 if (name === "평균단가") return `${formatCurrency(Number(value))}/개`;
-                if (name === "거래건수") return `${Number(value).toLocaleString()}건`;
                 return value;
               }}
             />
             <Legend />
-            <Bar yAxisId="amount" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[8, 8, 0, 0]} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+            <Bar yAxisId="amount" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[8, 8, 0, 0]} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
+              <LabelList
+                dataKey="share"
+                position="top"
+                formatter={(v: any) => `${Number(v).toFixed(1)}%`}
+                style={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              />
+            </Bar>
             <Line yAxisId="price" type="monotone" dataKey="avgUnitPrice" stroke={CHART_COLORS[3]} strokeWidth={2} name="평균단가" dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
           </ComposedChart>
         </ChartContainer>

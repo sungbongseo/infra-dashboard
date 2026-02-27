@@ -146,7 +146,7 @@ export function calcSalesByItemCategory(
   >();
 
   for (const row of sales) {
-    const category = (row.품목범주 || "미분류").trim() || "미분류";
+    const category = (row.품목범주 || row.제품군 || "미분류").trim() || "미분류";
     const amount = row.판매금액 || 0;
     const qty = row.수량 || 0;
     const existing = map.get(category);
@@ -176,6 +176,75 @@ export function calcSalesByItemCategory(
 
   results.sort((a, b) => b.amount - a.amount);
   return results;
+}
+
+// ─── 소규모 카테고리 그룹핑 ──────────────────────────────────
+
+/**
+ * share < threshold% 카테고리를 "기타 (N개)"로 병합
+ */
+export function groupSmallCategories<T extends { amount: number; count: number; share: number }>(
+  items: T[],
+  threshold: number = 3
+): T[] {
+  const major = items.filter((item) => item.share >= threshold);
+  const minor = items.filter((item) => item.share < threshold);
+
+  if (minor.length <= 1) return items;
+
+  const totalAmount = minor.reduce((sum, item) => sum + item.amount, 0);
+  const totalCount = minor.reduce((sum, item) => sum + item.count, 0);
+  const totalShare = minor.reduce((sum, item) => sum + item.share, 0);
+
+  const grouped = {
+    ...minor[0],
+    amount: totalAmount,
+    count: totalCount,
+    share: totalShare,
+  } as T;
+
+  // Set category/channel/term name to "기타 (N개)"
+  const nameKey = Object.keys(grouped).find(
+    (k) => k === "category" || k === "channel" || k === "term"
+  );
+  if (nameKey) {
+    (grouped as Record<string, unknown>)[nameKey] = `기타 (${minor.length}개)`;
+  }
+
+  return [...major, grouped];
+}
+
+/**
+ * ItemCategorySales 전용 그룹핑 (avgUnitPrice 가중평균 처리)
+ */
+export function groupSmallItemCategories(
+  items: ItemCategorySales[],
+  threshold: number = 3
+): ItemCategorySales[] {
+  const major = items.filter((item) => item.share >= threshold);
+  const minor = items.filter((item) => item.share < threshold);
+
+  if (minor.length <= 1) return items;
+
+  const totalAmount = minor.reduce((sum, item) => sum + item.amount, 0);
+  const totalCount = minor.reduce((sum, item) => sum + item.count, 0);
+  const totalShare = minor.reduce((sum, item) => sum + item.share, 0);
+  // 가중평균 단가: Σ(amount) / Σ(amount/avgUnitPrice) — but we need qty
+  // Simplified: amount-weighted average unit price
+  const weightedPrice =
+    totalAmount > 0
+      ? minor.reduce((sum, item) => sum + item.avgUnitPrice * item.amount, 0) / totalAmount
+      : 0;
+
+  const grouped: ItemCategorySales = {
+    category: `기타 (${minor.length}개)`,
+    amount: totalAmount,
+    count: totalCount,
+    share: totalShare,
+    avgUnitPrice: weightedPrice,
+  };
+
+  return [...major, grouped];
 }
 
 // 제품군별 월별 트렌드 (기존 유지 - 추후 제거 가능)

@@ -80,12 +80,13 @@ function monthDistance(from: string, to: string): number {
 function classifySegment(r: number, f: number, m: number): string {
   // VIP: top tier across all dimensions
   if (r >= 4 && f >= 4 && m >= 4) return "VIP";
-  // Loyal: consistently engaged with good spending
+  // At-risk: was frequent but hasn't purchased recently (must precede Loyal)
+  // e.g. r=1, f=4, m=4 → At-risk, not Loyal
+  if (r <= 2 && f >= 3) return "At-risk";
+  // Loyal: consistently engaged with good spending (r≥3 guaranteed since At-risk consumed r≤2)
   if (f >= 3 && m >= 3) return "Loyal";
   // Potential: recently active but not yet frequent
   if (r >= 4 && m >= 2 && f < 3) return "Potential";
-  // At-risk: was frequent but hasn't purchased recently
-  if (r <= 2 && f >= 3) return "At-risk";
   // Dormant: hasn't purchased recently, low frequency, but had meaningful spend
   if (r <= 2 && f <= 2 && m >= 3) return "Dormant";
   // Lost: low on all dimensions
