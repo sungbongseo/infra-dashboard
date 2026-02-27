@@ -30,6 +30,7 @@ const COST_RATE_BINS = [
 
 interface CostTabProps {
   costBarData: Array<Record<string, any>>;
+  isDateFiltered?: boolean;
   costEfficiency: Array<{
     id: string;
     org: string;
@@ -42,7 +43,7 @@ interface CostTabProps {
   }>;
 }
 
-export function CostTab({ costBarData, costEfficiency }: CostTabProps) {
+export function CostTab({ costBarData, costEfficiency, isDateFiltered }: CostTabProps) {
   // 원가율 분포 히스토그램 데이터
   const costRateHistogram = useMemo(() => {
     return COST_RATE_BINS.map((bin) => {
@@ -57,9 +58,12 @@ export function CostTab({ costBarData, costEfficiency }: CostTabProps) {
         {/* Stacked Bar Chart */}
         <ChartCard
           title="담당자별 비용 구성"
+          dataSourceType="snapshot"
+          isDateFiltered={isDateFiltered}
           formula="비용 구성 = 원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비"
           description="각 담당자의 매출을 만들기 위해 들어간 비용을 8가지 항목으로 나누어 쌓아 보여줍니다. 어떤 비용이 가장 큰 비중을 차지하는지, 담당자별로 비용 구조가 어떻게 다른지 한눈에 비교할 수 있습니다."
           benchmark="원재료비 비중이 높으면 원재료 단가 관리가, 상품매입 비중이 높으면 매입처 협상이, 외주비 비중이 높으면 외주비 효율화가 원가 절감의 핵심"
+          reason="담당자별 비용 구조 차이를 비교하여 비효율적인 비용 패턴을 가진 담당자를 식별하고, 원가 절감이 가능한 핵심 비용 항목을 파악합니다"
           className="xl:col-span-2"
         >
           <ChartContainer height="h-80 md:h-[500px]">
@@ -103,14 +107,17 @@ export function CostTab({ costBarData, costEfficiency }: CostTabProps) {
         {/* 원가율 분포 히스토그램 (NEW-B) */}
         <ChartCard
           title="매출원가율 분포"
+          dataSourceType="snapshot"
+          isDateFiltered={isDateFiltered}
           formula="매출원가율 = (8개 원가항목 합계) ÷ 매출액 × 100"
           description="담당자별 매출원가율을 4구간으로 나누어 분포를 보여줍니다. 우수(<70%)는 원가 관리가 양호, 보통(70~85%)은 일반적 수준, 주의(85~95%)는 이익 여력 부족, 위험(≥95%)은 손익분기 근접/적자 상태입니다."
           benchmark="매출원가율 70% 미만이면 원가 관리 우수, 85% 초과 시 이익 구조 점검 필요"
+          reason="원가율 분포를 통해 조직 내 원가 관리 수준의 편차를 파악하고, 위험 구간에 있는 담당자에 대한 선제적 원가 개선 조치를 취할 수 있습니다"
         >
           <ChartContainer height="h-56 md:h-72">
             <BarChart data={costRateHistogram} margin={{ top: 10, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={50} interval={0} />
               <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -129,9 +136,12 @@ export function CostTab({ costBarData, costEfficiency }: CostTabProps) {
       {/* Cost Efficiency Table */}
       <ChartCard
         title="비용 효율성 비교"
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100 | 매출원가율 = 총비용 ÷ 매출액 × 100"
         description="각 담당자의 원재료비율, 상품매입비율, 외주비율, 매출원가율을 소속 조직의 평균값과 나란히 비교하는 표입니다. 조직 평균보다 크게 높은 항목(빨간색 표시)은 비용 절감이 필요한 영역입니다."
         benchmark="조직 평균 대비 5%p(퍼센트포인트) 이상 높으면 주의가 필요합니다"
+        reason="조직 평균 대비 개인별 비용 효율을 비교하여 구체적인 원가 절감 대상과 금액을 특정하고, 비용 관리 코칭의 우선순위를 설정합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

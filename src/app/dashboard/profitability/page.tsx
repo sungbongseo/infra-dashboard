@@ -16,6 +16,7 @@ import {
   calcOrgRatioMetrics,
   calcPlanVsActualHeatmap,
 } from "@/lib/analysis/kpi";
+import { truncateLabel } from "@/components/charts";
 import {
   calcProductProfitability,
   calcCustomerProfitability,
@@ -163,7 +164,7 @@ export default function ProfitabilityPage() {
         const person = (r.영업담당사번 || "").trim();
         return {
           name: person,
-          displayName: person ? `${org}_${person}`.substring(0, 15) : org.substring(0, 15),
+          displayName: truncateLabel(person ? `${org}_${person}` : org, 15),
           org: r.영업조직팀,
           사번: r.영업담당사번,
           공헌이익: r.공헌이익?.실적 ?? 0,
@@ -209,7 +210,7 @@ export default function ProfitabilityPage() {
       .sort((a, b) => Math.abs(b.매출액) - Math.abs(a.매출액))
       .slice(0, 20)
       .map((r) => ({
-        name: r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15),
+        name: truncateLabel(r.id ? `${(r.org || "").trim()}_${r.id}` : (r.org || ""), 15),
         사번: r.id,
         조직: r.org,
         원재료비: r.원재료비,
@@ -273,7 +274,7 @@ export default function ProfitabilityPage() {
     const others = productProfitability.slice(10);
     const othersSales = others.reduce((s, p) => s + p.sales, 0);
     const chartData = top10.map((p) => ({
-      name: p.product.length > 15 ? p.product.substring(0, 15) + "..." : p.product,
+      name: truncateLabel(p.product, 15),
       fullName: p.product,
       value: p.sales,
       margin: p.grossMargin,
@@ -425,31 +426,31 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="pnl" className="space-y-6">
           <ErrorBoundary>
-            <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} />
+            <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
           <ErrorBoundary>
-            <OrgTab bubbleData={bubbleData} />
+            <OrgTab bubbleData={bubbleData} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="contrib" className="space-y-6">
           <ErrorBoundary>
-            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} />
+            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
           <ErrorBoundary>
-            <CostTab costBarData={costBarData} costEfficiency={costEfficiency} />
+            <CostTab costBarData={costBarData} costEfficiency={costEfficiency} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="plan" className="space-y-6">
           <ErrorBoundary>
-            <PlanTab orgRatioMetrics={orgRatioMetrics} heatmapData={heatmapData} />
+            <PlanTab orgRatioMetrics={orgRatioMetrics} heatmapData={heatmapData} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -465,13 +466,14 @@ export default function ProfitabilityPage() {
               profAnalysisIsFallback={profAnalysisIsFallback}
               dateRange={dateRange}
               hasData={effectiveProfAnalysis.length > 0}
+              isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
           <ErrorBoundary>
-            <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} />
+            <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -484,31 +486,32 @@ export default function ProfitabilityPage() {
               marginDriftItems={marginDriftItems}
               isUsingDateFiltered={isUsingDateFiltered}
               dateRange={dateRange}
+              isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="breakeven" className="space-y-6">
           <ErrorBoundary>
-            <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} />
+            <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="whatif" className="space-y-6">
           <ErrorBoundary>
-            <WhatIfTab filteredOrgProfit={filteredOrgProfit} />
+            <WhatIfTab filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="custProfit" className="space-y-6">
           <ErrorBoundary>
-            <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+            <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="custItem" className="space-y-6">
           <ErrorBoundary>
-            <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
+            <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -520,7 +523,7 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="sensitivity" className="space-y-6">
           <ErrorBoundary>
-            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} />
+            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -534,6 +537,7 @@ export default function ProfitabilityPage() {
               bucketBreakdown={costBucketBreakdown}
               planAchievementQuadrant={planAchievementQuadrant}
               unitCost={unitCostAnalysis}
+              isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -545,6 +549,7 @@ export default function ProfitabilityPage() {
               teamEfficiency={teamCostEfficiency}
               itemVarianceRanking={itemVarianceRanking}
               costDrivers={costDriverAnalysis}
+              isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
         </TabsContent>

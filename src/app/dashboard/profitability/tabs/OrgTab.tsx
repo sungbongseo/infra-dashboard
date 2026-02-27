@@ -15,15 +15,19 @@ interface OrgTabProps {
     z: number;
     grossProfit: number;
   }>;
+  isDateFiltered?: boolean;
 }
 
-export function OrgTab({ bubbleData }: OrgTabProps) {
+export function OrgTab({ bubbleData, isDateFiltered }: OrgTabProps) {
   return (
     <ChartCard
       title="조직별 수익성 Matrix"
+      dataSourceType="snapshot"
+      isDateFiltered={isDateFiltered}
       formula="가로축 = 매출액, 세로축 = 영업이익율, 버블 크기 = 매출총이익"
       description="각 조직의 매출 규모, 이익율, 총이익을 한 차트에서 3가지 차원으로 비교합니다. 오른쪽 위에 위치할수록 매출도 크고 이익율도 높은 핵심 조직입니다. 버블이 클수록 매출총이익이 큰 조직입니다."
       benchmark="오른쪽 위: 핵심 조직(고매출, 고수익) | 왼쪽 위: 틈새 조직(저매출, 고수익) | 오른쪽 아래: 개선 필요(고매출, 저수익)"
+      reason="조직별 수익성 비교를 통해 고성과/저성과 조직을 식별하고, 자원 재배분과 베스트 프랙티스 공유의 근거를 마련합니다"
     >
       <ChartContainer height="h-72 md:h-96">
           <ScatterChart>

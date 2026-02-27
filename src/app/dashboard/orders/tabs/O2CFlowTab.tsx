@@ -9,6 +9,7 @@ interface O2CFlowTabProps {
   salesToCollectionRate: number;
   prepaymentAmount: number;
   grossCollections: number;
+  isDateFiltered?: boolean;
 }
 
 export function O2CFlowTab({
@@ -16,13 +17,15 @@ export function O2CFlowTab({
   salesToCollectionRate,
   prepaymentAmount,
   grossCollections,
+  isDateFiltered,
 }: O2CFlowTabProps) {
   return (
-    <ChartCard
+    <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
       title="O2C(주문-수금) 플로우 다이어그램"
       formula="수주금액에서 매출전환(전환율%), 수금완료(수금율%), 미수잔액으로 분기"
       description="주문에서 수금까지의 전체 흐름을 시각적으로 표현합니다. 수주가 매출로 전환되고, 매출이 수금 완료와 미수잔액으로 나뉘는 과정을 보여줍니다. 화살표가 굵을수록 해당 경로의 금액 비중이 큽니다."
       benchmark="전환율 80% 이상, 수금율 90% 이상이면 양호한 O2C(주문-수금) 흐름입니다"
+      reason="Order-to-Cash 전체 흐름을 시각화하여 단계별 전환 효율과 자금 누수 구간을 한눈에 파악합니다."
     >
       <O2CFlowDiagram
         stages={pipelineStages}

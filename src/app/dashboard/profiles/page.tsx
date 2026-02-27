@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CHART_COLORS } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
 import { PerformanceTab } from "./tabs/PerformanceTab";
@@ -28,6 +29,8 @@ export default function ProfilesPage() {
   const { filteredCollections } = useFilteredCollections();
   const { filteredTeamContrib: filteredTeamContribution } = useFilteredTeamContribution();
   const { filteredRecords: allAgingRecords } = useFilteredReceivables();
+  const dateRange = useFilterStore((s) => s.dateRange);
+  const isDateFiltered = !!(dateRange?.from && dateRange?.to);
   // customerItemDetail: 영업조직팀 값이 DEFAULT_INFRA_ORG_NAMES와 불일치할 수 있으므로 org 필터 제거
   // 대신 calcRepProductPortfolio에서 personId/personName으로 필터링함
   const filteredCustomerItemDetail = customerItemDetail;
@@ -232,6 +235,7 @@ export default function ProfilesPage() {
               profilesLength={profiles.length}
               formulaText={formulaText}
               descText={descText}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -243,6 +247,7 @@ export default function ProfilesPage() {
               rankingData={rankingData}
               customerPieData={customerPieData}
               rankFormulaText={rankFormulaText}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -255,13 +260,14 @@ export default function ProfilesPage() {
               selectedCostData={selectedCostData}
               costRadarData={costRadarData}
               costEfficiencyData={costEfficiencyData}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="trend" className="space-y-6">
           <ErrorBoundary>
-            <TrendTab repTrend={repTrend} />
+            <TrendTab repTrend={repTrend} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -270,6 +276,7 @@ export default function ProfilesPage() {
             <ProductTab
               hasCustomerItemDetail={filteredCustomerItemDetail.length > 0}
               productPortfolio={productPortfolio}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>

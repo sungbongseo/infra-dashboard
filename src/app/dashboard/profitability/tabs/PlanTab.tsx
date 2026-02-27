@@ -13,7 +13,7 @@ import type { OrgRatioMetric } from "@/lib/analysis/kpi";
  * isCostItem=true이면 색상 반전 (비용 초과 = 빨간색)
  */
 function getHeatmapBg(rate: number, isCostItem: boolean, actual?: number): string {
-  if (!isFinite(rate)) {
+  if (!isFinite(rate) || rate >= 9999) {
     if (isCostItem && actual && actual > 0) return "#ef4444";
     return "#6b7280";
   }
@@ -44,11 +44,12 @@ interface HeatmapRow {
 }
 
 interface PlanTabProps {
+  isDateFiltered?: boolean;
   orgRatioMetrics: OrgRatioMetric[];
   heatmapData: HeatmapRow[];
 }
 
-export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
+export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTabProps) {
   const [selectedRadarOrgs, setSelectedRadarOrgs] = useState<string[]>([]);
 
   const radarOrgs = useMemo(() => {
@@ -77,9 +78,12 @@ export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
       {/* Radar Chart */}
       <ChartCard
         title="조직별 비율 지표 레이더"
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula="5개 축 = 매출원가율, 매출총이익율, 판관비율, 영업이익율, 공헌이익율"
         description="각 조직의 손익 구조를 5가지 비율 지표로 거미줄 모양의 레이더 차트에 표시합니다. 이익 관련 축(매출총이익율, 영업이익율, 공헌이익율)이 바깥쪽에 있을수록 수익성이 좋고, 비용 관련 축(매출원가율, 판관비율)이 안쪽에 있을수록 효율적입니다. 조직 간 수익 구조 차이를 직관적으로 비교할 수 있습니다."
         benchmark="매출총이익율 30% 이상, 영업이익율 10% 이상, 공헌이익율은 높을수록 양호"
+        reason="조직별 수익 구조를 다차원으로 비교하여 각 조직의 강점과 약점을 한눈에 파악하고, 개선이 필요한 구체적인 지표를 특정합니다"
         action={
           <div className="flex flex-wrap gap-1">
             {orgRatioMetrics.map((r) => (
@@ -138,9 +142,12 @@ export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
       {/* Heatmap */}
       <ChartCard
         title="계획 대비 실적 히트맵"
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula="달성률(%) = 실적 ÷ 계획 × 100"
         description="각 조직의 매출, 이익 등 주요 손익 항목이 연초 계획 대비 몇 % 달성했는지를 색상으로 한눈에 보여줍니다. 수익 항목(매출, 이익)은 달성률이 높을수록 녹색, 비용 항목(원가, 판관비)은 달성률이 낮을수록(예산 절감) 녹색으로 표시됩니다."
         benchmark="수익항목: 녹색 100% 이상 달성, 노랑 80~100%, 빨강 80% 미만 | 비용항목: 색상이 반대(낮을수록 좋음)"
+        reason="계획 대비 실적 괴리를 조직×항목별로 시각화하여 목표 미달 영역을 조기에 발견하고, 긴급 대응이 필요한 조직과 항목의 우선순위를 결정합니다"
       >
         <div className="overflow-x-auto">
           {/* Header */}
@@ -160,7 +167,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData }: PlanTabProps) {
               </div>
               {row.metrics.map((m) => {
                 const rate = m.achievementRate;
-                const noplan = !isFinite(rate);
+                const noplan = !isFinite(rate) || rate >= 9999;
                 const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${rate.toFixed(0)}%`;
                 const bg = getHeatmapBg(rate, m.isCostItem, m.actual);
                 const textColor = (bg === "#fbbf24") ? "text-gray-900" : "text-white";

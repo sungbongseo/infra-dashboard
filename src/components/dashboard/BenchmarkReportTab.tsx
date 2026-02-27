@@ -40,6 +40,7 @@ interface BenchmarkReportTabProps {
   atRiskCustomers: number;
   totalCustomers: number;
   contributionMarginRate: number;
+  isDateFiltered?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────
@@ -144,6 +145,7 @@ export function BenchmarkReportTab({
   atRiskCustomers,
   totalCustomers,
   contributionMarginRate,
+  isDateFiltered,
 }: BenchmarkReportTabProps) {
   // ── Benchmark ──────────────────────────────────────────────
   const actuals = useMemo(
@@ -233,12 +235,13 @@ export function BenchmarkReportTab({
         </Card>
 
         {/* Benchmark Comparison Bar Chart */}
-        <ChartCard
+        <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
           title="벤치마크 비교"
           formula="각 지표의 실적값과 업종 평균을 비교"
           description="자사 실적(파란색)과 업종 평균(회색)을 나란히 비교합니다. 실적이 업종 평균을 초과하면 우수, 90~110% 범위이면 보통, 미만이면 미달로 분류됩니다."
           benchmark="DSO는 낮을수록 우수, 나머지 지표는 높을수록 우수"
           className="xl:col-span-2"
+          reason="산업 벤치마크 대비 자사 위치를 파악하여 경쟁력 수준을 객관적으로 평가하고, 개선 우선순위를 설정합니다."
         >
           <ChartContainer height="h-72 md:h-96">
             <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 30, bottom: 5, left: 20 }}>
@@ -278,9 +281,10 @@ export function BenchmarkReportTab({
       </div>
 
       {/* Status Badges Table */}
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="지표별 상세 비교"
         description="각 지표의 실적, 업종 평균, 격차, 평가 상태를 표로 정리합니다."
+        reason="지표별 업종 평균과의 격차를 수치로 확인하여 구체적인 개선 목표를 설정합니다."
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

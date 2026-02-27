@@ -16,11 +16,12 @@ interface PerformanceTabProps {
   axisMax: number;
   radarData: Array<{ subject: string; value: number; avg: number; fullMark: number }>;
   profilesLength: number;
+  isDateFiltered?: boolean;
   formulaText: string;
   descText: string;
 }
 
-export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, profilesLength, formulaText, descText }: PerformanceTabProps) {
+export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, profilesLength, formulaText, descText, isDateFiltered }: PerformanceTabProps) {
   return (
     <>
       {selected && (
@@ -98,11 +99,12 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
           )}
         </div>
       )}
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="성과 레이더 차트"
         formula={formulaText}
         description={descText}
         benchmark="총점 70점 이상이면 우수, 50~70점이면 보통, 50점 미만이면 개선이 필요합니다"
+        reason="영업사원별 종합 성과를 다차원으로 평가하여 성과 평가의 객관성을 확보하고, 역량 개발 방향을 설정합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <RadarChart data={radarData}>

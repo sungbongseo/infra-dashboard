@@ -88,18 +88,25 @@ export function calcVarianceAnalysisEx(
     const planAmount = r.매출액.계획;
     const actualAmount = r.매출액.실적;
 
-    // 신규 거래: 계획 없던 품목에 실적 발생 → 가격차이로 왜곡되므로 분리
+    /**
+     * 신규 거래 분리 근거:
+     * planQty=0 → planPrice=0/0=NaN이므로 가격차이가 실적 전액으로 잡혀 왜곡됨.
+     * 이를 별도 newTradeAmount로 집계하여 "신규 거래 효과"로 보고.
+     */
     if (planQty === 0 && actualQty > 0) {
       newTradeAmount += actualAmount;
       newTradeCount++;
       continue;
     }
 
-    // 중단 거래: 계획 있었으나 실적 0 → 수량차이로만 정확히 반영됨 (유지)
+    /**
+     * 중단 거래 유지 근거:
+     * planQty>0, actualQty=0 → actualPrice=0, volumeVariance=(0-planQty)*planPrice=-planAmount.
+     * 수량차이에 계획 매출 전액이 음수로 정확히 반영되므로 분산분석에 포함 가능.
+     */
     if (planQty > 0 && actualQty === 0) {
       lostTradeAmount += planAmount;
       lostTradeCount++;
-      // 중단 거래는 분산분석에 포함 (수량차이로 정확히 잡힘)
     }
 
     // Unit price: handle division by zero (qty=0 -> price=0)

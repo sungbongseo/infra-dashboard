@@ -23,9 +23,10 @@ interface ContribTabProps {
   contribByRate: ContribEntry[];
   orgContribPie: Array<{ name: string; value: number }>;
   excludedNegativeContribCount: number;
+  isDateFiltered?: boolean;
 }
 
-export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount }: ContribTabProps) {
+export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, isDateFiltered }: ContribTabProps) {
   return (
     <>
       {/* 팀원별 공헌이익 KPI */}
@@ -38,6 +39,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           formula="소계/합계 행을 제외한 실제 영업 담당자(사번 기준) 수"
           description="소계행을 제외한 실제 영업 담당자 수입니다."
           benchmark="인당 평균 매출이 1억 이상이면 적정 인력, 미만이면 인력 효율 점검"
+          reason="영업 인력 규모를 파악하여 인당 생산성과 적정 인력 수준을 판단하고, 인력 증감 의사결정의 기초 데이터로 활용합니다"
         />
         <KpiCard
           title="1인당 평균 공헌이익"
@@ -46,6 +48,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           formula="1인당 평균 공헌이익 = 전체 공헌이익 합계 ÷ 분석 인원 수"
           description="전체 공헌이익을 담당자 수로 나눈 평균입니다."
           benchmark="인당 공헌이익이 양수면 고정비 회수에 기여, 음수면 해당 인력의 수익성 점검 필요"
+          reason="인당 수익 기여도를 통해 인력 효율성을 객관적으로 평가하고, 인센티브 설계 및 인력 투자 대비 수익률(ROI)을 산출합니다"
         />
         <KpiCard
           title="최고 성과자"
@@ -54,6 +57,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           formula="공헌이익 기준 내림차순 정렬 시 1위 담당자의 공헌이익"
           description={contribRanking.length > 0 ? `${contribRanking[0].org} ${contribRanking[0].사번}` : "-"}
           benchmark="최고 성과자 1인의 비중이 전체의 30% 이상이면 인력 의존도 리스크"
+          reason="최고 성과자의 기여도를 파악하여 핵심 인재 이탈 리스크를 사전 관리하고, 성공 패턴을 다른 영업 담당자에게 전파하는 데 활용합니다"
         />
         <KpiCard
           title="평균 공헌이익율"
@@ -62,15 +66,19 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           formula="전체 공헌이익 합계 ÷ 전체 매출액 합계 × 100"
           description="담당자별 공헌이익율의 산술 평균입니다. 20% 이상이면 양호합니다."
           benchmark="20% 이상 양호, 음수이면 변동비가 매출보다 큰 적자 상태"
+          reason="평균 공헌이익율을 통해 영업 조직 전체의 변동비 관리 수준을 진단하고, 고정비 회수 속도를 가늠할 수 있습니다"
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <ChartCard
           title="담당자별 공헌이익 랭킹"
+          dataSourceType="snapshot"
+          isDateFiltered={isDateFiltered}
           formula="공헌이익 = 매출액 - 변동비(원재료비, 외주비 등)"
           description={`각 영업 담당자가 회사 고정비 회수에 얼마나 기여하는지를 공헌이익 금액 순으로 보여줍니다. 전체 ${contribRanking.length}명 중 상위 담당자일수록 회사 수익에 큰 기여를 하고 있습니다.`}
           benchmark="일반적으로 상위 20% 담당자가 전체 공헌이익의 약 80%를 차지합니다 (파레토 법칙)"
+          reason="담당자별 수익 기여도 순위를 통해 성과 평가, 인센티브 배분, 핵심 인재 리텐션 전략의 객관적 근거를 제공합니다"
           className="xl:col-span-2"
         >
           <ChartContainer height="h-80 md:h-[500px]">
@@ -100,9 +108,12 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
 
         <ChartCard
           title="조직별 공헌이익 비중"
+          dataSourceType="snapshot"
+          isDateFiltered={isDateFiltered}
           formula="비중(%) = 해당 조직의 공헌이익 ÷ 전체 공헌이익 × 100"
           description="전체 공헌이익 중 각 조직이 차지하는 비율을 원형 차트로 보여줍니다. 한 조직에 지나치게 편중되면 해당 조직 실적 부진 시 전체 수익에 큰 타격을 받으므로, 적절한 분산이 중요합니다."
           benchmark="특정 조직 비중이 50%를 넘으면 수익 집중 리스크를 검토해야 합니다"
+          reason="조직별 공헌이익 편중도를 파악하여 특정 조직 의존 리스크를 관리하고, 수익 포트폴리오 다각화 전략을 수립합니다"
         >
           <ChartContainer height="h-56 md:h-72">
               <PieChart>
@@ -137,9 +148,12 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
 
       <ChartCard
         title="담당자별 공헌이익율"
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula="공헌이익율(%) = 공헌이익 ÷ 매출액 × 100"
         description="각 담당자의 매출 100원당 변동비를 빼고 남는 이익 비율입니다. 공헌이익율이 높을수록 적은 매출로도 고정비 회수에 크게 기여하며, 변동비 관리를 효율적으로 하고 있다는 의미입니다."
         benchmark="공헌이익율 20% 이상이면 양호, 음수인 경우 매출보다 변동비가 더 큰 적자 상태"
+        reason="담당자별 이익율 비교를 통해 단순히 매출이 큰 것이 아닌 수익성 높은 영업 활동을 하는 인력을 식별하고, 저이익율 담당자에 대한 코칭 방향을 설정합니다"
       >
         <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={contribByRate} layout="vertical" margin={{ left: 90 }}>

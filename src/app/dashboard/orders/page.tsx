@@ -9,6 +9,7 @@ import { extractMonth } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredOrders, useFilteredSales, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
 import { StatusTab } from "./tabs/StatusTab";
@@ -22,6 +23,8 @@ export default function OrdersAnalysisPage() {
   const { filteredOrders } = useFilteredOrders();
   const { filteredSales } = useFilteredSales();
   const { filteredCollections } = useFilteredCollections();
+  const dateRange = useFilterStore((s) => s.dateRange);
+  const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const monthlyOrders = useMemo(() => {
     const map = new Map<string, { month: string; 수주금액: number; 수주건수: number }>();
@@ -175,19 +178,20 @@ export default function OrdersAnalysisPage() {
               outstandingOrders={outstandingOrders}
               orderCount={filteredOrders.length}
               monthlyOrders={monthlyOrders}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
           <ErrorBoundary>
-            <AnalysisTab orderTypes={orderTypes} leadTimes={leadTimes} />
+            <AnalysisTab orderTypes={orderTypes} leadTimes={leadTimes} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
           <ErrorBoundary>
-            <OrgTab orgOrders={orgOrders} monthlyGap={monthlyGap} />
+            <OrgTab orgOrders={orgOrders} monthlyGap={monthlyGap} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -200,6 +204,7 @@ export default function OrdersAnalysisPage() {
               pipelineResult={pipelineResult}
               pipelineStages={pipelineStages}
               monthlyConversion={monthlyConversion}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -211,6 +216,7 @@ export default function OrdersAnalysisPage() {
               salesToCollectionRate={salesToCollectionRate}
               prepaymentAmount={pipelineResult.prepaymentAmount}
               grossCollections={pipelineResult.grossCollections}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>

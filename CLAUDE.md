@@ -15,7 +15,7 @@ No test framework is configured. Deployed on Vercel.
 
 ## Architecture
 
-**Tech Stack**: Next.js 14 (App Router) / React 18 / TypeScript / Zustand / Recharts / Tailwind CSS / Radix UI / Dexie (IndexedDB)
+**Tech Stack**: Next.js 14 (App Router) / React 18 / TypeScript / Zustand / Recharts / Tailwind CSS / Radix UI / Dexie (IndexedDB) / TanStack Table / Framer Motion
 
 This is a client-side analytics dashboard for 인프라 사업본부 sales data. Users upload Excel files which are parsed in the browser — there is no backend API. Parsed data persists in IndexedDB via Dexie so page refreshes don't require re-uploading files.
 
@@ -45,6 +45,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/app/dashboard/` — Page routes (overview, sales, profitability, receivables, data, orders, profiles)
 - `src/components/dashboard/` — Shared: KpiCard (with sparklines), ChartCard, FileUploader, EmptyState, AnalysisTooltip, GlobalFilterBar, DataTable, ErrorBoundary, LoadingSkeleton, ExportButton, AlertPanel
 - `src/components/ui/` — Radix UI-based primitives
+- `src/components/charts/` — ChartContainer wrapper with shared grid/bar/animation config constants (GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR)
 - `src/lib/excel/` — Excel parsing: `schemas.ts` defines 12 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
 - `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (`useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, etc.) that encapsulate the common filter pattern
@@ -129,7 +130,7 @@ All pages extract tab content into separate components under `tabs/` subdirector
 
 | Page | Tabs |
 |------|------|
-| Overview (`/dashboard`) | 핵심 지표, 조직 분석 |
+| Overview (`/dashboard`) | 핵심 지표, 조직 분석, 재무 건전성, 벤치마크/보고서 (4 tabs) |
 | Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, RFM, CLV, 거래처 이동, FX, 이상치, 코호트, 이탈, 시계열 (12 tabs) |
 | Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 손익분기, 시나리오, 거래처 손익, 거래처×품목, 상세 수익, 민감도, 품목원가, 원가차이 (15 tabs) |
 | Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 선수금, 담당자 인사이트, 채권 상세, 장기 미수 (8 tabs) |

@@ -261,7 +261,7 @@ export function calcSalesForecast(
       month: lastMonth,
       forecast: forecastValue,
       upperBound: forecastValue + 1.96 * predictionSE, // 95% CI
-      lowerBound: forecastValue - 1.96 * predictionSE,
+      lowerBound: Math.max(0, forecastValue - 1.96 * predictionSE),
     });
   }
 

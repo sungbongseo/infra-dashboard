@@ -65,7 +65,8 @@ export default function OverviewPage() {
   const evaluate = useAlertStore((s) => s.evaluate);
   const [showAllInsights, setShowAllInsights] = useState(false);
 
-  const { effectiveOrgNames, comparisonRange } = useFilterContext();
+  const { effectiveOrgNames, comparisonRange, dateRange } = useFilterContext();
+  const isDateFiltered = !!(dateRange?.from && dateRange?.to);
   const { filteredSales, salesList } = useFilteredSales();
   const { filteredOrders, orderList } = useFilteredOrders();
   const { filteredCollections, collectionList } = useFilteredCollections();
@@ -337,6 +338,7 @@ export default function OverviewPage() {
               formula="매출리스트의 모든 장부금액을 합산"
               description="선택한 영업조직에서 발생한 전체 매출 금액의 합계입니다."
               benchmark="전년 동기 대비 10% 이상 성장이면 양호"
+              reason="사업부 전체 매출 규모를 파악하여 성장 추세를 모니터링하고, 목표 대비 진척도를 관리합니다."
             />
             <KpiCard
               title="총 수주액"
@@ -348,6 +350,7 @@ export default function OverviewPage() {
               formula="수주리스트의 모든 장부금액을 합산"
               description="확보한 전체 수주 금액의 합계입니다. 향후 매출의 선행지표입니다."
               benchmark="매출액 대비 수주액이 100% 이상이면 성장 기반 확보"
+              reason="수주 총액으로 미래 매출 파이프라인의 크기를 가늠하고, 수주 감소 시 선제적 영업 활동을 전개합니다."
             />
             <KpiCard
               title="수주잔고"
@@ -358,6 +361,7 @@ export default function OverviewPage() {
               formula="수주잔고 = 총 수주액 − 총 매출액"
               description="계약 체결 후 아직 매출로 전환되지 않은 파이프라인 금액입니다."
               benchmark="매출 대비 50% 이상이면 양호한 파이프라인 보유"
+              reason="수주잔고로 미래 매출 확보 수준을 판단하고, 잔고 부족 시 영업 파이프라인 확충이 필요함을 알립니다."
             />
             <KpiCard
               title="수금율 (총)"
@@ -372,6 +376,7 @@ export default function OverviewPage() {
                 : "매출 중 실제로 현금이 회수된 비율입니다. 선수금도 포함됩니다."
               }
               benchmark="80% 이상이면 양호, 60% 미만이면 수금 관리 점검 필요"
+              reason="매출 대비 현금 회수율로 유동성 건전성을 모니터링하고, 수금 지연 시 즉각 대응합니다."
             />
             <KpiCard
               title="수금율 (순수)"
@@ -381,6 +386,7 @@ export default function OverviewPage() {
               formula="순수 수금율(%) = (총 수금액 − 선수금) ÷ 총 매출액 × 100"
               description={`선수금 ${formatCurrency(collectionRateDetail.prepaymentAmount)}을 제외한 순수 수금율입니다.`}
               benchmark="총 수금율보다 낮은 것이 정상이며, 차이가 클수록 선수금 비중이 높음"
+              reason="선수금을 제외한 실질 수금율로 채권 회수 효율을 정확히 측정하고, 총 수금율과의 차이로 선수금 의존도를 파악합니다."
             />
           </div>
 
@@ -397,6 +403,7 @@ export default function OverviewPage() {
                 : "미수금 에이징 파일이 없어 매출−수금 추정치입니다."
               }
               benchmark="미수금이 월 매출의 2배를 넘으면 현금흐름 위험 신호"
+              reason="미수금 총액으로 채권 규모를 파악하여 유동성 리스크를 관리하고, 수금 우선순위를 결정합니다."
             />
             <KpiCard
               title="영업이익율"
@@ -406,6 +413,7 @@ export default function OverviewPage() {
               formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
               description="매출에서 원가, 인건비, 판관비를 모두 제외한 이익 비율입니다."
               benchmark="인프라 업종 평균 7~8%. 10% 이상 양호, 5% 미만 점검 필요"
+              reason="핵심 수익성 지표로 사업부의 이익 창출 능력을 평가하고, 업종 평균 대비 경쟁력을 진단합니다."
             />
             <KpiCard
               title="매출 계획 달성율"
@@ -415,6 +423,7 @@ export default function OverviewPage() {
               formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100"
               description="매출 목표 대비 실제 달성 비율입니다."
               benchmark="100%가 목표. 90% 이상 양호, 80% 미만 원인 분석 필요"
+              reason="목표 대비 실적 달성도를 추적하여 계획 수립의 정확성과 실행력을 동시에 평가합니다."
             />
             <KpiCard
               title="수주 건수"
@@ -425,6 +434,7 @@ export default function OverviewPage() {
               formula="기간 내 수주 리스트의 총 건수"
               description="분석 기간 내 발생한 수주의 총 건수입니다."
               benchmark="전기 대비 건수 증가면 영업 활발, 건수↓ 금액↑이면 대형화 추세"
+              reason="수주 건수로 영업 활동량의 증감을 파악하고, 건당 단가 변화와 결합하여 영업 패턴 변화를 감지합니다."
             />
           </div>
 
@@ -438,6 +448,7 @@ export default function OverviewPage() {
               formula="예측 정확도(%) = 100 − |실적 − 계획| ÷ 계획 × 100"
               description="매출 계획과 실적의 일치도를 보여줍니다."
               benchmark="90% 이상 우수, 70% 미만 계획 프로세스 개선 필요"
+              reason="계획 대비 실적 일치도를 측정하여 예측 프로세스의 정확성을 평가하고, 자원 배분 효율을 높입니다."
             />
             <KpiCard
               title="수금 효율성"
@@ -447,6 +458,7 @@ export default function OverviewPage() {
               formula="수금 효율성(%) = 수금액 ÷ (기말미수금 + 매출액) × 100"
               description="총 채권 금액 중 실제 수금한 비율입니다. 이전 미수금도 고려합니다."
               benchmark="80% 이상이면 양호한 수금 관리 수준"
+              reason="기존 미수금까지 포함한 종합 수금 효율로 채권 관리 역량을 평가하고, 현금흐름 개선 방향을 도출합니다."
             />
             <KpiCard
               title="영업레버리지"
@@ -456,6 +468,7 @@ export default function OverviewPage() {
               formula="영업레버리지(%) = 실적 영업이익율 ÷ 계획 영업이익율 × 100"
               description="계획 대비 실제 수익성 달성 비율입니다."
               benchmark="100% 이상 계획 초과, 80% 미만 비용 관리 점검 필요"
+              reason="계획 대비 수익성 달성도로 비용 관리 실행력을 평가하고, 미달 시 원가 절감 대책을 수립합니다."
             />
             <KpiCard
               title="공헌이익율"
@@ -465,6 +478,7 @@ export default function OverviewPage() {
               formula="공헌이익율(%) = 공헌이익 ÷ 매출액 × 100"
               description="변동비를 차감한 이익 비율입니다. 고정비 부담 능력을 보여줍니다."
               benchmark="30% 이상 건전한 구조, 20% 미만 원가 절감 필요"
+              reason="변동비 차감 후 고정비 회수 능력을 파악하여 원가 구조의 건전성을 진단하고, 손익분기점 관리에 활용합니다."
             />
             <KpiCard
               title="매출총이익율"
@@ -474,20 +488,22 @@ export default function OverviewPage() {
               formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
               description="직접 제조원가만 차감한 이익 비율입니다."
               benchmark="인프라 업종 20% 이상 양호, 15% 미만 원가 경쟁력 저하"
+              reason="제조원가 효율성을 측정하여 원가 경쟁력 수준을 파악하고, 업종 평균 대비 위치를 확인합니다."
             />
           </div>
 
           {/* Monthly Trend - ChartContainer 적용 */}
-          <ChartCard
+          <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
             title="월별 매출/수주/수금 추이"
             formula="월별로 매출, 수주, 수금 금액을 각각 합산하여 비교"
             description="매월 매출(막대), 수주(막대), 수금(선)의 변화를 비교합니다."
             benchmark="수금선이 매출 막대 위에 있으면 현금흐름 양호"
+            reason="핵심 경영지표의 월별 변화를 한눈에 조망하여 이상 징후를 빠르게 감지하고, 추세 전환 시 즉각 대응합니다."
           >
             <ChartContainer>
               <ComposedChart data={trends}>
                 <CartesianGrid {...GRID_PROPS} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} {...TOOLTIP_STYLE} />
                 <Legend />
@@ -499,16 +515,17 @@ export default function OverviewPage() {
           </ChartCard>
 
           {forecast && forecast.points.length > 3 && (
-            <ChartCard
+            <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
               description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${forecast.stats.avgGrowthRate.toFixed(1)}% 성장률`}
               benchmark="설명력(R제곱)이 70% 이상이면 예측 신뢰도 높음"
+              reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망하고, 자원 배분과 목표 설정에 활용합니다."
             >
               <ChartContainer>
                 <ComposedChart data={forecast.points}>
                   <CartesianGrid {...GRID_PROPS} />
-                  <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                  <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <RechartsTooltip formatter={(v: any) => v != null ? formatCurrency(Number(v)) : "–"} {...TOOLTIP_STYLE} />
                   <Legend />
@@ -524,11 +541,12 @@ export default function OverviewPage() {
         </TabsContent>
 
         <TabsContent value="org-analysis" className="space-y-6">
-          <ChartCard
+          <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
             title="영업조직별 매출 순위"
             formula="조직별 매출액 합계를 큰 순서대로 정렬 (상위 10개)"
             description="각 영업조직의 매출 기여도를 순위로 보여줍니다."
             benchmark="상위 3개 조직이 전체 매출의 60% 이상 차지하면 집중도 높음"
+            reason="조직별 핵심 지표를 비교하여 성과 격차를 파악하고, 자원 재배분 의사결정을 지원합니다."
           >
             <ChartContainer>
               <BarChart data={orgRanking.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
@@ -542,16 +560,17 @@ export default function OverviewPage() {
           </ChartCard>
 
           {filteredOrgProfit.length > 0 && (
-            <ChartCard
+            <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="조직별 계획 대비 실적"
               description="각 조직의 매출 목표와 실제 달성을 비교합니다."
               formula="달성율(%) = 실적 ÷ 계획 × 100"
               benchmark="모든 조직 90% 이상 달성이면 양호"
+              reason="조직별 목표 달성도를 비교하여 실행력이 부족한 조직을 식별하고, 지원·개선 방향을 설정합니다."
             >
               <ChartContainer height="h-56 md:h-72">
                 <BarChart data={filteredOrgProfit.slice(0, 10)}>
                   <CartesianGrid {...GRID_PROPS} />
-                  <XAxis dataKey="영업조직팀" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="영업조직팀" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={50} interval={0} />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                   <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} {...TOOLTIP_STYLE} />
                   <Legend />
@@ -567,11 +586,12 @@ export default function OverviewPage() {
         <TabsContent value="financial-health" className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* 재무 건전성 레이더 */}
-            <ChartCard
+            <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
               title="재무 건전성 레이더"
               formula="각 지표를 0~100 점수로 정규화하여 레이더 차트로 표시"
               description="수금율, 수익성, 계획달성, 예측정확도, 현금효율, 공헌이익 6개 축으로 재무 건전성을 종합 평가합니다."
               benchmark="모든 축이 60점 이상이면 건전, 40점 미만 축은 개선 필요"
+              reason="수익성·유동성·효율성 지표를 종합 평가하여 재무 리스크를 조기에 식별하고, 취약 영역에 집중 대응합니다."
             >
               <ChartContainer>
                 <RadarChart cx="50%" cy="50%" outerRadius="70%" data={healthRadar}>
@@ -585,11 +605,12 @@ export default function OverviewPage() {
 
             {/* 핵심 재무 지표 요약 */}
             <div className="space-y-4">
-              <ChartCard
+              <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
                 title="핵심 재무 지표 요약"
                 formula="각 지표별 현재값을 산업 평균 기준(양호/경고)으로 색상 분류"
                 description="DSO, CCC, 수금율, 이익율 등 핵심 재무 지표를 한눈에 보여줍니다. 녹색은 양호, 황색은 보통, 적색은 주의가 필요한 상태입니다."
                 benchmark="7개 지표 중 5개 이상 양호(녹색)이면 재무 건전성 우수"
+                reason="핵심 재무 지표를 신호등 방식으로 요약하여 경영진이 즉시 주의가 필요한 영역을 식별할 수 있게 합니다."
               >
                 <div className="divide-y">
                   {[
@@ -622,11 +643,12 @@ export default function OverviewPage() {
 
           {/* 인사이트 전체 목록 */}
           {insights.length > 0 && (
-            <ChartCard
+            <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
               title="경영 진단 인사이트"
               formula="매출, 수금, 수익성, 수주, 미수금 5개 영역에 대해 규칙 기반 자동 진단"
               description={`총 ${insights.length}개의 진단 결과가 발견되었습니다. 위험/주의 항목이 있으면 우선적으로 대응하고, 양호 항목은 현 수준을 유지합니다.`}
               benchmark="위험(빨강) 0건 + 주의(황색) 2건 이하이면 안정적 경영 상태"
+              reason="자동화된 경영 진단으로 주요 리스크와 기회를 빠르게 식별하여 의사결정 속도를 높입니다."
             >
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {insights.map((insight) => (
@@ -670,6 +692,7 @@ export default function OverviewPage() {
             atRiskCustomers={highRiskCount}
             totalCustomers={uniqueCustomerCount}
             contributionMarginRate={contributionMarginRate}
+            isDateFiltered={isDateFiltered}
           />
         </TabsContent>
       </Tabs>

@@ -35,9 +35,10 @@ import type { SalesRecord } from "@/types";
 
 interface RfmTabProps {
   filteredSales: SalesRecord[];
+  isDateFiltered?: boolean;
 }
 
-export function RfmTab({ filteredSales }: RfmTabProps) {
+export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
   const rfmScores = useMemo(() => calcRfmScores(filteredSales), [filteredSales]);
   const rfmSummary = useMemo(() => calcRfmSegmentSummary(rfmScores), [rfmScores]);
 
@@ -47,11 +48,12 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
     <>
       {/* 세그먼트 분포 & 세그먼트별 매출 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="RFM 세그먼트 분포 (거래처 수)"
           formula="고객별 최근성, 빈도, 금액을 5단계로 점수화한 뒤 세그먼트 분류"
           description="RFM 분석은 고객을 3가지 기준으로 평가합니다. R(최근성): 마지막 거래가 얼마나 최근인지, F(빈도): 얼마나 자주 거래하는지, M(금액): 총 거래 금액이 얼마인지. 이 점수를 조합하여 VIP(최우수), Loyal(충성), Potential(잠재), At-risk(위험), Dormant(휴면), Lost(이탈) 등 6개 그룹으로 나눕니다."
           benchmark="VIP + Loyal 거래처가 전체의 30% 이상이면 건전한 고객 포트폴리오"
+          reason="고객 포트폴리오 건전성을 평가하여 VIP 집중 관리, 이탈 위험 고객 선제 대응 등 세그먼트별 맞춤 전략을 수립합니다."
         >
           <ChartContainer height="h-72 md:h-80">
               <PieChart>
@@ -106,11 +108,12 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
           </ChartContainer>
         </ChartCard>
 
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="세그먼트별 매출 비중"
           formula="세그먼트별로 고객 매출액(M값)을 합산"
           description="각 고객 등급(세그먼트)이 전체 매출에서 차지하는 금액을 비교합니다. 보통 VIP 소수 고객이 전체 매출의 대부분을 차지하며, 이들의 이탈 방지가 매출 유지의 핵심입니다."
           benchmark="VIP 세그먼트 매출 비중이 60% 이상이면 핵심 고객 관리 프로그램 강화 필요"
+          reason="세그먼트별 매출 기여도를 파악하여 VIP 이탈 시 매출 충격 규모를 예측하고, 등급별 차별화된 영업 자원 배분 근거를 마련합니다."
         >
           <ChartContainer height="h-72 md:h-80">
               <BarChart data={rfmSummary} layout="vertical" margin={{ left: 10 }}>
@@ -135,11 +138,12 @@ export function RfmTab({ filteredSales }: RfmTabProps) {
       </div>
 
       {/* Recency vs Monetary 산점도 */}
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="Recency vs Monetary 분포"
         formula="가로축: 마지막 거래 후 경과 개월, 세로축: 총 매출액, 점 크기: 거래 빈도"
         description="고객을 최근성(가로축)과 매출 규모(세로축)로 배치한 산점도입니다. 점이 클수록 거래 빈도가 높은 고객입니다. 왼쪽 위(최근 거래 + 높은 매출)에 있는 고객이 VIP이고, 오른쪽 아래(오래된 거래 + 낮은 매출)에 있는 고객은 이탈 위험군입니다."
         benchmark="왼쪽 위에 큰 점이 많을수록 건전한 고객 구조"
+        reason="고객별 최근 거래 활동과 매출 규모를 동시에 시각화하여 이탈 징후가 있는 고가치 고객을 빠르게 식별하고, 영업 우선순위를 결정합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <ScatterChart margin={{ top: 10, right: 30, bottom: 10, left: 10 }}>

@@ -24,6 +24,7 @@ interface PersonInsightTabProps {
   portfolio: PersonPortfolio[];
   healthData: PersonHealthData[];
   customerRepDetail: CustomerRepDetail[];
+  isDateFiltered?: boolean;
 }
 
 const GRADE_COLORS: Record<string, string> = {
@@ -39,7 +40,7 @@ const RISK_BADGE_MAP: Record<string, { variant: "destructive" | "warning" | "suc
   low: { variant: "success", label: "양호" },
 };
 
-export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: PersonInsightTabProps) {
+export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isDateFiltered }: PersonInsightTabProps) {
   // KPI 계산
   const personCount = portfolio.length;
   const avgCustomerCount = personCount > 0
@@ -142,6 +143,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
           icon={<Users className="h-5 w-5" />}
           formula="미수금 잔액을 보유한 고유 영업담당자 수"
           description="현재 미수금 관리 책임이 있는 영업담당자 수입니다."
+          reason="담당자별 관리 역량 분석의 기초 데이터로, 회수 조직의 인력 구성과 업무 분배 적정성을 평가합니다."
         />
         <KpiCard
           title="1인당 평균 거래처"
@@ -151,6 +153,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
           formula="전체 관리 거래처 수 ÷ 담당자 수"
           description="담당자 1인당 관리하는 미수금 거래처 수의 평균입니다. 높을수록 업무 부하가 큽니다."
           benchmark="1인당 10개 이상이면 관리 품질 저하 우려"
+          reason="담당자별 업무 부하를 진단하여 과부하 인력을 식별하고, 적절한 거래처 재배분을 통해 수금 품질을 유지합니다."
         />
         <KpiCard
           title="고위험 보유 담당자"
@@ -160,6 +163,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
           formula="고위험 등급 거래처를 1개 이상 보유한 담당자 수"
           description="고위험 거래처를 관리 중인 담당자 수입니다. 이 담당자들에 대한 집중 모니터링이 필요합니다."
           benchmark="0명이 이상적이며, 발생 시 즉시 수금 계획 수립"
+          reason="고위험 거래처 담당자를 특정하여 집중 지원과 모니터링을 제공하고, 대손 발생 시 책임 소재를 명확히 합니다."
         />
         <KpiCard
           title="미수금 과집중 담당자"
@@ -169,15 +173,17 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
           formula="HHI(허핀달-허쉬만 지수) > 0.25인 담당자 수"
           description="미수금이 소수 거래처에 과도하게 집중된 담당자 수입니다. 해당 거래처 부도 시 큰 손실 위험이 있습니다."
           benchmark="HHI 0.25 이상은 과집중, 0.15 이하가 이상적"
+          reason="미수금 집중도가 높은 담당자를 식별하여 특정 거래처 부도 시 연쇄 손실 위험을 사전에 차단합니다."
         />
       </div>
 
       {/* Chart 1: 담당자별 미수금 건전성 (100% Stacked Horizontal Bar) */}
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="담당자별 미수금 건전성"
         formula="정상(1~2개월, 녹색) / 주의(3~5개월, 노랑) / 연체(6개월+, 빨강) 비율"
         description="담당자별 미수금의 연령 구성을 비교합니다. 빨간 영역이 넓은 담당자는 수금 관리가 시급합니다."
         benchmark="정상 비율 80% 이상이 우수, 연체 비율 20% 이상이면 경고"
+        reason="담당자별 채권 건전성을 시각적으로 비교하여 수금 관리가 부진한 인력을 특정하고, 역량 강화 또는 업무 재배분을 결정합니다."
       >
         <ChartContainer height="h-80 md:h-[500px]">
           <BarChart data={healthTop15} layout="vertical" margin={{ left: 60 }}>
@@ -196,11 +202,12 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
       </ChartCard>
 
       {/* Chart 2: 수금 효율 랭킹 (Horizontal Bar) */}
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="담당자별 수금 효율 랭킹"
         formula="정상비율 = (1~2개월 미수금) ÷ 총 미수금 × 100\n등급: A(80%+) B(60%+) C(40%+) D(40%미만)"
         description="정상 비율이 높을수록 수금 관리가 우수합니다. 등급별 색상으로 한눈에 효율성을 비교할 수 있습니다."
         benchmark="A등급(80%+)이 전체의 50% 이상이면 양호"
+        reason="담당자별 수금 효율을 등급화하여 우수 사례를 발굴하고, 하위 등급 담당자에게 베스트 프랙티스를 전파합니다."
       >
         <ChartContainer height="h-80 md:h-[500px]">
           <BarChart data={efficiencyData} layout="vertical" margin={{ left: 60, right: 30 }}>
@@ -221,10 +228,11 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail }: P
       </ChartCard>
 
       {/* Table: 거래처×담당자 상세 */}
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="거래처×담당자 상세"
         formula="거래처별 미수금에 담당자·조직·리스크 등급·여신사용률을 결합한 통합 뷰"
         description="특정 담당자 또는 거래처를 검색하여 미수금 현황과 리스크를 상세 확인할 수 있습니다."
+        reason="거래처와 담당자의 교차 정보를 통합 조회하여 회수 책임을 명확히 하고, 개별 건 추적 관리를 지원합니다."
       >
         <DataTable
           data={customerRepDetail}

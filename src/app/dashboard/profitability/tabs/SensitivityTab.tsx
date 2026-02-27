@@ -21,6 +21,7 @@ import type { SensitivityCell } from "@/lib/analysis/sensitivityAnalysis";
 // ─── Props ──────────────────────────────────────────────────────
 
 interface SensitivityTabProps {
+  isDateFiltered?: boolean;
   baseSales: number;
   baseGrossProfit: number;
   baseOpProfit: number;
@@ -79,6 +80,7 @@ const STEPS = [-20, -10, -5, 0, 5, 10, 20];
 // ─── Component ──────────────────────────────────────────────────
 
 export function SensitivityTab({
+  isDateFiltered,
   baseSales,
   baseGrossProfit,
   baseOpProfit,
@@ -126,6 +128,7 @@ export function SensitivityTab({
           formula="손익 데이터의 매출액 합계"
           description="민감도 분석의 기준이 되는 현재 매출액입니다. 가격과 물량 변동에 따른 변화를 이 기준 대비 %로 표시합니다."
           benchmark="기준 매출이 0이면 민감도 분석을 수행할 수 없습니다"
+          reason="현재 매출 수준을 기준점으로 설정하여 가격·물량 변동 시나리오별 영향을 정량적으로 비교하고, 영업 목표 설정의 기초 데이터를 제공합니다"
         />
         <KpiCard
           title="기준 매출총이익"
@@ -134,6 +137,7 @@ export function SensitivityTab({
           formula="매출총이익 = 매출액 - 매출원가"
           description="현재 매출총이익입니다. 가격 변동은 매출총이익에 직접 영향을 주고, 물량 변동은 원가 증가를 수반하므로 영향이 비대칭입니다."
           benchmark="매출총이익률 20% 이상이면 가격 인하 여력이 있는 구조입니다"
+          reason="가격과 물량 변동이 매출총이익에 미치는 비대칭적 영향을 파악하여 가격 인하 여력과 물량 확대 전략의 수익성 영향을 사전에 검증합니다"
         />
         <KpiCard
           title="기준 영업이익"
@@ -142,6 +146,7 @@ export function SensitivityTab({
           formula="영업이익 = 매출총이익 - 판관비"
           description="현재 영업이익입니다. 판관비는 고정비로 가정하므로, 매출 증가 시 영업이익 개선 효과가 매출총이익보다 더 크게 나타납니다(레버리지 효과)."
           benchmark="영업이익이 음수인 경우 가격/물량 어느 쪽으로 개선이 효과적인지 히트맵에서 확인하세요"
+          reason="고정비 레버리지 효과를 포함한 영업이익 민감도를 분석하여 매출 변동 시 이익 변화의 배율을 파악하고, 손익분기점까지의 여유를 관리합니다"
         />
       </div>
 
@@ -168,9 +173,12 @@ export function SensitivityTab({
       {/* Heatmap grid */}
       <ChartCard
         title={`가격 x 물량 민감도 히트맵 (${metricLabel} 변동률)`}
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula={`${metricLabel} 변동률(%) = (시나리오 ${metricLabel} - 기준 ${metricLabel}) / |기준 ${metricLabel}| x 100`}
         description={`가격(열)과 물량(행)을 동시에 변동시켰을 때 ${metricLabel}이 기준 대비 몇 % 변하는지 보여줍니다. 녹색이 진할수록 개선, 빨간색이 진할수록 악화됩니다. 파란 테두리 셀이 현재 상태(변동 없음)입니다.`}
         benchmark="대각선 방향(가격+물량 동시 변동)의 색상 변화가 가장 급격하며, 이는 두 변수의 복합 효과를 나타냅니다"
+        reason="가격과 물량의 동시 변동이 수익에 미치는 복합 효과를 한눈에 파악하여, 가격 인상+물량 감소 등 현실적 시나리오의 손익 영향을 사전에 시뮬레이션합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs">
@@ -226,9 +234,12 @@ export function SensitivityTab({
       {/* Summary chart: price vs volume impact lines */}
       <ChartCard
         title={`단일 변수 영향 비교 (${metricLabel})`}
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
         formula={`파란선: 물량 고정(0%) 시 가격 변동 효과 / 녹색선: 가격 고정(0%) 시 물량 변동 효과`}
         description={`가격만 변동하거나 물량만 변동할 때 ${metricLabel}이 어떻게 달라지는지 비교합니다. 두 선의 기울기 차이로 어떤 변수가 ${metricLabel}에 더 민감한지 파악할 수 있습니다. 기울기가 가파를수록 해당 변수의 영향력이 큽니다.`}
         benchmark="가격 변동 선이 물량 변동 선보다 가파르면 가격 전략이, 반대면 물량 확대 전략이 더 효과적입니다"
+        reason="가격 전략과 물량 전략 중 어느 쪽이 수익 개선에 더 효과적인지를 정량적으로 비교하여 영업 전략의 우선순위를 결정합니다"
       >
         <ChartContainer height="h-64 md:h-80">
           <ComposedChart data={impactChartData}>

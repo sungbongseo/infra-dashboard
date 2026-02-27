@@ -6,7 +6,7 @@ import {
   Tooltip as RechartsTooltip, Cell,
   PieChart, Pie, Legend, ReferenceLine,
 } from "recharts";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Package, TrendingUp, Calendar } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ interface MarginErosionEntry {
 }
 
 interface ProductTabProps {
+  isDateFiltered?: boolean;
   productProfitability: ProductEntry[];
   productPieData: Array<{ name: string; fullName: string; value: number; margin: number }>;
   customerProfitability: CustomerEntry[];
@@ -54,6 +55,7 @@ export function ProductTab({
   productProfitability, productPieData, customerProfitability,
   productWeightedGPRate, marginErosion,
   isUsingDateFiltered, profAnalysisIsFallback, dateRange, hasData,
+  isDateFiltered,
 }: ProductTabProps) {
   if (!hasData) {
     return (
@@ -91,6 +93,7 @@ export function ProductTab({
           formula="동일 품목명으로 묶은 후 고유 품목 수 합계"
           description="현재 수익성 분석 대상이 되는 전체 품목(제품/상품)의 수입니다. 품목이 많을수록 매출 포트폴리오가 다양합니다."
           benchmark="품목 수가 많을수록 매출 다각화가 되어 있으나, 관리 복잡도도 증가합니다"
+          reason="분석 대상 품목 규모를 파악하여 제품 포트폴리오의 다양성과 관리 효율성 간 균형을 평가합니다"
         />
         <KpiCard
           title="최고 수익 품목"
@@ -100,6 +103,7 @@ export function ProductTab({
           formula="전체 품목 중 매출총이익(매출 - 원가)이 가장 큰 품목"
           description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%). 이 품목이 전체 이익에 가장 크게 기여하고 있습니다.` : "데이터 없음"}
           benchmark="최고 수익 품목이 전체 이익의 50% 이상이면 제품 집중도가 높아 리스크 관리 필요"
+          reason="핵심 수익 품목을 식별하여 해당 품목의 수요 변화, 경쟁사 동향, 원가 변동에 대한 집중 모니터링 체계를 수립합니다"
         />
         <KpiCard
           title="가중평균 매출총이익율"
@@ -108,20 +112,24 @@ export function ProductTab({
           formula="가중평균 매출총이익율(%) = 전체 매출총이익 합계 ÷ 전체 매출액 합계 × 100"
           description="매출 규모가 큰 품목의 이익율이 더 많이 반영된 평균 이익율입니다. 단순 평균보다 실제 수익 구조를 더 정확하게 보여줍니다."
           benchmark="제조업 평균 20~30%, 30% 이상이면 양호한 제품 포트폴리오"
+          reason="가중평균 이익율을 통해 전체 제품 포트폴리오의 실질적 수익성을 진단하고, 제품 믹스 전략의 효과를 정량적으로 평가합니다"
         />
       </div>
 
       <ChartCard
         title="품목별 매출총이익 Top 15"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="매출총이익 = 매출액 - 매출원가"
         description="매출총이익이 큰 순서대로 상위 15개 품목을 수평 막대로 보여줍니다. 녹색 막대는 이익을 내는 품목, 빨간색 막대는 원가가 매출보다 커서 손실이 발생하는 품목입니다. 손실 품목은 가격 인상이나 원가 절감 검토가 필요합니다."
         benchmark="양수(녹색)는 이익 품목, 음수(빨간색)는 손실 품목으로 원가 구조 점검 필요"
+        reason="품목별 마진 기여도를 파악하여 수익성 높은 제품에 영업력을 집중하고, 저마진·적자 품목의 가격 재설정 또는 단종 여부를 판단합니다"
       >
         <ErrorBoundary>
           <ChartContainer height="h-80 md:h-[500px]">
               <BarChart
                 data={productProfitability.slice(0, 15).map((p) => ({
-                  name: p.product.length > 10 ? p.product.substring(0, 10) + "..." : p.product,
+                  name: truncateLabel(p.product, 10),
                   fullName: p.product,
                   매출총이익: p.grossProfit,
                   매출총이익율: p.grossMargin,
@@ -160,9 +168,12 @@ export function ProductTab({
 
       <ChartCard
         title="제품 포트폴리오 (매출 비중)"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="매출 비중(%) = 각 품목 매출액 ÷ 전체 매출액 × 100"
         description="전체 매출에서 각 품목이 차지하는 비중을 원형 차트로 보여줍니다. 상위 10개 품목을 표시하며, 나머지는 '기타'로 묶습니다. 특정 품목 의존도가 너무 높으면 리스크가 크므로, 매출 포트폴리오를 다양화하는 것이 안정적입니다."
         benchmark="단일 품목 비중이 30% 이상이면 집중도가 높아 리스크 관리 필요"
+        reason="제품 포트폴리오의 집중도를 파악하여 특정 품목 의존 리스크를 관리하고, 매출 다각화를 통한 안정적 수익 기반을 구축합니다"
       >
         <ErrorBoundary>
           <ChartContainer height="h-80 md:h-96">
@@ -220,7 +231,7 @@ export function ProductTab({
                   verticalAlign="bottom"
                   height={36}
                   wrapperStyle={{ fontSize: "11px" }}
-                  formatter={(value) => (value as string).length > 20 ? (value as string).substring(0, 20) + "..." : value}
+                  formatter={(v: any) => truncateLabel(String(v), 20)}
                 />
               </PieChart>
           </ChartContainer>
@@ -229,9 +240,12 @@ export function ProductTab({
 
       <ChartCard
         title="거래처별 수익성 분석"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
         description="각 거래처(고객사)별로 매출액, 매출총이익, 영업이익과 각각의 이익율, 취급 품목 수를 표로 정리합니다. 매출은 크지만 이익율이 낮은 거래처는 거래 조건 재협상이 필요하며, 이익율이 높은 거래처는 관계를 강화해야 합니다."
         benchmark="매출총이익율 30% 이상 양호, 영업이익율 10% 이상 양호. 음수 이익율은 거래 손실 발생 중"
+        reason="거래처별 수익성 차이를 파악하여 고마진 거래처와의 관계를 강화하고, 저마진 거래처에 대한 가격 재협상이나 거래 조건 개선의 근거를 마련합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -273,16 +287,19 @@ export function ProductTab({
       {marginErosion.length > 0 && (
         <ChartCard
           title="마진 침식 분석 (품목별 Top 20)"
+          dataSourceType="period"
+          isDateFiltered={isDateFiltered}
           formula="마진침식 = 실적 매출총이익율 - 계획 매출총이익율"
           description="계획 대비 실적 매출총이익율이 크게 하락한 품목 상위 20개를 보여줍니다. 빨간색(음수)은 계획보다 마진이 악화된 것이며, 원가 상승·가격 하락·제품 믹스 변화 등이 원인일 수 있습니다. 영향액 = 실적매출 × 침식률로, 마진 악화로 인한 추정 이익 손실 금액입니다."
           benchmark="마진 침식이 -5%p 이상이면 긴급 원인 분석이 필요합니다. 가격 재설정, 원가 절감, 또는 해당 품목 전략 재검토를 권장합니다."
+          reason="마진 침식 트렌드를 조기에 감지하여 원가 상승이나 가격 하락에 의한 수익성 훼손을 방어하고, 긴급 대응이 필요한 품목의 우선순위를 결정합니다"
         >
           <ErrorBoundary>
             <ChartContainer height="h-80 md:h-[500px]">
                 <BarChart data={marginErosion.slice(0, 20)} layout="vertical" margin={{ left: 90 }}>
                   <CartesianGrid {...GRID_PROPS} />
                   <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                  <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 12)} />
+                  <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 9 }} tickFormatter={(v) => truncateLabel(String(v), 12)} />
                   <RechartsTooltip
                     content={({ active, payload, label }: any) => {
                       if (!active || !payload?.length) return null;

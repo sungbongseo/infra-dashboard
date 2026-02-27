@@ -47,6 +47,7 @@ interface DsoTabProps {
   filteredSales: SalesRecord[];
   filteredTeamContrib: any[];
   filteredCollections: CollectionRecord[];
+  isDateFiltered?: boolean;
 }
 
 interface MonthlyCollectionRate {
@@ -94,7 +95,7 @@ function calcMonthlyCollectionRate(
     });
 }
 
-export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filteredCollections }: DsoTabProps) {
+export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filteredCollections, isDateFiltered }: DsoTabProps) {
   const dsoMetrics = useMemo(
     () => calcDSOByOrg(allRecords, filteredSales),
     [allRecords, filteredSales]
@@ -240,6 +241,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           formula="DSO(일) = 총 미수금 ÷ 월평균 매출액 × 30"
           description="DSO(매출채권 회수기간)는 매출이 발생한 뒤 현금으로 회수되기까지 걸리는 평균 일수입니다. 이 숫자가 작을수록 현금 회수가 빠르다는 뜻입니다."
           benchmark="건자재/인프라 업종 평균은 45~60일입니다. 30일 미만이면 우수, 60일 초과이면 주의가 필요합니다"
+          reason="DSO는 현금흐름 건전성의 핵심 선행지표로, 증가 추세 시 자금 압박을 사전 경고하여 선제적 회수 독촉이 가능합니다."
         />
         <KpiCard
           title="평균 CCC(현금순환주기)"
@@ -249,6 +251,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           formula="CCC = DSO(매출채권 회수기간) + DIO(재고 보유기간) - DPO(매입채무 지급기간)\n현재 DIO는 0으로 설정 (재고 데이터 미보유)"
           description="CCC(현금순환주기)는 돈을 지출한 시점부터 다시 돈을 회수하기까지 걸리는 기간입니다. 값이 작거나 음수일수록 현금 회전이 빨라 자금 운용에 유리합니다."
           benchmark="0일 미만이면 우수, 0~30일이면 양호, 30~60일이면 보통, 60일 초과이면 주의가 필요합니다"
+          reason="CCC는 운전자본 효율성의 종합 지표로, DSO와 DPO의 균형을 통해 자금 조달 필요성과 유동성 전략을 수립합니다."
         />
         <KpiCard
           title="평균 DPO(매입채무 지급기간)"
@@ -258,6 +261,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           formula="매출원가율 기준 업종 평균 추정값\n원가율 80% 이상은 45일, 60~80%는 35일, 60% 미만은 30일"
           description="DPO(매입채무 지급기간)는 원자재를 구매한 뒤 대금을 지급하기까지 걸리는 일수 추정치입니다. 길수록 현금을 오래 보유할 수 있어 유리하지만, 거래 관계를 고려해야 합니다."
           benchmark="DPO가 길수록 운전자본 관리에 유리합니다. 다만 너무 길면 거래처와의 관계에 영향을 줄 수 있습니다"
+          reason="DPO를 파악하여 매입채무 지급 전략을 최적화하고, 협력사 관계를 해치지 않는 범위에서 현금 보유 기간을 극대화합니다."
         />
         <KpiCard
           title="분석 조직 수"
@@ -267,6 +271,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           formula="미수금 데이터와 매출 데이터가 모두 존재하는 고유 조직 수"
           description="DSO(매출채권 회수기간)와 CCC(현금순환주기) 분석이 가능한 조직 수입니다. 미수금 데이터와 매출 데이터가 모두 있는 조직만 포함됩니다."
           benchmark="전체 영업조직 대비 분석 가능 조직이 80% 이상이면 데이터 커버리지 양호"
+          reason="분석 커버리지를 확인하여 데이터 누락 조직을 식별하고, DSO/CCC 분석의 신뢰성을 담보합니다."
         />
       </div>
 
@@ -286,11 +291,12 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         </div>
       )}
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="조직별 DSO(매출채권 회수기간)"
         formula="DSO(일) = 조직별 미수금 합계 ÷ 월평균 매출 × 30\n색상: 녹색(우수, <30일), 파랑(양호, 30~45일), 노랑(보통, 45~60일), 빨강(주의, >60일)"
         description="각 조직이 매출채권을 회수하는 데 평균 며칠이 걸리는지 보여줍니다. DSO(매출채권 회수기간)가 짧을수록 현금 회수가 빠르며 자금 관리가 효율적입니다."
         benchmark="건자재/인프라 업종 평균 DSO는 45일입니다. 30일 미만이면 최상위 수준입니다"
+        reason="조직간 DSO를 비교하여 수금 효율이 낮은 조직을 특정하고, 베스트 프랙티스 공유와 수금 프로세스 개선을 추진합니다."
       >
         <ChartContainer height="h-64 md:h-80">
             <BarChart data={dsoChartData} layout="vertical" margin={{ left: 80 }}>
@@ -321,16 +327,17 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
 
       {/* DSO Trend */}
       {dsoTrend.length > 1 && (
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="월별 DSO 추세"
           formula="DSO(일) = 해당월 추정 미수금 ÷ 3개월 이동평균 매출 × 30\n미수금은 월별 매출 비중으로 배분하여 추정"
           description="월별 DSO(매출채권 회수일수) 변화를 추적합니다. DSO가 지속적으로 증가하면 현금흐름 악화 신호이므로 수금 프로세스를 재점검해야 합니다."
           benchmark="3개월 연속 DSO 증가면 수금 전략 점검"
+          reason="DSO 추세를 시계열로 분석하여 현금흐름 악화 징후를 조기에 감지하고, 악화 원인(매출 증가 vs 수금 지연)을 구분합니다."
         >
           <ChartContainer height="h-64 md:h-80">
               <ComposedChart data={dsoTrend}>
                 <CartesianGrid {...GRID_PROPS} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                 <YAxis
                   yAxisId="dso"
                   tick={{ fontSize: 11 }}
@@ -359,16 +366,17 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
 
       {/* Collection Rate Trend */}
       {collectionRateTrend.length > 1 && (
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="월별 수금율 추세"
           formula="수금율(%) = 월별 수금액 ÷ 월별 매출액 × 100"
           description="매월 매출 대비 수금 비율의 변화를 보여줍니다. 수금율이 100% 이상이면 이전 미수금까지 회수하고 있다는 뜻이고, 100% 미만이면 미수금이 쌓이고 있다는 의미입니다."
           benchmark="수금율이 90% 이상이면 양호, 80% 미만이면 채권 관리 강화가 필요합니다"
+          reason="월별 수금율 추이를 통해 미수금 누적 여부를 조기에 파악하고, 수금 목표 대비 실적을 관리합니다."
         >
           <ChartContainer height="h-64 md:h-80">
               <ComposedChart data={collectionRateTrend}>
                 <CartesianGrid {...GRID_PROPS} />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+                <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
                 <YAxis
                   yAxisId="amount"
                   tick={{ fontSize: 11 }}
@@ -397,11 +405,12 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         </ChartCard>
       )}
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="조직별 CCC(현금순환주기) 상세 분석"
         formula="CCC = DSO(매출채권 회수기간) - DPO(매입채무 지급기간)\nDSO: 매출 후 현금 회수까지 걸리는 일수\nDPO: 구매 후 대금 지급까지 걸리는 일수 (추정값)\n재고 보유기간(DIO)은 데이터 부재로 0일 적용"
         description="조직별 현금순환주기를 보여줍니다. CCC(현금순환주기)가 음수이면 물건 대금을 지급하기 전에 매출 대금을 먼저 회수하는 우수한 상태입니다."
         benchmark="CCC가 0일 미만이면 우수, 30일 이내이면 양호합니다"
+        reason="조직별 CCC를 비교하여 운전자본 효율성 격차를 진단하고, CCC가 긴 조직의 DSO/DPO 개선 방향을 제시합니다."
         action={<ExportButton data={cccExportData} fileName="CCC분석" />}
       >
         <DataTable

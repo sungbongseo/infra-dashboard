@@ -24,9 +24,10 @@ import type { SalesRecord } from "@/types";
 
 interface FxTabProps {
   filteredSales: SalesRecord[];
+  isDateFiltered?: boolean;
 }
 
-export function FxTab({ filteredSales }: FxTabProps) {
+export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
   const fxImpact = useMemo(() => calcCurrencySales(filteredSales), [filteredSales]);
   const monthlyFxTrend = useMemo(() => calcMonthlyFxTrend(filteredSales), [filteredSales]);
   const fxPnL = useMemo(() => calcFxPnL(filteredSales), [filteredSales]);
@@ -47,6 +48,7 @@ export function FxTab({ filteredSales }: FxTabProps) {
           formula="해외매출 비중(%) = 해외매출(원화 환산) ÷ 총매출(원화) × 100"
           description="전체 매출 중 외화(해외) 거래가 차지하는 비율입니다. 이 비중이 높을수록 원/달러, 원/엔 등 환율 변동에 따라 실적이 크게 흔들릴 수 있습니다."
           benchmark="30%를 넘으면 환리스크 헤지(환율 변동 대비) 전략 필요"
+          reason="외화 매출 비중을 파악하여 환율 변동에 따른 실적 영향 규모를 예측하고, 환헤지 전략 수립의 근거를 마련합니다."
         />
         <KpiCard
           title="해외매출액"
@@ -56,6 +58,7 @@ export function FxTab({ filteredSales }: FxTabProps) {
           formula="거래통화가 원화(KRW)가 아닌 매출의 장부금액을 합산"
           description="외화(달러, 유로, 엔 등)로 거래된 매출을 원화로 환산한 금액의 합계입니다. 환율 변동에 따라 같은 외화 금액이라도 원화 환산 금액이 달라질 수 있습니다."
           benchmark="전기 대비 해외매출 증감을 모니터링하여 수출 경쟁력을 추적"
+          reason="해외매출 절대 규모를 추적하여 수출 사업의 성장 추이를 파악하고, 환율 변동 시 원화 환산 영향액을 산정합니다."
         />
         <KpiCard
           title="거래 통화 수"
@@ -65,6 +68,7 @@ export function FxTab({ filteredSales }: FxTabProps) {
           formula="중복 없이 거래에 사용된 통화 종류 수를 세기"
           description="매출 거래에 사용된 통화(KRW, USD, EUR, JPY 등)의 종류 수입니다. 통화가 다양할수록 여러 해외 시장에 진출해 있다는 의미이지만, 환율 관리 복잡도도 높아집니다."
           benchmark="3개 이상 통화이면 환리스크 관리 체계 구축 필요"
+          reason="거래에 사용되는 통화 다양성을 확인하여 환율 관리 복잡도를 진단하고, 통화별 맞춤 헤지 전략의 필요성을 판단합니다."
         />
         <KpiCard
           title="FX 효과"
@@ -74,20 +78,22 @@ export function FxTab({ filteredSales }: FxTabProps) {
           formula="FX 효과(원) = Σ(실제 장부금액 − 판매금액 × 평균환율)"
           description="각 거래의 실제 적용 환율과 기간 내 가중평균 환율의 차이에서 발생한 환차익 또는 환차손의 추정 금액입니다. 환율이 유리하게 적용된 거래가 많으면 양수(이익), 불리하면 음수(손실)로 나타납니다."
           benchmark="양수이면 환차익(이득), 음수이면 환차손(손해)"
+          reason="환율 변동이 실적에 미치는 순효과를 금액으로 산출하여 환리스크 노출 규모를 정량화하고, 환헤지 활동의 성과를 평가합니다."
         />
       </div>
 
       {/* 월별 내수/해외 매출 추이 */}
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 내수/해외 매출 추이"
         formula="월별로 원화(내수)와 외화(해외) 매출을 각각 합산"
         description="매월 내수 매출(파랑 막대)과 해외 매출(보라 막대)이 어떻게 변하는지 보여줍니다. 오른쪽 축의 선은 해외매출 비중(%)을 나타냅니다. 해외매출 비중이 급변하면 환율 리스크 관리 전략을 재검토해야 합니다."
         benchmark="해외매출 비중 추이가 안정적이면 양호, 급등 또는 급락 시 원인 분석 필요"
+        reason="내수/해외 매출 구성의 월별 변화를 추적하여 수출 비중 급변 시점을 포착하고, 환리스크 관리 전략의 재검토 시점을 판단합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <ComposedChart data={monthlyFxTrend}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis
                 yAxisId="left"
                 tick={{ fontSize: 11 }}
@@ -145,11 +151,12 @@ export function FxTab({ filteredSales }: FxTabProps) {
 
       {/* 통화별 매출 분포 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="통화별 매출 분포"
           formula="거래통화별로 장부금액(원화 환산)을 합산"
           description="KRW(원화), USD(달러), EUR(유로) 등 거래에 사용된 통화별 매출 규모를 비교합니다. 원화 외에 특정 외화에 매출이 집중되어 있으면 해당 통화의 환율 변동이 실적에 큰 영향을 미칩니다."
           benchmark="특정 외화 의존도가 50%를 넘으면 통화 분산 또는 환헤지 필요"
+          reason="통화별 매출 집중도를 파악하여 특정 통화 환율 급변 시 영향 규모를 사전에 산정하고, 통화 분산 또는 집중 헤지 전략을 수립합니다."
         >
           <ChartContainer height="h-72 md:h-96">
               <BarChart
@@ -208,11 +215,12 @@ export function FxTab({ filteredSales }: FxTabProps) {
 
         {/* 통화별 환율 및 FX 손익 */}
         {fxPnL.length > 0 && (
-          <ChartCard
+          <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
             title="통화별 가중평균 환율 및 거래 현황"
             formula="가중평균환율 = 원화 장부금액 ÷ 원래 통화 판매금액"
             description="외화 통화별로 실제 적용된 가중평균 환율과 거래 규모를 표로 보여줍니다. 같은 통화라도 거래 시점에 따라 환율이 다르며, FX 효과 열에서 환차익(+) 또는 환차손(-)을 확인할 수 있습니다."
             benchmark="FX 효과가 양수(녹색)이면 환율이 유리하게 적용됨, 음수(적색)이면 불리하게 적용됨"
+            reason="통화별 실제 적용 환율과 FX 손익을 상세히 파악하여 환율 유/불리 거래 패턴을 분석하고, 향후 환율 협상 및 결제 시점 전략에 반영합니다."
           >
             <div className="h-72 md:h-96 overflow-auto">
               <table className="w-full text-sm">

@@ -14,9 +14,10 @@ import type { RepProductPortfolio } from "@/lib/analysis/profiling";
 interface ProductTabProps {
   hasCustomerItemDetail: boolean;
   productPortfolio: RepProductPortfolio | null;
+  isDateFiltered?: boolean;
 }
 
-export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductTabProps) {
+export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFiltered }: ProductTabProps) {
   if (!hasCustomerItemDetail) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
@@ -80,11 +81,12 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
         </Card>
       </div>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="품목별 매출 비중 (Top 10)"
         formula="매출 비중(%) = 품목 매출액 ÷ 담당자 총 매출 × 100"
         description="영업사원별 제품 구성 비율을 보여줍니다. 다양한 제품을 균형 있게 판매하면 시장 변동에 따른 리스크가 분산됩니다."
         benchmark="단일 제품 의존도가 50% 이상이면 포트폴리오 분산 필요"
+        reason="영업사원별 제품 포트폴리오를 분석하여 특정 제품 편중을 파악하고, 크로스셀링 기회를 발굴합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <PieChart>
@@ -107,11 +109,12 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio }: ProductT
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="품목별 수익성 분석"
         formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
         description="각 품목의 매출액, 매출총이익, 이익율을 정리합니다. 매출은 크지만 이익율이 낮은 품목은 가격 또는 원가 구조 개선이 필요합니다."
         benchmark="매출총이익율 25% 이상이면 양호, 10% 미만이면 가격 또는 원가 재검토 필요"
+        reason="품목별 수익성을 비교하여 고마진 제품 확대와 저마진 제품의 가격·원가 개선 전략을 수립합니다."
         action={<ExportButton data={productPortfolio.productMix.map((p) => ({
           품목: p.product, 품목명: p.productName, 제품군: p.productGroup,
           매출액: p.salesAmount, 매출총이익: p.grossProfit,

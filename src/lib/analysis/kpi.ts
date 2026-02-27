@@ -322,7 +322,7 @@ export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanV
         const field = r[key] as { 계획: number; 실적: number; 차이: number };
         const plan = field.계획;
         const actual = field.실적;
-        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? Infinity : 0;
+        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? 9999 : 0;
         return {
           name: label,
           plan,

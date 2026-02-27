@@ -27,20 +27,22 @@ import type { SalesRecord } from "@/types";
 
 interface ChannelTabProps {
   filteredSales: SalesRecord[];
+  isDateFiltered?: boolean;
 }
 
-export function ChannelTab({ filteredSales }: ChannelTabProps) {
+export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
   const paymentTermSales = useMemo(() => calcSalesByPaymentTerm(filteredSales), [filteredSales]);
   const customerCategorySales = useMemo(() => calcSalesByCustomerCategory(filteredSales), [filteredSales]);
   const itemCategorySales = useMemo(() => calcSalesByItemCategory(filteredSales), [filteredSales]);
 
   return (
     <>
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="결제조건별 매출 분포"
         formula="결제조건별로 판매금액을 합산하여 비교"
         description="현금, 30일, 60일 등 결제조건별 매출 분포를 보여줍니다."
         benchmark="현금 및 30일 이내 결제 비중이 50% 이상이면 현금흐름 양호"
+        reason="결제조건별 매출 분포를 분석하여 현금흐름 영향을 파악하고, 장기 결제조건의 비중 증가를 조기 감지하여 운전자본 관리에 반영합니다."
       >
         <ChartContainer height="h-72 md:h-96">
           <BarChart data={paymentTermSales.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
@@ -60,11 +62,12 @@ export function ChannelTab({ filteredSales }: ChannelTabProps) {
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="거래처소분류별 매출"
         formula="거래처소분류별로 판매금액을 합산하여 비교"
         description="거래처 유형별 매출 비중을 보여줍니다."
         benchmark="단일 거래처 유형 의존도 60% 이하가 바람직"
+        reason="거래처 유형별 매출 구성을 파악하여 특정 업종/유형 편중 리스크를 진단하고, 신규 시장 개척 방향을 설정합니다."
       >
         <ChartContainer height="h-72 md:h-96">
           <PieChart>
@@ -113,11 +116,12 @@ export function ChannelTab({ filteredSales }: ChannelTabProps) {
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="품목범주별 매출 및 평균 단가"
         formula="품목범주별로 판매금액과 평균 단가를 비교"
         description="품목 유형별 매출 규모와 평균 단가를 보여줍니다."
         benchmark="구매직납 비중 30~40%가 적정"
+        reason="품목 범주별 매출 규모와 단가 수준을 비교하여 고마진 품목군의 확대 기회를 발굴하고, 범주 간 가격 경쟁력을 점검합니다."
       >
         <ChartContainer height="h-72 md:h-96">
           <ComposedChart data={itemCategorySales}>

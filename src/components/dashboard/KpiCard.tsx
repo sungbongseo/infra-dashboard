@@ -17,6 +17,7 @@ interface KpiCardProps {
   description?: string;
   formula?: string;
   benchmark?: string;
+  reason?: string;
   icon?: React.ReactNode;
   compact?: boolean;
   onClick?: () => void;
@@ -31,12 +32,13 @@ export function KpiCard({
   description,
   formula,
   benchmark,
+  reason,
   icon,
   compact = true,
   onClick,
 }: KpiCardProps) {
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
-  const hasTooltip = description || formula || benchmark;
+  const hasTooltip = description || formula || benchmark || reason;
 
   // Sparkline: convert number[] to chart data points
   const sparkChartData = sparklineData && sparklineData.length >= 2
@@ -71,20 +73,26 @@ export function KpiCard({
                     <TooltipContent side="bottom" sideOffset={8} className="max-w-sm p-3 z-[60]">
                       {formula && (
                         <div className="mb-2">
-                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 산출 로직</p>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 계산방법</p>
                           <p className="font-mono text-xs bg-muted/50 rounded px-2 py-1 whitespace-pre-line">{formula}</p>
                         </div>
                       )}
                       {description && (
                         <div className="mb-2">
-                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📖 해석</p>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-1">📖 해석방법</p>
                           <p className="text-xs leading-relaxed">{description}</p>
                         </div>
                       )}
                       {benchmark && (
-                        <div className="pt-1.5 border-t">
-                          <p className="text-[11px] font-semibold text-muted-foreground mb-0.5">🎯 기준</p>
+                        <div className={reason ? "mb-2" : "pt-1.5 border-t"}>
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-0.5">📏 분석기준</p>
                           <p className="text-xs">{benchmark}</p>
+                        </div>
+                      )}
+                      {reason && (
+                        <div className="pt-1.5 border-t">
+                          <p className="text-[11px] font-semibold text-muted-foreground mb-0.5">💡 분석 필요 이유</p>
+                          <p className="text-xs leading-relaxed">{reason}</p>
                         </div>
                       )}
                     </TooltipContent>

@@ -277,6 +277,9 @@ export function calcProductContributionRanking(data: ItemCostDetailRecord[]): Pr
     });
   }
 
+  // 부동소수점 보정: 마지막 양수 항목의 cumSalesShare를 정확히 100%로
+  if (result.length > 0) result[result.length - 1].cumSalesShare = 100;
+
   // 공헌이익 ≤ 0 또는 매출 ≤ 0: 무조건 C등급
   for (let idx = 0; idx < negativeItems.length; idx++) {
     const item = negativeItems[idx];

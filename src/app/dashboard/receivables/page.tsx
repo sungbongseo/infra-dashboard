@@ -11,6 +11,7 @@ import { calcCustomerAgingProfile, calcCurrencyExposure, calcOrgInvoiceBookGap, 
 import { calcLongTermSummary, calcLongTermCustomers, calcLongTermByOrg, calcBadDebtProvision } from "@/lib/analysis/longTermReceivable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
 import { StatusTab } from "./tabs/StatusTab";
@@ -28,6 +29,8 @@ export default function ReceivablesPage() {
   const { filteredSales } = useFilteredSales();
   const { filteredTeamContrib } = useFilteredTeamContribution();
   const { filteredCollections } = useFilteredCollections();
+  const dateRange = useFilterStore((s) => s.dateRange);
+  const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const hasData = allRecords.length > 0;
 
@@ -89,7 +92,7 @@ export default function ReceivablesPage() {
 
         <TabsContent value="status" className="space-y-6">
           <ErrorBoundary>
-            <StatusTab summary={summary} byOrg={byOrg} highRiskCount={highRiskCount} />
+            <StatusTab summary={summary} byOrg={byOrg} highRiskCount={highRiskCount} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -100,13 +103,14 @@ export default function ReceivablesPage() {
               risks={risks}
               highRiskCount={highRiskCount}
               mediumRiskCount={mediumRiskCount}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="credit" className="space-y-6">
           <ErrorBoundary>
-            <CreditTab allRecords={allRecords} />
+            <CreditTab allRecords={allRecords} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -117,6 +121,7 @@ export default function ReceivablesPage() {
               filteredSales={filteredSales}
               filteredTeamContrib={filteredTeamContrib}
               filteredCollections={filteredCollections}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -128,6 +133,7 @@ export default function ReceivablesPage() {
               currencyExposure={currencyExposure}
               orgGap={orgInvoiceBookGap}
               weightedDays={weightedAgingDays}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -139,6 +145,7 @@ export default function ReceivablesPage() {
               customers={longTermCustomers}
               byOrg={longTermByOrg}
               provision={badDebtProvision}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -150,6 +157,7 @@ export default function ReceivablesPage() {
               orgPrepayments={orgPrepayments}
               monthlyPrepayments={monthlyPrepayments}
               hasCollections={filteredCollections.length > 0}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>
@@ -160,6 +168,7 @@ export default function ReceivablesPage() {
               portfolio={personPortfolio}
               healthData={personHealthData}
               customerRepDetail={customerRepDetail}
+              isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
         </TabsContent>

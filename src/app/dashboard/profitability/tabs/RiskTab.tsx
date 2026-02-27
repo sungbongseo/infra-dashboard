@@ -37,12 +37,13 @@ const QUADRANT_ICONS: Record<ProfitRiskData["quadrant"], React.ReactNode> = {
 };
 
 interface RiskTabProps {
+  isDateFiltered?: boolean;
   filteredOrgProfit: any[];
   allReceivableRecords: any[];
   filteredSales: any[];
 }
 
-export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales }: RiskTabProps) {
+export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales, isDateFiltered }: RiskTabProps) {
   const profitRiskResult = useMemo(
     () => calcProfitRiskMatrixEx(filteredOrgProfit, allReceivableRecords, filteredSales),
     [filteredOrgProfit, allReceivableRecords, filteredSales]
@@ -67,9 +68,12 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
       )}
       <ChartCard
         title="수익성 x 리스크 매트릭스"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="가로축 = 영업이익율(%), 세로축 = 리스크 점수 = 3개월 이상 장기미수금 / 총 미수금 × 100"
         description="각 조직의 수익성(영업이익율)과 미수금 회수 리스크를 동시에 비교하는 2차원 분석입니다. 리스크 점수는 미수금 중 90일(3개월) 이상 장기 연체된 금액의 비율로 산출되며, 높을수록 미수금 부실화 위험이 큽니다. 오른쪽 아래에 위치할수록 수익은 높고 리스크는 낮은 이상적인 조직입니다."
         benchmark="영업이익율 5% 기준선과 리스크 점수 40점 기준선으로 4개 사분면(스타, 안정형, 주의, 위험)으로 분류"
+        reason="수익성과 미수금 리스크를 동시에 분석하여 안정적 수익원과 위험 요인을 구분하고, 조직별 차등 관리 전략과 포트폴리오 균형을 수립합니다"
       >
         <ErrorBoundary>
           <ChartContainer height="h-72 md:h-96">

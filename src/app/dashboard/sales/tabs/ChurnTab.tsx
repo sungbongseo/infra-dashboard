@@ -16,7 +16,7 @@ import {
 import { AlertTriangle, Users, DollarSign, ShieldAlert } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { predictChurn } from "@/lib/analysis/churnPrediction";
@@ -24,6 +24,7 @@ import type { SalesRecord } from "@/types";
 
 interface ChurnTabProps {
   filteredSales: SalesRecord[];
+  isDateFiltered?: boolean;
 }
 
 const RISK_LEVEL_COLORS: Record<string, string> = {
@@ -40,7 +41,7 @@ const RISK_LEVEL_LABELS: Record<string, string> = {
   low: "양호",
 };
 
-export function ChurnTab({ filteredSales }: ChurnTabProps) {
+export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
   const churnSummary = useMemo(() => predictChurn(filteredSales), [filteredSales]);
 
   // Risk distribution for pie chart
@@ -92,6 +93,7 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
           formula="매출 데이터에서 중복 없이 매출처 수 집계"
           description="거래 이력이 있는 전체 거래처 수입니다. 이탈 분석의 모집단이 되며, 이 수 대비 위험 등급 비율로 포트폴리오 건전성을 판단합니다."
           benchmark="활성 거래처가 50개 미만이면 소수 의존 리스크"
+          reason="이탈 분석의 모집단 규모를 확인하여 분석 결과의 대표성을 검증하고, 전체 거래처 기반의 건전성 수준을 파악합니다."
         />
         <KpiCard
           title="이탈 위험 거래처"
@@ -101,6 +103,7 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
           formula="이탈 점수 기준 '위험' 또는 '주의' 등급 거래처 수"
           description="이탈 위험도가 높은(critical + high) 거래처 수입니다. 최근 거래가 뜸하고, 거래 빈도가 낮으며, 거래량이 감소하는 고객이 포함됩니다."
           benchmark="전체 대비 20% 이하면 정상 수준"
+          reason="이탈 가능성이 높은 고객을 예측하여 선제적 리텐션 활동을 전개하고, 이탈 방지를 위한 자원 배분 우선순위를 결정합니다."
         />
         <KpiCard
           title="위험 매출 비중"
@@ -110,6 +113,7 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
           formula="위험 등급 거래처 매출 합계 ÷ 전체 매출 × 100"
           description="이탈 위험이 높은 거래처가 차지하는 매출 비중입니다. 높을수록 매출 기반이 불안정하다는 뜻입니다."
           benchmark="30% 이하면 안정적, 50% 이상이면 긴급 대응 필요"
+          reason="이탈 위험 고객의 매출 영향을 금액으로 정량화하여 이탈 방지 활동의 긴급성과 기대 효과를 산출하고, 경영진 보고 자료로 활용합니다."
         />
         <KpiCard
           title="위험 등급 거래처"
@@ -119,16 +123,18 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
           formula="이탈 점수 60점 이상인 거래처 수"
           description="가장 높은 이탈 위험을 가진 거래처 수입니다. 6개월 이상 미거래이며 거래 빈도가 극히 낮은 고객이 해당됩니다."
           benchmark="주요 거래처가 포함되어 있으면 즉시 대응 필요"
+          reason="가장 긴급한 이탈 위험 거래처를 식별하여 즉각적인 영업 방문과 관계 회복 활동의 대상을 명확히 합니다."
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk distribution pie chart */}
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="이탈 위험도 분포"
           formula="거래처별 최근성/빈도/금액 기반 이탈 점수(0-100) 산출 후 등급 분류"
           description="위험(60+), 주의(40-59), 관찰(20-39), 양호(0-19) 4단계로 분류한 거래처 분포입니다."
           benchmark="양호+관찰 비중이 70% 이상이면 건전한 포트폴리오"
+          reason="거래처 전체의 이탈 위험 분포를 한눈에 파악하여 고객 포트폴리오의 전반적 건전성을 평가하고, 위험 등급 비중 증가를 조기 경보합니다."
         >
           <ChartContainer height="h-64 md:h-80">
             <PieChart>
@@ -184,11 +190,12 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
         </ChartCard>
 
         {/* Top 20 at-risk customers bar chart */}
-        <ChartCard
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="이탈 점수 상위 20 거래처"
           formula="이탈 점수 = 최근성(0-40) + 빈도(0-30) + 감소추세(0-30)"
           description="이탈 위험 점수가 높은 상위 20개 거래처입니다. 점수가 높을수록 이탈 가능성이 큽니다."
           benchmark="주요 매출처가 포함된 경우 즉시 방문 상담 권장"
+          reason="이탈 위험이 가장 높은 거래처를 순위별로 제시하여 영업팀의 즉각적인 방문/상담 대상을 명확히 하고, 리텐션 활동의 우선순위를 설정합니다."
           isEmpty={topAtRisk.length === 0}
         >
           <ChartContainer height="h-72 md:h-[28rem]">
@@ -200,7 +207,7 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
                 dataKey="name"
                 tick={{ fontSize: 10 }}
                 width={85}
-                tickFormatter={(v) => (String(v).length > 10 ? String(v).substring(0, 10) + "..." : v)}
+                tickFormatter={(v) => truncateLabel(String(v), 10)}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -217,9 +224,10 @@ export function ChurnTab({ filteredSales }: ChurnTabProps) {
       </div>
 
       {/* At-risk customer detail table */}
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="이탈 위험 거래처 상세"
         description="이탈 점수 20점 이상 거래처의 상세 정보와 이탈 신호를 보여줍니다."
+        reason="이탈 위험 거래처별 구체적 이탈 신호(미거래 기간, 빈도 감소, 거래량 하락)를 제공하여 맞춤형 리텐션 전략을 수립하고, 영업 담당자의 실행 액션을 구체화합니다."
         isEmpty={churnSummary.customers.filter((c) => c.churnScore >= 20).length === 0}
       >
         <div className="overflow-x-auto">

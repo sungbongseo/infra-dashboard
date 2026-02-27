@@ -25,9 +25,10 @@ import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, truncateLabel } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { useFilterStore } from "@/stores/filterStore";
 import { useFilterContext, useFilteredSales } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
@@ -44,6 +45,8 @@ export default function SalesAnalysisPage() {
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
+  const dateRange = useFilterStore((s) => s.dateRange);
+  const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
   const itemSales = useMemo(() => calcItemSales(filteredSales), [filteredSales]);
@@ -114,6 +117,7 @@ export default function SalesAnalysisPage() {
           formula="매출리스트의 모든 장부금액을 합산"
           benchmark="전년 동기 대비 10% 이상 성장이면 양호"
           description="선택한 영업조직의 전체 매출 금액 합계입니다. 이 페이지의 모든 분석은 이 금액을 기준으로 산출됩니다."
+          reason="전체 매출 규모를 파악하여 목표 달성률을 모니터링하고, 전년 대비 성장 추이를 확인하여 영업 전략의 실효성을 평가합니다."
         />
         <KpiCard
           title="거래처 수"
@@ -123,6 +127,7 @@ export default function SalesAnalysisPage() {
           formula="중복 없이 매출처 수를 세기"
           description="실제로 매출이 발생한 고유 거래처(고객사)의 수입니다. 거래처 수가 많을수록 매출 기반이 다양하고, 특정 거래처에 대한 의존도가 낮아집니다."
           benchmark="거래처 수가 전기 대비 증가하면 신규 고객 확보 성과 양호"
+          reason="거래처 다각화 수준을 점검하여 소수 거래처 의존 리스크를 관리하고, 신규 고객 확보 활동의 성과를 추적합니다."
         />
         <KpiCard
           title="건당 평균"
@@ -132,6 +137,7 @@ export default function SalesAnalysisPage() {
           formula="건당 평균(원) = 총 매출액 ÷ 매출 건수"
           description="매출 1건당 평균 거래 금액입니다. 건당 평균이 높으면 대형 프로젝트 위주의 영업, 낮으면 소규모 거래 위주의 영업 패턴을 의미합니다."
           benchmark="업종 평균 건당 금액 대비 높으면 고부가가치 영업 구조"
+          reason="거래 건당 규모를 파악하여 영업 패턴(대형 프로젝트 vs 소량 다건)을 진단하고, 고부가가치 영업으로의 전환 여부를 판단합니다."
         />
         <KpiCard
           title="Top1 거래처 비중"
@@ -141,6 +147,7 @@ export default function SalesAnalysisPage() {
           formula="Top1 거래처 비중(%) = 1위 거래처 매출 ÷ 총매출 × 100"
           description="매출 1위 거래처가 전체 매출에서 차지하는 비율입니다. 이 수치가 높으면 해당 거래처에 대한 의존도가 크므로, 거래처 이탈 시 매출 급감 위험이 있습니다."
           benchmark="20% 이내이면 안정적 분산, 30% 초과 시 집중 리스크 경고"
+          reason="핵심 거래처 집중도를 모니터링하여 1위 거래처 이탈 시 매출 급감 리스크를 사전에 인지하고, 거래처 다각화 전략의 시급성을 판단합니다."
         />
       </div>
 
@@ -164,9 +171,12 @@ export default function SalesAnalysisPage() {
           <ErrorBoundary>
           <ChartCard
             title="거래처별 매출 (ABC 분석)"
+            dataSourceType="period"
+            isDateFiltered={isDateFiltered}
             formula="누적 비율(%) = 누적 매출 ÷ 총 매출 × 100"
             description="거래처를 매출액이 큰 순서대로 나열하고, 누적 비율에 따라 A등급(상위 80%까지), B등급(80~95%), C등급(95~100%)으로 분류합니다. 소수의 핵심 거래처가 대부분의 매출을 차지하는 '파레토 법칙'을 확인할 수 있습니다."
             benchmark="상위 20% 거래처가 매출의 80%를 차지하면 전형적인 파레토 분포 (80:20 법칙)"
+            reason="핵심 거래처 매출 집중도를 파악하여 주요 거래처 이탈 시 영향을 사전에 예측하고, 거래처 다각화 전략을 수립합니다."
             action={<ExportButton data={topCustomersExport} fileName="거래처별매출" />}
           >
             <ChartContainer height="h-72 md:h-96">
@@ -194,9 +204,12 @@ export default function SalesAnalysisPage() {
           <ErrorBoundary>
           <ChartCard
             title="품목별 매출 비중"
+            dataSourceType="period"
+            isDateFiltered={isDateFiltered}
             formula="품목별로 장부금액을 합산하여 비교"
             description="각 품목의 매출 규모를 면적(네모칸) 크기로 보여줍니다. 면적이 클수록 해당 품목의 매출 비중이 높습니다. 상위 20개 품목을 표시하며, 어떤 제품이 매출을 주도하는지 한눈에 파악할 수 있습니다."
             benchmark="특정 품목이 전체 매출의 50% 이상이면 제품 다각화 필요"
+            reason="품목별 매출 기여도를 파악하여 주력 제품에 영업력을 집중하고, 저성과 품목의 전략적 처리(가격조정/단종) 근거를 마련합니다."
           >
             <ChartContainer height="h-72 md:h-96">
                 <Treemap
@@ -211,7 +224,7 @@ export default function SalesAnalysisPage() {
                       <g>
                         <rect x={x} y={y} width={width} height={height} fill={CHART_COLORS[0]} opacity={0.85} rx={4} />
                         <text x={x + width / 2} y={y + height / 2 - 6} textAnchor="middle" fill="white" fontSize={11} fontWeight={600}>
-                          {String(name).length > 8 ? String(name).substring(0, 8) + "..." : name}
+                          {truncateLabel(String(name), 8)}
                         </text>
                         <text x={x + width / 2} y={y + height / 2 + 10} textAnchor="middle" fill="white" fontSize={10} opacity={0.8}>
                           {formatCurrency(value, true)}
@@ -229,9 +242,12 @@ export default function SalesAnalysisPage() {
           <ErrorBoundary>
           <ChartCard
             title="내수/수출 비중"
+            dataSourceType="period"
+            isDateFiltered={isDateFiltered}
             formula="내수와 수출 유형별로 장부금액을 각각 합산"
             description="전체 매출 중 내수(국내 판매)와 수출(해외 판매)의 비율을 도넛 차트로 보여줍니다. 수출 비중이 높으면 환율 변동에 따라 실적이 크게 흔들릴 수 있으므로 환리스크 관리가 중요합니다."
             benchmark="내수와 수출이 적절히 분산되면 안정적, 한쪽 비중이 80% 이상이면 편중 주의"
+            reason="매출 유형(내수/수출) 구성 변화를 모니터링하여 사업 포트폴리오 균형을 관리하고, 환율 리스크 노출 수준을 점검합니다."
           >
             <ChartContainer height="h-72 md:h-96">
                 <PieChart>
@@ -242,7 +258,11 @@ export default function SalesAnalysisPage() {
                     innerRadius={90}
                     outerRadius={140}
                     dataKey="value"
-                    label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(1)}%`}
+                    label={({ name, percent }: any) => {
+                      const n = truncateLabel(String(name), 8);
+                      return `${n} ${((percent || 0) * 100).toFixed(1)}%`;
+                    }}
+                    labelLine={{ strokeWidth: 1 }}
                   >
                     {donutData.map((_, i) => (
                       <Cell key={i} fill={CHART_COLORS[i]} />
@@ -257,55 +277,55 @@ export default function SalesAnalysisPage() {
 
         <TabsContent value="channel" className="space-y-6">
           <ErrorBoundary>
-            <ChannelTab filteredSales={filteredSales} />
+            <ChannelTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="rfm" className="space-y-6">
           <ErrorBoundary>
-            <RfmTab filteredSales={filteredSales} />
+            <RfmTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="clv" className="space-y-6">
           <ErrorBoundary>
-            <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} />
+            <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="migration" className="space-y-6">
           <ErrorBoundary>
-            <MigrationTab filteredSales={filteredSales} />
+            <MigrationTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="fx" className="space-y-6">
           <ErrorBoundary>
-            <FxTab filteredSales={filteredSales} />
+            <FxTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="anomaly" className="space-y-6">
           <ErrorBoundary>
-            <AnomalyTab filteredSales={filteredSales} />
+            <AnomalyTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="cohort" className="space-y-6">
           <ErrorBoundary>
-            <CohortTab filteredSales={filteredSales} />
+            <CohortTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="churn" className="space-y-6">
           <ErrorBoundary>
-            <ChurnTab filteredSales={filteredSales} />
+            <ChurnTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="decomposition" className="space-y-6">
           <ErrorBoundary>
-            <DecompositionTab filteredSales={filteredSales} />
+            <DecompositionTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
       </Tabs>

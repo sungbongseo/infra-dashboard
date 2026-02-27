@@ -16,7 +16,7 @@ import {
 import { BarChart3, Calendar, Layers, Building2 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcParetoAnalysis,
@@ -99,6 +99,7 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
           description={`${METRIC_LABELS[metric]} 기준 누적 80%를 차지하는 핵심 ${DIMENSION_LABELS[dimension]} 수입니다.`}
           formula={`${METRIC_LABELS[metric]} 기준 내림차순 정렬 후 누적비중 80%까지 = A등급`}
           benchmark="A등급이 전체의 20% 이하이면 전형적인 파레토(80/20) 패턴"
+          reason="핵심 A등급 항목을 식별하여 품질·재고·가격 관리의 최우선 대상을 결정하고, 매출 집중도가 높은 항목의 리스크를 사전에 관리합니다"
         />
         <KpiCard
           title={`B등급 ${DIMENSION_LABELS[dimension]}`}
@@ -108,6 +109,7 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
           description={`${METRIC_LABELS[metric]} 기준 누적 80~95%에 해당하는 중요 ${DIMENSION_LABELS[dimension]} 수입니다.`}
           formula={`${METRIC_LABELS[metric]} 기준 내림차순 정렬 후 누적비중 80~95% = B등급`}
           benchmark="B등급은 성장 잠재력을 가진 육성 대상으로 검토"
+          reason="B등급 항목 중 A등급으로 성장 가능한 후보를 발굴하여 매출 포트폴리오를 강화하고, 집중 육성 대상을 선정합니다"
         />
         <KpiCard
           title={`C등급 ${DIMENSION_LABELS[dimension]}`}
@@ -117,6 +119,7 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
           description={`${METRIC_LABELS[metric]} 기준 누적 95~100%의 기타 ${DIMENSION_LABELS[dimension]}입니다.`}
           formula={`${METRIC_LABELS[metric]} 기준 내림차순 정렬 후 누적비중 95~100% = C등급`}
           benchmark="C등급이 과도하면 관리 비용 대비 수익이 낮아 정리 검토"
+          reason="C등급 항목의 관리 비용 대비 수익 기여도를 평가하여 품목 정리(단종·통합) 또는 조건 재협상의 대상을 결정합니다"
         />
         <KpiCard
           title="제품군 수"
@@ -126,15 +129,19 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
           description="데이터에 포함된 고유 제품군 수입니다."
           formula="거래처별품목별 손익 데이터에서 제품군 중복 제거 후 집계"
           benchmark="제품군별 수익성 편차가 크면 포트폴리오 재구성 검토"
+          reason="제품군 수와 구성을 파악하여 사업 다각화 수준을 평가하고, 특정 제품군 의존도가 높은 경우 포트폴리오 재구성 필요성을 진단합니다"
         />
       </div>
 
       {/* Pareto ABC Chart */}
       <ChartCard
         title={`파레토(ABC) 분석 - ${DIMENSION_LABELS[dimension]}별 ${METRIC_LABELS[metric]}`}
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula={`${METRIC_LABELS[metric]} 기준 내림차순 정렬 -> 누적비중 80%=A, 95%=B, 100%=C`}
         description={`${DIMENSION_LABELS[dimension]}을 ${METRIC_LABELS[metric]} 기여도 순으로 정렬하고 누적 비중을 표시합니다. A등급이 전체의 80%를 차지하며 집중 관리가 필요합니다.`}
         benchmark="일반적으로 20%의 항목이 80%의 가치를 차지합니다 (파레토 법칙)"
+        reason="파레토 분석을 통해 매출·이익의 핵심 동인을 시각적으로 파악하고, 자원 배분의 우선순위를 데이터 기반으로 결정하여 경영 효율을 극대화합니다"
         action={
           <div className="flex items-center gap-2 flex-wrap">
             {/* Dimension selector */}
@@ -178,7 +185,7 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
             <XAxis
               dataKey="name"
               tick={{ fontSize: 9 }}
-              tickFormatter={(v) => String(v).substring(0, 8)}
+              tickFormatter={(v) => truncateLabel(String(v), 8)}
               angle={-45}
               textAnchor="end"
               height={60}
@@ -255,9 +262,12 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
       {/* Product Group Table */}
       <ChartCard
         title="제품군별 수익 분석"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="제품군별 매출액/매출원가/매출총이익/영업이익 집계, 이익율 = 이익 / 매출 x 100"
         description="제품군별로 매출, 원가, 이익, 마진율, 내수/수출 비중, 품목/거래처 수를 요약합니다."
         benchmark="제품군별 매출총이익율 편차가 10%p 이상이면 가격 전략 점검 필요"
+        reason="제품군별 수익 구조를 비교하여 고수익 제품군 확대와 저수익 제품군의 가격·원가 개선 방향을 결정하고, 제품 포트폴리오 최적화 전략을 수립합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -337,9 +347,12 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
       {/* Org Product Summary Table */}
       <ChartCard
         title="조직별 품목/거래처 요약"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="영업조직팀별 매출액/매출총이익 합산, 고유 품목/거래처 수 집계, 내수비중 = 내수매출 / 총매출 x 100"
         description="각 영업조직의 매출 규모, 이익율, 취급 품목/거래처 수, 최대 매출 품목/거래처를 한눈에 파악합니다."
         benchmark="조직별 품목 집중도와 거래처 다변화 수준을 비교하여 리스크 분산 정도를 평가"
+        reason="조직별 품목·거래처 구성을 비교하여 특정 품목이나 거래처에 과도하게 의존하는 조직을 식별하고, 리스크 분산 및 조직별 영업 전략의 방향성을 제시합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

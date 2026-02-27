@@ -15,9 +15,10 @@ interface CostTabProps {
   selectedCostData: CostEfficiency | undefined;
   costRadarData: Array<{ subject: string; value: number; avg: number }>;
   costEfficiencyData: CostEfficiency[];
+  isDateFiltered?: boolean;
 }
 
-export function CostTab({ hasTeamContribution, selected, selectedCostData, costRadarData, costEfficiencyData }: CostTabProps) {
+export function CostTab({ hasTeamContribution, selected, selectedCostData, costRadarData, costEfficiencyData, isDateFiltered }: CostTabProps) {
   if (!hasTeamContribution) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
@@ -39,6 +40,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             formula="공헌이익율 = (매출액 - 변동비) ÷ 매출액 × 100"
             description="변동비(원재료비, 외주비, 상품매입비 등)를 차감한 후 고정비 회수와 이익에 기여하는 비율입니다."
             benchmark="30% 이상 우수, 20~30% 보통, 20% 미만 개선 필요"
+            reason="영업사원별 공헌이익율로 고정비 회수 능력을 평가하고, 수익성 개선이 필요한 담당자를 식별합니다."
           />
           <KpiCard
             title="영업이익율"
@@ -47,6 +49,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             formula="영업이익율 = (매출액 - 매출원가 - 판관비) ÷ 매출액 × 100"
             description="모든 영업 비용을 차감한 순수 영업 수익성입니다. 담당자의 실질 이익 창출 능력을 나타냅니다."
             benchmark="10% 이상 양호, 5~10% 보통, 5% 미만 비용 구조 점검 필요"
+            reason="담당자별 실질 수익 창출 능력을 측정하여, 매출은 높으나 이익이 낮은 담당자의 비용 구조를 점검합니다."
           />
           <KpiCard
             title="제조변동비율"
@@ -55,6 +58,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             formula="제조변동비율 = 제조변동비 ÷ 매출액 × 100"
             description="매출 대비 제조변동비(원재료, 외주 등) 비중입니다. 높을수록 매출 원가 부담이 크다는 의미입니다."
             benchmark="조직 평균 대비 5%p 이상 높으면 원가 절감 검토 필요"
+            reason="제조변동비 비율로 원가 부담 수준을 파악하여, 원가 절감 또는 가격 전략 조정의 근거를 확보합니다."
           />
           <KpiCard
             title="판관고정비율"
@@ -63,16 +67,18 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             formula="판관고정비율 = 판관고정비 ÷ 매출액 × 100"
             description="매출 대비 고정비(감가상각비, 경비, 노무비) 비중입니다. 1인당 급여 수준이 업계 대비 높으면 비용 효율이 낮고, 너무 낮으면 인재 유출 위험이 있습니다."
             benchmark="1인당 급여가 업계 중위수 대비 ±10% 이내이면 적정"
+            reason="고정비 비율로 매출 규모 대비 인건비·경비 부담을 평가하여, 인력 구조 최적화 방향을 도출합니다."
           />
         </div>
       )}
 
       {costRadarData.length > 0 && (
-        <ChartCard
+        <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
           title="비용 구조 레이더 (개인 vs 조직 평균)"
           formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100"
           description="개인의 비용 구조를 소속 조직의 평균값과 비교한 레이더 차트입니다. 파란색 영역(개인)이 점선(조직 평균)보다 안쪽이면 비용 관리가 효율적이라는 뜻이고, 바깥이면 해당 비용 항목의 개선이 필요합니다."
           benchmark="개인의 비용 비율이 조직 평균보다 5%p 이상 높으면 비용 절감 검토가 필요합니다"
+          reason="영업사원별 비용 대비 수익 효율을 분석하여 영업비용 최적화 방향을 도출합니다."
         >
           <ChartContainer height="h-72 md:h-96">
               <RadarChart data={costRadarData}>
@@ -88,11 +94,12 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
         </ChartCard>
       )}
 
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="담당자별 비용 효율 비교"
         formula="비용 비율(%) = 해당 비용 ÷ 매출액 × 100"
         description="각 담당자의 주요 비용 항목 비율을 테이블로 비교합니다. 공헌이익율이 높고 비용 비율이 낮을수록 효율적인 영업을 하고 있다는 의미입니다."
         benchmark="공헌이익율 20% 이상이면 양호, 원재료비율이 50% 이상이면 원가 구조 점검 필요"
+        reason="담당자 간 비용 구조를 비교하여 Best Practice를 도출하고, 비용 비효율 담당자의 개선 방향을 제시합니다."
         action={<ExportButton data={costEfficiencyData.map((c) => ({
           사번: c.personId, 조직: c.org, 매출액: c.salesAmount,
           원재료비율: c.rawMaterialRate, 상품매입비율: c.purchaseRate, 외주비율: c.outsourcingRate,

@@ -23,6 +23,7 @@ interface PrepaymentTabProps {
   orgPrepayments: OrgPrepayment[];
   monthlyPrepayments: MonthlyPrepayment[];
   hasCollections: boolean;
+  isDateFiltered?: boolean;
 }
 
 export function PrepaymentTab({
@@ -30,6 +31,7 @@ export function PrepaymentTab({
   orgPrepayments,
   monthlyPrepayments,
   hasCollections,
+  isDateFiltered,
 }: PrepaymentTabProps) {
   return (
     <>
@@ -42,6 +44,7 @@ export function PrepaymentTab({
           formula="수금목록에서 선수금으로 분류된 금액을 모두 합산"
           description="거래처로부터 상품 인도 전에 미리 받은 금액의 총합입니다. 선수금은 아직 매출로 인식되지 않았으며, 향후 상품이나 서비스를 제공해야 하는 의무가 있습니다."
           benchmark="매출 대비 적정 비율을 유지해야 하며, 과도한 선수금은 이행 부담을 의미합니다"
+          reason="선수금 총액을 파악하여 향후 매출 인식 규모를 예측하고, 이행 의무 부담 수준을 관리합니다."
         />
         <KpiCard
           title="장부 선수금"
@@ -51,6 +54,7 @@ export function PrepaymentTab({
           formula="수금목록의 장부선수금액을 모두 합산"
           description="회계 장부에 원화로 기록된 선수금 총액입니다. 외화 거래가 있으면 환율 차이로 인해 실제 선수금액과 차이가 날 수 있습니다."
           benchmark="선수금액과 장부선수금액의 차이가 크면 환율 변동 영향을 점검해야 합니다"
+          reason="장부 선수금과 실제 선수금의 차이를 확인하여 환율 변동에 따른 회계 리스크를 관리합니다."
         />
         <KpiCard
           title="매출 대비 비중"
@@ -60,6 +64,7 @@ export function PrepaymentTab({
           formula="매출 대비 비중(%) = 총 선수금 ÷ 총 매출액 × 100"
           description="매출액 대비 선수금이 차지하는 비율입니다. 이 비율이 높으면 아직 이행하지 않은 의무가 많다는 의미이며, 납품 일정 관리가 중요합니다."
           benchmark="10% 미만이면 양호, 20% 이상이면 이행 리스크를 점검해야 합니다"
+          reason="선수금 비중 추이를 통해 이행 의무 부담 수준을 진단하고, 비중 감소 시 영업 파이프라인 약화 신호로 활용합니다."
         />
         <KpiCard
           title="해당 조직 수"
@@ -69,6 +74,7 @@ export function PrepaymentTab({
           formula="수금 데이터에서 선수금이 1건 이상 발생한 고유 조직 수"
           description="선수금이 발생한 영업조직 수입니다. 선수금이 특정 조직에 집중되어 있는지 확인할 필요가 있습니다."
           benchmark="선수금이 특정 1~2개 조직에 집중되면 해당 조직의 납품 일정 리스크 점검 필요"
+          reason="선수금 발생 조직 수를 확인하여 집중도를 파악하고, 특정 조직 의존으로 인한 이행 리스크를 분산합니다."
         />
       </div>
 
@@ -80,11 +86,12 @@ export function PrepaymentTab({
         </div>
       )}
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="조직별 선수금 현황"
         formula="영업조직별 선수금액을 합산하여 상위 10개 조직을 표시"
         description="거래처별 선수금 잔액 분포를 보여줍니다. 선수금이 특정 거래처에 집중되면 해당 거래처 변동에 따른 현금흐름 리스크가 커집니다."
         benchmark="상위 3개 거래처가 선수금 70% 이상이면 의존도 높음"
+        reason="조직별 선수금 집중도를 분석하여 특정 조직 의존 리스크를 파악하고, 납품 지연 시 환불 부담을 사전에 평가합니다."
       >
         <ChartContainer height="h-80 md:h-[500px]">
             <BarChart data={orgPrepayments.slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
@@ -105,16 +112,17 @@ export function PrepaymentTab({
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 선수금 추이"
         formula="수금월별 선수금액을 합산\n막대 = 선수금, 선 = 장부선수금"
         description="매월 선수금이 얼마나 발생했는지 추이를 보여줍니다. 선수금(막대)과 장부선수금(선)의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."
         benchmark="월별 변동폭이 크면 계절적 요인이나 대형 프로젝트의 영향을 확인해야 합니다"
+        reason="선수금 월별 추이를 추적하여 영업 파이프라인 건전성을 진단하고, 감소 추세 시 수주 활동 강화 필요 여부를 판단합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <ComposedChart data={monthlyPrepayments}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}

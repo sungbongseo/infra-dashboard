@@ -65,10 +65,35 @@ export const tooltipFormatters = {
   count: (value: number) => `${Number(value).toLocaleString()}건`,
 };
 
-/** Pie 차트 외부 라벨 렌더러 */
+/** 스마트 라벨 말줄임 */
+export function truncateLabel(text: string, maxLen: number = 10): string {
+  if (!text || text.length <= maxLen) return text;
+  return text.substring(0, maxLen - 1) + "\u2026";
+}
+
+/** 긴 한국어 라벨용 XAxis 프리셋 */
+export const XAXIS_ANGLED = {
+  angle: -35, textAnchor: "end" as const,
+  height: 70, tick: { fontSize: 10 },
+} as const;
+
+/** 카테고리 YAxis 프리셋 (한국어 조직명) */
+export const YAXIS_CATEGORY = {
+  width: 85, tick: { fontSize: 10 },
+} as const;
+
+/** 데이터 개수 기반 적응형 폰트 */
+export function getAdaptiveFontSize(count: number) {
+  if (count <= 5) return 12;
+  if (count <= 10) return 11;
+  if (count <= 20) return 10;
+  return 9;
+}
+
+/** Pie 차트 외부 라벨 렌더러 (3% 미만 세그먼트 라벨 생략) */
 export function PieOuterLabel(props: any) {
   const { cx, cy, midAngle, outerRadius: or, name, percent } = props;
-  if (!name || !percent) return null;
+  if (!name || !percent || percent < 0.03) return null;
   const RADIAN = Math.PI / 180;
   const radius = (or || 130) + 25;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
@@ -82,7 +107,7 @@ export function PieOuterLabel(props: any) {
       dominantBaseline="central"
       fontSize={11}
     >
-      {name} {(percent * 100).toFixed(1)}%
+      {truncateLabel(name, 8)} {(percent * 100).toFixed(1)}%
     </text>
   );
 }

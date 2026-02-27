@@ -20,6 +20,7 @@ import type { SalesRecord } from "@/types";
 
 interface CohortTabProps {
   filteredSales: SalesRecord[];
+  isDateFiltered?: boolean;
 }
 
 /** Retention rate -> background color gradient (green=high, red=low) */
@@ -34,7 +35,7 @@ function retentionColor(rate: number): string {
 
 const MAX_PERIOD_COLUMNS = 12;
 
-export function CohortTab({ filteredSales }: CohortTabProps) {
+export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
   const cohortResult = useMemo(() => calcCohortAnalysis(filteredSales), [filteredSales]);
 
   // Build heatmap matrix: rows = cohort months, columns = period index
@@ -109,6 +110,7 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
           formula="거래처의 최초 구매 월을 기준으로 그룹화한 수"
           description="코호트(동일 시기 첫 거래 고객 그룹) 수입니다. 각 코호트는 같은 월에 처음 거래를 시작한 고객들로 구성됩니다."
           benchmark="코호트 수가 6개 이상이면 추세 분석에 충분"
+          reason="분석 가능한 코호트 규모를 확인하여 고객 유지 추세 분석의 통계적 신뢰도를 검증하고, 충분한 데이터 축적 여부를 판단합니다."
         />
         <KpiCard
           title="P1 평균 재구매율"
@@ -118,6 +120,7 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
           formula="P1 재구매율 = 첫 거래 다음 달에 다시 거래한 고객 수 ÷ 코호트 전체 고객 수 × 100"
           description="첫 거래 이후 1개월 뒤 재구매한 고객 비율의 전체 코호트 평균입니다. 초기 재구매율이 높을수록 고객 정착률이 좋습니다."
           benchmark="B2B 재구매율 P1이 40% 이상이면 양호"
+          reason="첫 거래 후 초기 재구매율을 파악하여 신규 고객의 정착 성공률을 평가하고, 온보딩 프로세스 개선 필요성을 진단합니다."
         />
         <KpiCard
           title="최대 코호트 규모"
@@ -127,15 +130,17 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
           formula="코호트 중 최대 고객 수"
           description="가장 많은 신규 고객이 유입된 코호트의 고객 수입니다. 마케팅 캠페인이나 계절적 요인으로 특정 월에 대량 유입이 발생할 수 있습니다."
           benchmark="전체 고객의 20% 이상이 한 코호트에 집중되면 특정 시기 의존도 높음"
+          reason="가장 큰 신규 고객 유입 시점을 파악하여 대량 유입의 성공 요인(캠페인, 시장 이벤트 등)을 분석하고, 향후 영업 전략에 반영합니다."
         />
       </div>
 
       {/* Cohort heatmap table */}
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="코호트 리텐션 히트맵"
         formula="리텐션율(%) = 해당 기간에 재구매한 고객 수 ÷ 코호트 전체 고객 수 × 100"
         description="각 코호트(행)의 경과 기간(열)별 고객 유지율을 색상 농도로 표현합니다. 녹색이 진할수록 유지율이 높고, 붉은색일수록 이탈이 많습니다."
         benchmark="P3 이후 유지율이 30% 이상이면 안정적인 고객 기반"
+        reason="고객 코호트별 매출 유지율을 추적하여 고객 충성도 추세를 파악하고, 유지율이 급격히 떨어지는 시점에 선제적 리텐션 활동을 전개합니다."
       >
         <div className="overflow-x-auto">
           <table className="w-full text-xs border-collapse">
@@ -179,16 +184,17 @@ export function CohortTab({ filteredSales }: CohortTabProps) {
       </ChartCard>
 
       {/* Average retention by period line chart */}
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="기간별 평균 리텐션율 추이"
         formula="각 기간(P0, P1, P2...)의 모든 코호트 리텐션율 평균"
         description="첫 거래 이후 시간이 경과함에 따라 고객 유지율이 어떻게 변화하는지 보여줍니다. 급격한 하락 구간이 고객 이탈의 핵심 시점입니다."
         benchmark="P3 이후 리텐션 하락이 완만해지면 안정적 고객층 형성"
+        reason="기간 경과에 따른 고객 이탈 곡선을 분석하여 이탈이 집중되는 임계 시점을 발견하고, 해당 시점에 맞춘 리텐션 프로그램을 설계합니다."
       >
         <ChartContainer height="h-64 md:h-80">
           <LineChart data={avgRetentionData} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
             <CartesianGrid {...GRID_PROPS} />
-            <XAxis dataKey="period" tick={{ fontSize: 11 }} />
+            <XAxis dataKey="period" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
             <YAxis
               tick={{ fontSize: 11 }}
               tickFormatter={(v) => `${v}%`}

@@ -23,9 +23,10 @@ interface StatusTabProps {
   summary: AgingSummary;
   byOrg: AgingByOrg[];
   highRiskCount: number;
+  isDateFiltered?: boolean;
 }
 
-export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
+export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: StatusTabProps) {
   const overdueTotal = summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   const overdueRate = summary.total > 0 ? (overdueTotal / summary.total) * 100 : 0;
 
@@ -54,6 +55,7 @@ export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
           formula="모든 미수채권연령 파일의 미수금을 합산"
           description="인프라 사업본부 담당 조직이 거래처로부터 아직 받지 못한 매출채권의 총합입니다. 미수금이 과도하면 현금 유동성에 문제가 생길 수 있습니다."
           benchmark="매출액 대비 15% 이내이면 양호한 수준입니다"
+          reason="미수금 총액은 운전자본의 핵심 구성요소로, 자금 흐름과 유동성 관리를 위해 상시 모니터링이 필요합니다."
         />
         <KpiCard
           title="91일 이상 장기 미수"
@@ -63,6 +65,7 @@ export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
           formula="91일 이상 장기 미수액(원) = 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+) 미수금의 합계"
           description="91일(4개월차) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
           benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
+          reason="장기 미수금은 대손 발생 가능성이 가장 높은 채권군으로, 조기 식별하여 회수 우선순위를 결정해야 합니다."
         />
         <KpiCard
           title="연체비율"
@@ -71,6 +74,7 @@ export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
           formula="연체비율(%) = 91일 이상 미수금(4개월차~6개월 초과) ÷ 총 미수금 × 100"
           description="전체 미수금 중에서 91일(4개월차) 이상 장기 체류한 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
           benchmark="20% 미만이면 양호, 30% 이상이면 위험 수준입니다"
+          reason="연체비율은 채권 포트폴리오 건전성의 핵심 지표로, 비율 추이를 통해 수금 프로세스 효율성을 평가합니다."
         />
         <KpiCard
           title="고위험 거래처"
@@ -80,19 +84,21 @@ export function StatusTab({ summary, byOrg, highRiskCount }: StatusTabProps) {
           formula="연체비율 50% 초과 또는 6개월 이상 미수금 1억원 초과인 거래처 수"
           description="채권 회수가 어려울 가능성이 높은 거래처 수입니다. 이런 거래처에는 즉각적인 추심 조치와 거래 조건 재검토가 필요합니다."
           benchmark="0건이 이상적이며, 3건 이상이면 집중 관리 체계가 필요합니다"
+          reason="고위험 거래처는 대손 손실의 직접 원인이 되므로, 선제적 식별을 통해 추심 조치와 거래 조건 재협상을 즉시 개시해야 합니다."
         />
       </div>
 
-      <ChartCard
+      <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="조직별 미수채권 연령 분석"
         formula="각 조직의 미수채권을 경과 기간별(1~6개월, 6개월 초과)로 분류"
         description="조직별로 미수채권이 얼마나 오래되었는지 색상으로 구분하여 보여줍니다. 녹색은 최근 발생한 채권, 빨간색은 오래된 채권입니다. 빨간색 비중이 클수록 회수 위험이 높습니다."
         benchmark="3개월 이상 비율이 20% 미만이면 양호합니다. 6개월 초과 비중이 높으면 대손(회수 불능) 위험이 있습니다"
+        reason="조직별 aging 구조를 비교하여 수금 관리가 부진한 조직을 식별하고, 회수 자원을 효율적으로 배분합니다."
       >
         <ChartContainer height="h-72 md:h-96">
             <BarChart data={agingStackedData}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="org" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="org" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={50} interval={0} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
               <Legend />

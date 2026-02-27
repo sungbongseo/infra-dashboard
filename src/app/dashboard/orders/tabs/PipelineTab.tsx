@@ -27,6 +27,7 @@ interface PipelineTabProps {
   pipelineResult: O2CPipelineResult;
   pipelineStages: O2CPipelineResult["stages"];
   monthlyConversion: { month: string; 수주: number; 매출: number; 수금: number; 전환율: number; 수금율: number }[];
+  isDateFiltered?: boolean;
 }
 
 export function PipelineTab({
@@ -36,6 +37,7 @@ export function PipelineTab({
   pipelineResult,
   pipelineStages,
   monthlyConversion,
+  isDateFiltered,
 }: PipelineTabProps) {
   const funnelData = useMemo(() => {
     const stageColors = [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[4]];
@@ -59,6 +61,7 @@ export function PipelineTab({
           formula="수주→매출 전환율(%) = 총 매출액 ÷ 총 수주액 × 100"
           description="수주한 금액이 실제 매출(출고/납품)로 얼마나 전환되었는지 보여줍니다. 100%를 초과하면 이전 기간 수주분이 금기 매출로 반영된 것입니다."
           benchmark="80~120%가 정상 범위이며, 이 범위를 벗어나면 수주-매출 시차를 점검해야 합니다"
+          reason="수주-매출 전환율로 O2C 파이프라인의 첫 번째 병목 여부를 진단하고, 납기 지연을 사전에 감지합니다."
         />
         <KpiCard
           title="순수 수금율 (선수금 제외)"
@@ -68,6 +71,7 @@ export function PipelineTab({
           formula="순수 수금율(%) = (총 수금액 − 선수금) ÷ 총 매출액 × 100"
           description={`발생한 매출 중 실제 매출 대금으로 수금된 비율입니다 (선수금 ${formatCurrency(pipelineResult.prepaymentAmount)} 제외). 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리합니다.`}
           benchmark="90% 이상이면 양호, 80% 미만이면 수금 활동을 강화해야 합니다"
+          reason="선수금을 제외한 순수 수금율로 실질적인 채권 회수 효율을 측정하고, 현금흐름 악화를 조기 경보합니다."
         />
         <KpiCard
           title="미수잔액"
@@ -77,14 +81,16 @@ export function PipelineTab({
           formula="미수잔액(원) = 총 매출액 − 순수 수금액 (선수금 제외, 0 미만이면 0)"
           description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다."
           benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
+          reason="미수잔액 규모를 모니터링하여 유동성 리스크를 관리하고, 수금 활동 강화 시점을 판단합니다."
         />
       </div>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="O2C(주문-수금) 퍼널: 수주에서 매출, 수금까지"
         formula="수주금액에서 매출전환금액, 순수수금완료금액(선수금 제외), 미수잔액 순서로 표시"
         description="O2C(주문-수금 프로세스)의 전체 흐름을 퍼널(깔때기) 형태로 보여줍니다. 수금완료는 선수금을 제외한 순수 수금액입니다. 선수금은 아직 매출이 발생하지 않은 선입금이므로 O2C 흐름에서 분리하여 미수잔액을 정확히 산출합니다."
         benchmark="각 단계 전환율이 80% 이상이면 건전한 O2C(주문-수금) 프로세스입니다"
+        reason="수주-매출-수금 파이프라인 전환율을 분석하여 병목 구간을 식별하고, 전체 O2C 사이클 효율을 개선합니다."
       >
         <ChartContainer height="h-56 md:h-72">
             <BarChart
@@ -142,16 +148,17 @@ export function PipelineTab({
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 O2C(주문-수금) 전환 추이"
         formula="전환율(%) = 매출 ÷ 수주 × 100\n수금율(%) = 수금 ÷ 매출 × 100"
         description="매월 수주/매출/수금 금액(막대)과 전환율/수금율(선)을 함께 보여줍니다. 두 비율이 안정적으로 높게 유지되면 주문에서 수금까지의 흐름이 건전하다는 의미입니다."
         benchmark="전환율과 수금율 모두 80% 이상으로 안정 유지되면 양호합니다"
+        reason="월별 전환율·수금율 추세를 추적하여 O2C 프로세스의 계절성과 이상 변동을 감지하고, 적시 대응합니다."
       >
         <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={monthlyConversion}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
               <YAxis
                 yAxisId="left"
                 tick={{ fontSize: 11 }}

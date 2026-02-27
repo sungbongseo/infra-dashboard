@@ -16,17 +16,18 @@ import {
 import { Package, Users, Calendar } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcABCAnalysis, calcCustomerPortfolio, calcCrossProfitability } from "@/lib/analysis/customerItemAnalysis";
 
 interface CustItemTabProps {
   effectiveHqCustItemProfit: any[];
   isUsingDateFiltered: boolean;
+  isDateFiltered?: boolean;
   dateRange: { from?: string; to?: string } | null;
 }
 
-export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, dateRange }: CustItemTabProps) {
+export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, isDateFiltered, dateRange }: CustItemTabProps) {
   const abcItems = useMemo(() => calcABCAnalysis(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
   const custPortfolio = useMemo(() => calcCustomerPortfolio(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
   const topCombinations = useMemo(() => calcCrossProfitability(effectiveHqCustItemProfit).slice(0, 20), [effectiveHqCustItemProfit]);
@@ -49,6 +50,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
           description="매출 누적 80%를 차지하는 핵심 품목 수입니다. 이 품목들이 매출의 대부분을 만들어내는 핵심 제품입니다."
           formula="매출 기준 내림차순 정렬 후 누적비중 80%까지 = A등급"
           benchmark="A등급 품목이 전체의 20% 이하이면 전형적인 파레토(80/20) 패턴"
+          reason="A등급 핵심 품목을 식별하여 품질·재고·가격 관리의 최우선 대상을 결정하고, 해당 품목의 수요 변동에 대한 집중 모니터링 체계를 구축합니다"
         />
         <KpiCard
           title="B등급 품목"
@@ -58,6 +60,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
           formula="매출 기준 내림차순 정렬 후 누적비중 80~95% = B등급"
           description="매출 누적 80~95%에 해당하는 중요 품목 수입니다."
           benchmark="B등급 품목은 성장 잠재력을 가진 품목으로 육성 대상으로 검토"
+          reason="B등급 품목 중 성장 잠재력이 높은 품목을 발굴하여 A등급으로 육성하고, 매출 포트폴리오 강화의 기회를 포착합니다"
         />
         <KpiCard
           title="C등급 품목"
@@ -67,6 +70,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
           formula="매출 기준 내림차순 정렬 후 누적비중 95~100% = C등급"
           description="매출 누적 95~100%의 기타 품목입니다. 수가 많지만 매출 기여는 작습니다."
           benchmark="C등급 품목 수가 과도하면 관리 비용 대비 수익이 낮아 품목 정리 검토"
+          reason="C등급 품목 수가 과도하면 관리 비용이 수익을 초과할 수 있으므로, 품목 정리(단종·통합)를 통해 운영 효율을 높일 수 있습니다"
         />
         <KpiCard
           title="총 거래처"
@@ -76,15 +80,16 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
           description="거래처×품목 데이터에 포함된 고유 거래처 수입니다."
           formula="거래처×품목 손익 데이터에서 중복 제거한 고유 거래처 수"
           benchmark="거래처별 품목 분석이 가능해야 교차 수익성 파악이 정확합니다"
+          reason="거래처 수 변동을 추적하여 신규 거래처 확보와 이탈 현황을 모니터링하고, 거래처 다변화를 통한 매출 리스크 분산 전략을 수립합니다"
         />
       </div>
 
       {/* ABC Pareto 차트 */}
-      <ChartCard title="품목 ABC 분석 (Pareto)" formula="매출액 기준 내림차순 정렬 → 누적비중 80%=A, 95%=B, 100%=C" description="품목을 매출 기여도 순으로 정렬하고 누적 비중을 표시합니다. A등급 품목이 매출의 80%를 차지하며, 이들에 집중 관리가 필요합니다." benchmark="일반적으로 20%의 품목이 80%의 매출을 차지합니다 (파레토 법칙)">
+      <ChartCard title="품목 ABC 분석 (Pareto)" dataSourceType="period" isDateFiltered={isDateFiltered} formula="매출액 기준 내림차순 정렬 → 누적비중 80%=A, 95%=B, 100%=C" description="품목을 매출 기여도 순으로 정렬하고 누적 비중을 표시합니다. A등급 품목이 매출의 80%를 차지하며, 이들에 집중 관리가 필요합니다." benchmark="일반적으로 20%의 품목이 80%의 매출을 차지합니다 (파레토 법칙)" reason="ABC 등급별 품목 분포를 시각화하여 핵심 품목(A)의 재고·품질 집중 관리와 장기 미판매 품목(C) 정리의 의사결정 근거를 확보합니다">
         <ChartContainer height="h-64 md:h-80">
             <ComposedChart data={abcItems.slice(0, 30)}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="product" tick={{ fontSize: 9 }} tickFormatter={(v) => String(v).substring(0, 8)} angle={-45} textAnchor="end" height={60} />
+              <XAxis dataKey="product" tick={{ fontSize: 9 }} tickFormatter={(v) => truncateLabel(String(v), 8)} angle={-45} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
               <RechartsTooltip
@@ -107,9 +112,12 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
       {/* 거래처×품목 매출 Top 20 조합 */}
       <ChartCard
         title="거래처×품목 매출 Top 20"
+        dataSourceType="period"
+        isDateFiltered={isDateFiltered}
         formula="거래처×품목 조합별 매출액 기준 내림차순 정렬 후 상위 20건"
         description="매출이 가장 큰 거래처-품목 조합 상위 20건입니다. 어떤 거래처에 어떤 품목을 얼마나 팔고 있는지, 그리고 그 수익성이 어떤지를 한눈에 파악할 수 있습니다."
         benchmark="상위 20개 조합의 매출총이익율이 평균 이상이면 핵심 거래의 수익성이 양호합니다"
+        reason="매출 상위 거래처-품목 조합의 수익성을 점검하여 핵심 거래의 가격 협상력과 원가 효율성을 평가하고, 저마진 대량 거래의 조건 개선 기회를 발굴합니다"
       >
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -146,7 +154,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, da
       </ChartCard>
 
       {/* 거래처 포트폴리오 Top 10 */}
-      <ChartCard title="거래처 포트폴리오 Top 10" formula="품목 집중도 = 거래처별 취급 품목 수, 매출총이익율(%) = 매출총이익 ÷ 매출 × 100" description="매출 상위 10개 거래처의 매출, 이익율, 품목 수, 주요 품목을 요약합니다. Top 3 품목은 매출 금액과 이익율을 함께 표시합니다." benchmark="품목 수가 적고 이익율이 높으면 효율적인 거래처, 품목 수가 많고 이익율이 낮으면 조건 재검토 필요">
+      <ChartCard title="거래처 포트폴리오 Top 10" dataSourceType="period" isDateFiltered={isDateFiltered} formula="품목 집중도 = 거래처별 취급 품목 수, 매출총이익율(%) = 매출총이익 ÷ 매출 × 100" description="매출 상위 10개 거래처의 매출, 이익율, 품목 수, 주요 품목을 요약합니다. Top 3 품목은 매출 금액과 이익율을 함께 표시합니다." benchmark="품목 수가 적고 이익율이 높으면 효율적인 거래처, 품목 수가 많고 이익율이 낮으면 조건 재검토 필요" reason="주요 거래처의 품목 구성과 수익성을 종합 파악하여 거래처별 차별화된 영업 전략을 수립하고, 품목 확대 또는 고마진 품목 집중의 방향성을 결정합니다">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
