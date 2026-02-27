@@ -102,9 +102,9 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
             <ComposedChart data={sensitivityData}>
               <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="paramValue" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
-              <RechartsTooltip formatter={(v: any, name: any) => name === "operatingMargin" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "영업이익", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" } }} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} label={{ value: "영업이익율(%)", angle: 90, position: "insideRight", style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" } }} />
+              <RechartsTooltip formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
               <Bar dataKey="operatingProfit" name="영업이익" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />

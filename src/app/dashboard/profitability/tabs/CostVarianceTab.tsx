@@ -7,7 +7,7 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell, ReferenceLine, Legend,
-  ScatterChart, Scatter, ZAxis,
+  ScatterChart, Scatter, ZAxis, LabelList,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { AlertTriangle, Target, TrendingDown, BarChart3 } from "lucide-react";
@@ -330,6 +330,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
                       fillOpacity={0.7}
                     />
                   ))}
+                  <LabelList dataKey="name" position="top" fontSize={9} offset={8} />
                 </Scatter>
               </ScatterChart>
             </ChartContainer>

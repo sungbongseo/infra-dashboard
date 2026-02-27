@@ -23,10 +23,11 @@ interface ContribTabProps {
   contribByRate: ContribEntry[];
   orgContribPie: Array<{ name: string; value: number }>;
   excludedNegativeContribCount: number;
+  contribTotals: { sales: number; contrib: number; rate: number };
   isDateFiltered?: boolean;
 }
 
-export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, isDateFiltered }: ContribTabProps) {
+export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered }: ContribTabProps) {
   return (
     <>
       {/* 팀원별 공헌이익 KPI */}
@@ -61,12 +62,12 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
         />
         <KpiCard
           title="평균 공헌이익율"
-          value={contribRanking.length > 0 ? contribRanking.reduce((s, r) => s + r.공헌이익율, 0) / contribRanking.length : 0}
+          value={contribTotals.rate}
           format="percent"
-          formula="전체 공헌이익 합계 ÷ 전체 매출액 합계 × 100"
-          description="담당자별 공헌이익율의 산술 평균입니다. 20% 이상이면 양호합니다."
+          formula="전체 공헌이익 합계 ÷ 전체 매출액 합계 × 100 (가중평균)"
+          description={`전체 매출 ${contribTotals.sales > 0 ? "대비" : "이 0이므로"} 공헌이익의 비율입니다. 매출 규모가 큰 담당자의 이익율이 더 많이 반영됩니다.`}
           benchmark="20% 이상 양호, 음수이면 변동비가 매출보다 큰 적자 상태"
-          reason="평균 공헌이익율을 통해 영업 조직 전체의 변동비 관리 수준을 진단하고, 고정비 회수 속도를 가늠할 수 있습니다"
+          reason="가중평균 공헌이익율을 통해 영업 조직 전체의 실질적 변동비 관리 수준을 진단하고, 고정비 회수 속도를 가늠할 수 있습니다"
         />
       </div>
 
@@ -101,7 +102,11 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                     );
                   }}
                 />
-                <Bar dataKey="공헌이익" fill={CHART_COLORS[2]} name="공헌이익" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar dataKey="공헌이익" name="공헌이익" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
+                  {contribRanking.map((entry, i) => (
+                    <Cell key={i} fill={entry.공헌이익 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />
+                  ))}
+                </Bar>
               </BarChart>
           </ChartContainer>
         </ChartCard>
@@ -176,6 +181,10 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                 }}
               />
               <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
+              {isFinite(contribTotals.rate) && (
+                <ReferenceLine x={contribTotals.rate} stroke={CHART_COLORS[3]} strokeDasharray="5 3"
+                  label={{ value: `평균 ${contribTotals.rate.toFixed(1)}%`, fontSize: 10, position: "top" }} />
+              )}
               <Bar dataKey="공헌이익율" name="공헌이익율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {contribByRate.map((entry, i) => (
                   <Cell key={i} fill={entry.공헌이익율 >= 0 ? CHART_COLORS[2] : CHART_COLORS[4]} />

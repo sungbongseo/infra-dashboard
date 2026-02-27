@@ -57,8 +57,8 @@ export function OrgTab({ bubbleData, isDateFiltered }: OrgTabProps) {
             />
             <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" strokeWidth={1} label={{ value: "손익분기", position: "left", fontSize: 10, fill: "hsl(0, 0%, 50%)" }} />
             <Scatter data={bubbleData} fill={CHART_COLORS[0]}>
-              {bubbleData.map((_, i) => (
-                <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+              {bubbleData.map((d, i) => (
+                <Cell key={i} fill={d.grossProfit >= 0 ? CHART_COLORS[i % CHART_COLORS.length] : "#dc2626"} />
               ))}
               <LabelList dataKey="name" position="top" fontSize={10} offset={8} />
             </Scatter>

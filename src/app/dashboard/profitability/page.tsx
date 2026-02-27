@@ -21,7 +21,15 @@ import {
   calcProductProfitability,
   calcCustomerProfitability,
 } from "@/lib/analysis/profitability";
-import { calcPlanAchievementSummary, calcOrgAchievement, calcTopContributors, calcMarginDrift } from "@/lib/analysis/planAchievement";
+import {
+  calcPlanAchievementSummary,
+  calcOrgAchievement,
+  calcTopContributors,
+  calcMarginDrift,
+  checkPlanDataQuality,
+  calcOrgGapContribution,
+  generatePlanInsight,
+} from "@/lib/analysis/planAchievement";
 import { calcOrgBreakeven, calcOrgBreakevenFromTeam, calcBreakevenChart } from "@/lib/analysis/breakeven";
 import { calcMarginErosion } from "@/lib/analysis/detailedProfitAnalysis";
 import {
@@ -152,7 +160,7 @@ export default function ProfitabilityPage() {
       name: r.영업조직팀,
       x: r.매출액.실적,
       y: r.영업이익율.실적,
-      z: Math.max(r.매출총이익.실적, 0),
+      z: Math.abs(r.매출총이익.실적) || 1,
       grossProfit: r.매출총이익.실적,
     })),
     [filteredOrgProfit]
@@ -182,6 +190,13 @@ export default function ProfitabilityPage() {
     () => [...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율),
     [contribRanking]
   );
+
+  // ContribTab 가중평균 공헌이익율 계산
+  const contribTotals = useMemo(() => {
+    const sales = filteredTeamContribution.reduce((s, r) => s + (r.매출액?.실적 || 0), 0);
+    const contrib = filteredTeamContribution.reduce((s, r) => s + (r.공헌이익?.실적 || 0), 0);
+    return { sales, contrib, rate: sales > 0 ? (contrib / sales) * 100 : 0 };
+  }, [filteredTeamContribution]);
 
   const orgContribPie = useMemo(() => {
     const map = new Map<string, number>();
@@ -273,21 +288,43 @@ export default function ProfitabilityPage() {
     [effectiveProfAnalysis]
   );
 
+  // 파이차트 전용: 매출 기준 정렬 + 누적 85% 동적 커트오프 (최소 5, 최대 20)
+  const productBySales = useMemo(
+    () => calcProductProfitability(effectiveProfAnalysis, { sortBy: "sales" }),
+    [effectiveProfAnalysis]
+  );
+
   const productPieData = useMemo(() => {
-    const top10 = productProfitability.slice(0, 10);
-    const others = productProfitability.slice(10);
+    const totalSales = productBySales.reduce((s, p) => s + p.sales, 0);
+    if (totalSales <= 0) return [];
+    let cumSales = 0;
+    let cutoff = 0;
+    for (const p of productBySales) {
+      cumSales += p.sales;
+      cutoff++;
+      if (cumSales / totalSales >= 0.85 || cutoff >= 20) break;
+    }
+    cutoff = Math.max(cutoff, Math.min(5, productBySales.length));
+    const topN = productBySales.slice(0, cutoff);
+    const others = productBySales.slice(cutoff);
     const othersSales = others.reduce((s, p) => s + p.sales, 0);
-    const chartData = top10.map((p) => ({
+    const othersGP = others.reduce((s, p) => s + p.grossProfit, 0);
+    const chartData = topN.map((p) => ({
       name: truncateLabel(p.product, 15),
       fullName: p.product,
       value: p.sales,
       margin: p.grossMargin,
     }));
     if (othersSales > 0) {
-      chartData.push({ name: "기타", fullName: `기타 ${others.length}개 품목`, value: othersSales, margin: 0 });
+      chartData.push({
+        name: "기타",
+        fullName: `기타 ${others.length}개 품목`,
+        value: othersSales,
+        margin: othersSales > 0 ? (othersGP / othersSales) * 100 : 0,
+      });
     }
     return chartData;
-  }, [productProfitability]);
+  }, [productBySales]);
 
   const customerProfitability = useMemo(
     () => calcCustomerProfitability(effectiveProfAnalysis),
@@ -298,7 +335,10 @@ export default function ProfitabilityPage() {
   const planSummary = useMemo(() => calcPlanAchievementSummary(effectiveProfAnalysis), [effectiveProfAnalysis]);
   const orgAchievement = useMemo(() => calcOrgAchievement(effectiveProfAnalysis), [effectiveProfAnalysis]);
   const topContributors = useMemo(() => calcTopContributors(effectiveProfAnalysis, 10), [effectiveProfAnalysis]);
-  const marginDriftItems = useMemo(() => calcMarginDrift(effectiveProfAnalysis, 15), [effectiveProfAnalysis]);
+  const marginDriftResult = useMemo(() => calcMarginDrift(effectiveProfAnalysis, 15), [effectiveProfAnalysis]);
+  const planQuality = useMemo(() => checkPlanDataQuality(effectiveProfAnalysis), [effectiveProfAnalysis]);
+  const orgGapContribution = useMemo(() => calcOrgGapContribution(effectiveProfAnalysis), [effectiveProfAnalysis]);
+  const planInsight = useMemo(() => generatePlanInsight(planSummary, orgAchievement, planQuality), [planSummary, orgAchievement, planQuality]);
 
   // ─── 손익분기점 (Break-even / CVP) ──────────────────────────────
   const bepFromTeam = filteredTeamContribution.length > 0;
@@ -449,7 +489,7 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="contrib" className="space-y-6">
           <ErrorBoundary>
-            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} isDateFiltered={isDateFilterActive} />
+            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} contribTotals={contribTotals} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -469,6 +509,7 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <ProductTab
               productProfitability={productProfitability}
+              productBySales={productBySales}
               productPieData={productPieData}
               customerProfitability={customerProfitability}
               productWeightedGPRate={productWeightedGPRate}
@@ -494,7 +535,10 @@ export default function ProfitabilityPage() {
               planSummary={planSummary}
               orgAchievement={orgAchievement}
               topContributors={topContributors}
-              marginDriftItems={marginDriftItems}
+              marginDriftResult={marginDriftResult}
+              planQuality={planQuality}
+              orgGapContribution={orgGapContribution}
+              planInsight={planInsight}
               isUsingDateFiltered={isUsingDateFiltered}
               dateRange={dateRange}
               isDateFiltered={isDateFilterActive}

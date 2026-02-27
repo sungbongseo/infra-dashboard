@@ -186,7 +186,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                 <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
                 <Scatter
                   name="거래처"
-                  data={custRanking.slice(0, 15).map((r) => ({ name: r.name, sales: r.sales, opMargin: r.opMargin, grossProfit: r.grossProfit }))}
+                  data={custRanking.slice(0, 30).map((r) => ({ name: r.name, sales: r.sales, opMargin: r.opMargin, grossProfit: r.grossProfit }))}
                   fill={CHART_COLORS[0]}
                 >
                   <LabelList dataKey="name" position="top" style={{ fontSize: 9 }} formatter={(v: any) => truncateLabel(String(v), 8)} />

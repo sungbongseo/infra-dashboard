@@ -41,6 +41,7 @@ interface MarginErosionEntry {
 interface ProductTabProps {
   isDateFiltered?: boolean;
   productProfitability: ProductEntry[];
+  productBySales: ProductEntry[];
   productPieData: Array<{ name: string; fullName: string; value: number; margin: number }>;
   customerProfitability: CustomerEntry[];
   productWeightedGPRate: number;
@@ -52,7 +53,7 @@ interface ProductTabProps {
 }
 
 export function ProductTab({
-  productProfitability, productPieData, customerProfitability,
+  productProfitability, productBySales, productPieData, customerProfitability,
   productWeightedGPRate, marginErosion,
   isUsingDateFiltered, profAnalysisIsFallback, dateRange, hasData,
   isDateFiltered,
@@ -171,7 +172,7 @@ export function ProductTab({
         dataSourceType="period"
         isDateFiltered={isDateFiltered}
         formula="매출 비중(%) = 각 품목 매출액 ÷ 전체 매출액 × 100"
-        description="전체 매출에서 각 품목이 차지하는 비중을 원형 차트로 보여줍니다. 상위 10개 품목을 표시하며, 나머지는 '기타'로 묶습니다. 특정 품목 의존도가 너무 높으면 리스크가 크므로, 매출 포트폴리오를 다양화하는 것이 안정적입니다."
+        description="전체 매출에서 각 품목이 차지하는 비중을 원형 차트로 보여줍니다. 누적 매출 85%에 도달할 때까지 품목을 포함하며(최소 5, 최대 20개), 나머지는 '기타'로 묶습니다. '기타' 위에 마우스를 올리면 내역을 확인할 수 있습니다."
         benchmark="단일 품목 비중이 30% 이상이면 집중도가 높아 리스크 관리 필요"
         reason="제품 포트폴리오의 집중도를 파악하여 특정 품목 의존 리스크를 관리하고, 매출 다각화를 통한 안정적 수익 기반을 구축합니다"
       >
@@ -215,14 +216,38 @@ export function ProductTab({
                     if (!payload || payload.length === 0) return null;
                     const d = payload[0]?.payload;
                     if (!d) return null;
-                    const totalSales = productProfitability.reduce((s, p) => s + p.sales, 0);
+                    const totalSales = productBySales.reduce((s, p) => s + p.sales, 0);
                     const percent = totalSales > 0 ? (d.value / totalSales * 100) : 0;
+                    // "기타" 세그먼트: 내역 상위 5개 표시
+                    if (d.name === "기타") {
+                      const pieItemCount = productPieData.filter((p) => p.name !== "기타").length;
+                      const othersItems = productBySales.slice(pieItemCount);
+                      const top5 = othersItems.slice(0, 5);
+                      const remaining = othersItems.length - 5;
+                      return (
+                        <div className="bg-popover border rounded-lg p-3 text-sm shadow-md max-w-xs">
+                          <p className="font-semibold mb-1">{d.fullName}</p>
+                          <p>매출액: {formatCurrency(d.value)}</p>
+                          <p>비중: {formatPercent(percent, 1)}</p>
+                          <p className="text-xs text-muted-foreground">매출총이익율: {formatPercent(d.margin, 1)}</p>
+                          {top5.length > 0 && (
+                            <div className="mt-2 border-t pt-1.5 text-xs space-y-0.5">
+                              {top5.map((item) => {
+                                const itemPct = totalSales > 0 ? (item.sales / totalSales * 100) : 0;
+                                return <p key={item.product}>{item.product}: {formatPercent(itemPct, 1)}</p>;
+                              })}
+                              {remaining > 0 && <p className="text-muted-foreground">외 {remaining}개 품목</p>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
                     return (
                       <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                         <p className="font-semibold mb-1">{d.fullName}</p>
                         <p>매출액: {formatCurrency(d.value)}</p>
                         <p>비중: {formatPercent(percent, 1)}</p>
-                        {d.name !== "기타" && <p>매출총이익율: {formatPercent(d.margin, 1)}</p>}
+                        <p>매출총이익율: {formatPercent(d.margin, 1)}</p>
                       </div>
                     );
                   }}

@@ -365,7 +365,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
                 orientation="right"
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v: any) => `${v}%`}
-                domain={[0, 100]}
+                domain={[0, (max: number) => Math.max(Math.ceil(max), 100)]}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}

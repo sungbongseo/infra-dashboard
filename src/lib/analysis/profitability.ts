@@ -32,20 +32,29 @@ export interface ProfitabilityMatrix {
  * 품목별 수익성 분석
  * ProfitabilityAnalysisRecord의 품목 필드로 그룹핑하여
  * 매출액, 매출원가, 매출총이익, 영업이익을 집계
+ *
+ * options.groupBy: "품목"(기본) | "제품군" — 제품군은 100(CustomerItemDetail) 데이터에만 존재
+ * options.sortBy: "grossProfit"(기본) | "sales"
  */
 export function calcProductProfitability(
-  data: ProfitabilityAnalysisRecord[]
+  data: ProfitabilityAnalysisRecord[],
+  options?: { sortBy?: "grossProfit" | "sales"; groupBy?: "품목" | "제품군" }
 ): ProductProfitability[] {
+  const sortBy = options?.sortBy ?? "grossProfit";
+  const groupBy = options?.groupBy ?? "품목";
+
   const map = new Map<
     string,
     { sales: number; cost: number; grossProfit: number; operatingProfit: number }
   >();
 
   for (const r of data) {
-    const product = r.품목;
-    if (!product) continue;
+    const key = groupBy === "제품군"
+      ? ((r as any).제품군 || r.품목)
+      : r.품목;
+    if (!key) continue;
 
-    const entry = map.get(product) || {
+    const entry = map.get(key) || {
       sales: 0,
       cost: 0,
       grossProfit: 0,
@@ -57,7 +66,7 @@ export function calcProductProfitability(
     entry.grossProfit += r.매출총이익.실적;
     entry.operatingProfit += r.영업이익.실적;
 
-    map.set(product, entry);
+    map.set(key, entry);
   }
 
   return Array.from(map.entries())
@@ -70,7 +79,7 @@ export function calcProductProfitability(
       operatingProfit: v.operatingProfit,
       operatingMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
     }))
-    .sort((a, b) => b.grossProfit - a.grossProfit);
+    .sort((a, b) => sortBy === "sales" ? b.sales - a.sales : b.grossProfit - a.grossProfit);
 }
 
 /**
