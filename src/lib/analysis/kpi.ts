@@ -276,16 +276,20 @@ export interface OrgRatioMetric {
 }
 
 export function calcOrgRatioMetrics(orgProfitData: OrgProfitRecord[]): OrgRatioMetric[] {
+  const safeNum = (v: number) => (isFinite(v) ? v : 0);
   return orgProfitData
     .filter((r) => r.영업조직팀 && r.매출액.실적 !== 0)
     .map((r) => ({
       org: r.영업조직팀,
-      매출원가율: r.매출원가율.실적,
-      매출총이익율: r.매출총이익율.실적,
-      판관비율: r.판관비율.실적,
-      영업이익율: r.영업이익율.실적,
-      공헌이익율: r.공헌이익율.실적,
-    }));
+      _salesActual: r.매출액.실적,
+      매출원가율: safeNum(r.매출원가율.실적),
+      매출총이익율: safeNum(r.매출총이익율.실적),
+      판관비율: safeNum(r.판관비율.실적),
+      영업이익율: safeNum(r.영업이익율.실적),
+      공헌이익율: safeNum(r.공헌이익율.실적),
+    }))
+    .sort((a, b) => Math.abs(b._salesActual) - Math.abs(a._salesActual))
+    .map(({ _salesActual, ...rest }) => rest);
 }
 
 // ─── 계획 대비 실적 히트맵 ──────────────────────────────────────────
