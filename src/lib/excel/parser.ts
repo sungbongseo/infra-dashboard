@@ -558,15 +558,17 @@ export function parseExcelFile(
         return record;
       }, warnings, "팀원별공헌이익", false);
       // rawData pre-pass에서 이미 fill-down 완료 → fillDownMultiLevel 불필요
-      // Excel에 요약/상세 두 섹션이 있어 동일 사번이 중복됨 → 사번별 중복 제거
+      // Excel에 요약/상세 두 섹션이 있어 동일 조직+사번이 중복됨 → 중복 제거
+      // 키: 조직_사번 (같은 사번이라도 다른 조직이면 별도 유지)
       // 나중에 나오는 행(상세 섹션)이 더 완전한 데이터이므로 후순위 우선
       const deduped = new Map<string, (typeof r.parsed)[0]>();
       for (const row of r.parsed) {
-        deduped.set(row.영업담당사번, row);
+        const key = `${(row.영업조직팀 || "").trim()}_${(row.영업담당사번 || "").trim()}`;
+        deduped.set(key, row);
       }
       const dupCount = r.parsed.length - deduped.size;
       if (dupCount > 0) {
-        warnings.push(`팀원별공헌이익: ${dupCount}건 중복 사번 감지 → 상세 섹션 데이터로 대체`);
+        warnings.push(`팀원별공헌이익: ${dupCount}건 중복(조직+사번) 감지 → 상세 섹션 데이터로 대체`);
       }
       parsed = Array.from(deduped.values());
       skippedRows = r.skipped;
