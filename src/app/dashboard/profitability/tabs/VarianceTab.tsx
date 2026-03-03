@@ -61,6 +61,7 @@ interface VarianceTabProps {
   orgGapContribution: OrgGapContribution[];
   planInsight: string;
   isUsingDateFiltered: boolean;
+  isPlanDataFallback?: boolean;
   isDateFiltered?: boolean;
   dateRange: { from?: string; to?: string } | null;
 }
@@ -78,17 +79,25 @@ function gaugeBgColor(pct: number): string {
 export function VarianceTab({
   planSummary, orgAchievement, topContributors, marginDriftResult,
   planQuality, orgGapContribution, planInsight,
-  isUsingDateFiltered, isDateFiltered, dateRange,
+  isUsingDateFiltered, isPlanDataFallback, isDateFiltered, dateRange,
 }: VarianceTabProps) {
-  const dataSourceType = isUsingDateFiltered ? "period" : "snapshot";
+  const dataSourceType = (isUsingDateFiltered && !isPlanDataFallback) ? "period" : "snapshot";
 
   return (
     <>
       {/* 기간 필터 배너 */}
-      {isUsingDateFiltered && (
+      {isUsingDateFiltered && !isPlanDataFallback && (
         <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
           <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
           기간 필터 적용 중 — 거래처별품목별 손익(100) 데이터 기준 ({dateRange?.from} ~ {dateRange?.to})
+        </div>
+      )}
+
+      {/* 계획 데이터 폴백 배너 */}
+      {isPlanDataFallback && (
+        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0" />
+          기간 필터가 적용되었으나 해당 데이터에 계획 정보가 없어, 전체 기간 계획 데이터(수익성분석 901)를 기준으로 분석합니다.
         </div>
       )}
 

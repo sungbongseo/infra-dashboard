@@ -332,12 +332,22 @@ export default function ProfitabilityPage() {
   );
 
   // ─── 계획 달성 분석 ──────────────────────────────
-  const planSummary = useMemo(() => calcPlanAchievementSummary(effectiveProfAnalysis), [effectiveProfAnalysis]);
-  const orgAchievement = useMemo(() => calcOrgAchievement(effectiveProfAnalysis), [effectiveProfAnalysis]);
-  const topContributors = useMemo(() => calcTopContributors(effectiveProfAnalysis, 10), [effectiveProfAnalysis]);
-  const marginDriftResult = useMemo(() => calcMarginDrift(effectiveProfAnalysis, 15), [effectiveProfAnalysis]);
-  const planQuality = useMemo(() => checkPlanDataQuality(effectiveProfAnalysis), [effectiveProfAnalysis]);
-  const orgGapContribution = useMemo(() => calcOrgGapContribution(effectiveProfAnalysis), [effectiveProfAnalysis]);
+  // 계획 데이터 소스: effectiveProfAnalysis에 계획 데이터가 없으면 filteredProfAnalysis로 폴백
+  const planDataSource = useMemo(() => {
+    if (!isUsingDateFiltered) return effectiveProfAnalysis;
+    const quality = checkPlanDataQuality(effectiveProfAnalysis);
+    if (quality.planQualityLevel === "none") return filteredProfAnalysis;
+    return effectiveProfAnalysis;
+  }, [isUsingDateFiltered, effectiveProfAnalysis, filteredProfAnalysis]);
+
+  const isPlanDataFallback = planDataSource !== effectiveProfAnalysis;
+
+  const planSummary = useMemo(() => calcPlanAchievementSummary(planDataSource), [planDataSource]);
+  const orgAchievement = useMemo(() => calcOrgAchievement(planDataSource), [planDataSource]);
+  const topContributors = useMemo(() => calcTopContributors(planDataSource, 10), [planDataSource]);
+  const marginDriftResult = useMemo(() => calcMarginDrift(planDataSource, 15), [planDataSource]);
+  const planQuality = useMemo(() => checkPlanDataQuality(planDataSource), [planDataSource]);
+  const orgGapContribution = useMemo(() => calcOrgGapContribution(planDataSource), [planDataSource]);
   const planInsight = useMemo(() => generatePlanInsight(planSummary, orgAchievement, planQuality), [planSummary, orgAchievement, planQuality]);
 
   // ─── 손익분기점 (Break-even / CVP) ──────────────────────────────
@@ -540,6 +550,7 @@ export default function ProfitabilityPage() {
               orgGapContribution={orgGapContribution}
               planInsight={planInsight}
               isUsingDateFiltered={isUsingDateFiltered}
+              isPlanDataFallback={isPlanDataFallback}
               dateRange={dateRange}
               isDateFiltered={isDateFilterActive}
             />
