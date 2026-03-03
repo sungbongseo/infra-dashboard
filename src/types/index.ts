@@ -18,6 +18,7 @@ export type FileType =
   | "hqCustomerItemProfit"   // C2: 304
   | "customerItemDetail"     // C3: 100
   | "itemCostDetail"         // 501: 품목별매출원가(상세)
+  | "itemProfitability"      // 200: 품목별수익성분석(회계)
 ;
 
 export interface UploadedFile {

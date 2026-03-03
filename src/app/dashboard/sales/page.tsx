@@ -5,7 +5,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
-import { calcTopCustomers, calcItemSales, calcSalesByType } from "@/lib/analysis/kpi";
+import { calcTopCustomers, calcSalesByType } from "@/lib/analysis/kpi";
 import {
   XAxis,
   YAxis,
@@ -14,7 +14,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Treemap,
   Legend,
   ComposedChart,
   Line,
@@ -39,6 +38,7 @@ import { AnomalyTab } from "./tabs/AnomalyTab";
 import { CohortTab } from "./tabs/CohortTab";
 import { ChurnTab } from "./tabs/ChurnTab";
 import { DecompositionTab } from "./tabs/DecompositionTab";
+import { ItemTab } from "./tabs/ItemTab";
 
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
@@ -49,7 +49,6 @@ export default function SalesAnalysisPage() {
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
-  const itemSales = useMemo(() => calcItemSales(filteredSales), [filteredSales]);
   const salesByType = useMemo(() => calcSalesByType(filteredSales), [filteredSales]);
 
   // CLV 분석에 필요한 조직별 손익 필터
@@ -80,14 +79,6 @@ export default function SalesAnalysisPage() {
     { name: "내수", value: salesByType.domestic },
     { name: "수출", value: salesByType.exported },
   ], [salesByType]);
-
-  const treemapData = useMemo(() =>
-    itemSales.slice(0, 20).map((item) => ({
-      name: item.name,
-      size: item.amount,
-    })),
-    [itemSales]
-  );
 
   // KPI 데이터
   const totalSalesAmount = useMemo(() => filteredSales.reduce((s, r) => s + r.장부금액, 0), [filteredSales]);
@@ -205,39 +196,7 @@ export default function SalesAnalysisPage() {
 
         <TabsContent value="item" className="space-y-6">
           <ErrorBoundary>
-          <ChartCard
-            title="품목별 매출 비중"
-            dataSourceType="period"
-            isDateFiltered={isDateFiltered}
-            formula="품목별로 장부금액을 합산하여 비교"
-            description="각 품목의 매출 규모를 면적(네모칸) 크기로 보여줍니다. 면적이 클수록 해당 품목의 매출 비중이 높습니다. 상위 20개 품목을 표시하며, 어떤 제품이 매출을 주도하는지 한눈에 파악할 수 있습니다."
-            benchmark="특정 품목이 전체 매출의 50% 이상이면 제품 다각화 필요"
-            reason="품목별 매출 기여도를 파악하여 주력 제품에 영업력을 집중하고, 저성과 품목의 전략적 처리(가격조정/단종) 근거를 마련합니다."
-          >
-            <ChartContainer height="h-72 md:h-96">
-                <Treemap
-                  data={treemapData}
-                  dataKey="size"
-                  aspectRatio={4 / 3}
-                  stroke="hsl(var(--background))"
-                  content={(props: any) => {
-                    const { x, y, width, height, name, value } = props;
-                    if (width < 40 || height < 25) return <g />;
-                    return (
-                      <g>
-                        <rect x={x} y={y} width={width} height={height} fill={CHART_COLORS[0]} opacity={0.85} rx={4} />
-                        <text x={x + width / 2} y={y + height / 2 - 6} textAnchor="middle" fill="white" fontSize={11} fontWeight={600}>
-                          {truncateLabel(String(name), 8)}
-                        </text>
-                        <text x={x + width / 2} y={y + height / 2 + 10} textAnchor="middle" fill="white" fontSize={10} opacity={0.8}>
-                          {formatCurrency(value, true)}
-                        </text>
-                      </g>
-                    );
-                  }}
-                />
-            </ChartContainer>
-          </ChartCard>
+            <ItemTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 

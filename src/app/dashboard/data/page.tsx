@@ -20,6 +20,7 @@ const TYPE_LABELS: Record<string, string> = {
   hqCustomerItemProfit: "거래처품목손익",
   customerItemDetail: "거래처별품목별손익",
   itemCostDetail: "품목별매출원가(상세)",
+  itemProfitability: "품목별수익성분석(회계)",
 };
 
 /** 파일 타입별 필수 필드 */
@@ -35,6 +36,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   hqCustomerItemProfit: ["영업조직팀", "매출거래처", "품목", "매출액"],
   customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출연월", "매출액"],
   itemCostDetail: ["영업조직팀", "품목", "매출액", "매출총이익", "공헌이익"],
+  itemProfitability: ["영업조직팀", "품목", "매출액", "매출총이익", "영업이익"],
 };
 
 function getCompletenessColor(rate: number): string {
@@ -61,6 +63,7 @@ export default function DataManagementPage() {
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
+  const itemProfitability = useDataStore((s) => s.itemProfitability);
 
   /** receivableAging은 Map이므로 모든 소스를 합쳐서 하나의 배열로 변환 */
   const allAgingRecords = useMemo(() => {
@@ -85,8 +88,9 @@ export default function DataManagementPage() {
       hqCustomerItemProfit,
       customerItemDetail,
       itemCostDetail,
+      itemProfitability,
     }),
-    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail]
+    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability]
   );
 
   /** 로드된 타입만 필터링하고 품질 지표 계산 */

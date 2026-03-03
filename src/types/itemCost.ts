@@ -64,6 +64,50 @@ export interface ItemCostDetailRecord {
   공헌이익율: PlanActualDiff;
 }
 
+/** 200.품목별 수익성 분석(회계) — 품목 계층 + full P&L + 원가항목 */
+export interface ItemProfitabilityRecord {
+  판매사업부: string;
+  영업조직팀: string;     // Excel 컬럼명: "영업조직(팀)"
+  대분류: string;
+  중분류: string;         // Excel: "중분류코드"
+  소분류: string;         // Excel: "소분류코드"
+  품목계정그룹: string;
+  품목: string;           // e.g., "[CHMJ4229997] R-AA"
+  기준단위: string;
+  // Revenue
+  매출수량: number;
+  매출액: number;
+  매출단가: number;
+  // Cost
+  실적매출원가: number;
+  매출원가율: number;
+  // Profit
+  매출총이익: number;
+  매출총이익율: number;
+  영업이익: number;
+  직접판매운반비: number;
+  판매관리비: number;
+  영업이익율: number;
+  // 17 cost categories (실적 only, not PlanActualDiff)
+  원재료비: number;
+  부재료비: number;
+  상품매입: number;
+  노무비: number;
+  복리후생비: number;
+  소모품비: number;
+  수도광열비: number;
+  수선비: number;
+  연료비: number;
+  외주가공비: number;
+  운반비: number;
+  전력비: number;
+  지급수수료: number;
+  견본비: number;
+  제조고정노무비: number;
+  감가상각비: number;
+  기타경비: number;
+}
+
 // ── NEW-1: 품목별 원가 차이 랭킹 ──
 export interface ItemVarianceEntry {
   product: string;

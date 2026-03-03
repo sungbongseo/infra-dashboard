@@ -9,6 +9,7 @@ import type {
   HqCustomerItemProfitRecord,
   CustomerItemDetailRecord,
   ItemCostDetailRecord,
+  ItemProfitabilityRecord,
   ReceivableAgingRecord,
   PlanActualDiff,
   AgingAmounts,
@@ -258,6 +259,47 @@ function safeParseRows<T>(
     warnings.push(`[${fileType}] ... 외 ${skipped - 5}행 추가 실패`);
   }
   return { parsed, skipped };
+}
+
+function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
+  return {
+    판매사업부: str(row[1]),
+    영업조직팀: str(row[2]),
+    대분류: str(row[3]),
+    중분류: str(row[4]),
+    소분류: str(row[5]),
+    품목계정그룹: str(row[6]),
+    품목: str(row[7]),
+    기준단위: str(row[8]),
+    매출수량: num(row[10]),
+    매출액: num(row[11]),
+    매출단가: num(row[13]),
+    실적매출원가: num(row[15]),
+    매출원가율: num(row[18]),
+    매출총이익: num(row[19]),
+    매출총이익율: num(row[20]),
+    영업이익: num(row[21]),
+    직접판매운반비: num(row[22]),
+    판매관리비: num(row[23]),
+    영업이익율: num(row[24]),
+    원재료비: num(row[25]),
+    부재료비: num(row[26]),
+    상품매입: num(row[27]),
+    노무비: num(row[28]),
+    복리후생비: num(row[29]),
+    소모품비: num(row[30]),
+    수도광열비: num(row[31]),
+    수선비: num(row[32]),
+    연료비: num(row[33]),
+    외주가공비: num(row[34]),
+    운반비: num(row[35]),
+    전력비: num(row[36]),
+    지급수수료: num(row[37]),
+    견본비: num(row[38]),
+    제조고정노무비: num(row[39]),
+    감가상각비: num(row[40]),
+    기타경비: num(row[41]),
+  };
 }
 
 function parseOrganization(data: unknown[][]): Organization[] {
@@ -704,6 +746,26 @@ export function parseExcelFile(
         ["품목", "품목명", "제품군"],
       ], warnings, "거래처별품목별손익");
       skippedRows = r.skipped;
+      break;
+    }
+    case "itemProfitability": {
+      // filterEmptyFirstCol=false: SAP 계층 데이터에서 No 빈 행 보존
+      const rIP = safeParseRows<ItemProfitabilityRecord>(
+        rawData, 1, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
+      );
+      // 6단계 계층 fill-down: 판매사업부→영업조직팀→대분류→중분류→소분류→[품목계정그룹, 품목]
+      const filledIP = fillDownMultiLevel(rIP.parsed, [
+        ["판매사업부"],
+        ["영업조직팀"],
+        ["대분류"],
+        ["중분류"],
+        ["소분류"],
+        ["품목계정그룹", "품목"],
+      ], warnings, "품목별수익성분석");
+      // 상세행만 유지: 품목이 비어있는 소계행 제거
+      const detailIP = filledIP.filter(r => r.품목.trim() !== "");
+      parsed = detailIP;
+      skippedRows = rIP.skipped;
       break;
     }
     case "itemCostDetail": {

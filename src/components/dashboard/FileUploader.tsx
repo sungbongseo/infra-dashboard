@@ -41,6 +41,7 @@ export function FileUploader() {
     setHqCustomerItemProfit,
     setCustomerItemDetail,
     setItemCostDetail,
+    setItemProfitability,
     setReceivableAging,
     clearAllData,
   } = useDataStore();
@@ -173,6 +174,8 @@ export function FileUploader() {
               setCustomerItemDetail(store.customerItemDetail.filter(byTeam));
             if (store.itemCostDetail.length > 0)
               setItemCostDetail(store.itemCostDetail.filter(byTeam));
+            if (store.itemProfitability.length > 0)
+              setItemProfitability(store.itemProfitability.filter(byTeam));
             if (store.receivableAging.size > 0) {
               store.receivableAging.forEach((records, source) => {
                 setReceivableAging(source, records.filter(byName));
@@ -210,6 +213,9 @@ export function FileUploader() {
           case "itemCostDetail":
             setItemCostDetail(result.data as any[]);
             break;
+          case "itemProfitability":
+            setItemProfitability(result.data as any[]);
+            break;
           case "receivableAging":
             setReceivableAging(result.sourceName || file.name, result.data as any[]);
             break;
@@ -244,6 +250,7 @@ export function FileUploader() {
           case "hqCustomerItemProfit":
           case "customerItemDetail":
           case "itemCostDetail":
+          case "itemProfitability":
             saveDataset(result.fileType, result.data as any[]).catch((e) =>
               console.error("IndexedDB 데이터셋 저장 실패:", e)
             );
@@ -283,7 +290,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setReceivableAging]
+    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging]
   );
 
   const handleDrop = useCallback(

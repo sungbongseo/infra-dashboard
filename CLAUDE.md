@@ -35,7 +35,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 
 ### Zustand Stores (src/stores/)
 
-- **dataStore**: All parsed data (sales, orders, collections, orgProfit, teamContribution, profitabilityAnalysis, receivableAging Map, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail), uploaded file list, org filter (orgNames Set). Primary store with IndexedDB persistence via Dexie.
+- **dataStore**: All parsed data (sales, orders, collections, orgProfit, teamContribution, profitabilityAnalysis, receivableAging Map, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability), uploaded file list, org filter (orgNames Set). Primary store with IndexedDB persistence via Dexie.
 - **filterStore**: Active filtering state (dateRange, selectedOrgs, selectedPerson, comparisonRange, comparisonPreset). Supports YoY/MoM comparison periods with auto-calculation. Persisted to IndexedDB.
 - **uiStore**: Sidebar state, dark mode, active tab.
 - **alertStore**: KPI threshold monitoring with alert rules engine. Evaluates collectionRate, operatingProfitRate, salesPlanAchievement against configurable thresholds.
@@ -46,7 +46,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/components/dashboard/` — Shared: KpiCard (with sparklines), ChartCard, FileUploader, EmptyState, AnalysisTooltip, GlobalFilterBar, DataTable, ErrorBoundary, LoadingSkeleton, ExportButton, AlertPanel
 - `src/components/ui/` — Radix UI-based primitives
 - `src/components/charts/` — ChartContainer wrapper with shared grid/bar/animation config constants (GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR)
-- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 12 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
+- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 13 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
 - `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (`useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, etc.) that encapsulate the common filter pattern
 - `src/lib/db.ts` — Dexie IndexedDB persistence for all parsed data and filter state
@@ -65,6 +65,7 @@ Core analytics:
 - `pipeline.ts` — O2C (Order-to-Cash) pipeline
 - `profitability.ts` — Product-level profitability
 - `profitRiskMatrix.ts` — Profitability risk matrix with fuzzy org matching
+- `itemHierarchy.ts` — 적응형 품목 계층 드릴다운, 원가 워터폴, 수익성 매트릭스
 
 Advanced analytics:
 - `channel.ts` — 결제조건별 매출 분포
@@ -92,7 +93,7 @@ Advanced analytics:
 - `sensitivityAnalysis.ts` — 민감도 분석
 - `timeSeriesDecomposition.ts` — 시계열 분해
 
-### 12 Excel File Types (lib/excel/schemas.ts)
+### 13 Excel File Types (lib/excel/schemas.ts)
 
 Each file type is detected by filename regex (order matters — `orgCustomerProfit` must precede `orgProfit`). Some use merged headers (rows 0-1). Organization filtering uses different field names per type.
 
@@ -106,6 +107,7 @@ Each file type is detected by filename regex (order matters — `orgCustomerProf
 | hqCustomerItemProfit (304) | 영업조직팀 | 본부 거래처 품목 손익 |
 | customerItemDetail (100) | 영업조직팀 | 거래처별 품목별 손익 |
 | itemCostDetail (501) | 영업조직팀 | 품목별 매출원가 상세 |
+| itemProfitability (200) | 영업조직팀 | 품목 계층+P&L+원가, 단일헤더+데이터셀머지 |
 
 ### Page Pattern
 

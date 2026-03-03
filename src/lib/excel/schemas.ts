@@ -62,6 +62,13 @@ export const FILE_SCHEMAS: FileSchema[] = [
     orgFilterField: "영업조직팀",
   },
   {
+    fileType: "itemProfitability",
+    pattern: /품목별\s*수익성\s*분석\s*[\(\（]?\s*회계|200[.\s]*품목/i,
+    headerRow: 0,
+    hasMergedHeader: false,
+    orgFilterField: "영업조직팀",
+  },
+  {
     fileType: "profitabilityAnalysis",
     pattern: /(담당자|거래처|품목).*(수익성|분석)|수익성.*분석/i,
     headerRow: 0,
