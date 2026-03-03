@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DataTable } from "@/components/dashboard/DataTable";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -154,6 +155,8 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
     [variance.totalActualCost]
   );
 
+  if (variance.categories.length === 0) return <EmptyState />;
+
   return (
     <>
       {/* KPIs */}
@@ -203,7 +206,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 gap-4">
         {/* Chart 1: Plan vs Actual by category */}
-        <ChartCard title="원가 항목별 계획 vs 실적" dataSourceType="period" isDateFiltered={isDateFiltered} description="각 원가 항목의 계획 금액(파랑)과 실적 금액(주황)을 비교합니다. 실적이 계획보다 높으면 예산 초과입니다. 소계 2개(제조변동비/제조고정비)는 참고용입니다" reason="원가 항목별 계획과 실적을 직접 비교하여 예산 초과 항목을 식별하고, 원가 계획의 정확성과 실행력을 평가하여 차기 예산 편성의 정밀도를 향상시킵니다">
+        <ChartCard title="원가 항목별 계획 vs 실적" isEmpty={planVsActualData.length === 0} dataSourceType="period" isDateFiltered={isDateFiltered} formula="17개 독립 원가 항목 + 2개 소계의 계획 금액과 실적 금액 병렬 비교" description="각 원가 항목의 계획 금액(파랑)과 실적 금액(주황)을 비교합니다. 실적이 계획보다 높으면 예산 초과입니다. 소계 2개(제조변동비/제조고정비)는 참고용입니다" benchmark="항목별 차이율 ±5% 이내면 정상, 10% 이상 초과 시 원인 분석 필요" reason="원가 항목별 계획과 실적을 직접 비교하여 예산 초과 항목을 식별하고, 원가 계획의 정확성과 실행력을 평가하여 차기 예산 편성의 정밀도를 향상시킵니다">
           <ChartContainer minHeight={360}>
             <BarChart data={planVsActualData} margin={{ top: 10, right: 20, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -227,7 +230,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Chart 2: Top 10 Variance Horizontal */}
-        <ChartCard title="원가 차이 Top 10 (항목별)" dataSourceType="period" isDateFiltered={isDateFiltered} description="계획 대비 차이가 가장 큰 10개 원가 항목입니다. 빨간색=예산 초과(원가 상승), 초록색=예산 절감. 차이 절대값이 큰 순서로 정렬됩니다" reason="차이가 큰 원가 항목부터 우선적으로 원인을 분석하여 원가 절감 효과가 가장 큰 영역에 관리 자원을 집중 투입합니다">
+        <ChartCard title="원가 차이 Top 10 (항목별)" isEmpty={top10Variance.length === 0} dataSourceType="period" isDateFiltered={isDateFiltered} formula="실적 - 계획 차이의 절대값이 큰 순서로 상위 10개 항목 추출" description="계획 대비 차이가 가장 큰 10개 원가 항목입니다. 빨간색=예산 초과(원가 상승), 초록색=예산 절감. 차이 절대값이 큰 순서로 정렬됩니다" benchmark="상위 3개 항목이 전체 차이의 70% 이상이면 집중 관리 대상" reason="차이가 큰 원가 항목부터 우선적으로 원인을 분석하여 원가 절감 효과가 가장 큰 영역에 관리 자원을 집중 투입합니다">
           <ChartContainer minHeight={360}>
             <BarChart
               data={top10Variance}
@@ -253,7 +256,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
 
         {/* NEW: 품목별 원가 차이 Top 15 */}
         {itemVarianceChartData.length > 0 && (
-          <ChartCard title="품목별 원가 차이 Top 15" dataSourceType="period" isDateFiltered={isDateFiltered} description="개별 품목 단위로 원가 차이가 큰 15개입니다. 빨간색 = 해당 품목의 원가가 계획보다 높음, 초록색 = 원가 절감됨. 금액이 클수록 경영 영향이 큽니다" reason="품목 단위의 원가 차이를 파악하여 특정 품목의 원재료 가격 상승, 생산 비효율 등 구체적 원인을 추적하고, 품목별 맞춤 원가 개선 방안을 도출합니다">
+          <ChartCard title="품목별 원가 차이 Top 15" dataSourceType="period" isDateFiltered={isDateFiltered} formula="품목별 원가 실적 - 계획 차이의 절대값 기준 상위 15개 추출" description="개별 품목 단위로 원가 차이가 큰 15개입니다. 빨간색 = 해당 품목의 원가가 계획보다 높음, 초록색 = 원가 절감됨. 금액이 클수록 경영 영향이 큽니다" benchmark="A등급 품목이 초과 목록에 포함되면 매출총이익 영향이 크므로 즉시 대응" reason="품목 단위의 원가 차이를 파악하여 특정 품목의 원재료 가격 상승, 생산 비효율 등 구체적 원인을 추적하고, 품목별 맞춤 원가 개선 방안을 도출합니다">
             <ChartContainer minHeight={360}>
               <BarChart
                 data={itemVarianceChartData}
@@ -338,7 +341,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
         )}
 
         {/* Chart 3: Team Cost Rate vs GP Rate */}
-        <ChartCard title="팀별 원가율 비교" dataSourceType="period" isDateFiltered={isDateFiltered} description="각 팀의 원가율(매출원가/매출액)과 매출총이익율을 비교합니다. 원가율이 낮고 이익율이 높은 팀이 효율적입니다. 점선(25%)은 업계 평균 기준입니다" reason="팀 간 원가율과 이익율을 비교하여 원가 관리가 우수한 팀과 개선이 필요한 팀을 식별하고, 우수 팀의 원가 관리 노하우를 전파하여 조직 전체의 원가 경쟁력을 강화합니다">
+        <ChartCard title="팀별 원가율 비교" isEmpty={teamCompareData.length === 0} dataSourceType="period" isDateFiltered={isDateFiltered} formula="원가율 = 매출원가 / 매출액 × 100, 매출총이익율 = (매출액 - 매출원가) / 매출액 × 100" description="각 팀의 원가율(매출원가/매출액)과 매출총이익율을 비교합니다. 원가율이 낮고 이익율이 높은 팀이 효율적입니다. 점선(25%)은 업계 평균 기준입니다" benchmark="팀별 매출총이익율 편차가 10%p 이상이면 원가 관리 격차 개선 필요" reason="팀 간 원가율과 이익율을 비교하여 원가 관리가 우수한 팀과 개선이 필요한 팀을 식별하고, 우수 팀의 원가 관리 노하우를 전파하여 조직 전체의 원가 경쟁력을 강화합니다">
           <ChartContainer minHeight={380}>
             <BarChart data={teamCompareData} margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -359,7 +362,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
       </div>
 
       {/* Table */}
-      <ChartCard title="원가 항목별 상세 차이" dataSourceType="period" isDateFiltered={isDateFiltered} description="17개 독립 원가 항목과 2개 소계(회색 배경)의 계획/실적/차이 상세입니다. 빨간색=초과, 초록색=절감. 차이 기여도는 각 항목이 전체 차이에 얼마나 영향을 주었는지를 보여줍니다" reason="모든 원가 항목의 계획/실적/차이를 한눈에 조회하여 원가 관리의 전체 그림을 파악하고, 항목별 차이 기여도를 통해 전체 원가 변동의 주요 원인을 정밀하게 추적합니다">
+      <ChartCard title="원가 항목별 상세 차이" dataSourceType="period" isDateFiltered={isDateFiltered} formula="항목별 차이 = 실적 - 계획, 차이율 = 차이 / |계획| × 100, 기여도 = 항목 차이 / 전체 차이 × 100" description="17개 독립 원가 항목과 2개 소계(회색 배경)의 계획/실적/차이 상세입니다. 빨간색=초과, 초록색=절감. 차이 기여도는 각 항목이 전체 차이에 얼마나 영향을 주었는지를 보여줍니다" benchmark="차이 기여도 상위 3개 항목이 전체 변동의 핵심 원인, 우선 관리 대상" reason="모든 원가 항목의 계획/실적/차이를 한눈에 조회하여 원가 관리의 전체 그림을 파악하고, 항목별 차이 기여도를 통해 전체 원가 변동의 주요 원인을 정밀하게 추적합니다">
         <DataTable
           data={variance.categories}
           columns={varColumns}

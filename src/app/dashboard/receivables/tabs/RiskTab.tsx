@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import {
   BarChart,
   Bar,
@@ -13,6 +14,7 @@ import { Users, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
@@ -31,6 +33,19 @@ interface RiskTabProps {
 }
 
 export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDateFiltered }: RiskTabProps) {
+  const riskExportData = useMemo(
+    () =>
+      risks.map((r) => ({
+        판매처명: r.판매처명 || r.판매처 || "",
+        담당자: r.담당자 || "",
+        영업조직: r.영업조직 || "",
+        미수금합계: r.총미수금,
+        "연체비중(%)": isFinite(r.연체비율) ? Number(r.연체비율.toFixed(1)) : 0,
+        위험등급: r.riskGrade === "high" ? "고위험" : r.riskGrade === "medium" ? "주의" : "양호",
+      })),
+    [risks]
+  );
+
   const riskColumns = useMemo<ColumnDef<AgingRiskAssessment, any>[]>(
     () => [
       {
@@ -102,6 +117,8 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
     []
   );
 
+  if (risks.length === 0) return <EmptyState />;
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -146,6 +163,7 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
       </div>
 
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={byPerson.length === 0}
         title="담당자별 미수금 현황"
         formula="영업담당자별 미수금 합계를 구한 뒤 상위 15명을 표시"
         description="미수금이 가장 많은 영업담당자 상위 15명입니다. 특정 담당자에 미수금이 지나치게 몰려 있다면 해당 담당자의 거래처 관리를 강화해야 합니다."
@@ -164,6 +182,7 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
       </ChartCard>
 
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        action={<ExportButton data={riskExportData} fileName="리스크평가" />}
         title="리스크 등급 현황"
         formula="고위험: 연체비율 50% 초과 또는 6개월 이상 1억 초과\n주의: 연체비율 30~50% 또는 3개월 이상 5천만 초과\n양호: 위 조건에 해당하지 않는 거래처"
         description="거래처별 미수금 잔액과 연령(aging) 분포를 보여줍니다. 미수금이 특정 거래처에 집중되면 회수 실패 시 큰 손실 위험이 있어 분산 관리가 필요합니다."

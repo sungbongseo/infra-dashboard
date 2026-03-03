@@ -115,6 +115,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
           icon={<TrendingDown className="h-5 w-5" />}
           formula="전체 월 매출 중 하위 25% 수준의 금액 (하위 1/4 경계)"
           description="월 매출이 이 금액 아래로 떨어지면 하위 25%에 해당합니다. 비수기 또는 이상 상황으로 주의가 필요합니다."
+          benchmark="평균 - 1.5×IQR 미만 시 이상치"
           reason="매출 하한 기준선을 설정하여 월 매출이 이 수준 이하로 떨어질 때 비수기 또는 이상 상황을 인지하고, 선제적 영업 활동을 전개합니다."
         />
         <KpiCard
@@ -124,6 +125,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
           icon={<Target className="h-5 w-5" />}
           formula="전체 월 매출 중 상위 25% 수준의 금액 (상위 1/4 경계)"
           description="월 매출이 이 금액을 넘으면 상위 25%에 해당합니다. 대형 계약이나 일시적 수요 등 특수 요인 확인이 필요합니다."
+          benchmark="평균 + 1.5×IQR 초과 시 이상치"
           reason="매출 상한 기준선을 파악하여 월 매출이 이 수준을 초과할 때 특수 요인(대형 계약, 일시적 수요 등)을 식별하고, 지속 가능성을 검증합니다."
         />
       </div>
@@ -186,7 +188,9 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
       {stats.enhancedAnomalies.length > 0 && (
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="이상치 상세 분석"
+          formula="월별 매출 이상치의 거래처별 기여도 및 원인 분류"
           description="기준선을 벗어난 월의 상세 정보입니다. 행을 클릭하면 매출 변동의 주요 원인 거래처를 확인할 수 있습니다."
+          benchmark="이상치 원인의 80%가 특정 거래처에 집중되면 포트폴리오 점검 필요"
           reason="이상치 발생 월별 상세 정보를 제공하여 개별 이상치의 원인(특수 계약, 시장 이벤트, 데이터 오류 등)을 추적하고, 후속 조치 우선순위를 결정합니다."
         >
           <div className="overflow-x-auto">

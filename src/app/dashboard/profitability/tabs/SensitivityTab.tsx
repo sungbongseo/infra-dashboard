@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcSensitivityGrid, generateSensitivityInsight } from "@/lib/analysis/sensitivityAnalysis";
@@ -124,6 +125,8 @@ export function SensitivityTab({
   }, [cellMap, selectedMetric]);
 
   const metricLabel = METRIC_OPTIONS.find((m) => m.key === selectedMetric)?.label ?? "영업이익";
+
+  if (baseSales === 0 && baseGrossProfit === 0 && baseOpProfit === 0) return <EmptyState />;
 
   return (
     <>

@@ -14,6 +14,7 @@ import { Users, AlertTriangle, Target, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
@@ -132,6 +133,8 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
     []
   );
 
+  if (portfolio.length === 0) return <EmptyState />;
+
   return (
     <>
       {/* KPI Cards */}
@@ -143,6 +146,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
           icon={<Users className="h-5 w-5" />}
           formula="미수금 잔액을 보유한 고유 영업담당자 수"
           description="현재 미수금 관리 책임이 있는 영업담당자 수입니다."
+          benchmark="담당자당 거래처 10~15개가 적정 관리 범위"
           reason="담당자별 관리 역량 분석의 기초 데이터로, 회수 조직의 인력 구성과 업무 분배 적정성을 평가합니다."
         />
         <KpiCard
@@ -179,6 +183,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
 
       {/* Chart 1: 담당자별 미수금 건전성 (100% Stacked Horizontal Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={healthData.length === 0}
         title="담당자별 미수금 건전성"
         formula="정상(1~2개월, 녹색) / 주의(3~5개월, 노랑) / 연체(6개월+, 빨강) 비율"
         description="담당자별 미수금의 연령 구성을 비교합니다. 빨간 영역이 넓은 담당자는 수금 관리가 시급합니다."
@@ -203,6 +208,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
 
       {/* Chart 2: 수금 효율 랭킹 (Horizontal Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={efficiencyData.length === 0}
         title="담당자별 수금 효율 랭킹"
         formula="정상비율 = (1~2개월 미수금) ÷ 총 미수금 × 100\n등급: A(80%+) B(60%+) C(40%+) D(40%미만)"
         description="정상 비율이 높을수록 수금 관리가 우수합니다. 등급별 색상으로 한눈에 효율성을 비교할 수 있습니다."
@@ -229,9 +235,11 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
 
       {/* Table: 거래처×담당자 상세 */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={customerRepDetail.length === 0}
         title="거래처×담당자 상세"
         formula="거래처별 미수금에 담당자·조직·리스크 등급·여신사용률을 결합한 통합 뷰"
         description="특정 담당자 또는 거래처를 검색하여 미수금 현황과 리스크를 상세 확인할 수 있습니다."
+        benchmark="장기미수 비중 20% 이상 담당자는 회수 역량 강화 필요"
         reason="거래처와 담당자의 교차 정보를 통합 조회하여 회수 책임을 명확히 하고, 개별 건 추적 관리를 지원합니다."
       >
         <DataTable

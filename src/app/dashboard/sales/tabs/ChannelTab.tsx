@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import { AlertTriangle } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
@@ -45,9 +46,12 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
     [filteredSales]
   );
 
+  if (filteredSales.length === 0) return <EmptyState />;
+
   return (
     <>
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={paymentTermSales.length === 0}
         title="결제조건별 매출 분포"
         formula="결제조건별로 판매금액을 합산하여 비교"
         description="현금, 30일, 60일 등 결제조건별 매출 분포를 보여줍니다."
@@ -72,6 +76,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
       </ChartCard>
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={customerCategorySales.length === 0}
         title="거래처소분류별 매출"
         formula="거래처소분류별로 판매금액을 합산하여 비교 (3% 미만은 '기타'로 병합)"
         description="거래처 유형별 매출 비중을 보여줍니다."
@@ -126,6 +131,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
       </ChartCard>
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={itemCategorySales.length === 0}
         title="제품군별 매출 및 평균 단가"
         formula="제품군별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)"
         description="제품군별 매출 규모와 평균 단가를 보여줍니다."

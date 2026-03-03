@@ -318,7 +318,7 @@ export default function OverviewPage() {
       )}
 
       <Tabs defaultValue="core-kpi" className="space-y-4">
-        <TabsList className="flex flex-wrap">
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="core-kpi">핵심 지표</TabsTrigger>
           <TabsTrigger value="org-analysis">조직 분석</TabsTrigger>
           <TabsTrigger value="financial-health">재무 건전성</TabsTrigger>

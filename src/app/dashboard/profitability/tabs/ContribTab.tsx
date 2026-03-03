@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -28,6 +30,18 @@ interface ContribTabProps {
 }
 
 export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered }: ContribTabProps) {
+  const contribExportData = useMemo(
+    () =>
+      contribRanking.map((r) => ({
+        담당자: r.displayName || r.name,
+        사번: r.사번,
+        조직: r.org,
+        공헌이익: r.공헌이익,
+        "공헌이익율(%)": isFinite(r.공헌이익율) ? Number(r.공헌이익율.toFixed(1)) : 0,
+      })),
+    [contribRanking]
+  );
+
   return (
     <>
       {/* 적자 담당자 경고 배너 */}
@@ -82,6 +96,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         <ChartCard
           title="담당자별 공헌이익 랭킹"
+          action={<ExportButton data={contribExportData} fileName="팀원별공헌이익" />}
           dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
           formula="공헌이익 = 매출액 - 변동비(원재료비, 외주비 등)"

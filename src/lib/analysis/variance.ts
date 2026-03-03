@@ -1,3 +1,8 @@
+/**
+ * @deprecated 전체 모듈 미사용 — VarianceTab은 planAchievement.ts만 사용.
+ * 현재 데이터에 매출수량.계획이 대부분 0이라 3-way 분산 무의미.
+ */
+
 import type { ProfitabilityAnalysisRecord } from "@/types";
 
 /**

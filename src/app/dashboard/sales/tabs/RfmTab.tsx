@@ -18,10 +18,11 @@ import {
 } from "recharts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { calcRfmScores, calcRfmSegmentSummary, RFM_SEGMENT_ACTIONS } from "@/lib/analysis/rfm";
+import { calcRfmAnalysis, RFM_SEGMENT_ACTIONS } from "@/lib/analysis/rfm";
 import type { RfmScore, RfmSegmentSummary } from "@/lib/analysis/rfm";
 
 const RFM_COLORS: Record<string, string> = {
@@ -47,8 +48,9 @@ interface RfmTabProps {
 }
 
 export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
-  const rfmScores = useMemo(() => calcRfmScores(filteredSales), [filteredSales]);
-  const rfmSummary = useMemo(() => calcRfmSegmentSummary(rfmScores), [rfmScores]);
+  const rfmResult = useMemo(() => calcRfmAnalysis(filteredSales), [filteredSales]);
+  const rfmScores = rfmResult.scores;
+  const rfmSummary = rfmResult.segments;
 
   // Group scores by segment for the customer list section
   const scoresBySegment = useMemo(() => {
@@ -65,6 +67,22 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
     Array.from(map.values()).forEach((arr) => arr.sort((a, b) => b.monetary - a.monetary));
     return map;
   }, [rfmScores]);
+
+  const rfmExportData = useMemo(
+    () =>
+      rfmScores.map((s) => ({
+        거래처명: s.customerName || s.customer,
+        세그먼트: s.rfmSegment,
+        "R점수": s.rScore,
+        "F점수": s.fScore,
+        "M점수": s.mScore,
+        총점: s.totalScore,
+        매출액: s.monetary,
+        "최근거래_경과월": s.recency,
+        거래빈도: s.frequency,
+      })),
+    [rfmScores]
+  );
 
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
 
@@ -84,6 +102,12 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
 
   return (
     <>
+      {/* 소규모 데이터 경고 */}
+      {rfmResult.isSmallSample && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 text-sm text-amber-800 dark:text-amber-200">
+          거래처 수가 {rfmResult.sampleSize}개로 적어 RFM 분석 결과의 통계적 신뢰도가 낮을 수 있습니다. 5개 이상의 거래처 데이터가 있을 때 최적의 분석이 가능합니다.
+        </div>
+      )}
       {/* 세그먼트 분포 & 세그먼트별 매출 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
@@ -255,9 +279,11 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
 
       {/* 세그먼트별 거래처 목록 + 추천 액션 */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        action={<ExportButton data={rfmExportData} fileName="RFM분석" />}
         title="세그먼트별 거래처 목록 및 추천 액션"
         formula="RFM 세그먼트별 소속 거래처를 매출 내림차순으로 정렬"
         description="각 세그먼트에 해당하는 거래처 목록과 해당 세그먼트의 추천 액션을 확인할 수 있습니다. 세그먼트를 클릭하면 상위 20개 거래처 상세가 표시됩니다."
+        benchmark="VIP 대비 At-risk 비율이 1:1 이상이면 고객 관리 강화 필요"
         reason="세그먼트별 실제 거래처를 확인하여 담당 영업사원에게 구체적인 액션 아이템을 전달하고, 세그먼트 이동 모니터링의 기초 자료로 활용합니다."
       >
         <div className="space-y-2">

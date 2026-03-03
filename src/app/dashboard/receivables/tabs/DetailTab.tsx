@@ -14,6 +14,7 @@ import {
 import { FileText, Globe, Building2, Clock } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, formatPercent, TOOLTIP_STYLE, CHART_COLORS } from "@/lib/utils";
@@ -178,6 +179,8 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
     []
   );
 
+  if (profiles.length === 0) return <EmptyState />;
+
   return (
     <>
       {/* KPI */}
@@ -209,6 +212,7 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
           icon={<Building2 className="h-5 w-5" />}
           formula="미수채권 데이터에 포함된 고유 거래처(판매처) 수"
           description="현재 미수금이 있는 전체 거래처 수입니다."
+          benchmark="상위 20% 거래처의 미수금이 전체의 80% 이상이면 집중 관리 필요"
           reason="채권 관리 대상 거래처 규모를 파악하여 관리 자원 배분과 모니터링 체계의 적정성을 평가합니다."
         />
         <KpiCard
@@ -225,6 +229,7 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
 
       {/* 차트 1: 거래처별 Aging 프로파일 (Stacked Horizontal Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={agingChartData.length === 0}
         title="거래처별 Aging 프로파일 (Top 20)"
         formula="거래처별 미수채권을 경과 기간별(1~6개월, 6개월 초과)로 분류하여 수평 누적 차트로 표시"
         description="미수금이 가장 많은 상위 20개 거래처의 채권 연령 분포입니다. 빨간색 비중이 클수록 장기 미수금이 많아 회수 위험이 높습니다."
@@ -251,6 +256,7 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
 
       {/* 차트 2: 조직별 출고-장부 괴리 (Grouped Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={orgGap.length === 0}
         title="조직별 출고-장부 괴리"
         formula="조직별 괴리금액 = Σ 출고금액(납품 시 청구액) − Σ 장부금액(현재 회계 잔액)"
         description="영업조직별 출고금액(납품 청구액)과 장부금액(회계 잔액)을 비교합니다. 차이가 발생하는 주요 원인은 ① 부분 수금 반영, ② 대손상각 처리, ③ 환율 변동(외화 거래), ④ 할인/반품 미반영 등입니다. 괴리가 큰 조직은 회계 처리 지연 여부를 점검하세요."
@@ -281,7 +287,9 @@ export function DetailTab({ profiles, currencyExposure, orgGap, weightedDays, is
       {/* 테이블: 거래처별 Aging 상세 */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="거래처별 Aging 상세"
+        formula="거래처별 미수금을 월령 구간별로 분해하여 회수 위험도 평가"
         description="모든 거래처의 월별 미수금 분포, 출고-장부 괴리율, 가중평균 채권연령을 상세 조회합니다."
+        benchmark="3개월 초과 비중이 20% 이상이면 채권 부실화 경고"
         reason="개별 거래처 건별 상세 현황을 확인하여 장기 미회수 건을 추적하고, 거래처별 회수 이력 관리의 기초 자료로 활용합니다."
       >
         <DataTable

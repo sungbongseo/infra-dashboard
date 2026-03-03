@@ -14,6 +14,7 @@ import {
 import { Wallet, Landmark, Building2, Percent } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
 import type { PrepaymentSummary, OrgPrepayment, MonthlyPrepayment } from "@/lib/analysis/prepayment";
@@ -33,6 +34,8 @@ export function PrepaymentTab({
   hasCollections,
   isDateFiltered,
 }: PrepaymentTabProps) {
+  if (!hasCollections) return <EmptyState />;
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -87,6 +90,7 @@ export function PrepaymentTab({
       )}
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={orgPrepayments.length === 0}
         title="조직별 선수금 현황"
         formula="영업조직별 선수금액을 합산하여 상위 10개 조직을 표시"
         description="거래처별 선수금 잔액 분포를 보여줍니다. 선수금이 특정 거래처에 집중되면 해당 거래처 변동에 따른 현금흐름 리스크가 커집니다."
@@ -113,6 +117,7 @@ export function PrepaymentTab({
       </ChartCard>
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={monthlyPrepayments.length === 0}
         title="월별 선수금 추이"
         formula="수금월별 선수금액을 합산\n막대 = 선수금, 선 = 장부선수금"
         description="매월 선수금이 얼마나 발생했는지 추이를 보여줍니다. 선수금(막대)과 장부선수금(선)의 차이가 크면 환율 변동이나 회계 처리 시점 차이를 점검해야 합니다."

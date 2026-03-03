@@ -234,7 +234,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
 
       {/* Charts Row 1: Waterfall + Cost Bucket Pie */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ChartCard title="공헌이익 워터폴" dataSourceType="period" isDateFiltered={isDateFiltered} description="매출액에서 각 비용을 단계별로 차감하는 흐름입니다. 매출액 → 변동비 차감 → 공헌이익 → 고정비 차감 → 매출총이익. 빨간색=비용 차감, 초록색=이익 잔액" reason="매출에서 이익까지의 비용 차감 과정을 시각화하여 어느 단계에서 이익이 잠식되는지 파악하고, 변동비와 고정비 중 개선 우선순위를 결정합니다">
+        <ChartCard title="공헌이익 워터폴" dataSourceType="period" isDateFiltered={isDateFiltered} formula="매출액 - 변동비 = 공헌이익, 공헌이익 - 고정비 = 매출총이익" description="매출액에서 각 비용을 단계별로 차감하는 흐름입니다. 매출액 → 변동비 차감 → 공헌이익 → 고정비 차감 → 매출총이익. 빨간색=비용 차감, 초록색=이익 잔액" benchmark="공헌이익률 50% 이상이면 고정비 충분 커버, 30% 미만이면 손익분기 위험" reason="매출에서 이익까지의 비용 차감 과정을 시각화하여 어느 단계에서 이익이 잠식되는지 파악하고, 변동비와 고정비 중 개선 우선순위를 결정합니다">
           <ChartContainer minHeight={320}>
             <BarChart data={waterfall} margin={{ top: 20, right: 20, left: 20, bottom: 5 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -256,7 +256,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
           </ChartContainer>
         </ChartCard>
 
-        <ChartCard title="원가 구성 비중" dataSourceType="period" isDateFiltered={isDateFiltered} description="전체 원가를 7대 그룹(재료비, 상품매입비, 인건비, 설비비, 외주비, 물류비, 일반경비)으로 나눈 비중입니다. 가장 큰 조각이 원가 절감의 핵심 대상입니다" reason="원가 구조를 7대 그룹으로 분류하여 원가 절감의 핵심 대상을 식별하고, 비중이 큰 항목부터 우선적으로 개선 방안을 수립합니다">
+        <ChartCard title="원가 구성 비중" dataSourceType="period" isDateFiltered={isDateFiltered} formula="각 원가 그룹 실적 합계 / 전체 원가 실적 합계 × 100" description="전체 원가를 7대 그룹(재료비, 상품매입비, 인건비, 설비비, 외주비, 물류비, 일반경비)으로 나눈 비중입니다. 가장 큰 조각이 원가 절감의 핵심 대상입니다" benchmark="재료비+상품매입비 비중이 70% 이상이면 원재료 가격 변동 리스크 주의" reason="원가 구조를 7대 그룹으로 분류하여 원가 절감의 핵심 대상을 식별하고, 비중이 큰 항목부터 우선적으로 개선 방안을 수립합니다">
           <ChartContainer minHeight={320}>
             <PieChart>
               <Pie
@@ -350,7 +350,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
         )}
 
         {/* Pareto: 공헌이익 + 누적 매출 비중 */}
-        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" dataSourceType="period" isDateFiltered={isDateFiltered} description="공헌이익 상위 20개 품목입니다. 바=공헌이익 금액, 라인=누적 공헌이익 비중. 80% 기준선까지가 A등급 후보(핵심), 95%까지 B등급(일반), 이후 C등급(보조). 단, 공헌이익률 15% 미만이면 한 등급 하향됩니다" reason="공헌이익 기준 핵심 품목을 파악하여 고정비 회수에 가장 크게 기여하는 품목의 안정적 공급과 품질 관리에 집중하고, 수익 기여도가 낮은 품목의 개선 또는 정리를 검토합니다">
+        <ChartCard title="품목별 공헌이익 파레토 (Top 20)" dataSourceType="period" isDateFiltered={isDateFiltered} formula="공헌이익 내림차순 정렬 후 누적 비중 산출. ABC: A=80%, B=95%, C=나머지" description="공헌이익 상위 20개 품목입니다. 바=공헌이익 금액, 라인=누적 공헌이익 비중. 80% 기준선까지가 A등급 후보(핵심), 95%까지 B등급(일반), 이후 C등급(보조). 단, 공헌이익률 15% 미만이면 한 등급 하향됩니다" benchmark="상위 20% 품목이 공헌이익의 80% 이상이면 파레토 법칙에 부합" reason="공헌이익 기준 핵심 품목을 파악하여 고정비 회수에 가장 크게 기여하는 품목의 안정적 공급과 품질 관리에 집중하고, 수익 기여도가 낮은 품목의 개선 또는 정리를 검토합니다">
           <ChartContainer minHeight={360}>
             <ComposedChart data={paretoData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -398,7 +398,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
 
       {/* Charts Row 3: Team Cost Structure */}
       <div className="grid grid-cols-1 gap-4">
-        <ChartCard title="팀별 원가 구성" dataSourceType="period" isDateFiltered={isDateFiltered} description="각 팀의 원가를 7대 그룹 비율(%)로 보여줍니다. 막대 전체가 100%이며, 각 색상 영역의 넓이가 해당 원가 그룹의 비중입니다. 팀 간 원가 구조 차이를 비교할 수 있습니다" reason="팀 간 원가 구성의 차이를 비교하여 특정 팀의 원가 비효율을 식별하고, 우수 팀의 원가 관리 방식을 벤치마크하여 조직 전체의 원가 경쟁력을 강화합니다">
+        <ChartCard title="팀별 원가 구성" dataSourceType="period" isDateFiltered={isDateFiltered} formula="팀별 7대 원가 그룹 비율 = 각 그룹 실적 / 팀 총 원가 × 100 (100% 누적)" description="각 팀의 원가를 7대 그룹 비율(%)로 보여줍니다. 막대 전체가 100%이며, 각 색상 영역의 넓이가 해당 원가 그룹의 비중입니다. 팀 간 원가 구조 차이를 비교할 수 있습니다" benchmark="팀 간 동일 그룹 비중 차이가 15%p 이상이면 원가 구조 차이 원인 분석 필요" reason="팀 간 원가 구성의 차이를 비교하여 특정 팀의 원가 비효율을 식별하고, 우수 팀의 원가 관리 방식을 벤치마크하여 조직 전체의 원가 경쟁력을 강화합니다">
           <ChartContainer minHeight={360}>
             <BarChart data={teamStackedData} margin={{ top: 5, right: 20, left: 10, bottom: 20 }}>
               <CartesianGrid {...GRID_PROPS} />
@@ -423,7 +423,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
       </div>
 
       {/* Table */}
-      <ChartCard title="품목별 원가 상세" dataSourceType="period" isDateFiltered={isDateFiltered} description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급은 공헌이익 금액 파레토 + 공헌이익률 15% 미만 페널티 복합 기준입니다. 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다" reason="개별 품목 단위의 원가·이익 데이터를 상세 조회하여 수익성 이상 품목을 정밀 진단하고, 원가 절감이나 가격 조정이 필요한 구체적인 품목을 특정합니다">
+      <ChartCard title="품목별 원가 상세" dataSourceType="period" isDateFiltered={isDateFiltered} formula="품목별 매출액, 변동비, 매출총이익, 공헌이익을 산출하고 ABC 등급 분류" description="품목별 매출, 원가, 이익을 한눈에 비교하는 테이블입니다. ABC등급은 공헌이익 금액 파레토 + 공헌이익률 15% 미만 페널티 복합 기준입니다. 색상(초록=양호/주황=보통/빨강=주의)으로 빠르게 상태를 파악할 수 있습니다" benchmark="A등급 품목의 매출총이익율이 20% 미만이면 핵심 품목 원가 관리 시급" reason="개별 품목 단위의 원가·이익 데이터를 상세 조회하여 수익성 이상 품목을 정밀 진단하고, 원가 절감이나 가격 조정이 필요한 구체적인 품목을 특정합니다">
         <DataTable
           data={ranking}
           columns={tableColumns}

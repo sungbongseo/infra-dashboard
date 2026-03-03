@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import {
   BarChart,
   Bar,
@@ -18,6 +19,7 @@ import { AlertTriangle, TrendingDown, Building2, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, formatPercent, TOOLTIP_STYLE } from "@/lib/utils";
@@ -66,6 +68,22 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
         충당률Label: `${(p.충당률 * 100).toFixed(0)}%`,
       })),
     [provision]
+  );
+
+  const customerExportData = useMemo(
+    () =>
+      customers.map((c) => ({
+        판매처명: c.판매처명 || c.판매처 || "",
+        담당자: c.담당자 || "",
+        영업조직: c.영업조직 || "",
+        "6개월_미수금": c.month6금액,
+        "6개월초과_미수금": c.overdue금액,
+        장기미수합계: c.장기미수합계,
+        "장기비중(%)": isFinite(c.장기비중) ? Number(c.장기비중.toFixed(1)) : 0,
+        대손추정액: c.대손추정액,
+        리스크등급: c.riskGrade === "high" ? "고위험" : c.riskGrade === "medium" ? "주의" : "양호",
+      })),
+    [customers]
   );
 
   // 테이블 컬럼
@@ -167,6 +185,8 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
     []
   );
 
+  if (customers.length === 0) return <EmptyState />;
+
   return (
     <>
       {/* KPI */}
@@ -215,6 +235,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
 
       {/* 차트 1: 장기 미수 거래처 Top 15 */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={topCustomers.length === 0}
         title="장기 미수 거래처 Top 15"
         formula="6개월 + 6개월 초과 미수금 합계가 큰 순서로 상위 15개 거래처"
         description="장기 미수금이 가장 많은 거래처 15곳입니다. 주황색은 6개월차, 빨간색은 6개월 초과 미수금입니다."
@@ -236,6 +257,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
 
       {/* 차트 2: 조직별 장기 미수 구성 (ComposedChart) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={orgChartData.length === 0}
         title="조직별 장기 미수 구성"
         formula="조직별 6개월 + 6개월 초과 미수금 누적 + 장기비중 라인"
         description="조직별 장기 미수금 구성과 전체 미수금 대비 장기 비중을 보여줍니다. 비중이 10%를 초과하면 해당 조직의 채권 관리를 강화해야 합니다."
@@ -266,6 +288,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
 
       {/* 차트 3: 대손충당금 추정 구성 (Grouped Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={provisionData.length === 0}
         title="대손충당금 추정 구성"
         formula="91~120일: 1%, 121~150일: 5%, 151~180일: 10%, 180일+: 50%"
         description="K-IFRS 1109호 SAP FI 간편법 기준으로 연체 기간별 원금과 추정 대손충당금을 비교합니다."
@@ -292,8 +315,11 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
 
       {/* 테이블: 장기 미수 거래처 목록 */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        action={<ExportButton data={customerExportData} fileName="장기미수거래처" />}
         title="장기 미수 거래처 목록"
+        formula="6개월 초과 미수 잔액 기준 내림차순 정렬, 대손충당금 추정 포함"
         description="6개월 이상 장기 미수금이 있는 거래처 목록입니다. 대손추정액은 SAP FI 간편법 충당률 기준입니다."
+        benchmark="대손충당금 적립률이 장기미수의 50% 미만이면 충당금 부족 경고"
         reason="장기 미수 전체 거래처 목록을 통해 대손 처리 대상을 선별하고, 거래처별 개별 회수 계획 수립과 법적 조치 여부를 판단합니다."
       >
         <DataTable

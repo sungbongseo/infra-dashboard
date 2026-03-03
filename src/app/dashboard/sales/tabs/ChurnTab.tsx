@@ -16,6 +16,7 @@ import {
 import { AlertTriangle, Users, DollarSign, ShieldAlert } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
@@ -75,6 +76,21 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
     return (churnSummary.atRiskRevenue / totalRev) * 100;
   }, [churnSummary]);
 
+  const churnExportData = useMemo(
+    () =>
+      churnSummary.customers
+        .filter((c) => c.churnScore >= 20)
+        .map((c) => ({
+          거래처명: c.customerName || c.customer,
+          이탈점수: c.churnScore,
+          위험등급: RISK_LEVEL_LABELS[c.riskLevel] || c.riskLevel,
+          누적매출: c.totalAmount,
+          마지막거래월: c.lastPurchaseMonth,
+          이탈신호: c.signals.join(", "),
+        })),
+    [churnSummary]
+  );
+
   const criticalCount = churnSummary.riskDistribution.find(
     (d) => d.level === "critical"
   )?.count ?? 0;
@@ -83,6 +99,11 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
 
   return (
     <>
+      {/* B2B 맥락 경고 배너 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4 text-sm text-blue-800 dark:text-blue-200">
+        <strong>B2B 인프라 사업 특성 안내:</strong> 프로젝트 단위 거래는 6~12개월 주기가 일반적이며, 일반 B2C 기준(3개월 미거래=이탈)보다 긴 허용 범위가 적용됩니다.
+        critical 등급이 다수 발생하면 정상적인 프로젝트 사이클인지 확인이 필요합니다.
+      </div>
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -225,8 +246,11 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
 
       {/* At-risk customer detail table */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        action={<ExportButton data={churnExportData} fileName="이탈위험거래처" />}
         title="이탈 위험 거래처 상세"
+        formula="이탈 점수 20점 이상 거래처를 점수 내림차순 정렬"
         description="이탈 점수 20점 이상 거래처의 상세 정보와 이탈 신호를 보여줍니다."
+        benchmark="매출 상위 10% 거래처가 포함되면 즉시 리텐션 캠페인 시행"
         reason="이탈 위험 거래처별 구체적 이탈 신호(미거래 기간, 빈도 감소, 거래량 하락)를 제공하여 맞춤형 리텐션 전략을 수립하고, 영업 담당자의 실행 액션을 구체화합니다."
         isEmpty={churnSummary.customers.filter((c) => c.churnScore >= 20).length === 0}
       >

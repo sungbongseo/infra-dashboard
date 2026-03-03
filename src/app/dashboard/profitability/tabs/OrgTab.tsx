@@ -1,4 +1,5 @@
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -19,8 +20,11 @@ interface OrgTabProps {
 }
 
 export function OrgTab({ bubbleData, isDateFiltered }: OrgTabProps) {
+  if (bubbleData.length === 0) return <EmptyState />;
+
   return (
     <ChartCard
+      isEmpty={bubbleData.length === 0}
       title="조직별 수익성 Matrix"
       dataSourceType="snapshot"
       isDateFiltered={isDateFiltered}

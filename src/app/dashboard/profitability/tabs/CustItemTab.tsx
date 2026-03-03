@@ -16,6 +16,7 @@ import {
 import { Package, Users, Calendar } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcABCAnalysis, calcCustomerPortfolio, calcCrossProfitability } from "@/lib/analysis/customerItemAnalysis";
@@ -31,6 +32,8 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
   const abcItems = useMemo(() => calcABCAnalysis(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
   const custPortfolio = useMemo(() => calcCustomerPortfolio(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
   const topCombinations = useMemo(() => calcCrossProfitability(effectiveHqCustItemProfit).slice(0, 20), [effectiveHqCustItemProfit]);
+
+  if (effectiveHqCustItemProfit.length === 0) return <EmptyState />;
 
   return (
     <>

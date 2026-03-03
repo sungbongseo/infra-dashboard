@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
@@ -43,6 +44,8 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
     () => calcSensitivity(filteredOrgProfit, "sales", [-20, -15, -10, -5, 0, 5, 10, 15, 20]),
     [filteredOrgProfit]
   );
+
+  if (filteredOrgProfit.length === 0) return <EmptyState />;
 
   return (
     <>

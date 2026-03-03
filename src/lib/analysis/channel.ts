@@ -247,7 +247,7 @@ export function groupSmallItemCategories(
   return [...major, grouped];
 }
 
-// 제품군별 월별 트렌드 (기존 유지 - 추후 제거 가능)
+/** @deprecated ChannelTab에서 미사용 — calcSalesByItemCategory()로 대체 */
 export interface ProductGroupTrend {
   month: string;
   [productGroup: string]: number | string;

@@ -15,6 +15,7 @@ import { Landmark, TrendingUp, Ban, Gauge } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
@@ -47,6 +48,8 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
       })),
     [creditUtilizations]
   );
+
+  if (allRecords.length === 0) return <EmptyState />;
 
   return (
     <>
@@ -94,6 +97,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
       </div>
 
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={creditByOrg.length === 0}
         title="조직별 여신 사용률"
         formula="조직별 여신 사용률(%) = 조직별 미수금 합계 ÷ 여신한도 합계 × 100\n빨간 점선 = 100% 한도 기준선"
         description="각 조직이 여신한도를 얼마나 사용하고 있는지 보여줍니다. 100%를 넘으면 한도 초과이며, 빨간 점선이 100% 기준입니다."
@@ -130,6 +134,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
       </ChartCard>
 
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={creditUtilizations.length === 0}
         title="거래처별 여신 사용률"
         formula="거래처별 여신 사용률(%) = 미수금 ÷ 여신한도 × 100\n사용률이 높은 순서대로 정렬"
         description="거래처별로 여신한도를 얼마나 사용하고 있는지 상세 목록입니다. 빨간색(한도초과)과 노란색(주의) 거래처를 우선 관리해야 합니다."

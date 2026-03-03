@@ -13,6 +13,7 @@ import {
 import { CreditCard, AlertTriangle, Shield } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
 import type { AgingSummary } from "@/lib/analysis/aging";
@@ -43,6 +44,8 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
     })),
     [byOrg]
   );
+
+  if (byOrg.length === 0) return <EmptyState />;
 
   return (
     <>
@@ -89,6 +92,7 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
       </div>
 
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+        isEmpty={agingStackedData.length === 0}
         title="조직별 미수채권 연령 분석"
         formula="각 조직의 미수채권을 경과 기간별(1~6개월, 6개월 초과)로 분류"
         description="조직별로 미수채권이 얼마나 오래되었는지 색상으로 구분하여 보여줍니다. 녹색은 최근 발생한 채권, 빨간색은 오래된 채권입니다. 빨간색 비중이 클수록 회수 위험이 높습니다."

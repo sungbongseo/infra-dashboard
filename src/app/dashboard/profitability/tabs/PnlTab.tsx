@@ -6,7 +6,7 @@ import {
   Tooltip as RechartsTooltip, Cell,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { TrendingUp, Target } from "lucide-react";
+import { TrendingUp, Target, Percent } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 
 interface PnlTabProps {
@@ -42,6 +42,7 @@ export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, i
           title="매출총이익율"
           value={gpRate}
           format="percent"
+          icon={<Percent className="h-5 w-5" />}
           formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
           description="매출 100원당 원가를 빼고 남는 이익의 비율입니다. 이 비율이 높을수록 원가 관리를 잘하고 있다는 의미이며, 가격 경쟁력과 원가 효율성을 동시에 보여줍니다."
           benchmark="제조업 평균 20~30%, 30% 이상이면 원가 경쟁력 양호"

@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -82,6 +84,22 @@ export function VarianceTab({
   isUsingDateFiltered, isPlanDataFallback, isDateFiltered, dateRange,
 }: VarianceTabProps) {
   const dataSourceType = (isUsingDateFiltered && !isPlanDataFallback) ? "period" : "snapshot";
+
+  const achievementExportData = useMemo(
+    () =>
+      orgAchievement.map((o) => ({
+        조직: o.org,
+        매출계획: o.salesPlan,
+        매출실적: o.salesActual,
+        "매출달성율(%)": isFinite(o.salesAchievement) ? Number(o.salesAchievement.toFixed(1)) : 0,
+        매출차이: o.salesGap,
+        "GP달성율(%)": isFinite(o.gpAchievement) ? Number(o.gpAchievement.toFixed(1)) : 0,
+        "OP달성율(%)": isFinite(o.opAchievement) ? Number(o.opAchievement.toFixed(1)) : 0,
+        "계획이익율(%)": isFinite(o.plannedGPRate) ? Number(o.plannedGPRate.toFixed(1)) : 0,
+        "실적이익율(%)": isFinite(o.actualGPRate) ? Number(o.actualGPRate.toFixed(1)) : 0,
+      })),
+    [orgAchievement]
+  );
 
   return (
     <>
@@ -268,6 +286,7 @@ export function VarianceTab({
       {/* 2-G: 조직별 달성율 차트 개선 (F4 해결) — 매출/GP/OP 3개 grouped bar */}
       <ChartCard
         title="조직별 매출·GP·OP 달성율"
+        action={<ExportButton data={achievementExportData} fileName="계획달성분석" />}
         dataSourceType={dataSourceType}
         isDateFiltered={isDateFiltered}
         formula="달성율 = 실적 ÷ 계획 × 100"

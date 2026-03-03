@@ -11,6 +11,7 @@ import { calcCustomerAgingProfile, calcCurrencyExposure, calcOrgInvoiceBookGap, 
 import { calcLongTermSummary, calcLongTermCustomers, calcLongTermByOrg, calcBadDebtProvision } from "@/lib/analysis/longTermReceivable";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
@@ -73,17 +74,31 @@ export default function ReceivablesPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight">미수금 관리</h2>
-        <p className="text-muted-foreground">미수채권 연령 분석 및 리스크 관리</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">미수금 관리</h2>
+          <p className="text-muted-foreground">미수채권 연령 분석 및 리스크 관리</p>
+        </div>
+        <ExportButton
+          data={allRecords.map((r) => ({
+            영업조직: r.영업조직,
+            담당자: r.담당자,
+            판매처: r.판매처,
+            판매처명: r.판매처명,
+            합계_장부금액: r.합계?.장부금액 ?? 0,
+            여신한도: r.여신한도,
+          }))}
+          fileName="미수금현황"
+          sheetName="미수금"
+        />
       </div>
 
       <Tabs defaultValue="status" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
+        <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
           <TabsTrigger value="credit">여신 관리</TabsTrigger>
-          <TabsTrigger value="dso">DSO/CCC</TabsTrigger>
+          <TabsTrigger value="dso">매출채권회전(DSO/CCC)</TabsTrigger>
           <TabsTrigger value="detail">채권 상세</TabsTrigger>
           <TabsTrigger value="longterm">장기 미수</TabsTrigger>
           <TabsTrigger value="prepayment">선수금</TabsTrigger>

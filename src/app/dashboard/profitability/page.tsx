@@ -455,21 +455,27 @@ export default function ProfitabilityPage() {
 
       <Tabs defaultValue="pnl" className="space-y-4">
         <TooltipProvider delayDuration={300}>
-        <TabsList className="flex-wrap h-auto gap-1">
+        <TabsList className="flex flex-wrap h-auto gap-1">
+          {/* 기본 손익 */}
           <TabsTrigger value="pnl">손익 현황</TabsTrigger>
           <TabsTrigger value="org">조직 수익성</TabsTrigger>
           <TabsTrigger value="contrib" disabled={filteredTeamContribution.length === 0}>팀원별 공헌이익</TabsTrigger>
           <TabsTrigger value="cost" disabled={filteredTeamContribution.length === 0}>비용 구조</TabsTrigger>
           <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>
+          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
+          {/* 심화 분석 */}
           <TabsTrigger value="product" disabled={effectiveProfAnalysis.length === 0}>
             제품 수익성{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
-          <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성x리스크</TabsTrigger>
+          <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>
           <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
-            계획 달성 분석{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            분산 분석{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
           <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
+          <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도</TabsTrigger>
+          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
+          {/* 상세 손익 */}
           <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
             거래처 손익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
@@ -479,9 +485,8 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>
             상세수익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
-          <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도 분석</TabsTrigger>
-          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가 구조</TabsTrigger>
-          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가 차이분석</TabsTrigger>
+          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가</TabsTrigger>
+          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이</TabsTrigger>
         </TabsList>
         </TooltipProvider>
 

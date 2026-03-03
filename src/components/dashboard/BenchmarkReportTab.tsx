@@ -283,7 +283,9 @@ export function BenchmarkReportTab({
       {/* Status Badges Table */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         title="지표별 상세 비교"
+        formula="각 KPI를 업종 평균/우수 기준과 비교하여 상대 위치 평가"
         description="각 지표의 실적, 업종 평균, 격차, 평가 상태를 표로 정리합니다."
+        benchmark="3개 이상 지표가 업종 하위 25%이면 종합 개선 계획 수립 필요"
         reason="지표별 업종 평균과의 격차를 수치로 확인하여 구체적인 개선 목표를 설정합니다."
       >
         <div className="overflow-x-auto">

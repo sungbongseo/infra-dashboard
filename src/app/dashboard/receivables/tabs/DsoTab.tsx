@@ -21,6 +21,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
 import { calcDSOByOrg, calcOverallDSO, calcDSOTrend } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
@@ -230,6 +231,8 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
     []
   );
 
+  if (allRecords.length === 0) return <EmptyState />;
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -291,7 +294,17 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         </div>
       )}
 
+      {filteredTeamContrib.length > 0 && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4">
+          <p className="text-sm text-blue-800 dark:text-blue-200">
+            <strong>CCC 추정값 안내:</strong> DIO(재고 보유기간)는 재고 데이터 미보유로 0일 적용되며, DPO(매입채무 지급기간)는 매출원가율 기반 업종 평균 추정값입니다.
+            실제 DIO·DPO와 차이가 있을 수 있으므로 CCC는 참고 지표로 활용하시기 바랍니다.
+          </p>
+        </div>
+      )}
+
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={dsoChartData.length === 0}
         title="조직별 DSO(매출채권 회수기간)"
         formula="DSO(일) = 조직별 미수금 합계 ÷ 월평균 매출 × 30\n색상: 녹색(우수, <30일), 파랑(양호, 30~45일), 노랑(보통, 45~60일), 빨강(주의, >60일)"
         description="각 조직이 매출채권을 회수하는 데 평균 며칠이 걸리는지 보여줍니다. DSO(매출채권 회수기간)가 짧을수록 현금 회수가 빠르며 자금 관리가 효율적입니다."
@@ -406,6 +419,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       )}
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        isEmpty={cccMetrics.length === 0}
         title="조직별 CCC(현금순환주기) 상세 분석"
         formula="CCC = DSO(매출채권 회수기간) - DPO(매입채무 지급기간)\nDSO: 매출 후 현금 회수까지 걸리는 일수\nDPO: 구매 후 대금 지급까지 걸리는 일수 (추정값)\n재고 보유기간(DIO)은 데이터 부재로 0일 적용"
         description="조직별 현금순환주기를 보여줍니다. CCC(현금순환주기)가 음수이면 물건 대금을 지급하기 전에 매출 대금을 먼저 회수하는 우수한 상태입니다."

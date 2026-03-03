@@ -67,6 +67,7 @@ export function detectAnomalies(
 }
 
 /**
+ * @deprecated detectEnhancedSalesAnomalies()로 대체됨 — 원인 분석·기여 거래처 포함
  * Detect anomalies from raw sales records.
  * Aggregates by month first, then applies IQR.
  */

@@ -1,5 +1,6 @@
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -29,6 +30,8 @@ interface BreakevenTabProps {
 }
 
 export function BreakevenTab({ orgBreakeven, bepChartData, bepKpiSummary, bepFromTeam, isDateFiltered }: BreakevenTabProps) {
+  if (orgBreakeven.length === 0) return <EmptyState />;
+
   return (
     <>
       {/* 데이터 소스 안내 */}

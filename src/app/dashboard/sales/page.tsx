@@ -152,19 +152,22 @@ export default function SalesAnalysisPage() {
       </div>
 
       <Tabs defaultValue="customer" className="space-y-4">
-        <TabsList className="flex-wrap h-auto gap-1">
-          <TabsTrigger value="customer">거래처 분석</TabsTrigger>
-          <TabsTrigger value="item">품목 분석</TabsTrigger>
-          <TabsTrigger value="type">유형별 분석</TabsTrigger>
-          <TabsTrigger value="channel">채널 분석</TabsTrigger>
-          <TabsTrigger value="rfm">RFM 분석</TabsTrigger>
-          <TabsTrigger value="clv">CLV 분석</TabsTrigger>
+        <TabsList className="flex flex-wrap h-auto gap-1">
+          {/* 기본 분석 */}
+          <TabsTrigger value="customer">거래처</TabsTrigger>
+          <TabsTrigger value="item">품목</TabsTrigger>
+          <TabsTrigger value="type">유형별</TabsTrigger>
+          <TabsTrigger value="channel">채널</TabsTrigger>
+          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
+          {/* 고급 분석 */}
+          <TabsTrigger value="rfm">RFM</TabsTrigger>
+          <TabsTrigger value="clv">CLV</TabsTrigger>
           <TabsTrigger value="migration">거래처 이동</TabsTrigger>
-          <TabsTrigger value="fx">FX 분석</TabsTrigger>
-          <TabsTrigger value="anomaly">이상치 탐지</TabsTrigger>
-          <TabsTrigger value="cohort">코호트 분석</TabsTrigger>
+          <TabsTrigger value="fx">FX</TabsTrigger>
+          <TabsTrigger value="anomaly">이상치</TabsTrigger>
+          <TabsTrigger value="cohort">코호트</TabsTrigger>
           <TabsTrigger value="churn">이탈 예측</TabsTrigger>
-          <TabsTrigger value="decomposition">시계열 분해</TabsTrigger>
+          <TabsTrigger value="decomposition">시계열</TabsTrigger>
         </TabsList>
 
         <TabsContent value="customer" className="space-y-6">
