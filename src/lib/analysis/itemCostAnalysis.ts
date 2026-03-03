@@ -173,7 +173,7 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
       actual,
       variance,
       variancePct: plan !== 0 ? (variance / Math.abs(plan)) * 100 : 0,
-      isOverBudget: actual > plan,
+      isOverBudget: plan >= 0 ? actual > plan : actual < plan, // 음수 계획 시 부호 고려
       isSubtotal: cat === "제조변동비소계" || cat === "제조고정비소계",
       contributionToTotal: 0, // filled after total calc
     };

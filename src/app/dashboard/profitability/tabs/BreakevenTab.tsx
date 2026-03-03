@@ -15,6 +15,7 @@ interface OrgBreakevenEntry {
   variableCosts: number;
   fixedCosts: number;
   bepSales: number;
+  canBreakEven: boolean;
   safetyMarginRate: number;
   contributionMarginRatio: number;
 }
@@ -39,6 +40,16 @@ export function BreakevenTab({ orgBreakeven, bepChartData, bepKpiSummary, bepFro
             : "고정비 산출: 조직별 손익 데이터에서 역산 (고정비 = 공헌이익 - 영업이익). 팀원별 공헌이익(401) 파일을 업로드하면 더 정확한 분석이 가능합니다."}
         </span>
       </div>
+
+      {/* 손익분기 달성 불가 조직 경고 */}
+      {orgBreakeven.some(r => !r.canBreakEven) && (
+        <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 flex items-center gap-2">
+          <span className="font-medium">⚠️ 손익분기 달성 불가</span>
+          <span>
+            {orgBreakeven.filter(r => !r.canBreakEven).map(r => r.org).join(", ")} — 변동비율이 100% 이상으로 매출 증가만으로는 손익분기를 달성할 수 없습니다. 변동비 구조 개선이 필요합니다.
+          </span>
+        </div>
+      )}
 
       {/* BEP KPI Summary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

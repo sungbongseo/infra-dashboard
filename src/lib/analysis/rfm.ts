@@ -223,6 +223,29 @@ export function calcRfmScores(sales: SalesRecord[]): RfmScore[] {
  * Aggregate RFM scores by segment.
  * Returns summary with count, total sales, avg sales, and share.
  */
+/** RFM 분석 결과 래퍼 — 소규모 데이터 경고 포함 */
+export interface RfmAnalysisResult {
+  scores: RfmScore[];
+  segments: RfmSegmentSummary[];
+  isSmallSample: boolean;
+  sampleSize: number;
+}
+
+/** 통합 RFM 분석: scores + segments + 소규모 경고 */
+export function calcRfmAnalysis(sales: SalesRecord[]): RfmAnalysisResult {
+  if (sales.length === 0) {
+    return { scores: [], segments: [], isSmallSample: true, sampleSize: 0 };
+  }
+  const scores = calcRfmScores(sales);
+  const segments = calcRfmSegmentSummary(scores);
+  return {
+    scores,
+    segments,
+    isSmallSample: scores.length < 5,
+    sampleSize: scores.length,
+  };
+}
+
 export function calcRfmSegmentSummary(scores: RfmScore[]): RfmSegmentSummary[] {
   if (scores.length === 0) return [];
 

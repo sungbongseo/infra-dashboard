@@ -19,7 +19,8 @@ export interface BreakevenResult {
   fixedCosts: number; // 고정비 합계
   variableCostRatio: number; // 변동비율 (0~1)
   contributionMarginRatio: number; // 공헌이익률 (0~1)
-  bepSales: number; // 손익분기점 매출
+  bepSales: number; // 손익분기점 매출 (canBreakEven=false이면 NaN)
+  canBreakEven: boolean; // 손익분기 달성 가능 여부
   safetyMarginRate: number; // 안전한계율 (%)
   operatingLeverage: number; // 영업레버리지
 }
@@ -95,19 +96,21 @@ export function calcTeamBreakeven(
       operatingLeverage = contributionMargin / operatingProfit;
     }
     // Cap extreme values for safe display
+    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
+    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
 
     results.push({
       org: r.영업조직팀,
       person: r.영업담당사번,
       sales,
       variableCosts,
-      fixedCosts,
+      fixedCosts: Math.max(fixedCosts, 0),
       variableCostRatio,
       contributionMarginRatio,
       bepSales,
+      canBreakEven,
       safetyMarginRate,
       operatingLeverage,
     });
@@ -148,9 +151,9 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     // Variable costs = sales * variable cost ratio
     const variableCosts = sales * variableCostRatio;
 
-    // Fixed costs = 공헌이익 - 영업이익
+    // Fixed costs = 공헌이익 - 영업이익 (음수 방지 클램핑)
     // This represents the fixed portion of SGA expenses
-    const fixedCosts = r.공헌이익.실적 - r.영업이익.실적;
+    const fixedCosts = Math.max(r.공헌이익.실적 - r.영업이익.실적, 0);
 
     // BEP Sales = fixedCosts / contributionMarginRatio
     let bepSales: number;
@@ -177,9 +180,10 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
       operatingLeverage = r.공헌이익.실적 / operatingProfit;
     }
     // Cap extreme values for safe display
+    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
+    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
 
     results.push({
       org: r.영업조직팀,
@@ -189,6 +193,7 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
       variableCostRatio,
       contributionMarginRatio,
       bepSales,
+      canBreakEven,
       safetyMarginRate,
       operatingLeverage,
     });
@@ -273,18 +278,20 @@ export function calcOrgBreakevenFromTeam(
       operatingLeverage = v.contributionMargin / v.operatingProfit;
     }
     // Cap extreme values for safe display
+    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → display as 0
+    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
 
     results.push({
       org,
       sales: v.sales,
       variableCosts: v.variableCosts,
-      fixedCosts: v.fixedCosts,
+      fixedCosts: Math.max(v.fixedCosts, 0),
       variableCostRatio,
       contributionMarginRatio,
       bepSales,
+      canBreakEven,
       safetyMarginRate,
       operatingLeverage,
     });
@@ -365,12 +372,12 @@ export function calcWeightedBep(orgBreakeven: BreakevenResult[]): WeightedBepRes
   }));
 
   const weightedCMR = productMix.reduce((s, p) => s + p.weight * p.contribMarginRatio, 0);
-  const weightedBep = weightedCMR > 0 ? totalFixed / weightedCMR : 0;
+  const weightedBep = weightedCMR > 0 ? totalFixed / weightedCMR : NaN;
 
   return {
     weightedContribMarginRatio: weightedCMR,
     totalFixedCosts: totalFixed,
-    weightedBepSales: isFinite(weightedBep) ? weightedBep : 0,
+    weightedBepSales: isFinite(weightedBep) ? weightedBep : 0, // 가중 BEP는 표시용이므로 0 폴백 유지
     productMix,
   };
 }

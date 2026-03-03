@@ -30,6 +30,14 @@ interface ContribTabProps {
 export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered }: ContribTabProps) {
   return (
     <>
+      {/* 적자 담당자 경고 배너 */}
+      {contribRanking.filter(r => r.공헌이익 < 0).length > 0 && (
+        <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 flex items-center gap-2">
+          <span className="font-medium">⚠️ 공헌이익 적자 담당자 {contribRanking.filter(r => r.공헌이익 < 0).length}명</span>
+          <span>변동비가 매출을 초과하여 고정비 회수에 기여하지 못하는 담당자가 있습니다. 원인 분석이 필요합니다.</span>
+        </div>
+      )}
+
       {/* 팀원별 공헌이익 KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -181,9 +189,9 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                 }}
               />
               <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
-              {isFinite(contribTotals.rate) && (
+              {contribByRate.length > 0 && contribTotals.sales > 0 && isFinite(contribTotals.rate) && (
                 <ReferenceLine x={contribTotals.rate} stroke={CHART_COLORS[3]} strokeDasharray="5 3"
-                  label={{ value: `평균 ${contribTotals.rate.toFixed(1)}%`, fontSize: 10, position: "top" }} />
+                  label={{ value: `가중평균 ${contribTotals.rate.toFixed(1)}%`, fontSize: 10, position: "top" }} />
               )}
               <Bar dataKey="공헌이익율" name="공헌이익율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {contribByRate.map((entry, i) => (

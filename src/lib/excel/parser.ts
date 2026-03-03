@@ -50,6 +50,10 @@ function parsePlanActualDiff(row: unknown[], startIdx: number): PlanActualDiff {
  */
 const TOTAL_PATTERN = /^(합계|총합계|소계|구간합계|전체합계|총계)$|\(합계\)$|합계$/i;
 
+// 품목원가(501) 필터 상수
+const ITEM_COST_HQ_FILTER = "Infra사업본부";
+const ITEM_COST_EXCLUDED_TEAM = "설계영업팀";
+
 function isTotalRow(value: string): boolean {
   const normalized = value.trim();
   if (!normalized) return false;
@@ -540,8 +544,9 @@ export function parseExcelFile(
           공헌이익율: parsePlanActualDiff(row, 112),
         };
 
-        // 비정상 데이터 검증: 공헌이익율 >=100% 또는 절대값 >200%는 계산 오류
-        if (Math.abs(record.공헌이익율.실적) >= 100 || Math.abs(record.영업이익율.실적) >= 100) {
+        // 비정상 데이터 검증: 이익율 절대값 >500%는 계산 오류 (100~500%는 정상 가능)
+        if (Math.abs(record.공헌이익율.실적) >= 500 || Math.abs(record.영업이익율.실적) >= 500) {
+          warnings.push(`팀원별공헌이익: 사번 ${record.영업담당사번} 이익율 이상치 보정 (공헌이익율=${record.공헌이익율.실적.toFixed(0)}%, 영업이익율=${record.영업이익율.실적.toFixed(0)}%)`);
           record.공헌이익율.실적 = 0;
           record.공헌이익율.계획 = 0;
           record.공헌이익율.차이 = 0;
@@ -558,6 +563,10 @@ export function parseExcelFile(
       const deduped = new Map<string, (typeof r.parsed)[0]>();
       for (const row of r.parsed) {
         deduped.set(row.영업담당사번, row);
+      }
+      const dupCount = r.parsed.length - deduped.size;
+      if (dupCount > 0) {
+        warnings.push(`팀원별공헌이익: ${dupCount}건 중복 사번 감지 → 상세 섹션 데이터로 대체`);
       }
       parsed = Array.from(deduped.values());
       skippedRows = r.skipped;
@@ -735,14 +744,14 @@ export function parseExcelFile(
         ["영업조직팀"],
         ["품목"],
       ], warnings, "품목별매출원가상세");
-      // Infra사업본부만 유지 + 설계영업팀 제외
+      // 사업본부/팀 필터 (상수 참조)
       const beforeFilterCount = filled.length;
       filled = filled.filter(
-        (row) => row.판매사업본부 === "Infra사업본부" && row.영업조직팀 !== "설계영업팀"
+        (row) => row.판매사업본부 === ITEM_COST_HQ_FILTER && row.영업조직팀 !== ITEM_COST_EXCLUDED_TEAM
       );
       if (filled.length === 0 && beforeFilterCount > 0) {
-        console.warn(`[parser] itemCostDetail: fillDown 후 ${beforeFilterCount}행 중 Infra필터 결과 0행. 판매사업본부/영업조직팀 값을 확인하세요.`);
-        warnings.push(`품목별매출원가: ${beforeFilterCount}행 중 Infra사업본부 필터 후 0행 — 데이터 확인 필요`);
+        console.warn(`[parser] itemCostDetail: fillDown 후 ${beforeFilterCount}행 중 ${ITEM_COST_HQ_FILTER} 필터 결과 0행. 판매사업본부/영업조직팀 값을 확인하세요.`);
+        warnings.push(`품목별매출원가: ${beforeFilterCount}행 중 ${ITEM_COST_HQ_FILTER} 필터 후 0행 — 데이터 확인 필요`);
       }
       parsed = filled;
       skippedRows = r.skipped;

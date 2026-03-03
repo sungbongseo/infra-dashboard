@@ -200,23 +200,23 @@ export default function ProfitabilityPage() {
 
   const orgContribPie = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of filteredOrgProfit) {
-      const org = r.영업조직팀;
+    for (const r of filteredTeamContribution) {
+      const org = (r.영업조직팀 || "").trim();
       if (!org) continue;
-      map.set(org, (map.get(org) || 0) + r.공헌이익.실적);
+      map.set(org, (map.get(org) || 0) + (r.공헌이익?.실적 || 0));
     }
     const all = Array.from(map.entries()).map(([name, value]) => ({ name, value }));
     return all.filter((d) => d.value > 0).sort((a, b) => b.value - a.value);
-  }, [filteredOrgProfit]);
+  }, [filteredTeamContribution]);
   const excludedNegativeContribCount = useMemo(() => {
     const map = new Map<string, number>();
-    for (const r of filteredOrgProfit) {
-      const org = r.영업조직팀;
+    for (const r of filteredTeamContribution) {
+      const org = (r.영업조직팀 || "").trim();
       if (!org) continue;
-      map.set(org, (map.get(org) || 0) + r.공헌이익.실적);
+      map.set(org, (map.get(org) || 0) + (r.공헌이익?.실적 || 0));
     }
     return Array.from(map.values()).filter((v) => v <= 0).length;
-  }, [filteredOrgProfit]);
+  }, [filteredTeamContribution]);
 
   // ─── 비용 구조 데이터 ──────────────────────────────
   const costStructure = useMemo(
@@ -369,7 +369,7 @@ export default function ProfitabilityPage() {
   }, [orgBreakeven]);
 
   const bepKpiSummary = useMemo(() => {
-    const totalBep = orgBreakeven.reduce((s, r) => s + (isFinite(r.bepSales) ? r.bepSales : 0), 0);
+    const totalBep = orgBreakeven.reduce((s, r) => s + (r.canBreakEven && isFinite(r.bepSales) ? r.bepSales : 0), 0);
     const finiteSafety = orgBreakeven.filter(r => isFinite(r.safetyMarginRate));
     const avgSafetyMargin = finiteSafety.length > 0 ? finiteSafety.reduce((s, r) => s + r.safetyMarginRate, 0) / finiteSafety.length : 0;
     const avgContribMarginRatio = orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0;

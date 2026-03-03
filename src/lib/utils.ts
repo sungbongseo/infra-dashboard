@@ -113,22 +113,32 @@ export function filterByOrg<T extends Record<string, any>>(
   return data.filter(row => orgNames.has(String(row[field] || "").trim()));
 }
 
-/** orgProfit 계층 소계 행 제거 - 영업조직팀이 판매사업본부/판매사업부와 동일한 소계 행 제외 */
+/**
+ * orgProfit 계층 소계 행 제거.
+ * - 영업조직팀이 판매사업본부/판매사업부와 동일한 소계 행 제외
+ * - "합계"/"소계" 문자열을 포함하는 행 명시적 제외
+ * - 영업조직팀이 빈 문자열인 행 제외
+ */
 export function filterOrgProfitLeafOnly<T extends Record<string, any>>(data: T[]): T[] {
   return data.filter(r => {
     const team = String(r.영업조직팀 || "").trim();
     const hq = String(r.판매사업본부 || "").trim();
     const div = String(r.판매사업부 || "").trim();
     if (!team) return false;
+    if (team.includes("합계") || team.includes("소계")) return false; // 명시적 합계/소계 행 제외
     if (hq && team === hq) return false;   // 사업본부 소계 제외
     if (div && team === div) return false;  // 사업부 소계 제외
     return true;
   });
 }
 
-// Date range filter helper
-// dateRange: { from: "YYYY-MM", to: "YYYY-MM" }
-// dateField: the field name in the record that contains the date (e.g. "매출일", "수금일", "수주일")
+/**
+ * 날짜 범위 필터. dateRange가 null이면 전체 반환.
+ * dateField 값을 extractMonth()로 파싱하여 YYYY-MM 비교.
+ * 주의: extractMonth()로 파싱할 수 없는 행은 결과에서 제외됨.
+ * @param dateRange { from: "YYYY-MM", to: "YYYY-MM" } 또는 null
+ * @param dateField 날짜가 담긴 필드명 (e.g. "매출일", "수금일", "수주일", "매출연월")
+ */
 export function filterByDateRange<T extends Record<string, any>>(
   data: T[],
   dateRange: { from: string; to: string } | null,

@@ -16,7 +16,7 @@ export interface DSOMetric {
  * 미수채권 회수에 걸리는 평균 일수
  */
 export function calcDSO(receivablesTotal: number, avgMonthlySales: number): number {
-  if (avgMonthlySales <= 0) return receivablesTotal > 0 ? Infinity : 0;
+  if (avgMonthlySales <= 0) return receivablesTotal > 0 ? 999 : 0; // 999일 = 실질 회수불가
   return Math.round((receivablesTotal / avgMonthlySales) * 30);
 }
 
@@ -220,5 +220,6 @@ export function calcOverallDSO(
   const monthCount = months.length;
   const avgMonthlySales = monthCount > 0 ? totalSales / monthCount : 0;
 
-  return calcDSO(totalReceivables, avgMonthlySales);
+  const dso = calcDSO(totalReceivables, avgMonthlySales);
+  return isFinite(dso) ? dso : 999;
 }

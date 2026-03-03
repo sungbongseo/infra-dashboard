@@ -82,7 +82,7 @@ function linearRegression(values: number[]): {
 } {
   const n = values.length;
   if (n === 0) return { slope: 0, intercept: 0, r2: 0 };
-  if (n === 1) return { slope: 0, intercept: values[0], r2: 1 };
+  if (n === 1) return { slope: 0, intercept: values[0], r2: 0 }; // 단일 데이터포인트는 결정계수 무의미
 
   let sumX = 0;
   let sumY = 0;
@@ -217,8 +217,9 @@ export function calcSalesForecast(
   // 4. Calculate residual std dev for confidence bounds
   const stdDev = calcResidualStdDev(amounts, slope, intercept);
 
-  // 5. Determine trend
-  const trendThreshold = Math.abs(intercept) * 0.01; // 1% of intercept as flat threshold
+  // 5. Determine trend — 다중 기준 적용 (intercept≈0일 때 false positive 방지)
+  const avgAmount = amounts.length > 0 ? amounts.reduce((s, v) => s + v, 0) / amounts.length : 0;
+  const trendThreshold = Math.max(Math.abs(intercept) * 0.01, Math.abs(avgAmount) * 0.005, 1);
   let trend: "up" | "down" | "flat";
   if (slope > trendThreshold) {
     trend = "up";

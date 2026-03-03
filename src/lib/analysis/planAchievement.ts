@@ -66,10 +66,10 @@ export function calcPlanAchievementSummary(
     opAchievement: opPlan !== 0 ? (opActual / opPlan) * 100 : 0,
     plannedGPRate,
     actualGPRate,
-    marginDrift: actualGPRate - plannedGPRate,
+    marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
     plannedOPRate,
     actualOPRate,
-    opMarginDrift: actualOPRate - plannedOPRate,
+    opMarginDrift: Math.max(-200, Math.min(200, actualOPRate - plannedOPRate)),
   };
 }
 
@@ -145,7 +145,7 @@ export function calcOrgAchievement(
           v.gpPlan !== 0 ? (v.gpActual / v.gpPlan) * 100 : 0,
         plannedGPRate,
         actualGPRate,
-        marginDrift: actualGPRate - plannedGPRate,
+        marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
         opPlan: v.opPlan,
         opActual: v.opActual,
         opAchievement:
@@ -295,7 +295,7 @@ export function calcMarginDrift(
     .map(([customer, v]) => {
       const plannedGPRate = (v.gpPlan / v.salesPlan) * 100;
       const actualGPRate = (v.gpActual / v.salesActual) * 100;
-      const marginDrift = actualGPRate - plannedGPRate;
+      const marginDrift = Math.max(-200, Math.min(200, actualGPRate - plannedGPRate));
       return {
         customer,
         salesActual: v.salesActual,

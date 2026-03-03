@@ -122,8 +122,9 @@ export function calcVarianceAnalysisEx(
     // Volume Variance = (실적수량 - 계획수량) x 계획단가
     const volumeVariance = (actualQty - planQty) * planPrice;
 
-    // Mix Variance = 총차이 - 가격차이 - 수량차이 (residual)
-    const mixVariance = totalVariance - priceVariance - volumeVariance;
+    // Mix Variance = 총차이 - 가격차이 - 수량차이 (residual, 부동소수점 잔차 보정)
+    const rawMixVariance = totalVariance - priceVariance - volumeVariance;
+    const mixVariance = Math.abs(rawMixVariance) < 0.5 ? 0 : Math.round(rawMixVariance);
 
     items.push({
       org: r.영업조직팀,
