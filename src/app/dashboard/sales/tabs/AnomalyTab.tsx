@@ -84,8 +84,15 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
 
   if (chartData.length === 0) return <EmptyState />;
 
+  const insufficientData = chartData.length < 4;
+
   return (
     <>
+      {insufficientData && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-400">
+          데이터가 {chartData.length}개월분으로 이상치 탐지의 통계적 신뢰도가 낮습니다. 4개월 이상의 데이터가 있으면 더 정확한 분석이 가능합니다.
+        </div>
+      )}
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard

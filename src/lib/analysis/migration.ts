@@ -56,17 +56,18 @@ const GRADE_ORDER: Record<CustomerGrade, number> = {
  * D: below C threshold but has transactions
  * N: exactly 0 (no transactions)
  *
- * Note: 음수 매출(반품/환입)도 활성 거래처로 간주, Math.abs() 기반 등급 산정
+ * Note: 음수 매출(반품/환입)은 활성 거래처로 간주하되 최대 D등급 (순수 반품은 상위 등급 불가)
  */
 function assignGrade(
   amount: number,
   thresholds: [number, number, number]
 ): CustomerGrade {
   if (amount === 0) return "N";
-  const absAmount = Math.abs(amount);
-  if (absAmount >= thresholds[0]) return "A";
-  if (absAmount >= thresholds[1]) return "B";
-  if (absAmount >= thresholds[2]) return "C";
+  // 순 반품 거래처(음수 매출)는 활성이지만 최대 D등급
+  if (amount < 0) return "D";
+  if (amount >= thresholds[0]) return "A";
+  if (amount >= thresholds[1]) return "B";
+  if (amount >= thresholds[2]) return "C";
   return "D";
 }
 

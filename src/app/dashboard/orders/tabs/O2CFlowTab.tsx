@@ -4,6 +4,13 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { formatCurrency, formatPercent, CHART_COLORS } from "@/lib/utils";
 import type { O2CPipelineResult } from "@/lib/analysis/pipeline";
 
+/** O2C 건전성 판정 기준 (%) — 필요 시 조정 */
+const O2C_THRESHOLDS = {
+  conversionRate: 80,   // 수주→매출 전환율 양호 기준
+  collectionRate: 90,   // 매출→수금 순수수금율 양호 기준
+  outstandingRate: 20,  // 미수잔액 비중 양호 기준 (이하)
+} as const;
+
 interface O2CFlowTabProps {
   pipelineStages: O2CPipelineResult["stages"];
   salesToCollectionRate: number;
@@ -82,7 +89,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
   return (
     <div className="py-4">
       {/* 요약 카드 */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[
           { label: "수주", amount: orderAmt, rate: null, color: colors.order, sub: null },
           { label: "매출전환", amount: salesAmt, rate: convRate, color: colors.sales, sub: null },
@@ -98,7 +105,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
             <div className="text-sm font-bold">{formatCurrency(item.amount, true)}</div>
             {item.rate !== null && (
-              <div className="text-xs mt-0.5" style={{ color: item.label === "미수잔액" ? healthColor(100 - item.rate, 80) : healthColor(item.rate, item.label === "수금완료 (순수)" ? 90 : 80) }}>
+              <div className="text-xs mt-0.5" style={{ color: item.label === "미수잔액" ? healthColor(100 - item.rate, O2C_THRESHOLDS.conversionRate) : healthColor(item.rate, item.label === "수금완료 (순수)" ? O2C_THRESHOLDS.collectionRate : O2C_THRESHOLDS.conversionRate) }}>
                 {item.rate.toFixed(1)}%
               </div>
             )}
@@ -299,21 +306,21 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             <text x="36" y="222" className="text-[11px] font-semibold" fill="hsl(var(--foreground))">O2C 건전성 요약</text>
 
             {/* 수주→매출 전환율 */}
-            <circle cx="42" cy="245" r="5" fill={healthColor(convRate, 80)} />
+            <circle cx="42" cy="245" r="5" fill={healthColor(convRate, O2C_THRESHOLDS.conversionRate)} />
             <text x="54" y="249" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               수주-매출 전환율: {formatPercent(convRate, 1)}
             </text>
-            <text x="240" y="249" className="text-[10px] font-medium" fill={healthColor(convRate, 80)}>
-              {convRate >= 80 ? "양호" : convRate >= 64 ? "주의" : "위험"}
+            <text x="240" y="249" className="text-[10px] font-medium" fill={healthColor(convRate, O2C_THRESHOLDS.conversionRate)}>
+              {convRate >= O2C_THRESHOLDS.conversionRate ? "양호" : convRate >= O2C_THRESHOLDS.conversionRate * 0.8 ? "주의" : "위험"}
             </text>
 
             {/* 매출→수금 순수수금율 */}
-            <circle cx="42" cy="268" r="5" fill={healthColor(collRate, 90)} />
+            <circle cx="42" cy="268" r="5" fill={healthColor(collRate, O2C_THRESHOLDS.collectionRate)} />
             <text x="54" y="272" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               순수 수금율: {formatPercent(collRate, 1)} (선수금 제외)
             </text>
-            <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, 90)}>
-              {collRate >= 90 ? "양호" : collRate >= 72 ? "주의" : "위험"}
+            <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, O2C_THRESHOLDS.collectionRate)}>
+              {collRate >= O2C_THRESHOLDS.collectionRate ? "양호" : collRate >= O2C_THRESHOLDS.collectionRate * 0.8 ? "주의" : "위험"}
             </text>
 
             {/* 선수금 정보 */}
@@ -326,12 +333,12 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             </text>
 
             {/* 미수 비율 */}
-            <circle cx="42" cy="314" r="5" fill={healthColor(100 - outRate, 80)} />
+            <circle cx="42" cy="314" r="5" fill={healthColor(100 - outRate, 100 - O2C_THRESHOLDS.outstandingRate)} />
             <text x="54" y="318" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               미수잔액 비중: {formatPercent(outRate, 1)}
             </text>
-            <text x="240" y="318" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 80)}>
-              {outRate <= 20 ? "양호" : outRate <= 35 ? "주의" : "위험"}
+            <text x="240" y="318" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 100 - O2C_THRESHOLDS.outstandingRate)}>
+              {outRate <= O2C_THRESHOLDS.outstandingRate ? "양호" : outRate <= O2C_THRESHOLDS.outstandingRate * 1.75 ? "주의" : "위험"}
             </text>
           </g>
         </svg>
