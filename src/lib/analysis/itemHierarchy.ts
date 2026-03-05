@@ -309,7 +309,6 @@ export function getNodesAtPath(
 // ─── Cost Waterfall ────────────────────────────────────────
 
 export function calcCostWaterfall(
-  currentNodes: ItemHierarchyNode[],
   data: ItemProfitabilityRecord[],
   drillPath: DrillDownStep[],
 ): CostWaterfallEntry[] {

@@ -84,8 +84,8 @@ export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
   );
 
   const waterfall = useMemo(
-    () => hasItemProfit ? calcCostWaterfall(currentNodes, filteredItemProfit, drillPath) : [],
-    [currentNodes, filteredItemProfit, drillPath, hasItemProfit],
+    () => hasItemProfit ? calcCostWaterfall(filteredItemProfit, drillPath) : [],
+    [filteredItemProfit, drillPath, hasItemProfit],
   );
 
   const profitMatrix = useMemo(

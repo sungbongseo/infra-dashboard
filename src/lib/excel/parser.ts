@@ -1,8 +1,5 @@
 import * as XLSX from "xlsx";
 import type {
-  Organization,
-  CollectionRecord,
-  OrderRecord,
   OrgProfitRecord,
   ProfitabilityAnalysisRecord,
   OrgCustomerProfitRecord,
@@ -249,6 +246,7 @@ function safeParseRows<T>(
     try {
       parsed.push(parser(rows[i]));
     } catch (e: any) {
+      if (e.message === "SKIP_ROW") continue; // 의도적 필터링 (합계/소계행 등)
       skipped++;
       if (skipped <= 5) {
         warnings.push(`[${fileType}] ${i + skipRows + 1}행 파싱 실패: ${e.message || "알 수 없는 오류"}`);
@@ -302,154 +300,41 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
   };
 }
 
-function parseOrganization(data: unknown[][]): Organization[] {
-  return data.slice(1).filter(r => r[0]).map((row) => ({
-    영업조직: str(row[0]),
-    영업조직명: str(row[1]),
-    최하위조직여부: str(row[2]),
-    시작일: str(row[3]),
-    종료일: str(row[4]),
-    통합조직여부: str(row[5]),
-  }));
-}
-
-function parseCollectionList(data: unknown[][]): CollectionRecord[] {
-  return data.slice(1).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    수금문서번호: str(row[1]),
-    수금유형: str(row[2]),
-    결재방법: str(row[3]),
-    수금계정: str(row[4]),
-    거래처명: str(row[5]),
-    영업조직: str(row[6]),
-    담당자: str(row[7]),
-    수금일: str(row[8]),
-    통화: str(row[9]),
-    수금액: num(row[16]),
-    장부수금액: num(row[17]),
-    선수금액: num(row[18]),
-    장부선수금액: num(row[19]),
-  }));
-}
-
-function parseOrderList(data: unknown[][]): OrderRecord[] {
-  return data.slice(1).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    수주번호: str(row[1]),
-    순번: num(row[2]),
-    수주일: str(row[3]),
-    납품요청일: str(row[4]),
-    판매처: str(row[5]),
-    판매처명: str(row[6]),
-    영업그룹: str(row[7]),
-    영업담당자: str(row[8]),
-    영업담당자명: str(row[9]),
-    판매지역: str(row[10]),
-    수주유형: str(row[11]),
-    수주유형명: str(row[12]),
-    영업조직: str(row[13]),
-    유통경로: str(row[14]),
-    거래구분: str(row[15]),
-    품목: str(row[18]),
-    품목명: str(row[19]),
-    규격: str(row[20]),
-    판매수량: num(row[22]),
-    판매단가: num(row[23]),
-    판매금액: num(row[25]),
-    환율: num(row[26]),
-    장부단가: num(row[27]),
-    장부금액: num(row[28]),
-    부가세: num(row[29]),
-    총금액: num(row[30]),
-    대분류: str(row[41]),
-    중분류: str(row[42]),
-    소분류: str(row[43]),
-  }));
-}
-
-function parseOrgProfit(data: unknown[][], warnings: string[]): OrgProfitRecord[] {
-  let abnormalCount = 0;
-  const result = data.slice(2)
+function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
+  return data.slice(2)
     .filter(r => {
-      // 합계 행 제외: No 컬럼 있고, 영업조직팀이 유효한 값이어야 함
       if (!r[0]) return false;
-      const org = str(r[3]).trim();
-      // 공백, "합계", "총계" 등 합계 행 제외
-      if (!org || org === "합계" || org === "총계" || org.includes("합계")) return false;
+      // 소계행 제거: 담당자/영업조직에 "소계" 포함, 판매처명이 비어있는 행
+      const org = String(r[1] || "").trim();
+      const mgr = String(r[2] || "").trim();
+      const customer = String(r[4] || "").trim();
+      if (isTotalRow(org) || isTotalRow(mgr)) return false;
+      if (org.includes("소계") || mgr.includes("소계")) return false;
+      if (!customer) return false; // 판매처명 없는 소계/합계행 제외
       return true;
     })
-    .map((row) => {
-      const parsed = {
-        No: num(row[0]),
-        판매사업본부: str(row[1]),
-        판매사업부: str(row[2]),
-        영업조직팀: str(row[3]),
-        매출액: parsePlanActualDiff(row, 4),
-        실적매출원가: parsePlanActualDiff(row, 7),
-        매출총이익: parsePlanActualDiff(row, 10),
-        판관변동_직접판매운반비: parsePlanActualDiff(row, 13),
-        판관변동_운반비: parsePlanActualDiff(row, 16),
-        판매관리비: parsePlanActualDiff(row, 19),
-        영업이익: parsePlanActualDiff(row, 22),
-        공헌이익: parsePlanActualDiff(row, 25),
-        매출원가율: parsePlanActualDiff(row, 28),
-        매출총이익율: parsePlanActualDiff(row, 31),
-        판관비율: parsePlanActualDiff(row, 34),
-        영업이익율: parsePlanActualDiff(row, 37),
-        공헌이익율: parsePlanActualDiff(row, 40),
-      };
-
-      // 비정상 데이터 검증: 이익율 절대값 ≥500%는 계산 오류로 간주 (teamContribution과 동일 기준)
-      // 100~500%는 수수료/서비스 매출 등에서 정상 발생 가능
-      if (Math.abs(parsed.영업이익율.실적) >= 500 || Math.abs(parsed.공헌이익율.실적) >= 500) {
-        abnormalCount++;
-        if (abnormalCount <= 3) {
-          warnings.push(`[조직별손익] ${parsed.영업조직팀}: 비정상 이익율 감지 (영업이익율 ${parsed.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${parsed.공헌이익율.실적.toFixed(1)}%) - 해당 데이터는 분석에서 제외됩니다`);
-        }
-        parsed.영업이익율.실적 = 0;
-        parsed.영업이익율.계획 = 0;
-        parsed.영업이익율.차이 = 0;
-        parsed.공헌이익율.실적 = 0;
-        parsed.공헌이익율.계획 = 0;
-        parsed.공헌이익율.차이 = 0;
-      }
-
-      return parsed;
-    })
-    .filter(r => r.매출액.실적 !== 0 || r.매출액.계획 !== 0); // 실적·계획 모두 0인 행만 제외
-
-  if (abnormalCount > 3) {
-    warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 비정상 이익율 데이터가 제외되었습니다. Excel 파일의 수식을 확인하세요.`);
-  }
-
-  return result;
-}
-
-// parseProfitabilityAnalysis는 parseExcelFile 내부에서 safeParseRows로 처리
-
-function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
-  return data.slice(2).filter(r => r[0]).map((row) => ({
-    No: num(row[0]),
-    영업조직: str(row[1]),
-    담당자: str(row[2]),
-    판매처: str(row[3]),
-    판매처명: str(row[4]),
-    통화: str(row[5]),
-    month1: parseAgingAmounts(row, 6),
-    month2: parseAgingAmounts(row, 9),
-    month3: parseAgingAmounts(row, 12),
-    month4: parseAgingAmounts(row, 15),
-    month5: parseAgingAmounts(row, 18),
-    month6: parseAgingAmounts(row, 21),
-    overdue: parseAgingAmounts(row, 24),
-    // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
-    합계: {
-      출고금액: num(row[27]),
-      장부금액: num(row[29]),
-      거래금액: num(row[28]),
-    },
-    여신한도: num(row[30]),
-  }));
+    .map((row) => ({
+      No: num(row[0]),
+      영업조직: str(row[1]),
+      담당자: str(row[2]),
+      판매처: str(row[3]),
+      판매처명: str(row[4]),
+      통화: str(row[5]),
+      month1: parseAgingAmounts(row, 6),
+      month2: parseAgingAmounts(row, 9),
+      month3: parseAgingAmounts(row, 12),
+      month4: parseAgingAmounts(row, 15),
+      month5: parseAgingAmounts(row, 18),
+      month6: parseAgingAmounts(row, 21),
+      overdue: parseAgingAmounts(row, 24),
+      // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
+      합계: {
+        출고금액: num(row[27]),
+        장부금액: num(row[29]),
+        거래금액: num(row[28]),
+      },
+      여신한도: num(row[30]),
+    }));
 }
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -500,9 +385,19 @@ export function parseExcelFile(
 
   // Row-level safe parsing for complex types, direct parsing for simple types
   switch (schema.fileType) {
-    case "organization":
-      parsed = parseOrganization(rawData);
+    case "organization": {
+      const rOrg = safeParseRows(rawData, 1, (row) => ({
+        영업조직: str(row[0]),
+        영업조직명: str(row[1]),
+        최하위조직여부: str(row[2]),
+        시작일: str(row[3]),
+        종료일: str(row[4]),
+        통합조직여부: str(row[5]),
+      }), warnings, "담당조직");
+      parsed = rOrg.parsed;
+      skippedRows = rOrg.skipped;
       break;
+    }
     case "salesList": {
       const r = safeParseRows(rawData, 1, (row) => ({
         No: num(row[0]), 공장: str(row[1]), 매출번호: str(row[2]), 매출일: str(row[3]),
@@ -523,16 +418,109 @@ export function parseExcelFile(
       parsed = r.parsed; skippedRows = r.skipped;
       break;
     }
-    case "collectionList":
-      parsed = parseCollectionList(rawData);
+    case "collectionList": {
+      const rCL = safeParseRows(rawData, 1, (row) => ({
+        No: num(row[0]),
+        수금문서번호: str(row[1]),
+        수금유형: str(row[2]),
+        결재방법: str(row[3]),
+        수금계정: str(row[4]),
+        거래처명: str(row[5]),
+        영업조직: str(row[6]),
+        담당자: str(row[7]),
+        수금일: str(row[8]),
+        통화: str(row[9]),
+        수금액: num(row[16]),
+        장부수금액: num(row[17]),
+        선수금액: num(row[18]),
+        장부선수금액: num(row[19]),
+      }), warnings, "수금리스트");
+      parsed = rCL.parsed;
+      skippedRows = rCL.skipped;
       break;
-    case "orderList":
-      parsed = parseOrderList(rawData);
+    }
+    case "orderList": {
+      const rOL = safeParseRows(rawData, 1, (row) => ({
+        No: num(row[0]),
+        수주번호: str(row[1]),
+        순번: num(row[2]),
+        수주일: str(row[3]),
+        납품요청일: str(row[4]),
+        판매처: str(row[5]),
+        판매처명: str(row[6]),
+        영업그룹: str(row[7]),
+        영업담당자: str(row[8]),
+        영업담당자명: str(row[9]),
+        판매지역: str(row[10]),
+        수주유형: str(row[11]),
+        수주유형명: str(row[12]),
+        영업조직: str(row[13]),
+        유통경로: str(row[14]),
+        거래구분: str(row[15]),
+        품목: str(row[18]),
+        품목명: str(row[19]),
+        규격: str(row[20]),
+        판매수량: num(row[22]),
+        판매단가: num(row[23]),
+        판매금액: num(row[25]),
+        환율: num(row[26]),
+        장부단가: num(row[27]),
+        장부금액: num(row[28]),
+        부가세: num(row[29]),
+        총금액: num(row[30]),
+        대분류: str(row[41]),
+        중분류: str(row[42]),
+        소분류: str(row[43]),
+      }), warnings, "수주리스트");
+      parsed = rOL.parsed;
+      skippedRows = rOL.skipped;
       break;
-    case "orgProfit":
-      // 방어적 fill-down: 현재 행당 1개 조직 요약이라 no-op이지만, SAP 형식 변경 대비
-      parsed = fillDownHierarchicalOrg(parseOrgProfit(rawData, warnings), warnings, "조직별손익");
+    }
+    case "orgProfit": {
+      const rOP = safeParseRows<OrgProfitRecord>(rawData, 2, (row) => {
+        const org = str(row[3]).trim();
+        if (!org || isTotalRow(org)) throw new Error("SKIP_ROW");
+        return {
+          No: num(row[0]),
+          판매사업본부: str(row[1]),
+          판매사업부: str(row[2]),
+          영업조직팀: org,
+          매출액: parsePlanActualDiff(row, 4),
+          실적매출원가: parsePlanActualDiff(row, 7),
+          매출총이익: parsePlanActualDiff(row, 10),
+          판관변동_직접판매운반비: parsePlanActualDiff(row, 13),
+          판관변동_운반비: parsePlanActualDiff(row, 16),
+          판매관리비: parsePlanActualDiff(row, 19),
+          영업이익: parsePlanActualDiff(row, 22),
+          공헌이익: parsePlanActualDiff(row, 25),
+          매출원가율: parsePlanActualDiff(row, 28),
+          매출총이익율: parsePlanActualDiff(row, 31),
+          판관비율: parsePlanActualDiff(row, 34),
+          영업이익율: parsePlanActualDiff(row, 37),
+          공헌이익율: parsePlanActualDiff(row, 40),
+        };
+      }, warnings, "조직별손익", false);
+      // 비정상 이익율 보정 (절대값 ≥500%는 계산 오류로 간주)
+      let abnormalCount = 0;
+      for (const p of rOP.parsed) {
+        if (Math.abs(p.영업이익율.실적) >= 500 || Math.abs(p.공헌이익율.실적) >= 500) {
+          abnormalCount++;
+          if (abnormalCount <= 3) {
+            warnings.push(`[조직별손익] ${p.영업조직팀}: 비정상 이익율 감지 (영업이익율 ${p.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${p.공헌이익율.실적.toFixed(1)}%) - 해당 데이터는 분석에서 제외됩니다`);
+          }
+          p.영업이익율 = { 실적: 0, 계획: 0, 차이: 0 };
+          p.공헌이익율 = { 실적: 0, 계획: 0, 차이: 0 };
+        }
+      }
+      if (abnormalCount > 3) {
+        warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 비정상 이익율 데이터가 제외되었습니다. Excel 파일의 수식을 확인하세요.`);
+      }
+      // 실적·계획 모두 0인 행만 제외
+      const nonZero = rOP.parsed.filter(row => row.매출액.실적 !== 0 || row.매출액.계획 !== 0);
+      parsed = fillDownHierarchicalOrg(nonZero, warnings, "조직별손익");
+      skippedRows = rOP.skipped;
       break;
+    }
     case "teamContribution": {
       // Pre-pass: rawData에서 영업그룹/영업조직팀 fill-down 수행
       // SKIP_ROW가 소계 행(영업담당사번 없음)을 제거하기 전에 조직명을 채움
@@ -758,21 +746,75 @@ export function parseExcelFile(
       const rIP = safeParseRows<ItemProfitabilityRecord>(
         rawData, 1, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
       );
-      // 7단계 계층 fill-down: 판매사업부→영업조직팀→대분류→중분류→소분류→품목계정그룹→품목
-      // 품목계정그룹과 품목을 별도 레벨로 분리: 품목계정그룹은 그룹 첫 행에만 존재(머지셀),
-      // 품목이 lastLevelPrimary가 되어야 상세행 판별이 정확함
-      const filledIP = fillDownMultiLevel(rIP.parsed, [
-        ["판매사업부"],
-        ["영업조직팀"],
-        ["대분류"],
-        ["중분류"],
-        ["소분류"],
-        ["품목계정그룹"],
-        ["품목"],
-      ], warnings, "품목별수익성분석");
-      // 상세행만 유지: 품목이 비어있는 소계행 제거
-      const detailIP = filledIP.filter(r => r.품목.trim() !== "");
-      parsed = detailIP;
+      // fillDownMultiLevel을 사용하지 않음 — KG 소계행 보존이 필요하므로 직접 fill-down 수행
+      // SAP 200 보고서 구조: 각 품목은 (상세행: 비-KG, 소량) + (KG소계행: 실제 총량) 쌍으로 구성
+      // fillDownMultiLevel은 lastLevel 빈 행을 소계로 판단해 제거하므로 사용 불가
+      const ipRows = rIP.parsed;
+      // fill-down 전 원본 품목값 보존 (KG 소계행 감지에 필요)
+      const origItemValues = ipRows.map(r => String(r.품목 || "").trim());
+
+      // 1단계: 7개 계층 필드 순방향 fill-down (판매사업부→영업조직팀→대분류→중분류→소분류→품목계정그룹→품목)
+      const ipLevels = ["판매사업부", "영업조직팀", "대분류", "중분류", "소분류", "품목계정그룹", "품목"];
+      const ipCurrent: Record<string, string> = {};
+      for (const rec of ipRows) {
+        for (let i = 0; i < ipLevels.length; i++) {
+          const field = ipLevels[i];
+          const val = String((rec as Record<string, any>)[field] || "").trim();
+          if (val !== "" && !isTotalRow(val)) {
+            if (ipCurrent[field] !== val) {
+              ipCurrent[field] = val;
+              // 하위 레벨 리셋
+              for (let j = i + 1; j < ipLevels.length; j++) {
+                ipCurrent[ipLevels[j]] = "";
+              }
+            }
+          } else if (val === "" && ipCurrent[field]) {
+            (rec as Record<string, any>)[field] = ipCurrent[field];
+          }
+        }
+      }
+
+      // 2단계: 영업조직팀 역방향 fill-down (역순 머지 대응)
+      let ipCurrentOrg = "";
+      for (let i = ipRows.length - 1; i >= 0; i--) {
+        const val = String(ipRows[i].영업조직팀 || "").trim();
+        if (val !== "" && !isTotalRow(val)) {
+          ipCurrentOrg = val;
+        } else if (val === "" && ipCurrentOrg !== "") {
+          (ipRows[i] as Record<string, any>).영업조직팀 = ipCurrentOrg;
+        }
+      }
+
+      // 3단계: KG 소계행 병합 — 품목 상세행 + KG 소계행 쌍이면 KG행 수치 사용
+      const mergedIP: ItemProfitabilityRecord[] = [];
+      for (let i = 0; i < ipRows.length; i++) {
+        const cur = ipRows[i];
+        const curItem = String(cur.품목 || "").trim();
+        // 합계/소계 행 및 빈 품목 행 건너뛰기
+        if (curItem === "" || isTotalRow(curItem)) continue;
+        // 모든 레벨에서 합계 체크
+        let isTotal = false;
+        for (const f of ipLevels) {
+          if (isTotalRow(String((cur as Record<string, any>)[f] || "").trim())) { isTotal = true; break; }
+        }
+        if (isTotal) continue;
+
+        const curUnit = String(cur.기준단위 || "").trim();
+        const next = i + 1 < ipRows.length ? ipRows[i + 1] : null;
+        if (next) {
+          const nextItemOrig = origItemValues[i + 1] ?? ""; // fill-down 전 원래 품목값
+          const nextUnit = String(next.기준단위 || "").trim();
+          // 다음 행이 원래 품목이 비어있고 KG 단위이며 현재행이 KG가 아닌 경우 → KG 소계행 사용
+          if (nextItemOrig === "" && nextUnit === "KG" && curUnit !== "KG") {
+            mergedIP.push({ ...next }); // KG행 수치 + fill-down된 계층 정보
+            i++; // KG 소계행 건너뛰기
+            continue;
+          }
+        }
+        mergedIP.push(cur);
+      }
+
+      parsed = mergedIP;
       skippedRows = rIP.skipped;
       break;
     }
@@ -841,13 +883,18 @@ export function parseExcelFile(
   if (orgNames && orgNames.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
     const field = schema.orgFilterField;
     const beforeCount = parsed.length;
+    let emptyOrgCount = 0;
     parsed = parsed.filter((row: any) => {
       const orgValue = String(row[field] || "").trim();
-      return orgValue !== "" && orgNames.has(orgValue);
+      if (orgValue === "") { emptyOrgCount++; return false; }
+      return orgNames.has(orgValue);
     });
     const filtered = beforeCount - parsed.length;
     if (filtered > 0) {
       filterInfo = `조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지)`;
+    }
+    if (emptyOrgCount > 0) {
+      warnings.push(`[${schema.fileType}] ${field} 필드가 비어있는 ${emptyOrgCount}행이 조직 필터에서 제외됨 — fill-down 처리를 확인하세요`);
     }
   }
 
