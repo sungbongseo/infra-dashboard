@@ -146,7 +146,7 @@ export function calcSalesByItemCategory(
   >();
 
   for (const row of sales) {
-    const category = (row.품목범주 || row.제품군 || row.대분류 || "미분류").trim() || "미분류";
+    const category = (row.제품군 || row.대분류 || row.품목범주 || "미분류").trim() || "미분류";
     const amount = row.장부금액 || 0;
     const qty = row.수량 || 0;
     const existing = map.get(category);
@@ -170,7 +170,8 @@ export function calcSalesByItemCategory(
       amount: data.amount,
       count: data.count,
       share: totalAmount !== 0 ? (data.amount / totalAmount) * 100 : 0,
-      avgUnitPrice: data.totalQty !== 0 ? data.amount / data.totalQty : 0,
+      avgUnitPrice: data.totalQty > 0 && isFinite(data.amount / data.totalQty)
+        ? data.amount / data.totalQty : 0,
     })
   );
 
@@ -245,6 +246,27 @@ export function groupSmallItemCategories(
   };
 
   return [...major, grouped];
+}
+
+/**
+ * 매출리스트에서 의미 있는 품목 분류 필드명을 탐지
+ * 제품군 → 대분류 → 품목범주 순으로 고유값 2개 이상인 첫 필드 반환
+ */
+export function detectItemCategoryField(sales: SalesRecord[]): string {
+  const fields: { key: keyof SalesRecord; label: string }[] = [
+    { key: "제품군", label: "제품군" },
+    { key: "대분류", label: "대분류" },
+    { key: "품목범주", label: "품목범주" },
+  ];
+  for (const { key, label } of fields) {
+    const vals = new Set<string>();
+    for (const row of sales) {
+      const v = ((row[key] as string) || "").trim();
+      if (v && v !== "미분류") vals.add(v);
+    }
+    if (vals.size >= 2) return label;
+  }
+  return "제품군";
 }
 
 /** @deprecated ChannelTab에서 미사용 — calcSalesByItemCategory()로 대체 */

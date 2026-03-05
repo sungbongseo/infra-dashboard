@@ -25,6 +25,7 @@ import {
   calcSalesByPaymentTerm,
   calcSalesByCustomerCategory,
   calcSalesByItemCategory,
+  detectItemCategoryField,
   groupSmallCategories,
   groupSmallItemCategories,
 } from "@/lib/analysis/channel";
@@ -43,6 +44,10 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
   );
   const itemCategorySales = useMemo(
     () => groupSmallItemCategories(calcSalesByItemCategory(filteredSales), 3),
+    [filteredSales]
+  );
+  const itemCategoryFieldName = useMemo(
+    () => detectItemCategoryField(filteredSales),
     [filteredSales]
   );
 
@@ -132,16 +137,20 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         isEmpty={itemCategorySales.length === 0}
-        title="제품군별 매출 및 평균 단가"
-        formula="제품군별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)"
-        description="제품군별 매출 규모와 평균 단가를 보여줍니다."
-        benchmark="상위 3개 제품군 집중도 70% 이하가 바람직"
+        title={`${itemCategoryFieldName}별 매출 및 평균 단가`}
+        formula={`${itemCategoryFieldName}별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)`}
+        description={`${itemCategoryFieldName}별 매출 규모와 평균 단가를 보여줍니다.`}
+        benchmark={`상위 3개 ${itemCategoryFieldName} 집중도 70% 이하가 바람직`}
         reason="제품군별 매출 규모와 단가 수준을 비교하여 고마진 제품군의 확대 기회를 발굴하고, 제품군 간 가격 경쟁력을 점검합니다."
       >
-        {itemCategorySales.length === 1 && itemCategorySales[0].category === "미분류" && (
+        {itemCategorySales.length === 1 && (
           <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300 mb-2">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>제품군/품목범주 데이터가 비어있어 모든 품목이 &apos;미분류&apos;로 표시됩니다. 매출리스트 Excel에 제품군 또는 품목범주 컬럼이 포함되어 있는지 확인하세요.</span>
+            <span>
+              {itemCategorySales[0].category === "미분류"
+                ? "제품군/품목범주 데이터가 비어있어 모든 품목이 '미분류'로 표시됩니다. 매출리스트 Excel에 제품군 또는 품목범주 컬럼이 포함되어 있는지 확인하세요."
+                : `${itemCategoryFieldName} 분류가 단일 값('${itemCategorySales[0].category}')이어서 비교 분석이 제한됩니다.`}
+            </span>
           </div>
         )}
         <ChartContainer height="h-72 md:h-96">
