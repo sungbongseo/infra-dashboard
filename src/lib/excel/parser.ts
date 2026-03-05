@@ -663,6 +663,20 @@ export function parseExcelFile(
         영업이익: parsePlanActualDiff(row, 20),
         매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
+        // 판관비 세부 13개 항목 (col23~61)
+        판관변동_노무비: parsePlanActualDiff(row, 23),
+        판관변동_복리후생비: parsePlanActualDiff(row, 26),
+        판관변동_소모품비: parsePlanActualDiff(row, 29),
+        판관변동_수도광열비: parsePlanActualDiff(row, 32),
+        판관변동_수선비: parsePlanActualDiff(row, 35),
+        판관변동_외주가공비: parsePlanActualDiff(row, 38),
+        판관변동_운반비: parsePlanActualDiff(row, 41),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 44),
+        판관변동_지급수수료: parsePlanActualDiff(row, 47),
+        판관변동_견본비: parsePlanActualDiff(row, 50),
+        판관고정_노무비: parsePlanActualDiff(row, 53),
+        판관고정_감가상각비: parsePlanActualDiff(row, 56),
+        판관고정_기타경비: parsePlanActualDiff(row, 59),
       }), warnings, "조직별거래처별손익", false);
       // SAP 다중 레벨 계층: 영업조직팀→거래처대분류→중분류→소분류→매출거래처
       parsed = fillDownMultiLevel(r.parsed, [

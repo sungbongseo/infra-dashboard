@@ -63,6 +63,7 @@ import { ItemCostTab } from "./tabs/ItemCostTab";
 import { CostVarianceTab } from "./tabs/CostVarianceTab";
 import { StandardCostTab } from "./tabs/StandardCostTab";
 import { CustomerRiskMatrixTab } from "./tabs/CustomerRiskMatrixTab";
+import { SgaBreakdownTab } from "./tabs/SgaBreakdownTab";
 
 export default function ProfitabilityPage() {
   const teamContribution = useDataStore((s) => s.teamContribution);
@@ -501,6 +502,7 @@ export default function ProfitabilityPage() {
           <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이</TabsTrigger>
           <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>
           <TabsTrigger value="custRiskMatrix" disabled={filteredOrgCustProfit.length === 0}>거래처리스크</TabsTrigger>
+          <TabsTrigger value="sgaBreakdown" disabled={filteredOrgCustProfit.length === 0}>판관비세부</TabsTrigger>
         </TabsList>
         </TooltipProvider>
 
@@ -658,6 +660,15 @@ export default function ProfitabilityPage() {
             <CustomerRiskMatrixTab
               orgCustomerProfit={filteredOrgCustProfit}
               receivableAging={allReceivableRecords}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="sgaBreakdown" className="space-y-6">
+          <ErrorBoundary>
+            <SgaBreakdownTab
+              filteredOrgCustProfit={filteredOrgCustProfit}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>

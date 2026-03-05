@@ -106,6 +106,20 @@ export interface OrgCustomerProfitRecord {
   영업이익: PlanActualDiff;
   매출총이익율: PlanActualDiff;
   영업이익율: PlanActualDiff;
+  // 판관비 세부 (13개 항목, col23~61)
+  판관변동_노무비?: PlanActualDiff;
+  판관변동_복리후생비?: PlanActualDiff;
+  판관변동_소모품비?: PlanActualDiff;
+  판관변동_수도광열비?: PlanActualDiff;
+  판관변동_수선비?: PlanActualDiff;
+  판관변동_외주가공비?: PlanActualDiff;
+  판관변동_운반비?: PlanActualDiff;
+  판관변동_직접판매운반비?: PlanActualDiff;
+  판관변동_지급수수료?: PlanActualDiff;
+  판관변동_견본비?: PlanActualDiff;
+  판관고정_노무비?: PlanActualDiff;
+  판관고정_감가상각비?: PlanActualDiff;
+  판관고정_기타경비?: PlanActualDiff;
 }
 
 // C2: 304 본부 거래처 품목 손익
