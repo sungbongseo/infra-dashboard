@@ -84,6 +84,13 @@ Advanced analytics:
 - `customerItemAnalysis.ts` — 교차 수익성, ABC 분석, 거래처 포트폴리오, 품목×거래처 매트릭스
 - `detailedProfitAnalysis.ts` — Pareto 분석, 제품군별 분석, 마진 침식 감지
 - `itemCostAnalysis.ts` — 품목별 매출원가 상세 분석 (6기본 + 4신규: 품목차이랭킹, 원가프로파일, 단가분석, 원가드라이버)
+- `standardCostAnalysis.ts` — 표준원가 분석 (품목별 표준 vs 실제 원가)
+- `standardCostVariance.ts` — 표준원가 차이 분석
+- `customerRiskMatrix.ts` — 거래처 리스크 매트릭스
+- `accountTypeAnalysis.ts` — 계정유형별 분석
+- `orderConversion.ts` — 수주 전환율 분석
+- `collectionDelay.ts` — 수금 지연 분석
+- `sgaBreakdown.ts` — 판관비 세부 분석
 - `receivableInsight.ts` / `receivableDetail.ts` / `longTermReceivable.ts` — 미수금 담당자 인사이트, 상세, 장기 미수
 - `anomalyDetection.ts` — 이상치 탐지
 - `cohortAnalysis.ts` — 코호트 분석
@@ -133,10 +140,10 @@ All pages extract tab content into separate components under `tabs/` subdirector
 | Page | Tabs |
 |------|------|
 | Overview (`/dashboard`) | 핵심 지표, 조직 분석, 재무 건전성, 벤치마크/보고서 (4 tabs) |
-| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, RFM, CLV, 거래처 이동, FX, 이상치, 코호트, 이탈, 시계열 (12 tabs) |
-| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 손익분기, 시나리오, 거래처 손익, 거래처×품목, 상세 수익, 민감도, 품목원가, 원가차이 (15 tabs) |
-| Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 선수금, 담당자 인사이트, 채권 상세, 장기 미수 (8 tabs) |
-| Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우 (5 tabs) |
+| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, 품목군, RFM, CLV, 거래처 이동, FX, 이상치, 코호트, 이탈 예측, 시계열 (13 tabs) |
+| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 3-way차이, 손익분기, 시나리오, 민감도, 거래처 손익, 거래처×품목, 상세 수익, 품목원가, 원가차이, 표준원가, 거래처리스크, 판관비세부 (18 tabs) |
+| Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 채권 상세, 장기 미수, 선수금, 담당자 인사이트, 수금지연 (9 tabs) |
+| Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우, 전환율 (6 tabs) |
 | Profiles (`/dashboard/profiles`) | 종합 성과, 순위/거래처, 비용 효율, 실적 트렌드, 제품 포트폴리오 (5 tabs) |
 
 ### Smart Data Source (Profitability)
