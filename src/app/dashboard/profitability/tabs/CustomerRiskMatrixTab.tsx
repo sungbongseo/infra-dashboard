@@ -179,26 +179,26 @@ export function CustomerRiskMatrixTab({
         benchmark="Star(초록) 비중이 높을수록 건전한 거래처 포트폴리오. Exit(빨강) 거래처는 매출의 10% 미만으로 관리"
         reason="거래처별 수익성과 미수금 리스크를 동시에 평가하여 전략적 거래처 관리 의사결정을 지원합니다"
       >
-        <ChartContainer minHeight={540}>
-          <ScatterChart margin={{ top: 20, right: 30, left: 30, bottom: 60 }}>
+        <ChartContainer minHeight={560}>
+          <ScatterChart margin={{ top: 30, right: 40, left: 40, bottom: 65 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               type="number"
               dataKey="x"
               name="영업이익율"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
-              label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "insideBottom", offset: -25, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "bottom", offset: 0, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             />
             <YAxis
               type="number"
               dataKey="y"
               name="장기미수율"
-              tick={{ fontSize: 10 }}
+              tick={{ fontSize: 11 }}
               tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
-              label={{ value: "장기미수율(%)", angle: -90, position: "insideLeft", offset: -15, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: "← 저리스크  |  장기미수율(%)  |  고리스크 →", angle: -90, position: "insideLeft", offset: -20, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             />
-            <ZAxis type="number" dataKey="z" range={[50, 500]} name="매출규모" />
+            <ZAxis type="number" dataKey="z" range={[40, 400]} name="매출규모" />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               content={({ active, payload }: any) => {

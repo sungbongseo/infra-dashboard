@@ -31,12 +31,16 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
 
   const top20Items = useMemo(() => {
     const all = calcStandardCostVariance(filteredItemProfitability);
-    return all.slice(0, 20).map((item) => ({
-      name: truncateLabel(item.product, 24),
-      fullName: `${item.product} (${item.org})`,
-      차이: item.variance,
-      isOver: item.variance > 0,
-    }));
+    return all.slice(0, 20).map((item) => {
+      // SAP 품목코드에서 [] 괄호 제거하여 가독성 향상
+      const cleaned = item.product.replace(/^\[([^\]]+)\]\s*/, "$1 ");
+      return {
+        name: truncateLabel(cleaned, 20),
+        fullName: `${item.product} (${item.org})`,
+        차이: item.variance,
+        isOver: item.variance > 0,
+      };
+    });
   }, [filteredItemProfitability]);
 
   const accountTypeData = useMemo(() =>
@@ -119,15 +123,15 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         benchmark="A등급 주력 품목이 초과 목록에 포함되면 매출총이익 영향이 크므로 즉시 대응"
         reason="차이 금액이 큰 품목부터 우선 분석하여 원가 절감 효과가 가장 큰 영역에 관리 자원을 집중합니다"
       >
-        <ChartContainer minHeight={Math.max(top20Items.length * 32, 400)}>
+        <ChartContainer minHeight={Math.max(top20Items.length * 36, 450)}>
           <BarChart
             data={top20Items}
             layout="vertical"
-            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            margin={{ top: 5, right: 40, left: 10, bottom: 5 }}
           >
             <CartesianGrid {...GRID_PROPS} />
             <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => formatCurrency(v, true)} />
-            <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 9 }} interval={0} />
+            <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 10 }} interval={0} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.fullName || ""}
@@ -143,79 +147,77 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         </ChartContainer>
       </ChartCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* 계정구분별 평균 차이율 */}
-        <ChartCard
-          title="계정구분별 평균 차이율"
-          isEmpty={accountTypeData.length === 0}
-          dataSourceType="snapshot"
-          isDateFiltered={isDateFiltered}
-          formula="계정구분별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
-          description="제품/상품/원자재/부재료 등 계정구분별 표준원가 차이율입니다. 어떤 유형의 품목에서 원가 초과/절감이 발생하는지 파악합니다"
-          benchmark="제품 계정의 차이율이 가장 중요 (매출 비중 최대). ±5% 이내 정상"
-          reason="계정구분별 원가 관리 성과를 비교하여 특정 유형에서 구조적 원가 문제가 있는지 파악합니다"
-        >
-          <ChartContainer minHeight={320}>
-            <BarChart data={accountTypeData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
-              <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} domain={[(dataMin: number) => Math.min(dataMin * 1.1, 0), (dataMax: number) => Math.max(dataMax * 1.1, 0)]} />
-              <RechartsTooltip
-                {...TOOLTIP_STYLE}
-                formatter={(v: any, _name: any) => [`${Number(v).toFixed(1)}%`, "평균 차이율"]}
-              />
-              <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-              <Bar dataKey="평균차이율" radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG}>
-                {accountTypeData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.isOver ? "hsl(0, 65%, 55%)" : "hsl(145, 60%, 42%)"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        </ChartCard>
+      {/* 계정구분별 평균 차이율 */}
+      <ChartCard
+        title="계정구분별 평균 차이율"
+        isEmpty={accountTypeData.length === 0}
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
+        formula="계정구분별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
+        description="제품/상품/원자재/부재료 등 계정구분별 표준원가 차이율입니다. 어떤 유형의 품목에서 원가 초과/절감이 발생하는지 파악합니다"
+        benchmark="제품 계정의 차이율이 가장 중요 (매출 비중 최대). ±5% 이내 정상"
+        reason="계정구분별 원가 관리 성과를 비교하여 특정 유형에서 구조적 원가 문제가 있는지 파악합니다"
+      >
+        <ChartContainer minHeight={340}>
+          <BarChart data={accountTypeData} margin={{ top: 10, right: 30, left: 20, bottom: 25 }}>
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} domain={[(dataMin: number) => Math.min(Math.floor(dataMin * 1.2), 0), (dataMax: number) => Math.max(Math.ceil(dataMax * 1.2), 0)]} />
+            <RechartsTooltip
+              {...TOOLTIP_STYLE}
+              formatter={(v: any, _name: any) => [`${Number(v).toFixed(1)}%`, "평균 차이율"]}
+            />
+            <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            <Bar dataKey="평균차이율" radius={BAR_RADIUS_TOP} barSize={60} {...ANIMATION_CONFIG}>
+              {accountTypeData.map((entry, idx) => (
+                <Cell key={idx} fill={entry.isOver ? "hsl(0, 65%, 55%)" : "hsl(145, 60%, 42%)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </ChartCard>
 
-        {/* 조직별 원가관리 성과 */}
-        <ChartCard
-          title="조직별 원가관리 성과"
-          isEmpty={orgData.length === 0}
-          dataSourceType="snapshot"
-          isDateFiltered={isDateFiltered}
-          formula="조직별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
-          description="각 영업조직팀의 표준원가 대비 실적원가 차이율입니다. 음수(초록)일수록 원가 절감을 잘 하고 있고, 양수(빨강)일수록 원가 관리 개선이 필요합니다"
-          benchmark="조직 간 차이율 편차가 10%p 이상이면 원가 관리 격차 개선 필요"
-          reason="조직 간 원가관리 성과를 비교하여 우수 조직의 노하우를 전파하고 부진 조직의 개선점을 도출합니다"
-        >
-          <ChartContainer minHeight={Math.max(orgData.length * 32, 300)}>
-            <BarChart data={orgData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
-              <CartesianGrid {...GRID_PROPS} />
-              <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
-              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 9 }} interval={0} />
-              <RechartsTooltip
-                {...TOOLTIP_STYLE}
-                content={({ active, payload }: any) => {
-                  if (!active || !payload?.[0]) return null;
-                  const d = payload[0].payload;
-                  return (
-                    <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
-                      <p className="font-semibold">{d.fullName}</p>
-                      <p className={d.isOver ? "text-red-600" : "text-green-600"}>
-                        차이율: {d.isOver ? "+" : ""}{isFinite(d.평균차이율) ? d.평균차이율.toFixed(1) : "0"}%
-                      </p>
-                      <p>품목 수: {d.품목수}개 (초과 {d.초과} / 절감 {d.절감})</p>
-                    </div>
-                  );
-                }}
-              />
-              <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-              <Bar dataKey="평균차이율" radius={BAR_RADIUS_RIGHT} {...ANIMATION_CONFIG}>
-                {orgData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.isOver ? "hsl(0, 65%, 55%)" : "hsl(145, 60%, 42%)"} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ChartContainer>
-        </ChartCard>
-      </div>
+      {/* 조직별 원가관리 성과 */}
+      <ChartCard
+        title="조직별 원가관리 성과"
+        isEmpty={orgData.length === 0}
+        dataSourceType="snapshot"
+        isDateFiltered={isDateFiltered}
+        formula="조직별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
+        description="각 영업조직팀의 표준원가 대비 실적원가 차이율입니다. 음수(초록)일수록 원가 절감을 잘 하고 있고, 양수(빨강)일수록 원가 관리 개선이 필요합니다"
+        benchmark="조직 간 차이율 편차가 10%p 이상이면 원가 관리 격차 개선 필요"
+        reason="조직 간 원가관리 성과를 비교하여 우수 조직의 노하우를 전파하고 부진 조직의 개선점을 도출합니다"
+      >
+        <ChartContainer minHeight={Math.max(orgData.length * 36, 350)}>
+          <BarChart data={orgData} layout="vertical" margin={{ top: 10, right: 40, left: 10, bottom: 5 }}>
+            <CartesianGrid {...GRID_PROPS} />
+            <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} />
+            <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} interval={0} />
+            <RechartsTooltip
+              {...TOOLTIP_STYLE}
+              content={({ active, payload }: any) => {
+                if (!active || !payload?.[0]) return null;
+                const d = payload[0].payload;
+                return (
+                  <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
+                    <p className="font-semibold">{d.fullName}</p>
+                    <p className={d.isOver ? "text-red-600" : "text-green-600"}>
+                      차이율: {d.isOver ? "+" : ""}{isFinite(d.평균차이율) ? d.평균차이율.toFixed(1) : "0"}%
+                    </p>
+                    <p>품목 수: {d.품목수}개 (초과 {d.초과} / 절감 {d.절감})</p>
+                  </div>
+                );
+              }}
+            />
+            <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
+            <Bar dataKey="평균차이율" radius={BAR_RADIUS_RIGHT} {...ANIMATION_CONFIG}>
+              {orgData.map((entry, idx) => (
+                <Cell key={idx} fill={entry.isOver ? "hsl(0, 65%, 55%)" : "hsl(145, 60%, 42%)"} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </ChartCard>
     </>
   );
 }
