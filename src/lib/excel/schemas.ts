@@ -70,7 +70,9 @@ export const FILE_SCHEMAS: FileSchema[] = [
   },
   {
     fileType: "profitabilityAnalysis",
-    pattern: /(담당자|거래처|품목).*(수익성|분석)|수익성.*분석/i,
+    // 901 SAP 보고서 또는 "담당자별/거래처별/품목별 수익성분석" 패턴
+    // 주의: itemProfitability(200.품목별 수익성 분석(회계))가 먼저 매칭되어야 함 (index 7)
+    pattern: /901.*수익성|수익성\s*분석|(담당자|거래처|품목)별?\s*수익성/i,
     headerRow: 0,
     hasMergedHeader: true,
     subHeaderRow: 1,

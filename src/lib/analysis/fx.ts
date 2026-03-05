@@ -143,8 +143,9 @@ export function calcMonthlyFxTrend(sales: SalesRecord[]): MonthlyFxTrend[] {
 }
 
 // ── FX 손익 추정 ────────────────────────────────────────
-// 외화 거래에 대해 통화별 가중평균 환율 대비 실제 장부금액의 차이를 추정
-// fxGainLoss = bookAmount - (transactionAmount * overallAvgRate)
+// 외화 거래에 대해 월별 가중평균 환율과 거래별 적용 환율의 차이를 추정
+// 월별 기준환율 대비 각 거래의 실제 환율 차이를 합산하여 FX 효과 산출
+// fxEffect = Σ (개별 적용환율 - 해당월 가중평균환율) × 판매금액
 
 export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
   // 외화 거래만 필터
@@ -155,58 +156,82 @@ export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
 
   if (foreignSales.length === 0) return [];
 
-  // 통화별 집계
-  const map = new Map<
+  // 통화별 전체 집계
+  const currencyTotals = new Map<
     string,
-    { transactionAmount: number; bookAmount: number; rates: number[] }
+    { transactionAmount: number; bookAmount: number }
+  >();
+
+  // 통화×월별 집계 (월별 가중평균환율 산출용)
+  const monthlyRates = new Map<
+    string, // currency
+    Map<string, { txnTotal: number; bookTotal: number }> // month -> totals
   >();
 
   for (const row of foreignSales) {
     const currency = (row.거래통화 || "").trim().toUpperCase();
     const txnAmt = row.판매금액 || 0;
     const bookAmt = row.장부금액 || 0;
-    const rate = row.환율 || 0;
+    const month = extractMonth(row.매출일) || "unknown";
 
-    const existing = map.get(currency);
+    // 통화별 전체 집계
+    const existing = currencyTotals.get(currency);
     if (existing) {
       existing.transactionAmount += txnAmt;
       existing.bookAmount += bookAmt;
-      if (rate > 0) existing.rates.push(rate);
     } else {
-      map.set(currency, {
-        transactionAmount: txnAmt,
-        bookAmount: bookAmt,
-        rates: rate > 0 ? [rate] : [],
-      });
+      currencyTotals.set(currency, { transactionAmount: txnAmt, bookAmount: bookAmt });
+    }
+
+    // 월별 집계
+    let monthMap = monthlyRates.get(currency);
+    if (!monthMap) {
+      monthMap = new Map();
+      monthlyRates.set(currency, monthMap);
+    }
+    const monthEntry = monthMap.get(month);
+    if (monthEntry) {
+      monthEntry.txnTotal += txnAmt;
+      monthEntry.bookTotal += bookAmt;
+    } else {
+      monthMap.set(month, { txnTotal: txnAmt, bookTotal: bookAmt });
     }
   }
 
-  // 통화별 가중평균 환율 산출
-  const avgRates = new Map<string, number>();
-  for (const [currency, data] of Array.from(map.entries())) {
-    avgRates.set(
-      currency,
-      data.transactionAmount !== 0
-        ? data.bookAmount / data.transactionAmount
-        : 0
-    );
-  }
+  // 월별 가중평균환율 산출 (통화별)
+  const getMonthlyAvgRate = (currency: string, month: string): number => {
+    const monthMap = monthlyRates.get(currency);
+    if (!monthMap) return 0;
+    const entry = monthMap.get(month);
+    if (!entry || entry.txnTotal === 0) return 0;
+    return entry.bookTotal / entry.txnTotal;
+  };
 
-  // 거래별 FX 손익 누적 (개별 환율과 가중평균 환율의 차이)
+  // 거래별 FX 손익 누적: (개별 적용환율 - 해당월 가중평균환율) × 판매금액
+  // 개별 적용환율 = 장부금액 / 판매금액
   const fxGainByCurrency = new Map<string, number>();
   for (const row of foreignSales) {
     const currency = (row.거래통화 || "").trim().toUpperCase();
     const txnAmt = row.판매금액 || 0;
     const bookAmt = row.장부금액 || 0;
-    const overallAvgRate = avgRates.get(currency) || 0;
-    // FX 효과 = 실제 장부금액 - (판매금액 × 전체 가중평균 환율)
-    const fxEffect = bookAmt - txnAmt * overallAvgRate;
+    const month = extractMonth(row.매출일) || "unknown";
+
+    if (txnAmt === 0) continue;
+
+    const txnRate = bookAmt / txnAmt; // 개별 거래의 적용환율
+    const monthAvgRate = getMonthlyAvgRate(currency, month);
+
+    // FX 효과 = (개별환율 - 월평균환율) × 판매금액
+    const fxEffect = (txnRate - monthAvgRate) * txnAmt;
     fxGainByCurrency.set(currency, (fxGainByCurrency.get(currency) || 0) + fxEffect);
   }
 
-  return Array.from(map.entries())
+  // 통화별 가중평균 환율 (전체 기간)
+  return Array.from(currencyTotals.entries())
     .map(([currency, data]) => {
-      const avgRate = avgRates.get(currency) || 0;
+      const avgRate = data.transactionAmount !== 0
+        ? data.bookAmount / data.transactionAmount
+        : 0;
       const estimatedAtAvgRate = data.transactionAmount * avgRate;
       const fxGainLoss = fxGainByCurrency.get(currency) || 0;
 

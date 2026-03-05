@@ -136,7 +136,7 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
           title="주의 거래처"
           value={mediumRiskCount}
           format="number"
-          formula="연체비율 30~50% 또는 3개월 이상 미수금 5천만원 초과인 거래처 수"
+          formula="연체비율(61일+) 20~50% 또는 61일 이상 미수금 5천만원 초과인 거래처 수"
           description="아직 고위험은 아니지만 관심이 필요한 거래처 수입니다. 방치하면 고위험으로 악화될 수 있으므로 선제적인 관리가 중요합니다."
           benchmark="주의 거래처가 전체의 10% 이상이면 연체 관리 프로세스 강화 필요"
           reason="주의 등급 거래처를 조기에 포착하여 고위험으로 악화되기 전에 선제적 회수 활동을 전개합니다."
@@ -146,7 +146,7 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
           value={highRiskCount}
           format="number"
           icon={<Shield className="h-5 w-5" />}
-          formula="연체비율 50% 초과 또는 6개월 이상 미수금 1억원 초과인 거래처 수"
+          formula="연체비율(61일+) 50% 초과 또는 6개월 이상(151일+) 미수금 1억원 초과인 거래처 수"
           description="채권 회수가 어려울 가능성이 높아 즉각적인 추심 조치가 필요한 거래처 수입니다."
           benchmark="0건이 이상적이며, 발생 시 즉시 대응 계획을 수립해야 합니다"
           reason="고위험 거래처 수를 실시간 추적하여 대손 손실을 최소화하고, 즉각적인 추심 및 법적 조치 여부를 판단합니다."
@@ -184,7 +184,7 @@ export function RiskTab({ byPerson, risks, highRiskCount, mediumRiskCount, isDat
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
         action={<ExportButton data={riskExportData} fileName="리스크평가" />}
         title="리스크 등급 현황"
-        formula="고위험: 연체비율 50% 초과 또는 6개월 이상 1억 초과\n주의: 연체비율 30~50% 또는 3개월 이상 5천만 초과\n양호: 위 조건에 해당하지 않는 거래처"
+        formula="고위험: 연체비율(61일+) 50% 초과 또는 6개월 이상(151일+) 1억 초과\n주의: 연체비율(61일+) 20~50% 또는 61일+ 미수금 5천만 초과\n양호: 위 조건에 해당하지 않는 거래처"
         description="거래처별 미수금 잔액과 연령(aging) 분포를 보여줍니다. 미수금이 특정 거래처에 집중되면 회수 실패 시 큰 손실 위험이 있어 분산 관리가 필요합니다."
         benchmark="단일 거래처 미수금이 전체의 20% 이상이면 집중 관리"
         reason="리스크 등급별 거래처 분포를 분석하여 대손 가능성이 높은 채권을 조기 식별하고, 등급별 차등 회수 전략을 수립합니다."

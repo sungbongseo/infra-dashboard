@@ -144,10 +144,17 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered }: Clv
                 />
                 <RechartsTooltip
                   {...TOOLTIP_STYLE}
-                  formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}
-                  labelFormatter={(label: any) => {
-                    const item = clvResults.find((c) => c.currentSales === label);
-                    return item ? item.customerName || item.customer : "";
+                  content={({ active, payload }: any) => {
+                    if (!active || !payload || payload.length === 0) return null;
+                    const data = payload[0]?.payload;
+                    if (!data) return null;
+                    return (
+                      <div className="rounded-lg border bg-background p-3 shadow-md text-sm">
+                        <p className="font-medium mb-1">{data.customerName || data.customer}</p>
+                        <p>현재 매출: {formatCurrency(data.currentSales)}</p>
+                        <p>CLV: {formatCurrency(data.clv)}</p>
+                      </div>
+                    );
                   }}
                 />
                 <Scatter

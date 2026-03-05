@@ -16,7 +16,7 @@ export function calcSalesByPaymentTerm(
 
   for (const row of sales) {
     const term = (row.결제조건 || "미분류").trim() || "미분류";
-    const amount = row.판매금액 || 0;
+    const amount = row.장부금액 || 0;
     const existing = map.get(term);
     if (existing) {
       existing.amount += amount;
@@ -57,7 +57,7 @@ export function calcSalesByChannel(sales: SalesRecord[]): ChannelSales[] {
 
   for (const row of sales) {
     const channel = (row.유통경로 || "미분류").trim() || "미분류";
-    const amount = row.판매금액 || 0;
+    const amount = row.장부금액 || 0;
     const existing = map.get(channel);
     if (existing) {
       existing.amount += amount;
@@ -100,7 +100,7 @@ export function calcSalesByCustomerCategory(
 
   for (const row of sales) {
     const category = (row.거래처소분류 || "미분류").trim() || "미분류";
-    const amount = row.판매금액 || 0;
+    const amount = row.장부금액 || 0;
     const existing = map.get(category);
     if (existing) {
       existing.amount += amount;
@@ -147,7 +147,7 @@ export function calcSalesByItemCategory(
 
   for (const row of sales) {
     const category = (row.품목범주 || row.제품군 || row.대분류 || "미분류").trim() || "미분류";
-    const amount = row.판매금액 || 0;
+    const amount = row.장부금액 || 0;
     const qty = row.수량 || 0;
     const existing = map.get(category);
     if (existing) {
@@ -264,7 +264,7 @@ export function calcProductGroupTrends(
     const month = extractMonth(row.매출일 || "");
     if (!month) continue;
     const group = (row.제품군 || "미분류").trim() || "미분류";
-    const amount = row.판매금액 || 0;
+    const amount = row.장부금액 || 0;
 
     productGroups.add(group);
 

@@ -134,9 +134,12 @@ export function decomposeTimeSeries(
   }
 
   // 7. Seasonal strength = 1 - Var(residual) / Var(detrended)
-  const varDetrended = detrended.reduce((s, v) => s + v * v, 0) / n;
+  // Var(X) = E[X^2] - E[X]^2 (true variance, not E[X^2])
+  const meanDetrended = detrended.reduce((s, v) => s + v, 0) / n;
+  const varDetrended = detrended.reduce((s, v) => s + v * v, 0) / n - meanDetrended * meanDetrended;
   const residuals = points.map(p => p.residual);
-  const varResidual = residuals.reduce((s, v) => s + v * v, 0) / n;
+  const meanResidual = residuals.reduce((s, v) => s + v, 0) / n;
+  const varResidual = residuals.reduce((s, v) => s + v * v, 0) / n - meanResidual * meanResidual;
   const seasonalStrength = varDetrended > 0
     ? Math.max(0, Math.min(1, 1 - varResidual / varDetrended))
     : 0;

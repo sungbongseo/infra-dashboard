@@ -171,7 +171,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
                 label={{ value: "상한 기준선", position: "insideTopRight", fontSize: 11, fill: CHART_COLORS[4] }}
               />
             )}
-            {stats.lowerFence > 0 && (
+            {stats.lowerFence !== 0 && (
               <ReferenceLine
                 y={stats.lowerFence}
                 stroke={CHART_COLORS[3]}

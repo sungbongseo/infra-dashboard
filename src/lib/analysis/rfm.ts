@@ -43,12 +43,18 @@ function assignQuintiles(
   const n = sorted.length;
 
   for (let i = 0; i < n; i++) {
-    // quintile position: 1-5 based on rank
-    // For small datasets (n < 5), use evenly-spaced distribution
-    // e.g. n=3 → [1,3,5], n=4 → [1,2,4,5], n=2 → [1,5], n=1 → [3]
-    const rawScore = n < 5
-      ? (n === 1 ? 3 : Math.round(1 + (i / (n - 1)) * 4))
-      : Math.min(5, Math.floor((i / n) * 5) + 1);
+    let rawScore: number;
+    if (n >= 5) {
+      // Standard quintile: 1-5 based on rank percentile
+      rawScore = Math.min(5, Math.floor((i / n) * 5) + 1);
+    } else if (n === 1) {
+      rawScore = 3; // 단일 데이터: 중간값
+    } else {
+      // n=2~4: 3-tier 매핑 (Low=2, Mid=3, High=4)으로 균등 분배
+      // 극단값(1,5)을 피하고 중간 범위를 사용하여 세그먼트 분류 안정성 확보
+      const tier = Math.floor((i / n) * 3); // 0, 1, 2
+      rawScore = tier + 2; // 2, 3, 4
+    }
     const score = invertScore ? (6 - rawScore) : rawScore;
     scoreMap.set(sorted[i].index, score);
   }

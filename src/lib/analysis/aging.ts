@@ -68,7 +68,9 @@ export function assessRisk(record: ReceivableAgingRecord): RiskGrade {
   // SAP FI-AR 표준: month3(90일) 이상을 연체로 판정
   const overdueAmt = record.month3.장부금액 + record.month4.장부금액 + record.month5.장부금액 + record.month6.장부금액 + record.overdue.장부금액;
   const overdueRatio = overdueAmt / total;
-  if (overdueRatio > RISK_THRESHOLDS.HIGH_OVERDUE_RATIO || record.overdue.장부금액 > RISK_THRESHOLDS.HIGH_OVERDUE_AMOUNT) return "high";
+  // 고위험: 연체비율 50% 초과 또는 6개월 이상(month6+overdue) 미수금 1억 초과
+  const longTermAmt = record.month6.장부금액 + record.overdue.장부금액;
+  if (overdueRatio > RISK_THRESHOLDS.HIGH_OVERDUE_RATIO || longTermAmt > RISK_THRESHOLDS.HIGH_OVERDUE_AMOUNT) return "high";
   if (overdueRatio > RISK_THRESHOLDS.MEDIUM_OVERDUE_RATIO || overdueAmt > RISK_THRESHOLDS.MEDIUM_OVERDUE_AMOUNT) return "medium";
   return "low";
 }

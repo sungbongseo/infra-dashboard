@@ -188,6 +188,12 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
 
   return (
     <>
+      {/* 스냅샷 데이터 안내 */}
+      {isDateFiltered && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-400">
+          품목원가 데이터(501)는 스냅샷 보고서로 기간 필터가 적용되지 않습니다. 표시된 수치는 보고서 전체 기간의 누적 데이터입니다.
+        </div>
+      )}
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard

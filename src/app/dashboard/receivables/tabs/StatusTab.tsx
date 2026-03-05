@@ -28,6 +28,7 @@ interface StatusTabProps {
 }
 
 export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: StatusTabProps) {
+  // StatusTab 기준: 91일+(month4~overdue)을 "장기 미수"로 표시
   const overdueTotal = summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   const overdueRate = summary.total > 0 ? (overdueTotal / summary.total) * 100 : 0;
 
@@ -65,7 +66,7 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
           value={overdueTotal}
           format="currency"
           icon={<AlertTriangle className="h-5 w-5" />}
-          formula="91일 이상 장기 미수액(원) = 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+) 미수금의 합계"
+          formula="91일+ 장기 미수(원) = 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+). 참고: 리스크 탭의 연체는 61일+ 기준"
           description="91일(4개월차) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
           benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
           reason="장기 미수금은 대손 발생 가능성이 가장 높은 채권군으로, 조기 식별하여 회수 우선순위를 결정해야 합니다."

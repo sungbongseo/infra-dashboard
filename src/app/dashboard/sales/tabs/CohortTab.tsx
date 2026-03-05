@@ -119,7 +119,7 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
           icon={<Repeat className="h-5 w-5" />}
           formula="P1 재구매율 = 첫 거래 다음 달에 다시 거래한 고객 수 ÷ 코호트 전체 고객 수 × 100"
           description="첫 거래 이후 1개월 뒤 재구매한 고객 비율의 전체 코호트 평균입니다. 초기 재구매율이 높을수록 고객 정착률이 좋습니다."
-          benchmark="B2B 재구매율 P1이 40% 이상이면 양호"
+          benchmark="B2B 인프라 재구매율 P1이 20~30% 이상이면 양호 (B2C 40% 기준과 상이)"
           reason="첫 거래 후 초기 재구매율을 파악하여 신규 고객의 정착 성공률을 평가하고, 온보딩 프로세스 개선 필요성을 진단합니다."
         />
         <KpiCard

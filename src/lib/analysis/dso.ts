@@ -170,10 +170,11 @@ export function calcDSOTrend(
     }
     const rollingAvg = rollingCount > 0 ? rollingSum / rollingCount : 0;
 
-    // 해당월 미수금 추정: 미수금 비례 배분 (월 매출 / 평균 매출 기준)
-    const monthlyReceivables = avgMonthlySales > 0
+    // 해당월 미수금 추정: 미수금 비례 배분 (월 매출 / 평균 매출 기준), 총 미수금 초과 방지
+    const rawMonthlyReceivables = avgMonthlySales > 0
       ? totalReceivables * (monthlySales / totalSales * months.length)
       : totalReceivables / months.length;
+    const monthlyReceivables = Math.min(rawMonthlyReceivables, totalReceivables);
 
     const dso = rollingAvg > 0
       ? Math.round((monthlyReceivables / rollingAvg) * 30)

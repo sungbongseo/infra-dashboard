@@ -70,6 +70,7 @@ export function calcProductProfitability(
   }
 
   return Array.from(map.entries())
+    .filter(([, v]) => v.sales !== 0) // 매출 0 품목 제외 (반품/역분개 이상 데이터 방지)
     .map(([product, v]) => ({
       product,
       sales: v.sales,

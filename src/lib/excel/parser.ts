@@ -399,9 +399,9 @@ function parseOrgProfit(data: unknown[][], warnings: string[]): OrgProfitRecord[
         공헌이익율: parsePlanActualDiff(row, 40),
       };
 
-      // 비정상 데이터 검증: 영업이익율 100% 또는 절대값 >200%는 계산 오류로 간주
-      // → 0으로 대체하여 차트에서 제외되도록 함
-      if (Math.abs(parsed.영업이익율.실적) >= 100 || Math.abs(parsed.공헌이익율.실적) >= 100) {
+      // 비정상 데이터 검증: 이익율 절대값 ≥500%는 계산 오류로 간주 (teamContribution과 동일 기준)
+      // 100~500%는 수수료/서비스 매출 등에서 정상 발생 가능
+      if (Math.abs(parsed.영업이익율.실적) >= 500 || Math.abs(parsed.공헌이익율.실적) >= 500) {
         abnormalCount++;
         if (abnormalCount <= 3) {
           warnings.push(`[조직별손익] ${parsed.영업조직팀}: 비정상 이익율 감지 (영업이익율 ${parsed.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${parsed.공헌이익율.실적.toFixed(1)}%) - 해당 데이터는 분석에서 제외됩니다`);
@@ -416,7 +416,7 @@ function parseOrgProfit(data: unknown[][], warnings: string[]): OrgProfitRecord[
 
       return parsed;
     })
-    .filter(r => r.매출액.실적 !== 0); // 매출액 0인 행도 제외
+    .filter(r => r.매출액.실적 !== 0 || r.매출액.계획 !== 0); // 실적·계획 모두 0인 행만 제외
 
   if (abnormalCount > 3) {
     warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 비정상 이익율 데이터가 제외되었습니다. Excel 파일의 수식을 확인하세요.`);

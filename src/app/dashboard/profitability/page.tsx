@@ -96,7 +96,10 @@ export default function ProfitabilityPage() {
     };
   }, [profitabilityAnalysis, effectiveOrgNames]);
   const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
-  const allReceivableRecords = useMemo(() => Array.from(receivableAging.values()).flat(), [receivableAging]);
+  const allReceivableRecords = useMemo(() => {
+    const allRecords = Array.from(receivableAging.values()).flat();
+    return filterByOrg(allRecords, effectiveOrgNames, "영업조직");
+  }, [receivableAging, effectiveOrgNames]);
 
   // ─── 신규 데이터 타입 필터링 ──────────────────────────────
   const filteredOrgCustProfit = useMemo(() => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), [orgCustomerProfit, effectiveOrgNames]);
@@ -469,7 +472,7 @@ export default function ProfitabilityPage() {
           </TabsTrigger>
           <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>
           <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
-            분산 분석{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            계획 달성{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
           <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
@@ -594,7 +597,12 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="sensitivity" className="space-y-6">
           <ErrorBoundary>
-            <SensitivityTab baseSales={totalSales} baseGrossProfit={totalGP} baseOpProfit={totalOp} isDateFiltered={isDateFilterActive} />
+            <SensitivityTab
+              baseSales={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.매출액?.실적 ?? 0), 0) : totalSales}
+              baseGrossProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.매출총이익?.실적 ?? 0), 0) : totalGP}
+              baseOpProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.영업이익?.실적 ?? 0), 0) : totalOp}
+              isDateFiltered={isDateFilterActive}
+            />
           </ErrorBoundary>
         </TabsContent>
 
