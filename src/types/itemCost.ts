@@ -74,11 +74,13 @@ export interface ItemProfitabilityRecord {
   품목계정그룹: string;
   품목: string;           // e.g., "[CHMJ4229997] R-AA"
   기준단위: string;
+  계정구분: string;       // P1-4: 제품/상품/원자재/부재료 (91%)
   // Revenue
   매출수량: number;
   매출액: number;
   매출단가: number;
   // Cost
+  표준매출원가: number;   // P1-4: 표준원가 기준선 (72%)
   실적매출원가: number;
   매출원가율: number;
   // Profit

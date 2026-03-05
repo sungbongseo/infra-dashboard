@@ -269,9 +269,11 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
     품목계정그룹: str(row[6]),
     품목: str(row[7]),
     기준단위: str(row[8]),
+    계정구분: str(row[9]),        // P1-4: 제품/상품/원자재/부재료
     매출수량: num(row[10]),
     매출액: num(row[11]),
     매출단가: num(row[13]),
+    표준매출원가: num(row[14]),   // P1-4: 표준원가 기준선
     실적매출원가: num(row[15]),
     매출원가율: num(row[18]),
     매출총이익: num(row[19]),
@@ -404,7 +406,8 @@ export function parseExcelFile(
         세무분류: str(row[4]), 세무구분: str(row[5]), 거래처소분류: str(row[6]),
         매출처: str(row[7]), 매출처명: str(row[8]), 수금처: str(row[9]), 수금처명: str(row[10]),
         납품처: str(row[11]), 납품처명: str(row[12]), 결제조건: str(row[13]),
-        수금예정일: str(row[14]), 매출상태: str(row[16]), 매출유형: str(row[17]),
+        수금예정일: str(row[14]), 부가세사업장: str(row[15]),
+        매출상태: str(row[16]), 매출유형: str(row[17]),
         품목: str(row[21]), 품목명: str(row[22]), 규격: str(row[23]),
         대분류: str(row[25]), 중분류: str(row[26]), 소분류: str(row[27]),
         단위: str(row[28]), 수량: num(row[30]), 거래통화: str(row[31]),
@@ -412,6 +415,7 @@ export function parseExcelFile(
         장부단가: num(row[37]), 장부금액: num(row[38]), 부가세: num(row[39]),
         총금액: num(row[40]), 영업조직: str(row[42]), 유통경로: str(row[43]),
         제품군: str(row[44]), 품목범주: str(row[45]), 사업부: str(row[46]), 영업그룹: str(row[47]),
+        계정구분: str(row[52]),
         영업담당자: str(row[48]), 영업담당자명: str(row[49]), 수주번호: str(row[57]),
         수주유형: str(row[77]), 출고일: str(row[64]),
       }), warnings, "매출리스트");
@@ -430,6 +434,8 @@ export function parseExcelFile(
         담당자: str(row[7]),
         수금일: str(row[8]),
         통화: str(row[9]),
+        금융기관: str(row[11]),
+        만기일: str(row[15]),
         수금액: num(row[16]),
         장부수금액: num(row[17]),
         선수금액: num(row[18]),
@@ -462,12 +468,16 @@ export function parseExcelFile(
         규격: str(row[20]),
         판매수량: num(row[22]),
         판매단가: num(row[23]),
+        단가통화: str(row[24]),
         판매금액: num(row[25]),
         환율: num(row[26]),
         장부단가: num(row[27]),
         장부금액: num(row[28]),
         부가세: num(row[29]),
         총금액: num(row[30]),
+        납품처: str(row[31]),
+        품목상태: str(row[37]),
+        저장위치: str(row[38]),
         대분류: str(row[41]),
         중분류: str(row[42]),
         소분류: str(row[43]),
@@ -717,12 +727,18 @@ export function parseExcelFile(
         거래처소분류: str(row[11]),
         제품군: str(row[30]),  // 품목제품군
         매출연월: str(row[13]),  // YYYYMM 형식
+        계정구분: str(row[8]),      // P1-3: 제품/상품/원자재/부재료/저장품
+        매출유형: str(row[12]),     // P1-3: 일반매출/해외매출 등
+        품목군: str(row[24]),       // P1-3: 34종 제품군 분류
+        중분류코드: str(row[25]),   // P1-3: 43종 상세분류
+        공장: str(row[28]),         // P1-3: 5개 생산공장
         제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
         매출수량: parsePlanActualDiff(row, 42),
         환산수량: { 계획: 0, 실적: 0, 차이: 0 },  // 환산단위는 문자열(col 7)
         매출액: parsePlanActualDiff(row, 45),
         실적매출원가: parsePlanActualDiff(row, 48),
+        상품매입: parsePlanActualDiff(row, 63),   // P1-3: 거래처x품목별 상품매입 원가
         매출총이익: parsePlanActualDiff(row, 66),
         판매관리비: parsePlanActualDiff(row, 69),
         판관변동_직접판매운반비: parsePlanActualDiff(row, 72),

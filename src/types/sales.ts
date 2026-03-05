@@ -14,6 +14,7 @@ export interface SalesRecord {
   납품처명: string;
   결제조건: string;
   수금예정일: string;
+  부가세사업장: string;   // P1-1: 5개 공장별 매출 분석
   매출상태: string;
   매출유형: string;
   품목: string;
@@ -33,6 +34,7 @@ export interface SalesRecord {
   부가세: number;
   총금액: number;
   품목범주: string;
+  계정구분: string;       // P1-1: 제품/상품/원자재/부재료 세그먼트
   영업조직: string;
   유통경로: string;
   제품군: string;
@@ -56,6 +58,8 @@ export interface CollectionRecord {
   담당자: string;
   수금일: string;
   통화: string;
+  금융기관: string;       // P1-5: 은행별 수금 채널 분석
+  만기일: string;          // P1-5: 어음 만기 → CCC 정밀화
   수금액: number;
   장부수금액: number;
   선수금액: number;

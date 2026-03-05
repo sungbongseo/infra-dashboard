@@ -140,12 +140,18 @@ export interface CustomerItemDetailRecord {
   거래처소분류: string;
   제품군: string;
   매출연월: string;
+  계정구분: string;        // P1-3: 제품/상품/원자재/부재료 (91%)
+  매출유형: string;        // P1-3: 일반매출/해외매출 등 (91%)
+  품목군: string;          // P1-3: 34종 제품군 (우레탄/방수/MP루비 등, 55%)
+  중분류코드: string;      // P1-3: 43종 상세분류 (63%)
+  공장: string;            // P1-3: 5개 생산공장 (64%)
   제품내수매출: PlanActualDiff;
   제품수출매출: PlanActualDiff;
   매출수량: PlanActualDiff;
   환산수량: PlanActualDiff;
   매출액: PlanActualDiff;
   실적매출원가: PlanActualDiff;
+  상품매입: PlanActualDiff;  // P1-3: 거래처x품목별 상품매입 원가 (55%)
   매출총이익: PlanActualDiff;
   판매관리비: PlanActualDiff;
   판관변동_직접판매운반비: PlanActualDiff;
