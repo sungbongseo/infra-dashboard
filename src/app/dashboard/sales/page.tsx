@@ -21,7 +21,8 @@ import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
+import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
@@ -42,6 +43,7 @@ import { ProductGroupTab } from "./tabs/ProductGroupTab";
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
+  const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
@@ -62,6 +64,16 @@ export default function SalesAnalysisPage() {
     if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
     return filterByDateRange(orgFiltered, dateRange, "매출연월");
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
+
+  // 303 거래처 손익 연계
+  const filteredOrgCustProfit = useMemo(
+    () => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"),
+    [orgCustomerProfit, effectiveOrgNames]
+  );
+  const customerRanking = useMemo(
+    () => calcCustomerRanking(filteredOrgCustProfit, "sales").slice(0, 20),
+    [filteredOrgCustProfit]
+  );
 
   const topCustomersExport = useMemo(
     () => topCustomers.map((c) => ({ 거래처코드: c.code, 거래처명: c.name, 매출액: c.amount })),
@@ -193,6 +205,54 @@ export default function SalesAnalysisPage() {
                 </ComposedChart>
             </ChartContainer>
           </ChartCard>
+
+          {/* 303 거래처 손익 연계 테이블 */}
+          {customerRanking.length > 0 && (
+            <ChartCard
+              title="거래처별 수익성 연계 (303 데이터)"
+              dataSourceType="snapshot"
+              isDateFiltered={isDateFiltered}
+              formula="303 조직별 거래처별 손익 데이터에서 매출액 상위 20개 거래처의 매출총이익률/영업이익률 표시"
+              description="매출 상위 거래처의 수익성을 함께 분석합니다. 매출은 크지만 마진이 낮은 거래처는 가격 재협상이나 원가 절감이 필요합니다."
+              benchmark="영업이익률 5% 이상이면 양호, 음수이면 거래 조건 재검토 필요"
+              reason="매출 규모와 수익성을 동시에 파악하여 매출만 크고 이익이 없는 거래처를 식별하고, 수익성 중심의 거래처 전략을 수립합니다"
+            >
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-left">
+                      <th className="py-2 px-3 font-medium">거래처</th>
+                      <th className="py-2 px-3 font-medium">조직</th>
+                      <th className="py-2 px-3 font-medium text-right">매출액</th>
+                      <th className="py-2 px-3 font-medium text-right">매출총이익</th>
+                      <th className="py-2 px-3 font-medium text-right">매출총이익률</th>
+                      <th className="py-2 px-3 font-medium text-right">영업이익률</th>
+                      <th className="py-2 px-3 font-medium text-right">계획달성률</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {customerRanking.map((c) => (
+                      <tr key={c.code} className="border-b border-border/50 hover:bg-muted/50">
+                        <td className="py-1.5 px-3 font-medium">{c.name}</td>
+                        <td className="py-1.5 px-3 text-muted-foreground text-xs">{c.org}</td>
+                        <td className="py-1.5 px-3 text-right">{formatCurrency(c.sales)}</td>
+                        <td className="py-1.5 px-3 text-right">{formatCurrency(c.grossProfit)}</td>
+                        <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(c.grossMargin)}`}>
+                          {c.grossMargin.toFixed(1)}%
+                        </td>
+                        <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(c.opMargin)}`}>
+                          {c.opMargin.toFixed(1)}%
+                        </td>
+                        <td className="py-1.5 px-3 text-right">
+                          {isFinite(c.planAchievement) ? `${c.planAchievement.toFixed(0)}%` : "-"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </ChartCard>
+          )}
           </ErrorBoundary>
         </TabsContent>
 

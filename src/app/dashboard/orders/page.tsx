@@ -17,6 +17,7 @@ import { AnalysisTab } from "./tabs/AnalysisTab";
 import { OrgTab } from "./tabs/OrgTab";
 import { PipelineTab } from "./tabs/PipelineTab";
 import { O2CFlowTab } from "./tabs/O2CFlowTab";
+import { ConversionTab } from "./tabs/ConversionTab";
 
 export default function OrdersAnalysisPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -168,6 +169,7 @@ export default function OrdersAnalysisPage() {
           <TabsTrigger value="org">조직 분석</TabsTrigger>
           <TabsTrigger value="pipeline">O2C 파이프라인</TabsTrigger>
           <TabsTrigger value="o2c-flow">O2C 플로우</TabsTrigger>
+          <TabsTrigger value="conversion">전환율</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -218,6 +220,12 @@ export default function OrdersAnalysisPage() {
               grossCollections={pipelineResult.grossCollections}
               isDateFiltered={isDateFiltered}
             />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="conversion" className="space-y-6">
+          <ErrorBoundary>
+            <ConversionTab filteredOrders={filteredOrders} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
       </Tabs>

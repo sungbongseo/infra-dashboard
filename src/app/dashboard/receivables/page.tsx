@@ -23,6 +23,7 @@ import { PrepaymentTab } from "./tabs/PrepaymentTab";
 import { PersonInsightTab } from "./tabs/PersonInsightTab";
 import { DetailTab } from "./tabs/DetailTab";
 import { LongTermTab } from "./tabs/LongTermTab";
+import { CollectionDelayTab } from "./tabs/CollectionDelayTab";
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -103,6 +104,7 @@ export default function ReceivablesPage() {
           <TabsTrigger value="longterm">장기 미수</TabsTrigger>
           <TabsTrigger value="prepayment">선수금</TabsTrigger>
           <TabsTrigger value="person-insight">담당자 인사이트</TabsTrigger>
+          <TabsTrigger value="collection-delay" disabled={filteredSales.length === 0 || filteredCollections.length === 0}>수금지연</TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -183,6 +185,16 @@ export default function ReceivablesPage() {
               portfolio={personPortfolio}
               healthData={personHealthData}
               customerRepDetail={customerRepDetail}
+              isDateFiltered={isDateFiltered}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="collection-delay" className="space-y-6">
+          <ErrorBoundary>
+            <CollectionDelayTab
+              filteredSales={filteredSales}
+              filteredCollections={filteredCollections}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
