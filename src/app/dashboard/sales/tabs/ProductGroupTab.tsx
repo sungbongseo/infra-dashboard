@@ -179,6 +179,7 @@ export function ProductGroupTab({
           isDateFiltered={isDateFiltered}
           formula="매출총이익률(%) = 매출총이익 / 매출액 x 100"
           description="각 품목군의 매출액, 매출총이익, 매출총이익률, 영업이익률을 테이블로 정리합니다."
+          benchmark="매출총이익률 20% 이상이면 양호, 10% 미만이면 원가 재검토. 영업이익률 5% 이상 목표"
           reason="품목군별 수익성을 한눈에 비교하여 고마진/저마진 품목군을 식별하고, 전략적 품목 포트폴리오를 구성합니다."
         >
           <div className="overflow-x-auto">
@@ -200,10 +201,10 @@ export function ProductGroupTab({
                     <td className="py-1.5 px-3 text-right">{formatCurrency(d.sales)}</td>
                     <td className="py-1.5 px-3 text-right">{formatCurrency(d.grossProfit)}</td>
                     <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(d.grossMargin)}`}>
-                      {d.grossMargin.toFixed(1)}%
+                      {isFinite(d.grossMargin) ? d.grossMargin.toFixed(1) : "0"}%
                     </td>
                     <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(d.operatingMargin)}`}>
-                      {d.operatingMargin.toFixed(1)}%
+                      {isFinite(d.operatingMargin) ? d.operatingMargin.toFixed(1) : "0"}%
                     </td>
                     <td className="py-1.5 px-3 text-right text-muted-foreground">
                       {d.count.toLocaleString()}

@@ -214,7 +214,9 @@ export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
           dataSourceType={hasItemProfit ? "snapshot" : "period"}
           isDateFiltered={isDateFiltered}
           formula="노드 면적 = 해당 분류/품목의 매출액 비중"
-          description="면적이 클수록 매출 비중이 높습니다. 클릭하면 하위 계층으로 드릴다운합니다."
+          description="면적이 클수록 매출 비중이 높습니다. 파란색 노드를 클릭하면 하위 계층으로 드릴다운합니다. 청록색 노드는 최하위 품목입니다."
+          benchmark="상위 3개 품목/분류가 매출의 80% 이상이면 집중 리스크"
+          reason="품목 구성의 편중도를 시각적으로 파악하여 포트폴리오 다각화 필요성을 판단합니다"
         >
           <ChartContainer height="h-64 md:h-80">
             <Treemap
@@ -256,6 +258,10 @@ export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
         title="품목 요약"
         dataSourceType={hasItemProfit ? "snapshot" : "period"}
         isDateFiltered={isDateFiltered}
+        formula="비중(%) = 품목 매출 ÷ 전체 매출 × 100. 200 데이터 시 매출총이익율, 영업이익율, 원가율 추가"
+        description="현재 드릴 위치의 품목/분류별 매출액, 비중, 건수를 표시합니다. 200 품목별 수익성 데이터가 업로드되어 있으면 수익률 컬럼이 추가됩니다."
+        benchmark="단일 품목 비중 30% 이상이면 의존도 주의, 이익율 15% 미만이면 가격/원가 재검토"
+        reason="품목별 매출 비중과 수익성을 한눈에 비교하여, 주력 품목 확인 및 저수익 품목의 개선 전략을 수립합니다"
         action={<ExportButton data={tableExport} fileName="품목별분석" />}
       >
         <div className="overflow-x-auto">
@@ -324,6 +330,7 @@ export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
           isDateFiltered={isDateFiltered}
           formula="매출액 → 원가항목(7그룹) → 매출총이익 → 판관비 → 영업이익"
           description="현재 드릴 위치의 매출에서 각 원가 항목이 차감되어 최종 영업이익에 이르는 과정을 보여줍니다."
+          benchmark="매출원가율 70% 이하이면 양호, 85% 이상이면 원가 관리 필요. 판관비율 15% 이내 정상"
           reason="어떤 원가 항목이 이익을 가장 많이 잠식하는지 식별하여 원가 절감 우선순위를 결정합니다."
         >
           <ChartContainer height="h-72 md:h-96">
@@ -358,6 +365,7 @@ export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
           isDateFiltered={isDateFiltered}
           formula="X = 매출액, Y = 매출총이익율(%), 사분면 = 중앙값 기준"
           description="각 품목을 매출 규모(X축)와 수익성(Y축)의 2차원에 배치합니다. Stars(고매출+고마진)는 핵심 제품, Dogs(저매출+저마진)는 전략적 처리가 필요합니다."
+          benchmark="Stars 사분면에 매출의 50% 이상이 집중되면 이상적. Dogs가 20% 이상이면 포트폴리오 정리 필요"
           reason="품목별 수익 기여도를 한눈에 파악하여 포트폴리오 최적화 의사결정을 지원합니다."
         >
           <ChartContainer height="h-72 md:h-96">

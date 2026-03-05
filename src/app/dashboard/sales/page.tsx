@@ -238,10 +238,10 @@ export default function SalesAnalysisPage() {
                         <td className="py-1.5 px-3 text-right">{formatCurrency(c.sales)}</td>
                         <td className="py-1.5 px-3 text-right">{formatCurrency(c.grossProfit)}</td>
                         <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(c.grossMargin)}`}>
-                          {c.grossMargin.toFixed(1)}%
+                          {isFinite(c.grossMargin) ? c.grossMargin.toFixed(1) : "0"}%
                         </td>
                         <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(c.opMargin)}`}>
-                          {c.opMargin.toFixed(1)}%
+                          {isFinite(c.opMargin) ? c.opMargin.toFixed(1) : "0"}%
                         </td>
                         <td className="py-1.5 px-3 text-right">
                           {isFinite(c.planAchievement) ? `${c.planAchievement.toFixed(0)}%` : "-"}
