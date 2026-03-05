@@ -179,8 +179,8 @@ export function CustomerRiskMatrixTab({
         benchmark="Star(초록) 비중이 높을수록 건전한 거래처 포트폴리오. Exit(빨강) 거래처는 매출의 10% 미만으로 관리"
         reason="거래처별 수익성과 미수금 리스크를 동시에 평가하여 전략적 거래처 관리 의사결정을 지원합니다"
       >
-        <ChartContainer minHeight={480}>
-          <ScatterChart margin={{ top: 20, right: 30, left: 30, bottom: 35 }}>
+        <ChartContainer minHeight={540}>
+          <ScatterChart margin={{ top: 20, right: 30, left: 30, bottom: 60 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               type="number"
@@ -188,7 +188,7 @@ export function CustomerRiskMatrixTab({
               name="영업이익율"
               tick={{ fontSize: 10 }}
               tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
-              label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "insideBottom", offset: -10, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "insideBottom", offset: -25, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             />
             <YAxis
               type="number"

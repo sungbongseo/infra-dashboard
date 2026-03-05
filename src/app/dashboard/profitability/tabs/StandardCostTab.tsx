@@ -32,7 +32,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
   const top20Items = useMemo(() => {
     const all = calcStandardCostVariance(filteredItemProfitability);
     return all.slice(0, 20).map((item) => ({
-      name: truncateLabel(item.product, 18),
+      name: truncateLabel(item.product, 24),
       fullName: `${item.product} (${item.org})`,
       차이: item.variance,
       isOver: item.variance > 0,
@@ -51,7 +51,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
   const orgData = useMemo(() => {
     const orgs = calcCostVarianceByOrg(filteredItemProfitability);
     return orgs.map((o) => ({
-      name: truncateLabel(o.org, 10),
+      name: truncateLabel(o.org, 12),
       fullName: o.org,
       평균차이율: o.avgVarianceRate,
       isOver: o.avgVarianceRate > 0,
@@ -119,15 +119,15 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         benchmark="A등급 주력 품목이 초과 목록에 포함되면 매출총이익 영향이 크므로 즉시 대응"
         reason="차이 금액이 큰 품목부터 우선 분석하여 원가 절감 효과가 가장 큰 영역에 관리 자원을 집중합니다"
       >
-        <ChartContainer minHeight={Math.max(top20Items.length * 28, 400)}>
+        <ChartContainer minHeight={Math.max(top20Items.length * 32, 400)}>
           <BarChart
             data={top20Items}
             layout="vertical"
-            margin={{ top: 5, right: 30, left: 10, bottom: 5 }}
+            margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
           >
             <CartesianGrid {...GRID_PROPS} />
             <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => formatCurrency(v, true)} />
-            <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 8 }} interval={0} />
+            <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 9 }} interval={0} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.fullName || ""}
@@ -155,11 +155,11 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           benchmark="제품 계정의 차이율이 가장 중요 (매출 비중 최대). ±5% 이내 정상"
           reason="계정구분별 원가 관리 성과를 비교하여 특정 유형에서 구조적 원가 문제가 있는지 파악합니다"
         >
-          <ChartContainer minHeight={300}>
-            <BarChart data={accountTypeData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+          <ChartContainer minHeight={320}>
+            <BarChart data={accountTypeData} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={50} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
+              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} domain={[(dataMin: number) => Math.min(dataMin * 1.1, 0), (dataMax: number) => Math.max(dataMax * 1.1, 0)]} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(v: any, _name: any) => [`${Number(v).toFixed(1)}%`, "평균 차이율"]}
@@ -185,11 +185,11 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           benchmark="조직 간 차이율 편차가 10%p 이상이면 원가 관리 격차 개선 필요"
           reason="조직 간 원가관리 성과를 비교하여 우수 조직의 노하우를 전파하고 부진 조직의 개선점을 도출합니다"
         >
-          <ChartContainer minHeight={300}>
-            <BarChart data={orgData} margin={{ top: 10, right: 20, left: 10, bottom: 50 }}>
+          <ChartContainer minHeight={Math.max(orgData.length * 32, 300)}>
+            <BarChart data={orgData} layout="vertical" margin={{ top: 10, right: 30, left: 10, bottom: 5 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-30} textAnchor="end" height={60} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
+              <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 9 }} interval={0} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 content={({ active, payload }: any) => {
@@ -206,8 +206,8 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
                   );
                 }}
               />
-              <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
-              <Bar dataKey="평균차이율" radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG}>
+              <ReferenceLine x={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
+              <Bar dataKey="평균차이율" radius={BAR_RADIUS_RIGHT} {...ANIMATION_CONFIG}>
                 {orgData.map((entry, idx) => (
                   <Cell key={idx} fill={entry.isOver ? "hsl(0, 65%, 55%)" : "hsl(145, 60%, 42%)"} />
                 ))}
