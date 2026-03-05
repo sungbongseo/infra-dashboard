@@ -88,7 +88,7 @@ export function CustomerRiskMatrixTab({
       accessorKey: "영업이익율", header: "영업이익율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v >= 0 ? "text-green-600" : "text-red-600"}>{v.toFixed(1)}%</span>;
+        return <span className={v >= 0 ? "text-green-600" : "text-red-600"}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
       },
     },
     {
@@ -99,7 +99,7 @@ export function CustomerRiskMatrixTab({
       accessorKey: "장기미수율", header: "장기미수율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v > 30 ? "text-red-600" : v > 15 ? "text-amber-600" : ""}>{v.toFixed(1)}%</span>;
+        return <span className={v > 30 ? "text-red-600" : v > 15 ? "text-amber-600" : ""}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
       },
     },
     {
@@ -131,7 +131,7 @@ export function CustomerRiskMatrixTab({
           value={summary.star.count}
           format="number"
           icon={<Star className="h-5 w-5 text-green-600" />}
-          description={`고수익-저리스크 거래처 ${summary.star.count}개. 매출 합계 ${formatCurrency(summary.star.totalSales)}, 평균 이익율 ${summary.star.avgProfitRate.toFixed(1)}%`}
+          description={`고수익-저리스크 거래처 ${summary.star.count}개. 매출 합계 ${formatCurrency(summary.star.totalSales)}, 평균 이익율 ${isFinite(summary.star.avgProfitRate) ? summary.star.avgProfitRate.toFixed(1) : "0"}%`}
           formula="영업이익율 > 중앙값 AND 장기미수율 ≤ 중앙값"
           benchmark="전체 거래처의 30% 이상이 Star이면 건전한 포트폴리오"
           reason="핵심 우량 거래처를 식별하여 관계 유지 및 거래 확대 전략을 수립합니다"
@@ -208,8 +208,8 @@ export function CustomerRiskMatrixTab({
                   <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                     <p className="font-semibold">{d.fullName}</p>
                     <p className="text-muted-foreground">{d.org}</p>
-                    <p>영업이익율: {d.x.toFixed(1)}%</p>
-                    <p>장기미수율: {d.y.toFixed(1)}%</p>
+                    <p>영업이익율: {isFinite(d.x) ? d.x.toFixed(1) : "0"}%</p>
+                    <p>장기미수율: {isFinite(d.y) ? d.y.toFixed(1) : "0"}%</p>
                     <p>매출: {formatCurrency(d.sales)}</p>
                     <p>미수금: {formatCurrency(d.receivable)}</p>
                     <p>
@@ -226,13 +226,13 @@ export function CustomerRiskMatrixTab({
               x={summary.medianProfitRate}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"
-              label={{ value: `이익율 중앙값 ${summary.medianProfitRate.toFixed(1)}%`, fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
+              label={{ value: `이익율 중앙값 ${isFinite(summary.medianProfitRate) ? summary.medianProfitRate.toFixed(1) : "0"}%`, fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
             />
             <ReferenceLine
               y={summary.medianAgingRate}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"
-              label={{ value: `미수율 중앙값 ${summary.medianAgingRate.toFixed(1)}%`, fontSize: 9, fill: "hsl(var(--muted-foreground))", position: "right" }}
+              label={{ value: `미수율 중앙값 ${isFinite(summary.medianAgingRate) ? summary.medianAgingRate.toFixed(1) : "0"}%`, fontSize: 9, fill: "hsl(var(--muted-foreground))", position: "right" }}
             />
             <Scatter data={scatterData} {...ANIMATION_CONFIG}>
               {scatterData.map((entry, idx) => (

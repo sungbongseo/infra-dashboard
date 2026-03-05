@@ -9,6 +9,8 @@ import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { SalesRepProfile, CostEfficiency } from "@/lib/analysis/profiling";
 
+const safe = (v: number, d = 1) => isFinite(v) ? v.toFixed(d) : "0";
+
 interface CostTabProps {
   hasTeamContribution: boolean;
   selected: SalesRepProfile | undefined;
@@ -128,12 +130,12 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
                   <td className="p-2 font-mono text-xs">{c.personId}</td>
                   <td className="p-2 text-xs">{c.org}</td>
                   <td className="p-2 text-right text-xs">{formatCurrency(c.salesAmount, true)}</td>
-                  <td className="p-2 text-right text-xs">{c.rawMaterialRate.toFixed(1)}%</td>
-                  <td className="p-2 text-right text-xs">{c.outsourcingRate.toFixed(1)}%</td>
-                  <td className="p-2 text-right text-xs">{c.variableCostRate.toFixed(1)}%</td>
-                  <td className="p-2 text-right text-xs">{c.fixedCostRate.toFixed(1)}%</td>
-                  <td className={`p-2 text-right text-xs font-medium ${c.contributionMarginRate >= 30 ? "text-emerald-600 dark:text-emerald-400" : c.contributionMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{c.contributionMarginRate.toFixed(1)}%</td>
-                  <td className={`p-2 text-right text-xs font-medium ${c.operatingMarginRate >= 10 ? "text-emerald-600 dark:text-emerald-400" : c.operatingMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{c.operatingMarginRate.toFixed(1)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(c.rawMaterialRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(c.outsourcingRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(c.variableCostRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(c.fixedCostRate)}%</td>
+                  <td className={`p-2 text-right text-xs font-medium ${c.contributionMarginRate >= 30 ? "text-emerald-600 dark:text-emerald-400" : c.contributionMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{safe(c.contributionMarginRate)}%</td>
+                  <td className={`p-2 text-right text-xs font-medium ${c.operatingMarginRate >= 10 ? "text-emerald-600 dark:text-emerald-400" : c.operatingMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{safe(c.operatingMarginRate)}%</td>
                 </tr>
               ))}
             </tbody>

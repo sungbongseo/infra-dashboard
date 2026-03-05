@@ -82,10 +82,10 @@ export function SgaBreakdownTab({
         isEmpty={chartData.length === 0}
         dataSourceType="snapshot"
         isDateFiltered={isDateFiltered}
-        formula="13개 판관비 세부항목의 계획/실적 대비 및 차이율"
-        description="판관비를 구성하는 13개 세부항목(변동 10개 + 고정 3개)의 계획 대비 실적을 비교합니다. 초과 항목은 원가 관리 개선 대상입니다."
-        benchmark="전체 판관비율 15% 이내이면 양호, 항목별 차이율 ±10% 이내 정상"
-        reason="판관비 초과/절감 항목을 식별하여 비용 절감 우선순위를 결정하고 예산 편성의 정확도를 높입니다"
+        formula="차이율(%) = (실적 - 계획) ÷ |계획| × 100\n빨간색 = 계획 초과(비용 증가), 초록색 = 계획 이하(비용 절감)"
+        description="판관비(판매비와 관리비)는 제품을 만드는 비용(원가)을 제외한 영업·관리 활동에 드는 비용입니다. 변동 판관비(10개: 운반비, 수수료 등 매출에 비례)와 고정 판관비(3개: 노무비, 감가상각비, 경비 등 매출과 무관)로 나뉩니다. 빨간색 막대는 계획보다 많이 쓴 항목으로, 비용 절감 우선 대상입니다."
+        benchmark="전체 판관비율 15% 이내이면 양호. 항목별 차이율 ±10% 이내이면 정상, ±20% 초과 시 원인 분석 필요"
+        reason="어떤 비용 항목이 계획을 초과했는지 한눈에 파악하여, 비용 절감 우선순위를 정하고 다음 분기 예산의 정확도를 높입니다"
       >
         <ChartContainer minHeight={400}>
           <BarChart
@@ -118,10 +118,10 @@ export function SgaBreakdownTab({
           isEmpty={orgProfile.length === 0}
           dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
-          formula="조직별 변동 판관비 vs 고정 판관비 비교"
-          description="각 영업조직의 판관비를 변동비와 고정비로 분류하여 비교합니다. 고정비 비중이 높으면 매출 감소 시 이익 악화 폭이 큽니다."
-          benchmark="변동비 비중이 60% 이상이면 매출 연동 구조로 리스크 낮음"
-          reason="조직별 비용 구조(변동/고정)를 파악하여 매출 변동 시 이익 영향을 예측하고 비용 최적화 방향을 수립합니다"
+          formula="판관비율 = 판관비 합계 ÷ 매출액 × 100\n변동비 비중 = 변동 판관비 ÷ 전체 판관비 × 100"
+          description="각 영업조직의 판관비를 변동비(매출에 비례하여 변하는 비용)와 고정비(매출과 무관하게 발생하는 비용)로 나누어 보여줍니다. 고정비 비중이 높은 조직은 매출이 줄어도 비용이 줄지 않아 이익 악화 폭이 크고, 변동비 비중이 높으면 매출 감소 시 비용도 함께 줄어 충격이 적습니다."
+          benchmark="변동비 비중이 60% 이상이면 매출 연동 구조로 리스크 낮음. 고정비 비중이 50% 이상이면 구조적 점검 필요"
+          reason="조직별 비용 구조(변동/고정 비율)를 파악하여 매출 변동 시 이익 영향을 예측하고, 고정비 비중이 높은 조직의 비용 최적화 방향을 수립합니다"
         >
           <ChartContainer height="h-72 md:h-80">
             <BarChart data={orgProfile} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
@@ -157,10 +157,10 @@ export function SgaBreakdownTab({
           isEmpty={sgaItems.length === 0}
           dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
-          formula="각 항목의 실적금액 / 전체 판관비 실적 × 100"
-          description="전체 판관비에서 각 항목이 차지하는 비중입니다. 상위 3개 항목이 전체의 70% 이상을 차지하면 집중 관리 대상입니다."
-          benchmark="직접판매운반비, 지급수수료가 상위 항목이면 영업 활동 비용 구조"
-          reason="판관비의 주요 구성 항목을 파악하여 비용 절감 효과가 큰 항목부터 우선 관리합니다"
+          formula="비중(%) = |항목별 실적금액| ÷ Σ|전체 판관비 실적| × 100"
+          description="전체 판관비에서 각 항목이 차지하는 비중입니다. 비중이 높은 항목일수록 절감 시 효과가 크므로 우선 관리 대상입니다. 상위 3개 항목이 전체의 70% 이상이면 집중 관리가 필요합니다."
+          benchmark="직접판매운반비, 지급수수료가 상위 항목이면 영업활동 비용 구조. 노무비가 상위이면 인건비 구조 점검"
+          reason="판관비 구성 비중을 파악하여, 절감 효과가 가장 큰 항목부터 우선 관리합니다. 파레토 법칙처럼 상위 몇 개 항목에서 대부분의 비용이 발생합니다."
         >
           <ChartContainer height="h-72 md:h-80">
             <BarChart data={sgaItems} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
@@ -183,10 +183,10 @@ export function SgaBreakdownTab({
           title="거래처별 판관비 부담 Top 20"
           dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
-          formula="거래처별 판관비 세부 13개 항목 합산, 판관비율 = 판관비/매출 × 100"
-          description="판관비 부담이 가장 큰 20개 거래처입니다. 판관비율이 높은 거래처는 영업 비용 효율이 낮으므로 거래 조건 재검토가 필요합니다."
-          benchmark="거래처별 판관비율이 전체 평균의 2배 이상이면 비용 구조 점검"
-          reason="거래처별 판관비 부담을 비교하여 비용 대비 수익이 낮은 거래처를 식별하고 영업 효율을 개선합니다"
+          formula="거래처별 판관비 = 13개 판관비 세부항목 합산\n판관비율 = 판관비 ÷ 매출액 × 100\n영업이익률 = 영업이익 ÷ 매출액 × 100"
+          description="판관비 부담이 큰 상위 20개 거래처입니다. 판관비율이 높은 거래처는 매출 대비 영업비용이 많이 드는 거래처이므로, 거래 조건(물류, 수수료 등) 재검토가 필요합니다. 영업이익률이 마이너스인 거래처는 거래할수록 손해가 발생합니다."
+          benchmark="거래처별 판관비율이 전체 평균의 2배 이상이면 비용 구조 점검. 영업이익률 마이너스 거래처는 즉시 개선 필요"
+          reason="거래처별 판관비 부담을 비교하여 '매출은 크지만 비용도 많이 드는' 거래처를 식별하고, 거래 조건 개선 또는 거래처 재편의 근거를 마련합니다"
         >
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

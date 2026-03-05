@@ -43,7 +43,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
         담당자: c.담당자,
         여신한도: c.여신한도,
         미수금: c.총미수금,
-        사용률: `${c.사용률.toFixed(1)}%`,
+        사용률: `${isFinite(c.사용률) ? c.사용률.toFixed(1) : "0"}%`,
         상태: c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "주의" : "양호",
       })),
     [creditUtilizations]

@@ -53,7 +53,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
         org: o.org,
         "6개월": o.month6,
         "6개월+": o.overdue,
-        "장기비중": Number(o.longTermRatio.toFixed(1)),
+        "장기비중": isFinite(o.longTermRatio) ? Number(o.longTermRatio.toFixed(1)) : 0,
       })),
     [byOrg]
   );
@@ -65,7 +65,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
         bucket: p.bucket,
         원금: p.원금,
         충당금: p.충당금,
-        충당률Label: `${(p.충당률 * 100).toFixed(0)}%`,
+        충당률Label: `${isFinite(p.충당률) ? (p.충당률 * 100).toFixed(0) : "0"}%`,
       })),
     [provision]
   );

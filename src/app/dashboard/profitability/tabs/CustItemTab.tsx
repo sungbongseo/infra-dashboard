@@ -144,10 +144,10 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
                   <td className="p-2 text-right text-xs">{formatCurrency(c.sales, true)}</td>
                   <td className="p-2 text-right text-xs">{formatCurrency(c.grossProfit, true)}</td>
                   <td className={`p-2 text-right text-xs ${c.grossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.grossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                    {c.grossMargin.toFixed(1)}%
+                    {isFinite(c.grossMargin) ? c.grossMargin.toFixed(1) : "0"}%
                   </td>
                   <td className={`p-2 text-right text-xs ${c.opMargin >= 5 ? "text-emerald-600 dark:text-emerald-400" : c.opMargin >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                    {c.opMargin.toFixed(1)}%
+                    {isFinite(c.opMargin) ? c.opMargin.toFixed(1) : "0"}%
                   </td>
                 </tr>
               ))}
@@ -175,7 +175,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
                   <td className="p-2 font-medium text-xs">{c.customer.substring(0, 15)}</td>
                   <td className="p-2 text-right text-xs">{formatCurrency(c.totalSales, true)}</td>
                   <td className={`p-2 text-right text-xs ${c.avgGrossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : c.avgGrossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                    {c.avgGrossMargin.toFixed(1)}%
+                    {isFinite(c.avgGrossMargin) ? c.avgGrossMargin.toFixed(1) : "0"}%
                   </td>
                   <td className="p-2 text-right text-xs">{c.productCount}</td>
                   <td className="p-2">
@@ -185,7 +185,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
                           <span className="font-medium truncate max-w-[120px]" title={p.name}>{p.name || "(미분류)"}</span>
                           <span className="text-muted-foreground">{formatCurrency(p.sales, true)}</span>
                           <span className={p.margin >= 20 ? "text-emerald-600 dark:text-emerald-400" : p.margin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}>
-                            {p.margin.toFixed(1)}%
+                            {isFinite(p.margin) ? p.margin.toFixed(1) : "0"}%
                           </span>
                         </div>
                       ))}

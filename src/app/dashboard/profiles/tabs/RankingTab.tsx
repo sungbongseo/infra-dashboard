@@ -1,5 +1,5 @@
 import { ChartCard } from "@/components/dashboard/ChartCard";
-import { Card, CardContent } from "@/components/ui/card";
+import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Badge } from "@/components/ui/badge";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -7,9 +7,11 @@ import {
   PieChart, Pie,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { Star, Trophy, TrendingUp, AlertTriangle } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
+
+const safe = (v: number, d = 1) => isFinite(v) ? v.toFixed(d) : "0";
 
 interface RankingTabProps {
   selected: SalesRepProfile | undefined;
@@ -47,39 +49,33 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
       {selected && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Star className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">거래처 포트폴리오</p>
-                </div>
-                <p className="text-2xl font-bold">{selected.customerCount}</p>
-                <p className="text-xs text-muted-foreground">활성 거래처 수</p>
-                <p className="text-[10px] text-muted-foreground mt-1">거래처 수가 팀 평균의 1.5배 이상이면 관리 부하 점검</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <Trophy className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">품목 전문성</p>
-                </div>
-                <p className="text-2xl font-bold">{selected.itemCount}</p>
-                <p className="text-xs text-muted-foreground">취급 품목 수</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  <p className="text-sm font-medium">공헌이익율</p>
-                </div>
-                <p className="text-2xl font-bold">{formatPercent(selected.contributionMarginRate)}</p>
-                <p className="text-xs text-muted-foreground">
-                  {selected.contributionMarginRate >= 40 ? "우수" : selected.contributionMarginRate >= 20 ? "보통" : "개선 필요"}
-                </p>
-              </CardContent>
-            </Card>
+            <KpiCard
+              title="활성 거래처 수"
+              value={selected.customerCount}
+              format="number"
+              formula="매출이 발생한 고유 거래처 수 집계"
+              description="해당 영업사원이 매출을 발생시킨 거래처의 수입니다."
+              benchmark="거래처 수가 팀 평균의 1.5배 이상이면 관리 부하 점검 필요"
+              reason="거래처 수를 파악하여 적정 관리 범위인지 판단하고, 과부하 시 재배분을 검토합니다."
+            />
+            <KpiCard
+              title="취급 품목 수"
+              value={selected.itemCount}
+              format="number"
+              formula="해당 영업사원이 매출을 발생시킨 고유 품목 수"
+              description="영업사원이 판매한 고유 품목의 수입니다. 다양한 품목을 취급할수록 전문성이 넓습니다."
+              benchmark="10종 이상이면 다품목 전문, 5종 이하이면 특화형 영업"
+              reason="품목 다양성을 파악하여 크로스셀링 역량을 평가하고, 교육 필요 품목을 파악합니다."
+            />
+            <KpiCard
+              title="공헌이익율"
+              value={selected.contributionMarginRate}
+              format="percent"
+              formula="공헌이익율 = (매출액 - 변동비) ÷ 매출액 × 100"
+              description="매출에서 변동비를 차감한 비율로, 고정비 회수 및 이익 기여도를 나타냅니다."
+              benchmark="40% 이상 우수, 20~40% 보통, 20% 미만 개선 필요"
+              reason="영업사원의 수익 기여도를 측정하여 고수익 영업 패턴을 파악하고 조직에 확산합니다."
+            />
           </div>
 
           <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
@@ -94,7 +90,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">HHI 지수</p>
-                    <p className="text-3xl font-bold">{selected.hhi.toFixed(3)}</p>
+                    <p className="text-3xl font-bold">{safe(selected.hhi, 3)}</p>
                   </div>
                   <Badge
                     variant={selected.hhiRiskLevel === "high" ? "destructive" : selected.hhiRiskLevel === "medium" ? "warning" : "success"}

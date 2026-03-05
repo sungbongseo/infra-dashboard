@@ -85,7 +85,7 @@ export function CollectionDelayTab({
           format="number"
           icon={<Clock className="h-5 w-5" />}
           formula="매출일 → 최초 수금일 사이의 평균 일수"
-          description={`매출 발생 후 실제 수금까지 평균 ${summary.avgDaysToCollect.toFixed(0)}일 소요됩니다. DSO와 유사하지만 실제 거래 데이터 기반으로 산출합니다.`}
+          description={`매출 발생 후 실제 수금까지 평균 ${isFinite(summary.avgDaysToCollect) ? summary.avgDaysToCollect.toFixed(0) : "0"}일 소요됩니다. DSO와 유사하지만 실제 거래 데이터 기반으로 산출합니다.`}
           benchmark="30일 이내 양호, 60일 이상 수금 관리 강화 필요"
           reason="실제 수금 소요일을 파악하여 자금 회전 효율을 진단하고, 수금 지연 거래처를 식별합니다"
         />
@@ -95,7 +95,7 @@ export function CollectionDelayTab({
           format="number"
           icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
           formula="수금예정일 대비 실제 수금이 늦은 거래처 수"
-          description={`전체 ${summary.totalCustomerCount}개 거래처 중 ${summary.delayedCustomerCount}개(${summary.delayRate.toFixed(1)}%)가 수금예정일을 초과했습니다.`}
+          description={`전체 ${summary.totalCustomerCount}개 거래처 중 ${summary.delayedCustomerCount}개(${isFinite(summary.delayRate) ? summary.delayRate.toFixed(1) : "0"}%)가 수금예정일을 초과했습니다.`}
           benchmark="지연율 20% 이내이면 양호, 40% 초과 시 여신 정책 점검"
           reason="수금 지연 거래처를 조기에 식별하여 독촉, 여신한도 조정 등 선제 조치를 취합니다"
         />
@@ -266,7 +266,7 @@ export function CollectionDelayTab({
                     <td className="py-1.5 px-3 text-right">{formatCurrency(e.salesAmount)}</td>
                     <td className="py-1.5 px-3 text-right">{formatCurrency(e.collectedAmount)}</td>
                     <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(e.collectionRate - 80)}`}>
-                      {e.collectionRate.toFixed(1)}%
+                      {isFinite(e.collectionRate) ? e.collectionRate.toFixed(1) : "0"}%
                     </td>
                     <td className="py-1.5 px-3 text-right">{e.avgDaysToCollect}일</td>
                     <td className="py-1.5 px-3 text-right font-medium text-red-600">

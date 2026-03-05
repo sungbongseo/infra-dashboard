@@ -142,7 +142,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
           const total = variance.totalActualCost;
           return total > 0 ? (row.actual / total) * 100 : 0;
         },
-        cell: ({ getValue }: any) => `${(getValue() as number).toFixed(1)}%`,
+        cell: ({ getValue }: any) => { const v = getValue() as number; return `${isFinite(v) ? v.toFixed(1) : "0"}%`; },
       },
       {
         accessorKey: "contributionToTotal", header: () => <span title="해당 항목의 차이 / 전체 차이 × 100. 이 항목이 전체 원가 변동에 얼마나 영향을 주었는지를 보여줍니다">차이 기여도(%)</span>,
@@ -321,11 +321,11 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
                     return (
                       <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
                         <p className="font-semibold">{d.name}</p>
-                        <p>원가비중: {d.x.toFixed(1)}%</p>
+                        <p>원가비중: {isFinite(d.x) ? d.x.toFixed(1) : "0"}%</p>
                         <p className={d.y > 0 ? "text-red-600" : "text-green-600"}>
-                          차이율: {d.y > 0 ? "+" : ""}{d.y.toFixed(1)}%
+                          차이율: {d.y > 0 ? "+" : ""}{isFinite(d.y) ? d.y.toFixed(1) : "0"}%
                         </p>
-                        <p>임팩트: {d.z.toFixed(2)}</p>
+                        <p>임팩트: {isFinite(d.z) ? d.z.toFixed(2) : "0"}</p>
                       </div>
                     );
                   }}

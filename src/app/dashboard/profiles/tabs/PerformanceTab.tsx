@@ -10,6 +10,8 @@ import { Users } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
 
+const safe = (v: number, d = 1) => isFinite(v) ? v.toFixed(d) : "0";
+
 interface PerformanceTabProps {
   selected: SalesRepProfile | undefined;
   hasAgingData: boolean;
@@ -38,12 +40,12 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-bold">{selected.score.totalScore.toFixed(1)}</span>
+                <span className="text-3xl font-bold">{safe(selected.score.totalScore)}</span>
                 <span className="text-sm text-muted-foreground">/ 100점</span>
               </div>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={selected.score.percentile >= 80 ? "success" : selected.score.percentile >= 50 ? "secondary" : "warning"}>
-                  상위 {(100 - selected.score.percentile).toFixed(0)}%
+                  상위 {safe(100 - selected.score.percentile, 0)}%
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {selected.score.rank}위 / {profilesLength}명
@@ -54,40 +56,44 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">매출 점수</p>
-              <p className="text-xl font-bold">{selected.score.salesScore.toFixed(1)}</p>
+              <p className="text-xl font-bold">{safe(selected.score.salesScore)}</p>
               <p className="text-xs text-muted-foreground">/{axisMax}</p>
               <p className="text-xs mt-1">{formatCurrency(selected.salesAmount, true)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">조직 내 매출 기여도를 점수화한 지표</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">수주 점수</p>
-              <p className="text-xl font-bold">{selected.score.orderScore.toFixed(1)}</p>
+              <p className="text-xl font-bold">{safe(selected.score.orderScore)}</p>
               <p className="text-xs text-muted-foreground">/{axisMax}</p>
               <p className="text-xs mt-1">{formatCurrency(selected.orderAmount, true)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">수주 실적 기반 파이프라인 확보 능력</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">수익성 점수</p>
-              <p className="text-xl font-bold">{selected.score.profitScore.toFixed(1)}</p>
+              <p className="text-xl font-bold">{safe(selected.score.profitScore)}</p>
               <p className="text-xs text-muted-foreground">/{axisMax}</p>
               <p className="text-xs mt-1">{formatPercent(selected.contributionMarginRate)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">매출 대비 수익 창출 효율성 점수</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4 text-center">
               <p className="text-xs text-muted-foreground mb-1">수금 점수</p>
-              <p className="text-xl font-bold">{selected.score.collectionScore.toFixed(1)}</p>
+              <p className="text-xl font-bold">{safe(selected.score.collectionScore)}</p>
               <p className="text-xs text-muted-foreground">/{axisMax}</p>
               <p className="text-xs mt-1">{formatCurrency(selected.collectionAmount, true)}</p>
+              <p className="text-[10px] text-muted-foreground mt-1">채권 회수 능력을 나타내는 점수</p>
             </CardContent>
           </Card>
           {hasAgingData && (
             <Card>
               <CardContent className="p-4 text-center">
                 <p className="text-xs text-muted-foreground mb-1">미수금 건전성</p>
-                <p className="text-xl font-bold">{selected.score.receivableScore.toFixed(1)}</p>
+                <p className="text-xl font-bold">{safe(selected.score.receivableScore)}</p>
                 <p className="text-xs text-muted-foreground">/{axisMax}</p>
                 <p className="text-xs mt-1">
                   <Badge variant={selected.score.receivableScore >= axisMax * 0.8 ? "success" : selected.score.receivableScore >= axisMax * 0.5 ? "warning" : "destructive"} className="text-[10px] px-1.5 py-0">

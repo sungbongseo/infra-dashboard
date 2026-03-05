@@ -112,7 +112,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
       <ChartCard
         title="표준원가 차이 Top 20 품목"
         isEmpty={top20Items.length === 0}
-        dataSourceType="period"
+        dataSourceType="snapshot"
         isDateFiltered={isDateFiltered}
         formula="실적매출원가 - 표준매출원가 차이의 절대값이 큰 순서로 상위 20개 품목 추출"
         description="표준원가 대비 실적원가의 차이가 가장 큰 20개 품목입니다. 빨간색=원가 초과(실적 > 표준), 초록색=원가 절감(실적 < 표준). 가장 큰 차이를 보이는 품목부터 원인 분석이 필요합니다"
@@ -148,7 +148,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         <ChartCard
           title="계정구분별 평균 차이율"
           isEmpty={accountTypeData.length === 0}
-          dataSourceType="period"
+          dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
           formula="계정구분별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
           description="제품/상품/원자재/부재료 등 계정구분별 표준원가 차이율입니다. 어떤 유형의 품목에서 원가 초과/절감이 발생하는지 파악합니다"
@@ -178,7 +178,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         <ChartCard
           title="조직별 원가관리 성과"
           isEmpty={orgData.length === 0}
-          dataSourceType="period"
+          dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
           formula="조직별 (실적원가 합계 - 표준원가 합계) / |표준원가 합계| x 100"
           description="각 영업조직팀의 표준원가 대비 실적원가 차이율입니다. 음수(초록)일수록 원가 절감을 잘 하고 있고, 양수(빨강)일수록 원가 관리 개선이 필요합니다"

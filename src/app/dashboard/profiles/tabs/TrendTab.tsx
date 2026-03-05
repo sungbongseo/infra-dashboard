@@ -47,20 +47,22 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
           benchmark="월평균 수주 ≥ 월평균 매출이면 성장 중, 미달이면 파이프라인 점검 필요"
           reason="수주 평균치로 영업사원의 파이프라인 확보 능력을 평가하고, 매출 대비 수주 부족 시 영업 활동 강화를 유도합니다."
         />
+        <KpiCard
+          title="MoM 매출 성장률"
+          value={repTrend.salesMoM}
+          format="percent"
+          formula="MoM 성장률 = (당월 매출 - 전월 매출) ÷ |전월 매출| × 100"
+          description="MoM(Month-over-Month)은 전월 대비 매출 증감을 백분율로 나타냅니다. 양수면 전월보다 매출이 증가했고, 음수면 감소했다는 의미입니다."
+          benchmark="MoM +5% 이상이면 성장세, 0~5%이면 안정, 마이너스이면 하락세"
+          reason="월간 매출 추세를 파악하여 성과 개선/하락을 조기에 감지하고, 즉시 코칭·지원 여부를 결정합니다."
+        />
         <Card>
           <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">MoM 매출 성장률</p>
-            <p className={`text-xl font-bold ${repTrend.salesMoM >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
-              {repTrend.salesMoM >= 0 ? "+" : ""}{repTrend.salesMoM.toFixed(1)}%
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-muted-foreground mb-1">모멘텀</p>
+            <p className="text-xs text-muted-foreground mb-1">매출 모멘텀</p>
             <Badge variant={repTrend.momentum === "accelerating" ? "success" : repTrend.momentum === "stable" ? "secondary" : "destructive"} className="text-sm">
               {repTrend.momentum === "accelerating" ? "성장 가속" : repTrend.momentum === "stable" ? "안정" : "감속"}
             </Badge>
+            <p className="text-[10px] text-muted-foreground mt-2">최근 매출 추세의 방향성(가속/안정/감속)</p>
           </CardContent>
         </Card>
       </div>
