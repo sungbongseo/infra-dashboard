@@ -179,8 +179,8 @@ export function CustomerRiskMatrixTab({
         benchmark="Star(초록) 비중이 높을수록 건전한 거래처 포트폴리오. Exit(빨강) 거래처는 매출의 10% 미만으로 관리"
         reason="거래처별 수익성과 미수금 리스크를 동시에 평가하여 전략적 거래처 관리 의사결정을 지원합니다"
       >
-        <ChartContainer minHeight={450}>
-          <ScatterChart margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+        <ChartContainer minHeight={480}>
+          <ScatterChart margin={{ top: 20, right: 30, left: 30, bottom: 35 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis
               type="number"
@@ -188,7 +188,7 @@ export function CustomerRiskMatrixTab({
               name="영업이익율"
               tick={{ fontSize: 10 }}
               tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
-              label={{ value: "영업이익율(%)", position: "insideBottom", offset: -5, fontSize: 11 }}
+              label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "insideBottom", offset: -10, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             />
             <YAxis
               type="number"
@@ -196,9 +196,9 @@ export function CustomerRiskMatrixTab({
               name="장기미수율"
               tick={{ fontSize: 10 }}
               tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
-              label={{ value: "장기미수율(%)", angle: -90, position: "insideLeft", fontSize: 11 }}
+              label={{ value: "장기미수율(%)", angle: -90, position: "insideLeft", offset: -15, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             />
-            <ZAxis type="number" dataKey="z" range={[60, 600]} name="매출규모" />
+            <ZAxis type="number" dataKey="z" range={[50, 500]} name="매출규모" />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               content={({ active, payload }: any) => {
@@ -238,7 +238,9 @@ export function CustomerRiskMatrixTab({
               {scatterData.map((entry, idx) => (
                 <Cell key={idx} fill={QUADRANT_COLORS[entry.quadrant]} fillOpacity={0.7} />
               ))}
-              <LabelList dataKey="name" position="top" fontSize={8} offset={6} />
+              {scatterData.length <= 30 && (
+                <LabelList dataKey="name" position="top" fontSize={8} offset={6} />
+              )}
             </Scatter>
           </ScatterChart>
         </ChartContainer>

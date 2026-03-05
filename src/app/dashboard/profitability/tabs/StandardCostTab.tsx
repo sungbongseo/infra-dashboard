@@ -119,7 +119,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         benchmark="A등급 주력 품목이 초과 목록에 포함되면 매출총이익 영향이 크므로 즉시 대응"
         reason="차이 금액이 큰 품목부터 우선 분석하여 원가 절감 효과가 가장 큰 영역에 관리 자원을 집중합니다"
       >
-        <ChartContainer minHeight={500}>
+        <ChartContainer minHeight={Math.max(top20Items.length * 28, 400)}>
           <BarChart
             data={top20Items}
             layout="vertical"
@@ -127,7 +127,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           >
             <CartesianGrid {...GRID_PROPS} />
             <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => formatCurrency(v, true)} />
-            <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 9 }} />
+            <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 8 }} interval={0} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.fullName || ""}
@@ -156,9 +156,9 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           reason="계정구분별 원가 관리 성과를 비교하여 특정 유형에서 구조적 원가 문제가 있는지 파악합니다"
         >
           <ChartContainer minHeight={300}>
-            <BarChart data={accountTypeData} margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
+            <BarChart data={accountTypeData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-15} textAnchor="end" height={50} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -186,9 +186,9 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           reason="조직 간 원가관리 성과를 비교하여 우수 조직의 노하우를 전파하고 부진 조직의 개선점을 도출합니다"
         >
           <ChartContainer minHeight={300}>
-            <BarChart data={orgData} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
+            <BarChart data={orgData} margin={{ top: 10, right: 20, left: 10, bottom: 50 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-20} textAnchor="end" height={50} />
+              <XAxis dataKey="name" tick={{ fontSize: 9 }} angle={-30} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -199,7 +199,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
                       <p className="font-semibold">{d.fullName}</p>
                       <p className={d.isOver ? "text-red-600" : "text-green-600"}>
-                        차이율: {d.isOver ? "+" : ""}{d.평균차이율.toFixed(1)}%
+                        차이율: {d.isOver ? "+" : ""}{isFinite(d.평균차이율) ? d.평균차이율.toFixed(1) : "0"}%
                       </p>
                       <p>품목 수: {d.품목수}개 (초과 {d.초과} / 절감 {d.절감})</p>
                     </div>
