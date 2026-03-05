@@ -1,5 +1,6 @@
 import type { DSOMetric } from "./dso";
 import type { TeamContributionRecord } from "@/types";
+import { isSameOrg } from "@/lib/orgMapping";
 
 export type CCCClassification = "excellent" | "good" | "fair" | "poor";
 
@@ -229,13 +230,12 @@ export function calcCCCByOrg(
     // 가장 가까운 매칭 시도: 포함 관계 또는 정확 일치
     let dpo = overallDPO; // 기본값: 전체 평균 DPO
 
-    // 정확 매칭 시도
+    // 정확 매칭 → fuzzy 매칭 (orgMapping.ts isSameOrg 통합)
     if (dpoByOrg.has(dm.org)) {
       dpo = dpoByOrg.get(dm.org)!;
     } else {
-      // 부분 매칭: receivableAging의 영업조직이 teamContribution의 영업조직팀에 포함되거나 반대
       for (const [orgTeam, orgDpo] of Array.from(dpoByOrg.entries())) {
-        if (orgTeam.includes(dm.org) || dm.org.includes(orgTeam)) {
+        if (isSameOrg(orgTeam, dm.org)) {
           dpo = orgDpo;
           break;
         }

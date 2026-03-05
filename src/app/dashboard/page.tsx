@@ -177,13 +177,18 @@ export default function OverviewPage() {
   // ─── Financial Health Radar ────────────────────────────────────
   const healthRadar = useMemo(() => {
     const clamp = (v: number, min = 0, max = 100) => Math.max(min, Math.min(max, v));
+    // 벤치마크 기준 정규화: 업종 평균 기준으로 0~100 스케일링
+    // 수익성: 업종 평균 8%, 우수 15% → 8%=53점, 15%=100점 (0%=0점)
+    const profitScore = clamp((kpis.operatingProfitRate / 15) * 100);
+    // 공헌이익율: 업종 평균 25%, 우수 40% → 25%=63점, 40%=100점
+    const cmScore = clamp((contributionMarginRate / 40) * 100);
     return [
       { metric: "수금율", value: clamp(collectionRateDetail.netCollectionRate), fullMark: 100 },
-      { metric: "수익성", value: clamp(kpis.operatingProfitRate * 5, 0, 100), fullMark: 100 },
+      { metric: "수익성", value: profitScore, fullMark: 100 },
       { metric: "계획달성", value: clamp(kpis.salesPlanAchievement), fullMark: 100 },
       { metric: "예측정확도", value: clamp(forecastAccuracy), fullMark: 100 },
       { metric: "현금효율", value: clamp(collectionEfficiency), fullMark: 100 },
-      { metric: "공헌이익", value: clamp(contributionMarginRate * 2, 0, 100), fullMark: 100 },
+      { metric: "공헌이익", value: cmScore, fullMark: 100 },
     ];
   }, [collectionRateDetail.netCollectionRate, kpis.operatingProfitRate, kpis.salesPlanAchievement, forecastAccuracy, collectionEfficiency, contributionMarginRate]);
 
@@ -208,8 +213,9 @@ export default function OverviewPage() {
 
   const compKpis = useMemo(() => {
     if (!comparisonRange) return null;
-    return calcOverviewKpis(compSales, compOrders, compCollections, [], []);
-  }, [comparisonRange, compSales, compOrders, compCollections]);
+    // orgProfit/aging은 스냅샷 데이터라 기간 필터 불가 → 현재 값 재사용 (비교 의미 제한적)
+    return calcOverviewKpis(compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging);
+  }, [comparisonRange, compSales, compOrders, compCollections, filteredOrgProfit, flattenedAging]);
 
   // ─── Sparkline data ────────────────────────────────────────────
   const sparklines = useMemo(() => {
@@ -231,9 +237,9 @@ export default function OverviewPage() {
         collectionRate: kpis.collectionRate,
         operatingProfitRate: kpis.operatingProfitRate,
         salesPlanAchievement: kpis.salesPlanAchievement,
-      });
+      }, overallDso);
     }
-  }, [kpis, hasData, evaluate]);
+  }, [kpis, hasData, evaluate, overallDso]);
 
   if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;
@@ -614,8 +620,8 @@ export default function OverviewPage() {
               >
                 <div className="divide-y">
                   {[
-                    { label: "DSO (매출채권 회수기간)", value: overallDso, format: (v: number) => `${v.toFixed(0)}일`, good: 30, warning: 60 },
-                    { label: "CCC (현금순환주기)", value: overallCcc, format: (v: number) => `${v.toFixed(0)}일`, good: 0, warning: 60 },
+                    { label: "DSO (매출채권 회수기간)", value: overallDso, format: (v: number) => `${v.toFixed(0)}일`, good: 30, warning: 60, inverted: true },
+                    { label: "CCC (현금순환주기)", value: overallCcc, format: (v: number) => `${v.toFixed(0)}일`, good: 0, warning: 60, inverted: true },
                     { label: "순수 수금율", value: collectionRateDetail.netCollectionRate, format: (v: number) => formatPercent(v), good: 85, warning: 70 },
                     { label: "영업이익율", value: kpis.operatingProfitRate, format: (v: number) => formatPercent(v), good: 10, warning: 5 },
                     { label: "매출총이익율", value: grossProfitMargin, format: (v: number) => formatPercent(v), good: 20, warning: 15 },

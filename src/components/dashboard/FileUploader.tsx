@@ -110,17 +110,31 @@ export function FileUploader() {
         return;
       }
 
-      // Duplicate file detection
-      const existing = uploadedFiles.find(
+      // Duplicate file detection: same filename
+      const existingByName = uploadedFiles.find(
         (f) => f.fileName === file.name && f.status === "ready"
       );
-      if (existing) {
-        // Remove old entry before re-uploading
-        updateUploadedFile(existing.id, { status: "parsing" });
+      // Same type detection: different filename but same fileType
+      const existingByType = !existingByName
+        ? uploadedFiles.find(
+            (f) => f.fileType === schema.fileType && f.status === "ready" && f.fileName !== file.name
+          )
+        : null;
+
+      if (existingByType) {
+        const confirmed = window.confirm(
+          `이미 "${existingByType.fileName}" 파일이 같은 유형(${schema.fileType})으로 업로드되어 있습니다.\n\n새 파일로 교체하시겠습니까?\n\n[확인] = 기존 데이터 교체\n[취소] = 업로드 취소`
+        );
+        if (!confirmed) return;
+        updateUploadedFile(existingByType.id, { status: "replaced" as any });
       }
 
-      const fileId = existing?.id || crypto.randomUUID();
-      if (!existing) {
+      if (existingByName) {
+        updateUploadedFile(existingByName.id, { status: "parsing" });
+      }
+
+      const fileId = existingByName?.id || crypto.randomUUID();
+      if (!existingByName) {
         addUploadedFile({
           id: fileId,
           fileName: file.name,

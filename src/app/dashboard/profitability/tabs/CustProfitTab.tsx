@@ -230,14 +230,14 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
         </div>
       </ChartCard>
 
-      {/* 거래처별 담당자 및 영업이익 상세 테이블 */}
+      {/* 거래처별 담당자 및 영업이익 상세 테이블 (901 수익성분석 데이터 기준) */}
       {custDetailTable.length > 0 && (
         <ChartCard
           title="거래처별 담당자 및 영업이익 상세"
           dataSourceType="period"
           isDateFiltered={isDateFiltered}
           formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
-          description="수익성분석(901) 데이터에서 거래처별 영업담당자, 매출액, 이익율, 영업이익을 조회합니다. 담당자 열에는 해당 거래처를 담당하는 사번이 표시됩니다."
+          description="수익성분석(901) 데이터 기준입니다. 위 KPI/차트는 조직별 거래처별 손익(303) 데이터 기준이므로, 거래처명 및 수치가 다를 수 있습니다."
           benchmark="담당자당 관리 거래처 수가 적정한지, 이익율 편차가 큰 거래처는 집중 관리"
           reason="거래처별 담당자 매핑을 통해 책임 소재를 명확히 하고, 이익율이 낮은 거래처의 담당자에게 맞춤형 개선 코칭을 지원합니다"
         >
