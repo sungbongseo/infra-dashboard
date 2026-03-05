@@ -753,14 +753,17 @@ export function parseExcelFile(
       const rIP = safeParseRows<ItemProfitabilityRecord>(
         rawData, 1, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
       );
-      // 6단계 계층 fill-down: 판매사업부→영업조직팀→대분류→중분류→소분류→[품목계정그룹, 품목]
+      // 7단계 계층 fill-down: 판매사업부→영업조직팀→대분류→중분류→소분류→품목계정그룹→품목
+      // 품목계정그룹과 품목을 별도 레벨로 분리: 품목계정그룹은 그룹 첫 행에만 존재(머지셀),
+      // 품목이 lastLevelPrimary가 되어야 상세행 판별이 정확함
       const filledIP = fillDownMultiLevel(rIP.parsed, [
         ["판매사업부"],
         ["영업조직팀"],
         ["대분류"],
         ["중분류"],
         ["소분류"],
-        ["품목계정그룹", "품목"],
+        ["품목계정그룹"],
+        ["품목"],
       ], warnings, "품목별수익성분석");
       // 상세행만 유지: 품목이 비어있는 소계행 제거
       const detailIP = filledIP.filter(r => r.품목.trim() !== "");
