@@ -241,7 +241,7 @@ function safeParseRows<T>(
   let skipped = 0;
   const parsed: T[] = [];
   const rows = filterEmptyFirstCol
-    ? data.slice(skipRows).filter(r => r[0] !== null && r[0] !== undefined && r[0] !== "")
+    ? data.slice(skipRows).filter(r => r[0] !== null && r[0] !== undefined && String(r[0]).trim() !== "")
     : data.slice(skipRows).filter(r =>
         r.some(cell => cell !== "" && cell !== null && cell !== undefined)
       );
@@ -442,7 +442,12 @@ function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
     month5: parseAgingAmounts(row, 18),
     month6: parseAgingAmounts(row, 21),
     overdue: parseAgingAmounts(row, 24),
-    합계: parseAgingAmounts(row, 27),
+    // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
+    합계: {
+      출고금액: num(row[27]),
+      장부금액: num(row[29]),
+      거래금액: num(row[28]),
+    },
     여신한도: num(row[30]),
   }));
 }
