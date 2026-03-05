@@ -5,15 +5,12 @@ import { useDataStore } from "@/stores/dataStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
-import { calcTopCustomers, calcSalesByType } from "@/lib/analysis/kpi";
+import { calcTopCustomers } from "@/lib/analysis/kpi";
 import {
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
-  PieChart,
-  Pie,
-  Cell,
   Legend,
   ComposedChart,
   Line,
@@ -23,8 +20,8 @@ import {
 import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, truncateLabel } from "@/components/charts";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
@@ -39,9 +36,12 @@ import { CohortTab } from "./tabs/CohortTab";
 import { ChurnTab } from "./tabs/ChurnTab";
 import { DecompositionTab } from "./tabs/DecompositionTab";
 import { ItemTab } from "./tabs/ItemTab";
+import { TypeTab } from "./tabs/TypeTab";
+import { ProductGroupTab } from "./tabs/ProductGroupTab";
 
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
@@ -49,13 +49,19 @@ export default function SalesAnalysisPage() {
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
-  const salesByType = useMemo(() => calcSalesByType(filteredSales), [filteredSales]);
 
   // CLV 분석에 필요한 조직별 손익 필터
   const filteredOrgProfit = useMemo(
     () => filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"),
     [orgProfit, effectiveOrgNames]
   );
+
+  // 품목군 분석에 필요한 customerItemDetail 필터
+  const filteredCustomerItemDetail = useMemo(() => {
+    const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
+    if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
+    return filterByDateRange(orgFiltered, dateRange, "매출연월");
+  }, [customerItemDetail, effectiveOrgNames, dateRange]);
 
   const topCustomersExport = useMemo(
     () => topCustomers.map((c) => ({ 거래처코드: c.code, 거래처명: c.name, 매출액: c.amount })),
@@ -74,11 +80,6 @@ export default function SalesAnalysisPage() {
       };
     });
   }, [topCustomers]);
-
-  const donutData = useMemo(() => [
-    { name: "내수", value: salesByType.domestic },
-    { name: "수출", value: salesByType.exported },
-  ], [salesByType]);
 
   // KPI 데이터
   const totalSalesAmount = useMemo(() => filteredSales.reduce((s, r) => s + r.장부금액, 0), [filteredSales]);
@@ -149,6 +150,7 @@ export default function SalesAnalysisPage() {
           <TabsTrigger value="item">품목</TabsTrigger>
           <TabsTrigger value="type">유형별</TabsTrigger>
           <TabsTrigger value="channel">채널</TabsTrigger>
+          <TabsTrigger value="productGroup" disabled={filteredCustomerItemDetail.length === 0}>품목군</TabsTrigger>
           <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
           {/* 고급 분석 */}
           <TabsTrigger value="rfm">RFM</TabsTrigger>
@@ -202,38 +204,7 @@ export default function SalesAnalysisPage() {
 
         <TabsContent value="type" className="space-y-6">
           <ErrorBoundary>
-          <ChartCard
-            title="내수/수출 비중"
-            dataSourceType="period"
-            isDateFiltered={isDateFiltered}
-            formula="내수와 수출 유형별로 장부금액을 각각 합산"
-            description="전체 매출 중 내수(국내 판매)와 수출(해외 판매)의 비율을 도넛 차트로 보여줍니다. 수출 비중이 높으면 환율 변동에 따라 실적이 크게 흔들릴 수 있으므로 환리스크 관리가 중요합니다."
-            benchmark="내수와 수출이 적절히 분산되면 안정적, 한쪽 비중이 80% 이상이면 편중 주의"
-            reason="매출 유형(내수/수출) 구성 변화를 모니터링하여 사업 포트폴리오 균형을 관리하고, 환율 리스크 노출 수준을 점검합니다."
-          >
-            <ChartContainer height="h-72 md:h-96">
-                <PieChart>
-                  <Pie
-                    data={donutData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={90}
-                    outerRadius={140}
-                    dataKey="value"
-                    label={({ name, percent }: any) => {
-                      const n = truncateLabel(String(name), 8);
-                      return `${n} ${((percent || 0) * 100).toFixed(1)}%`;
-                    }}
-                    labelLine={{ strokeWidth: 1 }}
-                  >
-                    {donutData.map((_, i) => (
-                      <Cell key={i} fill={CHART_COLORS[i]} />
-                    ))}
-                  </Pie>
-                  <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any) => formatCurrency(Number(value))} />
-                </PieChart>
-            </ChartContainer>
-          </ChartCard>
+            <TypeTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -288,6 +259,12 @@ export default function SalesAnalysisPage() {
         <TabsContent value="decomposition" className="space-y-6">
           <ErrorBoundary>
             <DecompositionTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="productGroup" className="space-y-6">
+          <ErrorBoundary>
+            <ProductGroupTab filteredCustomerItemDetail={filteredCustomerItemDetail} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
       </Tabs>

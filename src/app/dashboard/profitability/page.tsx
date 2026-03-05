@@ -61,6 +61,8 @@ import DetailedProfitTab from "./tabs/DetailedProfitTab";
 import { SensitivityTab } from "./tabs/SensitivityTab";
 import { ItemCostTab } from "./tabs/ItemCostTab";
 import { CostVarianceTab } from "./tabs/CostVarianceTab";
+import { StandardCostTab } from "./tabs/StandardCostTab";
+import { CustomerRiskMatrixTab } from "./tabs/CustomerRiskMatrixTab";
 
 export default function ProfitabilityPage() {
   const teamContribution = useDataStore((s) => s.teamContribution);
@@ -71,6 +73,7 @@ export default function ProfitabilityPage() {
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
+  const itemProfitability = useDataStore((s) => s.itemProfitability);
   const isLoading = useDataStore((s) => s.isLoading);
 
   const { effectiveOrgNames, dateRange } = useFilterContext();
@@ -398,6 +401,12 @@ export default function ProfitabilityPage() {
   const unitCostAnalysis = useMemo(() => calcUnitCostAnalysis(filteredItemCostDetail, 30), [filteredItemCostDetail]);
   const costDriverAnalysis = useMemo(() => calcCostDriverAnalysis(filteredItemCostDetail), [filteredItemCostDetail]);
 
+  // ─── 품목별 수익성 분석 (200) ──────────────────────────────
+  const filteredItemProfitability = useMemo(
+    () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
+    [itemProfitability, effectiveOrgNames]
+  );
+
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
     const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
@@ -490,6 +499,8 @@ export default function ProfitabilityPage() {
           </TabsTrigger>
           <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가</TabsTrigger>
           <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이</TabsTrigger>
+          <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>
+          <TabsTrigger value="custRiskMatrix" disabled={filteredOrgCustProfit.length === 0}>거래처리스크</TabsTrigger>
         </TabsList>
         </TooltipProvider>
 
@@ -628,6 +639,25 @@ export default function ProfitabilityPage() {
               teamEfficiency={teamCostEfficiency}
               itemVarianceRanking={itemVarianceRanking}
               costDrivers={costDriverAnalysis}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="standardCost" className="space-y-6">
+          <ErrorBoundary>
+            <StandardCostTab
+              filteredItemProfitability={filteredItemProfitability}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="custRiskMatrix" className="space-y-6">
+          <ErrorBoundary>
+            <CustomerRiskMatrixTab
+              orgCustomerProfit={filteredOrgCustProfit}
+              receivableAging={allReceivableRecords}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
