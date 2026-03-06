@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
@@ -37,6 +38,7 @@ export function KpiCard({
   compact = true,
   onClick,
 }: KpiCardProps) {
+  const gradientId = useId();
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
   const hasTooltip = description || formula || benchmark || reason;
 
@@ -55,6 +57,8 @@ export function KpiCard({
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
       <Card
+        role="status"
+        aria-label={`${title}: ${formattedValue}`}
         className={cn("relative overflow-hidden", onClick && "cursor-pointer hover:ring-2 hover:ring-primary/20 transition-shadow")}
         onClick={onClick}
       >
@@ -105,7 +109,7 @@ export function KpiCard({
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={sparkChartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                       <defs>
-                        <linearGradient id={`sparkGrad-${title.replace(/\s/g, "")}`} x1="0" y1="0" x2="0" y2="1">
+                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                           <stop offset="0%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0.2} />
                           <stop offset="100%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0} />
                         </linearGradient>
@@ -115,7 +119,7 @@ export function KpiCard({
                         dataKey="v"
                         stroke="hsl(221.2, 83.2%, 53.3%)"
                         strokeWidth={1.5}
-                        fill={`url(#sparkGrad-${title.replace(/\s/g, "")})`}
+                        fill={`url(#${gradientId})`}
                         isAnimationActive={false}
                       />
                     </AreaChart>

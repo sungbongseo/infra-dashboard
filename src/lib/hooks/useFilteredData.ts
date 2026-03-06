@@ -149,13 +149,30 @@ export function useFilteredTeamContribution() {
 
 export function useFilteredOrgCustomerProfit() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
-  const { effectiveOrgNames } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers } = useFilterContext();
 
   const filteredOrgCustomerProfit = useMemo(() => {
-    return filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
-  }, [orgCustomerProfit, effectiveOrgNames]);
+    const orgFiltered = filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
+    return filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
+  }, [orgCustomerProfit, effectiveOrgNames, selectedCustomers]);
 
   return { filteredOrgCustomerProfit, orgCustomerProfit };
+}
+
+// ─── 거래처별 품목별 손익 (100) ────────────────────────────────────
+
+export function useFilteredCustomerItemDetail() {
+  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
+
+  const filteredCustomerItemDetail = useMemo(() => {
+    const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
+    const custFiltered = filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
+    if (!dateRange || !dateRange.from || !dateRange.to) return custFiltered;
+    return filterByDateRange(custFiltered, dateRange, "매출연월");
+  }, [customerItemDetail, effectiveOrgNames, selectedCustomers, dateRange]);
+
+  return { filteredCustomerItemDetail, customerItemDetail };
 }
 
 // ─── 품목별 매출원가 상세 ──────────────────────────────────────────
@@ -175,11 +192,12 @@ export function useFilteredItemCostDetail() {
 
 export function useFilteredHqCustomerItemProfit() {
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
-  const { effectiveOrgNames } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers } = useFilterContext();
 
   const filteredHqProfit = useMemo(() => {
-    return filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀");
-  }, [hqCustomerItemProfit, effectiveOrgNames]);
+    const orgFiltered = filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀");
+    return filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
+  }, [hqCustomerItemProfit, effectiveOrgNames, selectedCustomers]);
 
   return { filteredHqProfit, hqCustomerItemProfit };
 }

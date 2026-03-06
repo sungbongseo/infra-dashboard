@@ -1,12 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
+import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, CHART_COLORS } from "@/lib/utils";
@@ -65,7 +67,18 @@ import { StandardCostTab } from "./tabs/StandardCostTab";
 import { CustomerRiskMatrixTab } from "./tabs/CustomerRiskMatrixTab";
 import { SgaBreakdownTab } from "./tabs/SgaBreakdownTab";
 
+const PROFIT_TAB_GROUPS: TabGroupDef[] = [
+  { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
+  { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity"] },
+  { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
+  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost"] },
+];
+
 export default function ProfitabilityPage() {
+  const [activeTab, setActiveTab] = useState("pnl");
+  const activeGroup = PROFIT_TAB_GROUPS.find((g) => g.tabs.includes(activeTab)) || PROFIT_TAB_GROUPS[0];
+  const visibleTabs = new Set(activeGroup.tabs);
+
   const teamContribution = useDataStore((s) => s.teamContribution);
   const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
   const receivableAging = useDataStore((s) => s.receivableAging);
@@ -466,43 +479,47 @@ export default function ProfitabilityPage() {
         </div>
       )}
 
-      <Tabs defaultValue="pnl" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TooltipProvider delayDuration={300}>
+        {/* 2-level navigation: category pills + sub-tabs */}
+        <TabGroup groups={PROFIT_TAB_GROUPS} activeTab={activeTab} onGroupChange={(gid) => {
+          const group = PROFIT_TAB_GROUPS.find((g) => g.id === gid);
+          if (group) setActiveTab(group.tabs[0]);
+        }} />
         <TabsList className="flex flex-wrap h-auto gap-1">
-          {/* 기본 손익 */}
-          <TabsTrigger value="pnl">손익 현황</TabsTrigger>
-          <TabsTrigger value="org">조직 수익성</TabsTrigger>
-          <TabsTrigger value="contrib" disabled={filteredTeamContribution.length === 0}>팀원별 공헌이익</TabsTrigger>
-          <TabsTrigger value="cost" disabled={filteredTeamContribution.length === 0}>비용 구조</TabsTrigger>
-          <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>
-          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
+          {/* 기본 분석 */}
+          {visibleTabs.has("pnl") && <TabsTrigger value="pnl">손익 현황</TabsTrigger>}
+          {visibleTabs.has("org") && <TabsTrigger value="org">조직 수익성</TabsTrigger>}
+          {visibleTabs.has("contrib") && <TabsTrigger value="contrib" disabled={filteredTeamContribution.length === 0}>팀원별 공헌이익</TabsTrigger>}
+          {visibleTabs.has("cost") && <TabsTrigger value="cost" disabled={filteredTeamContribution.length === 0}>비용 구조</TabsTrigger>}
+          {visibleTabs.has("plan") && <TabsTrigger value="plan" disabled={filteredOrgProfit.length === 0}>계획 달성</TabsTrigger>}
           {/* 심화 분석 */}
-          <TabsTrigger value="product" disabled={effectiveProfAnalysis.length === 0}>
-            제품 수익성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
-          </TabsTrigger>
-          <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>
-          <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
-            3-way차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
-          </TabsTrigger>
-          <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
-          <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
-          <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도</TabsTrigger>
-          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
-          {/* 상세 손익 */}
-          <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
-            거래처 손익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
-          </TabsTrigger>
-          <TabsTrigger value="custItem" disabled={effectiveHqCustItemProfit.length === 0}>
-            거래처×품목<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
-          </TabsTrigger>
-          <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>
-            상세수익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
-          </TabsTrigger>
-          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
-          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
-          <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>
-          <TabsTrigger value="custRiskMatrix" disabled={filteredOrgCustProfit.length === 0}>거래처리스크</TabsTrigger>
-          <TabsTrigger value="sgaBreakdown" disabled={filteredOrgCustProfit.length === 0}>판관비세부</TabsTrigger>
+          {visibleTabs.has("product") && <TabsTrigger value="product" disabled={effectiveProfAnalysis.length === 0}>
+            제품 수익성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+          </TabsTrigger>}
+          {visibleTabs.has("risk") && <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>}
+          {visibleTabs.has("variance") && <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
+            3-way차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+          </TabsTrigger>}
+          {visibleTabs.has("breakeven") && <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>}
+          {visibleTabs.has("whatif") && <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>}
+          {visibleTabs.has("sensitivity") && <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도</TabsTrigger>}
+          {/* 거래처 분석 */}
+          {visibleTabs.has("custProfit") && <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
+            거래처 손익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+          </TabsTrigger>}
+          {visibleTabs.has("custItem") && <TabsTrigger value="custItem" disabled={effectiveHqCustItemProfit.length === 0}>
+            거래처×품목<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+          </TabsTrigger>}
+          {visibleTabs.has("detailed") && <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>
+            상세수익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+          </TabsTrigger>}
+          {visibleTabs.has("custRiskMatrix") && <TabsTrigger value="custRiskMatrix" disabled={filteredOrgCustProfit.length === 0}>거래처리스크</TabsTrigger>}
+          {visibleTabs.has("sgaBreakdown") && <TabsTrigger value="sgaBreakdown" disabled={filteredOrgCustProfit.length === 0}>판관비세부</TabsTrigger>}
+          {/* 원가 분석 */}
+          {visibleTabs.has("itemCost") && <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
+          {visibleTabs.has("costVariance") && <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
+          {visibleTabs.has("standardCost") && <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>}
         </TabsList>
         </TooltipProvider>
 
@@ -537,6 +554,7 @@ export default function ProfitabilityPage() {
         </TabsContent>
 
         <TabsContent value="product" className="space-y-6">
+          <LazyTabContent value="product" activeTab={activeTab}>
           <ErrorBoundary>
             <ProductTab
               productProfitability={productProfitability}
@@ -552,6 +570,7 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
@@ -561,6 +580,7 @@ export default function ProfitabilityPage() {
         </TabsContent>
 
         <TabsContent value="variance" className="space-y-6">
+          <LazyTabContent value="variance" activeTab={activeTab}>
           <ErrorBoundary>
             <VarianceTab
               planSummary={planSummary}
@@ -576,6 +596,7 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="breakeven" className="space-y-6">
@@ -591,24 +612,31 @@ export default function ProfitabilityPage() {
         </TabsContent>
 
         <TabsContent value="custProfit" className="space-y-6">
+          <LazyTabContent value="custProfit" activeTab={activeTab}>
           <ErrorBoundary>
             <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="custItem" className="space-y-6">
+          <LazyTabContent value="custItem" activeTab={activeTab}>
           <ErrorBoundary>
             <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6">
+          <LazyTabContent value="detailed" activeTab={activeTab}>
           <ErrorBoundary>
             <DetailedProfitTab data={filteredCustItemDetail} isDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="sensitivity" className="space-y-6">
+          <LazyTabContent value="sensitivity" activeTab={activeTab}>
           <ErrorBoundary>
             <SensitivityTab
               baseSales={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.매출액?.실적 ?? 0), 0) : totalSales}
@@ -617,9 +645,11 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="itemCost" className="space-y-6">
+          <LazyTabContent value="itemCost" activeTab={activeTab}>
           <ErrorBoundary>
             <ItemCostTab
               summary={itemCostSummary}
@@ -632,9 +662,11 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="costVariance" className="space-y-6">
+          <LazyTabContent value="costVariance" activeTab={activeTab}>
           <ErrorBoundary>
             <CostVarianceTab
               variance={costCategoryVariance}
@@ -644,18 +676,22 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="standardCost" className="space-y-6">
+          <LazyTabContent value="standardCost" activeTab={activeTab}>
           <ErrorBoundary>
             <StandardCostTab
               filteredItemProfitability={filteredItemProfitability}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="custRiskMatrix" className="space-y-6">
+          <LazyTabContent value="custRiskMatrix" activeTab={activeTab}>
           <ErrorBoundary>
             <CustomerRiskMatrixTab
               orgCustomerProfit={filteredOrgCustProfit}
@@ -663,15 +699,18 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="sgaBreakdown" className="space-y-6">
+          <LazyTabContent value="sgaBreakdown" activeTab={activeTab}>
           <ErrorBoundary>
             <SgaBreakdownTab
               filteredOrgCustProfit={filteredOrgCustProfit}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
       </Tabs>

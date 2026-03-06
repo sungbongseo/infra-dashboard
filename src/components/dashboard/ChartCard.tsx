@@ -38,7 +38,7 @@ function DataSourceBadge({ type, isFiltered }: { type?: "snapshot" | "period"; i
 
 export function ChartCard({ title, formula, description, benchmark, reason, dataSourceType, isDateFiltered, children, className, action, isEmpty }: ChartCardProps) {
   return (
-    <Card className={className}>
+    <Card className={className} aria-label={`차트: ${title}`}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

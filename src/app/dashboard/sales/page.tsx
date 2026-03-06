@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -19,6 +19,9 @@ import {
 } from "recharts";
 import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
+import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
@@ -26,6 +29,7 @@ import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BA
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
+import { useUIStore } from "@/stores/uiStore";
 import { useFilterContext, useFilteredSales } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
@@ -41,6 +45,13 @@ import { ItemTab } from "./tabs/ItemTab";
 import { TypeTab } from "./tabs/TypeTab";
 import { ProductGroupTab } from "./tabs/ProductGroupTab";
 import { Customer360Tab } from "./tabs/Customer360Tab";
+import { OrgScorecardTab } from "./tabs/OrgScorecardTab";
+
+const SALES_TAB_GROUPS: TabGroupDef[] = [
+  { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
+  { id: "customer-deep", label: "고객 분석", tabs: ["customer360", "rfm", "clv", "migration", "cohort"] },
+  { id: "advanced", label: "고급 분석", tabs: ["fx", "anomaly", "churn", "decomposition", "orgScorecard"] },
+];
 
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
@@ -52,6 +63,10 @@ export default function SalesAnalysisPage() {
   const orderList = useDataStore((s) => s.orderList);
   const receivableAging = useDataStore((s) => s.receivableAging);
   const isLoading = useDataStore((s) => s.isLoading);
+  const setCustomer360Target = useUIStore((s) => s.setCustomer360Target);
+  const [activeTab, setActiveTab] = useState("customer");
+  const activeGroup = SALES_TAB_GROUPS.find((g) => g.tabs.includes(activeTab)) || SALES_TAB_GROUPS[0];
+  const visibleTabs = new Set(activeGroup.tabs);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
   const dateRange = useFilterStore((s) => s.dateRange);
@@ -181,25 +196,41 @@ export default function SalesAnalysisPage() {
         />
       </div>
 
-      <Tabs defaultValue="customer" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabGroup groups={SALES_TAB_GROUPS} activeTab={activeTab} onGroupChange={(gid) => {
+          const group = SALES_TAB_GROUPS.find((g) => g.id === gid);
+          if (group) setActiveTab(group.tabs[0]);
+        }} />
         <TabsList className="flex flex-wrap h-auto gap-1">
-          {/* 기본 분석 */}
-          <TabsTrigger value="customer">거래처</TabsTrigger>
-          <TabsTrigger value="item">품목</TabsTrigger>
-          <TabsTrigger value="type">유형별</TabsTrigger>
-          <TabsTrigger value="channel">채널</TabsTrigger>
-          <TabsTrigger value="customer360">거래처 360°</TabsTrigger>
-          <TabsTrigger value="productGroup" disabled={filteredCustomerItemDetail.length === 0}>품목군</TabsTrigger>
-          <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
-          {/* 고급 분석 */}
-          <TabsTrigger value="rfm">RFM</TabsTrigger>
-          <TabsTrigger value="clv">CLV</TabsTrigger>
-          <TabsTrigger value="migration">거래처 이동</TabsTrigger>
-          <TabsTrigger value="fx">FX</TabsTrigger>
-          <TabsTrigger value="anomaly">이상치</TabsTrigger>
-          <TabsTrigger value="cohort">코호트</TabsTrigger>
-          <TabsTrigger value="churn">이탈 예측</TabsTrigger>
-          <TabsTrigger value="decomposition">시계열</TabsTrigger>
+          {visibleTabs.has("customer") && <TabsTrigger value="customer">거래처</TabsTrigger>}
+          {visibleTabs.has("item") && <TabsTrigger value="item">품목</TabsTrigger>}
+          {visibleTabs.has("type") && <TabsTrigger value="type">유형별</TabsTrigger>}
+          {visibleTabs.has("channel") && <TabsTrigger value="channel">채널</TabsTrigger>}
+          {visibleTabs.has("productGroup") && (
+            filteredCustomerItemDetail.length === 0 ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild><span><TabsTrigger value="productGroup" disabled>품목군</TabsTrigger></span></TooltipTrigger>
+                <TooltipContent>거래처별 품목별 손익(100) 파일을 업로드하세요</TooltipContent>
+              </Tooltip>
+            ) : <TabsTrigger value="productGroup">품목군</TabsTrigger>
+          )}
+          {visibleTabs.has("customer360") && <TabsTrigger value="customer360">거래처 360°</TabsTrigger>}
+          {visibleTabs.has("rfm") && <TabsTrigger value="rfm">RFM</TabsTrigger>}
+          {visibleTabs.has("clv") && <TabsTrigger value="clv">CLV</TabsTrigger>}
+          {visibleTabs.has("migration") && <TabsTrigger value="migration">거래처 이동</TabsTrigger>}
+          {visibleTabs.has("cohort") && <TabsTrigger value="cohort">코호트</TabsTrigger>}
+          {visibleTabs.has("fx") && <TabsTrigger value="fx">FX</TabsTrigger>}
+          {visibleTabs.has("anomaly") && <TabsTrigger value="anomaly">이상치</TabsTrigger>}
+          {visibleTabs.has("churn") && <TabsTrigger value="churn">이탈 예측</TabsTrigger>}
+          {visibleTabs.has("decomposition") && <TabsTrigger value="decomposition">시계열</TabsTrigger>}
+          {visibleTabs.has("orgScorecard") && (
+            filteredOrgProfit.length === 0 ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild><span><TabsTrigger value="orgScorecard" disabled>조직스코어카드</TabsTrigger></span></TooltipTrigger>
+                <TooltipContent>조직 손익 파일을 업로드하세요</TooltipContent>
+              </Tooltip>
+            ) : <TabsTrigger value="orgScorecard">조직스코어카드</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="customer" className="space-y-6">
@@ -259,8 +290,8 @@ export default function SalesAnalysisPage() {
                   </thead>
                   <tbody>
                     {customerRanking.map((c) => (
-                      <tr key={c.code} className="border-b border-border/50 hover:bg-muted/50">
-                        <td className="py-1.5 px-3 font-medium">{c.name}</td>
+                      <tr key={c.code} className="border-b border-border/50 hover:bg-muted/50 cursor-pointer" onClick={() => c.name && setCustomer360Target(c.name)}>
+                        <td className="py-1.5 px-3 font-medium text-primary hover:underline">{c.name}</td>
                         <td className="py-1.5 px-3 text-muted-foreground text-xs">{c.org}</td>
                         <td className="py-1.5 px-3 text-right">{formatCurrency(c.sales)}</td>
                         <td className="py-1.5 px-3 text-right">{formatCurrency(c.grossProfit)}</td>
@@ -302,60 +333,79 @@ export default function SalesAnalysisPage() {
         </TabsContent>
 
         <TabsContent value="rfm" className="space-y-6">
+          <LazyTabContent value="rfm" activeTab={activeTab}>
           <ErrorBoundary>
             <RfmTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="clv" className="space-y-6">
+          <LazyTabContent value="clv" activeTab={activeTab}>
           <ErrorBoundary>
             <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="migration" className="space-y-6">
+          <LazyTabContent value="migration" activeTab={activeTab}>
           <ErrorBoundary>
             <MigrationTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="fx" className="space-y-6">
+          <LazyTabContent value="fx" activeTab={activeTab}>
           <ErrorBoundary>
             <FxTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="anomaly" className="space-y-6">
+          <LazyTabContent value="anomaly" activeTab={activeTab}>
           <ErrorBoundary>
             <AnomalyTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="cohort" className="space-y-6">
+          <LazyTabContent value="cohort" activeTab={activeTab}>
           <ErrorBoundary>
             <CohortTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="churn" className="space-y-6">
+          <LazyTabContent value="churn" activeTab={activeTab}>
           <ErrorBoundary>
             <ChurnTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="decomposition" className="space-y-6">
+          <LazyTabContent value="decomposition" activeTab={activeTab}>
           <ErrorBoundary>
             <DecompositionTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="productGroup" className="space-y-6">
+          <LazyTabContent value="productGroup" activeTab={activeTab}>
           <ErrorBoundary>
             <ProductGroupTab filteredCustomerItemDetail={filteredCustomerItemDetail} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
 
         <TabsContent value="customer360" className="space-y-6">
+          <LazyTabContent value="customer360" activeTab={activeTab}>
           <ErrorBoundary>
             <Customer360Tab
               salesList={filteredSales}
@@ -366,6 +416,20 @@ export default function SalesAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </LazyTabContent>
+        </TabsContent>
+
+        <TabsContent value="orgScorecard" className="space-y-6">
+          <LazyTabContent value="orgScorecard" activeTab={activeTab}>
+          <ErrorBoundary>
+            <OrgScorecardTab
+              orgProfit={filteredOrgProfit}
+              salesList={filteredSales}
+              collectionList={collectionList}
+              isDateFiltered={isDateFiltered}
+            />
+          </ErrorBoundary>
+          </LazyTabContent>
         </TabsContent>
       </Tabs>
     </div>

@@ -18,12 +18,10 @@ export function ChartContainer({
   height = "h-64 md:h-80",
   minHeight = 250,
 }: ChartContainerProps) {
-  // minHeight가 기본 Tailwind 높이(320px)보다 크면 인라인 스타일로 오버라이드
-  const useInlineHeight = minHeight >= 320;
   return (
     <motion.div
-      className={useInlineHeight ? undefined : height}
-      style={useInlineHeight ? { minHeight: `${minHeight}px` } : undefined}
+      className={height}
+      style={{ minHeight: `${minHeight}px` }}
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}

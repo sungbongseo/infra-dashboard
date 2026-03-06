@@ -125,7 +125,9 @@ export function GlobalFilterBar() {
   };
 
   return (
-    <div className="bg-card border-b px-4 sm:px-6 py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
+    <div className="bg-card border-b px-4 sm:px-6">
+      {/* Row 1: Filter controls */}
+      <div className="py-3 flex items-center gap-2 sm:gap-3 flex-wrap">
       {/* Filter icon + label */}
       <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
         <Filter className="h-4 w-4" />
@@ -427,50 +429,59 @@ export function GlobalFilterBar() {
         </>
       )}
 
-      {/* Active filter summary badges */}
-      {selectedOrgs.length > 0 && (
-        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
-          조직: {selectedOrgs.length}개
-          <button
-            onClick={() => setSelectedOrgs([])}
-            className="ml-0.5 hover:text-foreground"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
-      )}
-      {selectedCustomers.length > 0 && (
-        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
-          거래처: {selectedCustomers.length}개
-          <button
-            onClick={() => setSelectedCustomers([])}
-            className="ml-0.5 hover:text-foreground"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
-      )}
-      {dateRange && (dateRange.from || dateRange.to) && (
-        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
-          기간: {dateRange.from || "?"} ~ {dateRange.to || "?"}
-          <button
-            onClick={() => setDateRange(null)}
-            className="ml-0.5 hover:text-foreground"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
-      )}
-      {comparisonRange && (comparisonRange.from || comparisonRange.to) && (
-        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
-          비교: {comparisonRange.from || "?"} ~ {comparisonRange.to || "?"}
-          <button
-            onClick={() => applyComparisonPreset(null)}
-            className="ml-0.5 hover:text-foreground"
-          >
-            <X className="h-3 w-3" />
-          </button>
-        </Badge>
+      </div>
+
+      {/* Row 2: Active filter summary badges */}
+      {activeFilterCount > 0 && (
+        <div className="pb-2 flex items-center gap-1.5 flex-wrap">
+          {selectedOrgs.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+              조직: {selectedOrgs.length}개
+              <button
+                onClick={() => setSelectedOrgs([])}
+                className="ml-0.5 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {selectedCustomers.length > 0 && (
+            <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+              거래처: {selectedCustomers.length}개
+              <button
+                onClick={() => setSelectedCustomers([])}
+                className="ml-0.5 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {dateRange && (dateRange.from || dateRange.to) && (
+            <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+              기간: {dateRange.from || "?"} ~ {dateRange.to || "?"}
+              <button
+                onClick={() => setDateRange(null)}
+                className="ml-0.5 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          {comparisonRange && (comparisonRange.from || comparisonRange.to) && (
+            <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+              비교: {comparisonRange.from || "?"} ~ {comparisonRange.to || "?"}
+              <button
+                onClick={() => applyComparisonPreset(null)}
+                className="ml-0.5 hover:text-foreground"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          )}
+          <span className="text-[10px] text-muted-foreground/60 ml-1">
+            매출·수주·수금·손익에 적용
+          </span>
+        </div>
       )}
     </div>
   );

@@ -40,6 +40,8 @@ import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterContext, useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredOrgProfit, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 import { BenchmarkReportTab } from "@/components/dashboard/BenchmarkReportTab";
+import { useFilterStore } from "@/stores/filterStore";
+import { useRouter } from "next/navigation";
 
 const INSIGHT_STYLES: Record<InsightSeverity, string> = {
   critical: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800",
@@ -67,6 +69,8 @@ export default function OverviewPage() {
   const isLoading = useDataStore((s) => s.isLoading);
   const evaluate = useAlertStore((s) => s.evaluate);
   const [showAllInsights, setShowAllInsights] = useState(false);
+  const router = useRouter();
+  const setSelectedOrgs = useFilterStore((s) => s.setSelectedOrgs);
 
   const { effectiveOrgNames, comparisonRange, dateRange } = useFilterContext();
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
@@ -715,7 +719,15 @@ export default function OverviewPage() {
                 <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
                 <RechartsTooltip formatter={(value: any) => formatCurrency(Number(value))} {...TOOLTIP_STYLE} />
-                <Bar dataKey="sales" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} name="매출액" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar dataKey="sales" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} name="매출액" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}
+                  cursor="pointer"
+                  onClick={(data: any) => {
+                    if (data?.org) {
+                      setSelectedOrgs([data.org]);
+                      router.push("/dashboard/sales");
+                    }
+                  }}
+                />
               </BarChart>
             </ChartContainer>
           </ChartCard>

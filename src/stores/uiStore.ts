@@ -12,6 +12,8 @@ interface UIState {
   setSidebarOpen: (open: boolean) => void;
   presentationMode: boolean;
   setPresentationMode: (mode: boolean) => void;
+  customer360Target: string | null;
+  setCustomer360Target: (name: string | null) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -31,4 +33,6 @@ export const useUIStore = create<UIState>((set) => ({
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   presentationMode: false,
   setPresentationMode: (mode) => set({ presentationMode: mode }),
+  customer360Target: null,
+  setCustomer360Target: (name) => set({ customer360Target: name }),
 }));
