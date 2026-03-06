@@ -470,9 +470,9 @@ export function buildItemInventoryMap(
       const code = (r.품목 || "").trim();
       if (!code) continue;
       const entry = itemMap.get(code) || { opening: 0, closing: 0, issued: 0, 단위: r.단위 };
-      entry.opening += r.기초;
-      entry.closing += r.기말;
-      entry.issued += r.출고;
+      entry.opening += (r.기초 ?? 0);
+      entry.closing += (r.기말 ?? 0);
+      entry.issued += (r.출고 ?? 0);
       itemMap.set(code, entry);
     }
   }

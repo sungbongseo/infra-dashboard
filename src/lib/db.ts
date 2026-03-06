@@ -85,6 +85,17 @@ class DashboardDB extends Dexie {
       orgFilter: "id",
       filterState: "id",
     });
+    this.version(4).stores({
+      datasets: "id",
+      agingData: "id",
+      inventoryData: "id",
+      uploadedFiles: "id",
+      orgFilter: "id",
+      filterState: "id",
+    }).upgrade(async (tx) => {
+      // 구 파서 필드명(기초수량/기초금액 등)으로 저장된 stale 데이터 삭제
+      await tx.table("inventoryData").clear();
+    });
   }
 }
 

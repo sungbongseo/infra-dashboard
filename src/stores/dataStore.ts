@@ -332,7 +332,20 @@ export const useDataStore = create<DataState>((set, get) => ({
         itemCostDetail: (itemCostDetail as ItemCostDetailRecord[]) ?? [],
         itemProfitability: (itemProfitability as ItemProfitabilityRecord[]) ?? [],
         receivableAging: agingMap,
-        inventoryMovement: inventoryMap,
+        inventoryMovement: (() => {
+          // 구 스키마(기초수량/기초금액 등) 데이터 검증 → 무효 시 빈 Map
+          if (inventoryMap.size > 0) {
+            const firstEntries = Array.from(inventoryMap.values())[0];
+            if (firstEntries && firstEntries.length > 0) {
+              const sample = firstEntries[0];
+              if (typeof sample.기초 !== "number") {
+                console.warn("Stale inventory data detected, skipping restore");
+                return new Map();
+              }
+            }
+          }
+          return inventoryMap;
+        })(),
         uploadedFiles,
         orgNames,
         orgCodes,

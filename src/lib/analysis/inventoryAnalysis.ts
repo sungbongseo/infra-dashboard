@@ -57,10 +57,10 @@ export function calcItemInventory(
         단위: r.단위,
         기초: 0, 입고: 0, 출고: 0, 기말: 0,
       };
-      entry.기초 += r.기초;
-      entry.입고 += r.입고;
-      entry.출고 += r.출고;
-      entry.기말 += r.기말;
+      entry.기초 += (r.기초 ?? 0);
+      entry.입고 += (r.입고 ?? 0);
+      entry.출고 += (r.출고 ?? 0);
+      entry.기말 += (r.기말 ?? 0);
       map.set(key, entry);
     }
   }

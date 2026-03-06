@@ -524,10 +524,10 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                         </Badge>
                       </td>
                       <td className="p-2 text-center text-xs">{item.단위}</td>
-                      <td className="p-2 text-right font-mono text-xs">{item.기초.toLocaleString()}</td>
-                      <td className="p-2 text-right font-mono text-xs">{item.입고.toLocaleString()}</td>
-                      <td className="p-2 text-right font-mono text-xs">{item.출고.toLocaleString()}</td>
-                      <td className="p-2 text-right font-mono text-xs">{item.기말.toLocaleString()}</td>
+                      <td className="p-2 text-right font-mono text-xs">{isFinite(item.기초) ? item.기초.toLocaleString() : "-"}</td>
+                      <td className="p-2 text-right font-mono text-xs">{isFinite(item.입고) ? item.입고.toLocaleString() : "-"}</td>
+                      <td className="p-2 text-right font-mono text-xs">{isFinite(item.출고) ? item.출고.toLocaleString() : "-"}</td>
+                      <td className="p-2 text-right font-mono text-xs">{isFinite(item.기말) ? item.기말.toLocaleString() : "-"}</td>
                       <td className={`p-2 text-right font-mono text-xs ${item.회전율 >= 6 ? "text-emerald-600 dark:text-emerald-400" : item.회전율 < 3 && item.회전율 > 0 ? "text-red-500 dark:text-red-400" : ""}`}>
                         {item.회전율}
                       </td>
