@@ -56,10 +56,10 @@ const QUADRANT_LABELS: Record<string, string> = {
 export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDateFiltered }: ItemTabProps) {
   const [drillPath, setDrillPath] = useState<DrillDownStep[]>([]);
 
-  // Reset drill path when data changes
+  // Reset drill path when data size changes (avoid excessive resets on reference changes)
   useEffect(() => {
     setDrillPath([]);
-  }, [filteredSales, filteredItemProfit]);
+  }, [filteredSales.length, filteredItemProfit.length]);
 
   const hasItemProfit = filteredItemProfit.length > 0;
   const hasInventory = inventoryMap !== undefined && inventoryMap.size > 0;

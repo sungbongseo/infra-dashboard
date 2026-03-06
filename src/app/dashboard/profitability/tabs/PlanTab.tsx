@@ -15,7 +15,7 @@ const MAX_RADAR_ORGS = 7;
  * isCostItem=true이면 색상 반전 (비용 초과 = 빨간색)
  */
 function getHeatmapBg(rate: number, isCostItem: boolean, actual?: number): string {
-  if (!isFinite(rate)) {
+  if (rate >= 9999 || !isFinite(rate)) {
     if (isCostItem && actual && actual > 0) return "#ef4444";
     return "#6b7280";
   }
@@ -206,7 +206,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
               </div>
               {row.metrics.map((m) => {
                 const rate = m.achievementRate;
-                const noplan = !isFinite(rate);
+                const noplan = rate >= 9999 || !isFinite(rate);
                 const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${rate.toFixed(0)}%`;
                 const bg = getHeatmapBg(rate, m.isCostItem, m.actual);
                 const textColor = (bg === "#fbbf24") ? "text-gray-900" : "text-white";

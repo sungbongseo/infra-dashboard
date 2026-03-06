@@ -73,7 +73,8 @@ function calcAvgProfitMargin(orgProfit: OrgProfitRecord[]): number {
 
   const margin = totalGrossProfit / totalSales;
 
-  // Clamp to reasonable bounds: -50% to 100%
+  // 마진 클램핑: -50% ~ 100% 범위로 제한하여 극단적 CLV 왜곡 방지
+  // 손실 거래처도 음수 CLV를 가질 수 있으며 이는 정상적인 비즈니스 의미
   return Math.max(-0.5, Math.min(margin, 1.0));
 }
 

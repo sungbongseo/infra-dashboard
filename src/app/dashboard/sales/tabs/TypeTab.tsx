@@ -136,10 +136,33 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
     [filteredSales]
   );
 
+  // 매출 유형 요약 인사이트
+  const typeInsight = useMemo(() => {
+    const total = salesByType.domestic + salesByType.exported;
+    if (total <= 0) return null;
+    const domesticPct = (salesByType.domestic / total) * 100;
+    const exportPct = (salesByType.exported / total) * 100;
+    const topAccounts = accountBreakdown
+      .slice(0, 3)
+      .map((a) => `${a.accountType} ${((a.amount / total) * 100).toFixed(1)}%`);
+    return { domesticPct, exportPct, topAccounts };
+  }, [salesByType, accountBreakdown]);
+
   if (filteredSales.length === 0) return <EmptyState />;
 
   return (
     <>
+      {typeInsight && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">매출 유형 요약</p>
+          <p className="text-muted-foreground">
+            내수 {typeInsight.domesticPct.toFixed(1)}% / 수출 {typeInsight.exportPct.toFixed(1)}%
+            {typeInsight.domesticPct >= 80 && " — 내수 편중이 높아 시장 다변화를 검토하세요."}
+            {typeInsight.exportPct >= 80 && " — 수출 편중이 높아 환율 리스크 관리가 중요합니다."}
+            {typeInsight.topAccounts.length > 0 && ` | 계정구분: ${typeInsight.topAccounts.join(", ")}`}
+          </p>
+        </div>
+      )}
       {/* 기존: 내수/수출 비중 */}
       <ChartCard
         title="내수/수출 비중"

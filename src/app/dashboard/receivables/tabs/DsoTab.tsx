@@ -529,7 +529,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                       <td className="p-2 text-right font-mono text-xs">{isFinite(item.출고) ? item.출고.toLocaleString() : "-"}</td>
                       <td className="p-2 text-right font-mono text-xs">{isFinite(item.기말) ? item.기말.toLocaleString() : "-"}</td>
                       <td className={`p-2 text-right font-mono text-xs ${item.회전율 >= 6 ? "text-emerald-600 dark:text-emerald-400" : item.회전율 < 3 && item.회전율 > 0 ? "text-red-500 dark:text-red-400" : ""}`}>
-                        {item.회전율}
+                        {isFinite(item.회전율) ? item.회전율.toFixed(1) : "-"}
                       </td>
                       <td className={`p-2 text-right font-mono text-xs font-semibold ${item.보유일수 >= 90 ? "text-red-500 dark:text-red-400" : item.보유일수 >= 30 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
                         {item.보유일수 >= 999 ? "미출고" : `${item.보유일수}일`}

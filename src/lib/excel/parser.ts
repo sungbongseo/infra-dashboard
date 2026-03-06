@@ -273,6 +273,7 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
     계정구분: str(row[9]),        // P1-4: 제품/상품/원자재/부재료
     매출수량: num(row[10]),
     매출액: num(row[11]),
+    // row[12] = 매출비중(%) — SAP 계산 필드이므로 스킵
     매출단가: num(row[13]),
     표준매출원가: num(row[14]),   // P1-4: 표준원가 기준선
     실적매출원가: num(row[15]),
@@ -511,20 +512,18 @@ export function parseExcelFile(
           공헌이익율: parsePlanActualDiff(row, 40),
         };
       }, warnings, "조직별손익", false);
-      // 비정상 이익율 보정 (절대값 ≥500%는 계산 오류로 간주)
+      // 극단 이익율 경고 (절대값 ≥1000%는 계산 오류 의심 — 데이터는 보존, 차트 측에서 domain clamping으로 대응)
       let abnormalCount = 0;
       for (const p of rOP.parsed) {
-        if (Math.abs(p.영업이익율.실적) >= 500 || Math.abs(p.공헌이익율.실적) >= 500) {
+        if (Math.abs(p.영업이익율.실적) >= 1000 || Math.abs(p.공헌이익율.실적) >= 1000) {
           abnormalCount++;
           if (abnormalCount <= 3) {
-            warnings.push(`[조직별손익] ${p.영업조직팀}: 비정상 이익율 감지 (영업이익율 ${p.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${p.공헌이익율.실적.toFixed(1)}%) - 해당 데이터는 분석에서 제외됩니다`);
+            warnings.push(`[조직별손익] ${p.영업조직팀}: 극단 이익율 감지 (영업이익율 ${p.영업이익율.실적.toFixed(1)}%, 공헌이익율 ${p.공헌이익율.실적.toFixed(1)}%) - 차트 스케일에 영향 가능`);
           }
-          p.영업이익율 = { 실적: 0, 계획: 0, 차이: 0 };
-          p.공헌이익율 = { 실적: 0, 계획: 0, 차이: 0 };
         }
       }
       if (abnormalCount > 3) {
-        warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 비정상 이익율 데이터가 제외되었습니다. Excel 파일의 수식을 확인하세요.`);
+        warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 극단 이익율 데이터가 감지되었습니다. Excel 파일의 수식을 확인하세요.`);
       }
       // 실적·계획 모두 0인 행만 제외
       const nonZero = rOP.parsed.filter(row => row.매출액.실적 !== 0 || row.매출액.계획 !== 0);

@@ -36,8 +36,8 @@ export interface BreakevenChartPoint {
  * Per-person BEP calculation using TeamContributionRecord.
  * Filters out rows with zero sales.
  * Edge cases:
- *   - variableCostRatio >= 1 -> BEP is Infinity (cannot break even)
- *   - 영업이익 = 0 -> operatingLeverage = Infinity
+ *   - variableCostRatio >= 1 -> BEP sentinel 9_999_999_999 (cannot break even)
+ *   - 영업이익 = 0 -> operatingLeverage capped at ±999
  */
 export function calcTeamBreakeven(
   data: TeamContributionRecord[]
@@ -61,26 +61,25 @@ export function calcTeamBreakeven(
     // Variable costs from the explicit 변동비합계 field
     const variableCosts = r.변동비합계.실적;
 
-    // Variable cost ratio
-    const variableCostRatio = variableCosts / sales;
+    // Variable cost ratio (sales===0 guard above, but defensive)
+    const variableCostRatio = sales !== 0 ? variableCosts / sales : 0;
 
     // Contribution margin ratio = 1 - variable cost ratio
     const contributionMarginRatio = 1 - variableCostRatio;
 
     // BEP Sales = fixedCosts / contributionMarginRatio
-    // Edge case: if contributionMarginRatio <= 0, BEP is Infinity (cannot break even)
+    // Edge case: if contributionMarginRatio <= 0, cannot break even
     let bepSales: number;
     if (contributionMarginRatio <= 0) {
-      bepSales = Infinity;
+      bepSales = 9_999_999_999; // 유한 sentinel (~100억)
     } else {
       bepSales = fixedCosts / contributionMarginRatio;
     }
 
     // Safety margin rate = (sales - BEP) / sales * 100
-    // If BEP is Infinity, safety margin is -Infinity (deeply unprofitable)
     let safetyMarginRate: number;
-    if (!isFinite(bepSales)) {
-      safetyMarginRate = -Infinity;
+    if (bepSales >= 9_999_999_999) {
+      safetyMarginRate = -999;
     } else {
       safetyMarginRate = ((sales - bepSales) / sales) * 100;
     }
@@ -96,10 +95,10 @@ export function calcTeamBreakeven(
       operatingLeverage = contributionMargin / operatingProfit;
     }
     // Cap extreme values for safe display
-    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
+    const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
+    if (!isFinite(bepSales)) bepSales = 0; // NaN fallback (canBreakEven=false가 권위적 플래그)
 
     // 역산 고정비가 음수인 경우 비정상 비용 구조 경고
     if (fixedCosts < 0) {
@@ -163,15 +162,15 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     // BEP Sales = fixedCosts / contributionMarginRatio
     let bepSales: number;
     if (contributionMarginRatio <= 0) {
-      bepSales = Infinity;
+      bepSales = 9_999_999_999;
     } else {
       bepSales = fixedCosts / contributionMarginRatio;
     }
 
     // Safety margin rate
     let safetyMarginRate: number;
-    if (!isFinite(bepSales)) {
-      safetyMarginRate = -Infinity;
+    if (bepSales >= 9_999_999_999) {
+      safetyMarginRate = -999;
     } else {
       safetyMarginRate = ((sales - bepSales) / sales) * 100;
     }
@@ -185,10 +184,10 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
       operatingLeverage = r.공헌이익.실적 / operatingProfit;
     }
     // Cap extreme values for safe display
-    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
+    const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
+    if (!isFinite(bepSales)) bepSales = 0; // NaN fallback (canBreakEven=false가 권위적 플래그)
 
     results.push({
       org: r.영업조직팀,
@@ -264,14 +263,14 @@ export function calcOrgBreakevenFromTeam(
 
     let bepSales: number;
     if (contributionMarginRatio <= 0) {
-      bepSales = Infinity;
+      bepSales = 9_999_999_999;
     } else {
       bepSales = v.fixedCosts / contributionMarginRatio;
     }
 
     let safetyMarginRate: number;
-    if (!isFinite(bepSales)) {
-      safetyMarginRate = -Infinity;
+    if (bepSales >= 9_999_999_999) {
+      safetyMarginRate = -999;
     } else {
       safetyMarginRate = ((v.sales - bepSales) / v.sales) * 100;
     }
@@ -283,10 +282,10 @@ export function calcOrgBreakevenFromTeam(
       operatingLeverage = v.contributionMargin / v.operatingProfit;
     }
     // Cap extreme values for safe display
-    const canBreakEven = isFinite(bepSales) && bepSales >= 0;
+    const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
+    if (!isFinite(bepSales)) bepSales = 0; // NaN fallback (canBreakEven=false가 권위적 플래그)
 
     results.push({
       org,

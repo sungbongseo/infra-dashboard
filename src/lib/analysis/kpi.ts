@@ -304,8 +304,8 @@ export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanV
         const field = r[key] as { 계획: number; 실적: number; 차이: number };
         const plan = field.계획;
         const actual = field.실적;
-        // plan=0 → Infinity sentinel. PlanTab에서 !isFinite(rate) → "계획없음" 표시로 안전 처리됨
-        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? Infinity : 0;
+        // plan=0 → 9999 sentinel. PlanTab에서 rate>=9999 → "계획없음" 표시로 안전 처리됨
+        const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? 9999 : 0;
         return {
           name: label,
           plan,

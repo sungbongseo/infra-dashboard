@@ -98,7 +98,7 @@ export function extractMonth(dateStr: string): string {
   if (d.length === 6 && /^\d{6}$/.test(d)) return `${d.substring(0, 4)}-${d.substring(4, 6)}`;
   // Excel serial number
   const serial = Number(d);
-  if (!isNaN(serial) && serial > 40000 && serial < 100000) {
+  if (!isNaN(serial) && serial > 30000 && serial < 100000) {
     const date = new Date((serial - 25569) * 86400 * 1000);
     if (!isNaN(date.getTime())) {
       return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -151,11 +151,16 @@ export function filterByDateRange<T extends Record<string, any>>(
   if (!dateRange || !dateRange.from || !dateRange.to) return data;
   const from = dateRange.from; // "YYYY-MM"
   const to = dateRange.to;     // "YYYY-MM"
-  return data.filter(row => {
+  let parseFailCount = 0;
+  const result = data.filter(row => {
     const month = extractMonth(String(row[dateField] || ""));
-    if (!month) return false;
+    if (!month) { parseFailCount++; return false; }
     return month >= from && month <= to;
   });
+  if (parseFailCount > 0) {
+    console.warn(`[filterByDateRange] 날짜 파싱 실패로 ${parseFailCount}건 제외 (필드: ${dateField})`);
+  }
+  return result;
 }
 
 // ─── OrgProfit 동일 조직 합산 ──────────────────────────────────────

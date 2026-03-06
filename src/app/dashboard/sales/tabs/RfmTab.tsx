@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Bar,
   BarChart,
@@ -85,6 +85,9 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
   );
 
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(new Set());
+
+  // Reset expanded segments when rfmScores changes to avoid stale references
+  useEffect(() => setExpandedSegments(new Set()), [rfmScores]);
 
   const toggleSegment = (segment: string) => {
     setExpandedSegments((prev) => {

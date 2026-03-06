@@ -65,6 +65,21 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
     }));
   }, [filteredItemProfitability]);
 
+  // 표준 vs 실제 원가 최대 차이 인사이트
+  const stdCostInsight = useMemo(() => {
+    if (top20Items.length === 0) return null;
+    const maxItem = top20Items[0];
+    const overCount = summary.overCount;
+    const underCount = summary.underCount;
+    return {
+      topName: maxItem.fullName,
+      topVariance: maxItem.차이,
+      overCount,
+      underCount,
+      avgRate: summary.avgVarianceRate,
+    };
+  }, [top20Items, summary]);
+
   if (filteredItemProfitability.length === 0 || summary.totalItems === 0) {
     return <EmptyState requiredFiles={["품목별 수익성 분석(200)"]} />;
   }
@@ -75,6 +90,18 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
       {isDateFiltered && (
         <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-400">
           표준원가 데이터(200)는 스냅샷 보고서로 기간 필터가 적용되지 않습니다. 표시된 수치는 보고서 전체 기간의 누적 데이터입니다.
+        </div>
+      )}
+
+      {stdCostInsight && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">표준원가 차이 핵심 요약</p>
+          <p className="text-muted-foreground">
+            최대 차이 품목: {stdCostInsight.topName} ({formatCurrency(stdCostInsight.topVariance)})
+            {" | "}초과 {stdCostInsight.overCount}건 / 절감 {stdCostInsight.underCount}건
+            {" | "}평균 차이율: {isFinite(stdCostInsight.avgRate) ? `${stdCostInsight.avgRate.toFixed(1)}%` : "-"}
+            {stdCostInsight.avgRate > 5 && " — 전반적으로 실제원가가 표준 대비 높아 원가관리 강화가 필요합니다."}
+          </p>
         </div>
       )}
 

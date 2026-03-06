@@ -137,7 +137,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
               <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis type="category" dataKey="segment" width={80} tick={{ fontSize: 11 }} />
-              <RechartsTooltip formatter={(v: any, name: any) => name.includes("율") || name.includes("비중") ? `${isFinite(Number(v)) ? Number(v).toFixed(1) : "-"}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+              <RechartsTooltip formatter={(v: any, name: any) => (String(name ?? "")).includes("율") || (String(name ?? "")).includes("비중") ? `${isFinite(Number(v)) ? Number(v).toFixed(1) : "-"}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
               <Bar dataKey="totalSales" name="매출액" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Bar dataKey="totalGrossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />

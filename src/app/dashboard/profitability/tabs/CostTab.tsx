@@ -52,8 +52,33 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered }: CostTab
     });
   }, [costEfficiency]);
 
+  // 비용 구조 Top 3 인사이트
+  const costInsight = useMemo(() => {
+    if (costBarData.length === 0) return null;
+    const totals = COST_KEYS.map((key) => ({
+      key,
+      total: costBarData.reduce((s, d) => s + (Number(d[key]) || 0), 0),
+    })).sort((a, b) => b.total - a.total);
+    const grandTotal = totals.reduce((s, t) => s + t.total, 0);
+    if (grandTotal <= 0) return null;
+    return totals.slice(0, 3).map((t) => ({
+      name: t.key,
+      share: (t.total / grandTotal) * 100,
+    }));
+  }, [costBarData]);
+
   return (
     <>
+      {costInsight && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">비용 구조 핵심 요약</p>
+          <p className="text-muted-foreground">
+            비용 Top 3: {costInsight.map((c) => `${c.name} ${c.share.toFixed(1)}%`).join(", ")}
+            {" — "}이 3개 항목이 전체 비용의 {costInsight.reduce((s, c) => s + c.share, 0).toFixed(0)}%를 차지합니다.
+            {costInsight[0].share >= 50 && ` ${costInsight[0].name} 비중이 과반으로, 이 항목의 효율화가 원가 절감의 핵심입니다.`}
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Stacked Bar Chart */}
         <ChartCard

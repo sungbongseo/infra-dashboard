@@ -53,10 +53,32 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
     [filteredSales, itemCategoryField]
   );
 
+  // 결제조건 인사이트
+  const channelInsight = useMemo(() => {
+    if (paymentTermSales.length === 0) return null;
+    const total = paymentTermSales.reduce((s, p) => s + p.amount, 0);
+    if (total <= 0) return null;
+    const top = paymentTermSales[0];
+    const topPct = (top.amount / total) * 100;
+    const cashTerms = paymentTermSales.filter((p) => p.term.includes("현금") || p.term.includes("선급") || p.term.includes("선수"));
+    const cashPct = cashTerms.reduce((s, p) => s + p.amount, 0) / total * 100;
+    return { topTerm: top.term, topPct, cashPct };
+  }, [paymentTermSales]);
+
   if (filteredSales.length === 0) return <EmptyState />;
 
   return (
     <>
+      {channelInsight && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">결제조건 요약</p>
+          <p className="text-muted-foreground">
+            최대 비중: {channelInsight.topTerm} ({channelInsight.topPct.toFixed(1)}%)
+            {channelInsight.cashPct > 0 && ` | 현금성 결제 비중: ${channelInsight.cashPct.toFixed(1)}%`}
+            {channelInsight.cashPct < 20 && " — 외상 비중이 높아 미수금 관리에 유의하세요."}
+          </p>
+        </div>
+      )}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         isEmpty={paymentTermSales.length === 0}
         title="결제조건별 매출 분포"

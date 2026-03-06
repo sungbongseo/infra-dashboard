@@ -54,6 +54,17 @@ export function SgaBreakdownTab({
     [filteredOrgCustProfit]
   );
 
+  // 판관비 최대 항목 인사이트
+  const sgaInsight = useMemo(() => {
+    if (sgaItems.length === 0) return null;
+    const totalActual = sgaItems.reduce((s, d) => s + d.actual, 0);
+    if (totalActual <= 0) return null;
+    const top = sgaItems[0];
+    const topPct = (top.actual / totalActual) * 100;
+    const overBudget = sgaItems.filter((d) => d.actual > d.plan && d.plan > 0);
+    return { topItem: top.item, topPct, overBudgetCount: overBudget.length };
+  }, [sgaItems]);
+
   if (sgaItems.length === 0) {
     return <EmptyState />;
   }
@@ -73,6 +84,16 @@ export function SgaBreakdownTab({
       {isDateFiltered && (
         <div className="rounded-md border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 p-3 text-sm text-amber-700 dark:text-amber-400">
           303 데이터는 스냅샷 보고서로 기간 필터가 적용되지 않습니다. 표시된 수치는 보고서 전체 기간의 누적 데이터입니다.
+        </div>
+      )}
+
+      {sgaInsight && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+          <p className="font-medium">판관비 핵심 요약</p>
+          <p className="text-muted-foreground">
+            최대 항목: {sgaInsight.topItem} (전체의 {sgaInsight.topPct.toFixed(1)}%)
+            {sgaInsight.overBudgetCount > 0 && ` | 예산 초과 항목: ${sgaInsight.overBudgetCount}개 — 초과 원인 분석이 필요합니다.`}
+          </p>
         </div>
       )}
 

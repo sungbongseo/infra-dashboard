@@ -55,6 +55,15 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
     [profitRiskData]
   );
 
+  if (profitRiskData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm">
+        <Info className="h-8 w-8 mb-2" />
+        <p>수익성×리스크 매트릭스를 표시하려면 조직별 손익 데이터가 필요합니다.</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {profitRiskResult.matchFailures > 0 && (
