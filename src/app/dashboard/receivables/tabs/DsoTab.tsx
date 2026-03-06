@@ -231,7 +231,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
     []
   );
 
-  if (allRecords.length === 0) return <EmptyState />;
+  if (allRecords.length === 0) return <EmptyState requiredFiles={["미수채권연령", "매출리스트"]} />;
 
   return (
     <>

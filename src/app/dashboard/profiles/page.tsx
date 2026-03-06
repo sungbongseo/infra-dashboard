@@ -146,7 +146,7 @@ export default function ProfilesPage() {
   );
 
   if (isLoading) return <PageSkeleton />;
-  if (!hasData) return <EmptyState />;
+  if (!hasData) return <EmptyState requiredFiles={["매출리스트", "팀원별 공헌이익"]} />;
 
   const formulaText = hasAgingData
     ? "매출 점수 = 개인 매출액 ÷ 조직 최대 매출 × 20\n수주 점수 = 개인 수주액 ÷ 조직 최대 수주 × 20\n수익성 점수 = 개인 공헌이익률 ÷ 조직 최대율 × 20\n수금 점수 = 수금율 × 20\n미수금건전성 = (1 − 장기연체비율) × 20"

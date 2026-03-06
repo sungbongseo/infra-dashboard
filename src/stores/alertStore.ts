@@ -152,7 +152,8 @@ function buildMessage(
   const label = METRIC_LABELS[metric] || metric;
   const unit = METRIC_UNITS[metric] || "";
   const dir = condition === "lt" ? "미만" : "초과";
-  return `${ruleName}: ${label} ${currentValue.toFixed(1)}${unit} (기준 ${threshold}${unit} ${dir})`;
+  const displayValue = isFinite(currentValue) ? currentValue.toFixed(1) : "-";
+  return `${ruleName}: ${label} ${displayValue}${unit} (기준 ${threshold}${unit} ${dir})`;
 }
 
 export const useAlertStore = create<AlertState>((set, get) => ({

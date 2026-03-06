@@ -34,7 +34,7 @@ export function PrepaymentTab({
   hasCollections,
   isDateFiltered,
 }: PrepaymentTabProps) {
-  if (!hasCollections) return <EmptyState />;
+  if (!hasCollections) return <EmptyState requiredFiles={["수금리스트"]} />;
 
   return (
     <>

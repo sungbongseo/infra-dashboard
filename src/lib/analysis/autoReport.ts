@@ -40,6 +40,10 @@ function fmt(n: number): string {
   return `${n.toFixed(0)}원`;
 }
 
+function sf(n: number, d = 1): string {
+  return isFinite(n) ? n.toFixed(d) : "-";
+}
+
 // ─── Core Function ────────────────────────────────────────────
 
 /**
@@ -51,20 +55,20 @@ export function generateMonthlyReport(input: ReportInput, period: string, insigh
   // 1. Executive Summary
   sections.push({
     title: "경영 요약",
-    content: `${period} 기준 총 매출 ${fmt(input.totalSales)}, 수주 ${fmt(input.totalOrders)}, 수금 ${fmt(input.totalCollections)}을 기록하였습니다. 수금율은 ${input.collectionRate.toFixed(1)}%, 매출총이익율 ${input.gpRate.toFixed(1)}%, 영업이익율 ${input.opRate.toFixed(1)}%입니다.`,
+    content: `${period} 기준 총 매출 ${fmt(input.totalSales)}, 수주 ${fmt(input.totalOrders)}, 수금 ${fmt(input.totalCollections)}을 기록하였습니다. 수금율은 ${sf(input.collectionRate)}%, 매출총이익율 ${sf(input.gpRate)}%, 영업이익율 ${sf(input.opRate)}%입니다.`,
     type: "summary",
     priority: "high",
   });
 
   // 2. Plan Achievement
   if (input.planAchievement > 0) {
-    const achieveStatus = input.planAchievement >= 100 ? "달성" : `미달(${input.planAchievement.toFixed(1)}%)`;
+    const achieveStatus = input.planAchievement >= 100 ? "달성" : `미달(${sf(input.planAchievement)}%)`;
     sections.push({
       title: "계획 달성 현황",
       content: `매출 계획 ${achieveStatus}. ${
         input.planAchievement >= 100
           ? "목표 초과 달성으로 양호한 성과입니다."
-          : `목표 대비 ${(100 - input.planAchievement).toFixed(1)}%p 부족합니다. 잔여 기간 집중 관리가 필요합니다.`
+          : `목표 대비 ${sf(100 - input.planAchievement)}%p 부족합니다. 잔여 기간 집중 관리가 필요합니다.`
       }`,
       type: input.planAchievement >= 100 ? "highlight" : "risk",
       priority: input.planAchievement >= 90 ? "medium" : "high",
@@ -74,7 +78,7 @@ export function generateMonthlyReport(input: ReportInput, period: string, insigh
   // 3. Growth
   sections.push({
     title: "성장 추세",
-    content: `전기 대비 매출 성장률 ${input.salesGrowth >= 0 ? "+" : ""}${input.salesGrowth.toFixed(1)}%. ${
+    content: `전기 대비 매출 성장률 ${input.salesGrowth >= 0 ? "+" : ""}${sf(input.salesGrowth)}%. ${
       input.salesGrowth > 5
         ? "양호한 성장세를 유지하고 있습니다."
         : input.salesGrowth > 0
@@ -89,7 +93,7 @@ export function generateMonthlyReport(input: ReportInput, period: string, insigh
   if (input.collectionRate < 80 || input.dso > 90) {
     sections.push({
       title: "수금 리스크",
-      content: `수금율 ${input.collectionRate.toFixed(1)}%${input.collectionRate < 80 ? "(주의)" : ""}, DSO ${input.dso.toFixed(0)}일${input.dso > 90 ? "(경고)" : ""}. ${
+      content: `수금율 ${sf(input.collectionRate)}%${input.collectionRate < 80 ? "(주의)" : ""}, DSO ${sf(input.dso, 0)}일${input.dso > 90 ? "(경고)" : ""}. ${
         input.dso > 90
           ? "매출채권 회수 기간이 업종 평균(60일) 대비 길어 현금흐름 관리가 필요합니다."
           : "양호한 수준입니다."
@@ -118,7 +122,7 @@ export function generateMonthlyReport(input: ReportInput, period: string, insigh
     const riskRate = input.totalCustomers > 0 ? (input.atRiskCustomers / input.totalCustomers) * 100 : 0;
     sections.push({
       title: "거래처 이탈 위험",
-      content: `전체 ${input.totalCustomers}개 거래처 중 ${input.atRiskCustomers}개(${riskRate.toFixed(1)}%)가 이탈 위험 상태입니다. 핵심 거래처 리텐션 캠페인을 검토하십시오.`,
+      content: `전체 ${input.totalCustomers}개 거래처 중 ${input.atRiskCustomers}개(${sf(riskRate)}%)가 이탈 위험 상태입니다. 핵심 거래처 리텐션 캠페인을 검토하십시오.`,
       type: "risk",
       priority: riskRate > 20 ? "high" : "medium",
     });

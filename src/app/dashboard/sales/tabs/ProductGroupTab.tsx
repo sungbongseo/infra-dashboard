@@ -117,7 +117,7 @@ export function ProductGroupTab({
   }, [portfolio]);
 
   if (filteredCustomerItemDetail.length === 0) {
-    return <EmptyState />;
+    return <EmptyState requiredFiles={["거래처별 품목별 손익(100)"]} />;
   }
 
   const currentOption = classification.all.find((o) => o.field === field)!;

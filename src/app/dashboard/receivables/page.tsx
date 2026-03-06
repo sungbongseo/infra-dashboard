@@ -71,7 +71,7 @@ export default function ReceivablesPage() {
   const mediumRiskCount = risks.filter((r) => r.riskGrade === "medium").length;
 
   if (isLoading) return <PageSkeleton />;
-  if (!hasData) return <EmptyState />;
+  if (!hasData) return <EmptyState requiredFiles={["미수채권연령"]} />;
 
   return (
     <div className="space-y-6">

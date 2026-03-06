@@ -1,5 +1,4 @@
 import { SalesRecord } from "@/types/sales";
-import { extractMonth } from "@/lib/utils";
 
 // 결제조건별 매출 분포
 export interface PaymentTermSales {
@@ -278,45 +277,3 @@ export function detectItemCategoryField(
   return null;
 }
 
-/** @deprecated ChannelTab에서 미사용 — calcSalesByItemCategory()로 대체 */
-export interface ProductGroupTrend {
-  month: string;
-  [productGroup: string]: number | string;
-}
-
-export function calcProductGroupTrends(
-  sales: SalesRecord[]
-): ProductGroupTrend[] {
-  // Collect all product groups and monthly data
-  const monthMap = new Map<string, Map<string, number>>();
-  const productGroups = new Set<string>();
-
-  for (const row of sales) {
-    const month = extractMonth(row.매출일 || "");
-    if (!month) continue;
-    const group = (row.제품군 || "미분류").trim() || "미분류";
-    const amount = row.장부금액 || 0;
-
-    productGroups.add(group);
-
-    let groupMap = monthMap.get(month);
-    if (!groupMap) {
-      groupMap = new Map<string, number>();
-      monthMap.set(month, groupMap);
-    }
-    groupMap.set(group, (groupMap.get(group) || 0) + amount);
-  }
-
-  // Build result sorted by month ascending
-  const months = Array.from(monthMap.keys()).sort();
-  const results: ProductGroupTrend[] = months.map((month) => {
-    const groupMap = monthMap.get(month)!;
-    const entry: ProductGroupTrend = { month };
-    Array.from(productGroups).forEach((group) => {
-      entry[group] = groupMap.get(group) || 0;
-    });
-    return entry;
-  });
-
-  return results;
-}

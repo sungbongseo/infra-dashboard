@@ -103,7 +103,7 @@ export default function SalesAnalysisPage() {
   }, [topCustomers, totalSalesAmount]);
 
   if (isLoading) return <PageSkeleton />;
-  if (filteredSales.length === 0) return <EmptyState />;
+  if (filteredSales.length === 0) return <EmptyState requiredFiles={["매출리스트"]} />;
 
   return (
     <div className="space-y-6">

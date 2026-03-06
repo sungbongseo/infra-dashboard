@@ -120,13 +120,13 @@ export default function ProfitabilityPage() {
   const hasCustItemData = filteredCustItemDetail.length > 0;
   const isUsingDateFiltered = isDateFilterActive && hasCustItemData;
 
-  const effectiveProfAnalysis = useMemo(() => {
-    if (isUsingDateFiltered) return filteredCustItemDetail as any[];
+  const effectiveProfAnalysis = useMemo((): (typeof filteredProfAnalysis[number] | typeof filteredCustItemDetail[number])[] => {
+    if (isUsingDateFiltered) return filteredCustItemDetail;
     return filteredProfAnalysis;
   }, [isUsingDateFiltered, filteredCustItemDetail, filteredProfAnalysis]);
 
-  const effectiveHqCustItemProfit = useMemo(() => {
-    if (isUsingDateFiltered) return filteredCustItemDetail as any[];
+  const effectiveHqCustItemProfit = useMemo((): (typeof filteredHqCustItemProfit[number] | typeof filteredCustItemDetail[number])[] => {
+    if (isUsingDateFiltered) return filteredCustItemDetail;
     return filteredHqCustItemProfit;
   }, [isUsingDateFiltered, filteredCustItemDetail, filteredHqCustItemProfit]);
 
@@ -429,7 +429,7 @@ export default function ProfitabilityPage() {
   }, [productProfitability]);
 
   if (isLoading) return <PageSkeleton />;
-  if (!hasData) return <EmptyState />;
+  if (!hasData) return <EmptyState requiredFiles={["조직별 손익", "수익성분석(901)"]} />;
 
   return (
     <div className="space-y-6">
@@ -611,9 +611,9 @@ export default function ProfitabilityPage() {
         <TabsContent value="sensitivity" className="space-y-6">
           <ErrorBoundary>
             <SensitivityTab
-              baseSales={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.매출액?.실적 ?? 0), 0) : totalSales}
-              baseGrossProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.매출총이익?.실적 ?? 0), 0) : totalGP}
-              baseOpProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r: any) => s + (r.영업이익?.실적 ?? 0), 0) : totalOp}
+              baseSales={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.매출액?.실적 ?? 0), 0) : totalSales}
+              baseGrossProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.매출총이익?.실적 ?? 0), 0) : totalGP}
+              baseOpProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.영업이익?.실적 ?? 0), 0) : totalOp}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>

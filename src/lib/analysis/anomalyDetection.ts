@@ -66,28 +66,6 @@ export function detectAnomalies(
   };
 }
 
-/**
- * @deprecated detectEnhancedSalesAnomalies()로 대체됨 — 원인 분석·기여 거래처 포함
- * Detect anomalies from raw sales records.
- * Aggregates by month first, then applies IQR.
- */
-export function detectSalesAnomalies(
-  sales: SalesRecord[],
-  multiplier: number = 1.5
-): AnomalyStats {
-  const monthMap = new Map<string, number>();
-  for (const r of sales) {
-    const month = extractMonth(r.매출일);
-    if (!month) continue;
-    monthMap.set(month, (monthMap.get(month) ?? 0) + r.장부금액);
-  }
-
-  const monthlyData = Array.from(monthMap.entries())
-    .map(([month, value]) => ({ month, value }))
-    .sort((a, b) => a.month.localeCompare(b.month));
-
-  return detectAnomalies(monthlyData, multiplier);
-}
 
 // ─── Enhanced Anomaly Detection ──────────────────────────────
 

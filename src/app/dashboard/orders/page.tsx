@@ -137,7 +137,7 @@ export default function OrdersAnalysisPage() {
   const outstandingAmount = pipelineStages.find((s) => s.stage === "미수잔액")?.amount ?? 0;
 
   if (isLoading) return <PageSkeleton />;
-  if (filteredOrders.length === 0) return <EmptyState />;
+  if (filteredOrders.length === 0) return <EmptyState requiredFiles={["수주리스트"]} />;
 
   return (
     <div className="space-y-6">

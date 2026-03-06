@@ -117,19 +117,6 @@ export function calcTopCustomers(sales: SalesRecord[], topN = 10) {
     .slice(0, topN);
 }
 
-export function calcItemSales(sales: SalesRecord[]) {
-  const itemMap = new Map<string, { name: string; amount: number; category: string }>();
-  for (const r of sales) {
-    const key = r.대분류 || r.품목;
-    if (!key) continue;
-    const entry = itemMap.get(key) || { name: key, amount: 0, category: r.대분류 };
-    entry.amount += r.장부금액;
-    itemMap.set(key, entry);
-  }
-  return Array.from(itemMap.values())
-    .sort((a, b) => b.amount - a.amount);
-}
-
 export function calcSalesByType(sales: SalesRecord[]) {
   const domestic = sales.filter(r => {
     const currency = (r.거래통화 || "KRW").trim().toUpperCase();
@@ -140,16 +127,6 @@ export function calcSalesByType(sales: SalesRecord[]) {
     return r.수주유형 === "수출" || currency !== "KRW";
   }).reduce((s, r) => s + r.장부금액, 0);
   return { domestic, exported };
-}
-
-// ─── 비용 구조 음수 매출 경고 (E1) ──────────────────────────────────
-
-/**
- * 매출액이 음수인 행(반품/환불/대변전표) 수를 반환.
- * 비용구조 분석에서 이 행들은 제외되므로, UI에서 경고 표시용으로 사용.
- */
-export function countNegativeSalesRows(teamContribData: TeamContributionRecord[]): number {
-  return teamContribData.filter((r) => r.매출액.실적 < 0).length;
 }
 
 // ─── 수금율 선수금 분리 표시 (E3) ───────────────────────────────────

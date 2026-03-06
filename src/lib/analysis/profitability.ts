@@ -1,4 +1,4 @@
-import type { ProfitabilityAnalysisRecord } from "@/types";
+import type { ProfitabilityAnalysisRecord, CustomerItemDetailRecord } from "@/types";
 
 export interface ProductProfitability {
   product: string;
@@ -37,7 +37,7 @@ export interface ProfitabilityMatrix {
  * options.sortBy: "grossProfit"(기본) | "sales"
  */
 export function calcProductProfitability(
-  data: ProfitabilityAnalysisRecord[],
+  data: (ProfitabilityAnalysisRecord | CustomerItemDetailRecord)[],
   options?: { sortBy?: "grossProfit" | "sales"; groupBy?: "품목" | "제품군" }
 ): ProductProfitability[] {
   const sortBy = options?.sortBy ?? "grossProfit";
@@ -50,7 +50,7 @@ export function calcProductProfitability(
 
   for (const r of data) {
     const key = groupBy === "제품군"
-      ? ((r as any).제품군 || r.품목)
+      ? ("제품군" in r ? (r as CustomerItemDetailRecord).제품군 : r.품목) || r.품목
       : r.품목;
     if (!key) continue;
 
@@ -88,7 +88,7 @@ export function calcProductProfitability(
  * ProfitabilityAnalysisRecord의 매출거래처 필드로 그룹핑
  */
 export function calcCustomerProfitability(
-  data: ProfitabilityAnalysisRecord[]
+  data: (ProfitabilityAnalysisRecord | CustomerItemDetailRecord)[]
 ): CustomerProfitability[] {
   const map = new Map<
     string,

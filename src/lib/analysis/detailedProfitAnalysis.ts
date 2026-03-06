@@ -1,4 +1,5 @@
 import type { CustomerItemDetailRecord, ProfitabilityAnalysisRecord } from "@/types";
+import { detectBestClassification, type ClassificationField } from "./productGroupAnalysis";
 
 /** Union type for records that have the fields needed by calcMarginErosion */
 type MarginErosionRecord = CustomerItemDetailRecord | ProfitabilityAnalysisRecord;
@@ -100,7 +101,8 @@ export interface ProductGroupSummary {
  * 제품군으로 그룹핑하여 재무 지표 집계, 가중 마진 계산, 고유 품목/거래처 수 집계
  */
 export function calcProductGroupAnalysis(
-  data: CustomerItemDetailRecord[]
+  data: CustomerItemDetailRecord[],
+  classificationField?: ClassificationField,
 ): ProductGroupSummary[] {
   const map = new Map<
     string,
@@ -117,8 +119,10 @@ export function calcProductGroupAnalysis(
     }
   >();
 
+  const field = classificationField || detectBestClassification(data).best.field;
+
   for (const r of data) {
-    const group = r.제품군 || "(미분류)";
+    const group = (r[field] || "").trim() || "(미분류)";
 
     const entry = map.get(group) || {
       sales: 0,

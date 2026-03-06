@@ -3,7 +3,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
-import { formatCurrency, formatPercent, formatNumber, calcChangeRate, getChangeColor, getChangeArrow } from "@/lib/utils";
+import { formatCurrency, formatPercent, formatNumber, calcChangeRate, getChangeColor, getChangeArrow, safeFixed } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
@@ -124,7 +124,7 @@ export function KpiCard({
               )}
               {changeRate !== null && (
                 <p className={cn("text-xs font-medium", getChangeColor(changeRate))}>
-                  {getChangeArrow(changeRate)} {Math.abs(changeRate).toFixed(1)}%
+                  {getChangeArrow(changeRate)} {safeFixed(Math.abs(changeRate))}%
                   <span className="text-muted-foreground ml-1">vs 이전</span>
                 </p>
               )}

@@ -33,7 +33,7 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
   const custPortfolio = useMemo(() => calcCustomerPortfolio(effectiveHqCustItemProfit), [effectiveHqCustItemProfit]);
   const topCombinations = useMemo(() => calcCrossProfitability(effectiveHqCustItemProfit).slice(0, 20), [effectiveHqCustItemProfit]);
 
-  if (effectiveHqCustItemProfit.length === 0) return <EmptyState />;
+  if (effectiveHqCustItemProfit.length === 0) return <EmptyState requiredFiles={["거래처별 품목별 손익(100)"]} />;
 
   return (
     <>

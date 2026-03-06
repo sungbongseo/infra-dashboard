@@ -66,7 +66,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
   }, [filteredItemProfitability]);
 
   if (filteredItemProfitability.length === 0 || summary.totalItems === 0) {
-    return <EmptyState />;
+    return <EmptyState requiredFiles={["품목별 수익성 분석(200)"]} />;
   }
 
   return (

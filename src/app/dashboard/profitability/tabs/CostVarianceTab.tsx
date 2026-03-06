@@ -155,7 +155,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
     [variance.totalActualCost]
   );
 
-  if (variance.categories.length === 0) return <EmptyState />;
+  if (variance.categories.length === 0) return <EmptyState requiredFiles={["수익성분석(901)"]} />;
 
   return (
     <>

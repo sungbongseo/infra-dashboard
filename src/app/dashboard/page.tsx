@@ -524,7 +524,7 @@ export default function OverviewPage() {
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
-              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${forecast.stats.avgGrowthRate.toFixed(1)}% 성장률`}
+              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률`}
               benchmark="설명력(R제곱)이 70% 이상이면 예측 신뢰도 높음"
               reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망하고, 자원 배분과 목표 설정에 활용합니다."
             >

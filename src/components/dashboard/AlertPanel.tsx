@@ -45,7 +45,7 @@ function AlertItem({
       <div className="flex-1 min-w-0">
         <p className="font-medium text-xs leading-snug">{alert.ruleName}</p>
         <p className="text-[11px] text-muted-foreground mt-0.5">
-          현재 {alert.currentValue.toFixed(1)}
+          현재 {isFinite(alert.currentValue) ? alert.currentValue.toFixed(1) : "-"}
           {unit} / 기준 {alert.threshold}
           {unit}
         </p>

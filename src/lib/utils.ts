@@ -6,6 +6,10 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+export function safeFixed(value: number, decimals = 1, fallback = "-"): string {
+  return isFinite(value) ? value.toFixed(decimals) : fallback;
+}
+
 export function formatCurrency(value: number, compact = false): string {
   if (!isFinite(value)) return "-";
   if (compact) {
