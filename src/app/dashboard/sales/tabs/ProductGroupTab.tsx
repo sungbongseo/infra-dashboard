@@ -131,11 +131,12 @@ export function ProductGroupTab({
           <button
             key={opt.field}
             onClick={() => setActiveField(opt.field)}
+            disabled={opt.uniqueCount < 3}
             className={`rounded-md px-3 py-1 text-xs font-medium transition-colors ${
               opt.field === field
                 ? "bg-primary text-primary-foreground"
                 : "bg-background hover:bg-muted border"
-            } ${opt.uniqueCount < 3 ? "opacity-50" : ""}`}
+            } ${opt.uniqueCount < 3 ? "opacity-50 cursor-not-allowed" : ""}`}
           >
             {opt.label} ({opt.uniqueCount}종, {(opt.fillRate * 100).toFixed(0)}%)
           </button>

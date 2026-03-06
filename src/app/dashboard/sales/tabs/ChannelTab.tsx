@@ -47,8 +47,10 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
     [filteredSales]
   );
   const itemCategorySales = useMemo(
-    () => groupSmallItemCategories(calcSalesByItemCategory(filteredSales, itemCategoryField.key), 3),
-    [filteredSales, itemCategoryField.key]
+    () => itemCategoryField
+      ? groupSmallItemCategories(calcSalesByItemCategory(filteredSales, itemCategoryField.key), 3)
+      : [],
+    [filteredSales, itemCategoryField]
   );
 
   if (filteredSales.length === 0) return <EmptyState />;
@@ -135,63 +137,66 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
         </ChartContainer>
       </ChartCard>
 
-      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-        isEmpty={itemCategorySales.length === 0}
-        title={`${itemCategoryField.label}별 매출 및 평균 단가`}
-        formula={`${itemCategoryField.label}별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)`}
-        description={`${itemCategoryField.label}별 매출 규모와 평균 단가를 보여줍니다.`}
-        benchmark={`상위 3개 ${itemCategoryField.label} 집중도 70% 이하가 바람직`}
-        reason="제품군별 매출 규모와 단가 수준을 비교하여 고마진 제품군의 확대 기회를 발굴하고, 제품군 간 가격 경쟁력을 점검합니다."
-      >
-        {itemCategorySales.length === 1 && (
-          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300 mb-2">
-            <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>
-              {itemCategorySales[0].category === "미분류"
-                ? "제품군/품목범주 데이터가 비어있어 모든 품목이 '미분류'로 표시됩니다. 매출리스트 Excel에 제품군 또는 품목범주 컬럼이 포함되어 있는지 확인하세요."
-                : `${itemCategoryField.label} 분류가 단일 값('${itemCategorySales[0].category}')이어서 비교 분석이 제한됩니다.`}
-            </span>
-          </div>
-        )}
-        <ChartContainer height="h-72 md:h-96">
-          <ComposedChart data={itemCategorySales}>
-            <CartesianGrid {...GRID_PROPS} />
-            <XAxis dataKey="category" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
-            <YAxis
-              yAxisId="amount"
-              orientation="left"
-              tick={{ fontSize: 11 }}
-              tickFormatter={(v) => formatCurrency(v, true)}
-              label={{ value: "매출액", angle: -90, position: "insideLeft", style: { fontSize: 12 } }}
-            />
-            <YAxis
-              yAxisId="price"
-              orientation="right"
-              tick={{ fontSize: 11 }}
-              tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
-              label={{ value: "평균단가", angle: 90, position: "insideRight", style: { fontSize: 12 } }}
-            />
-            <RechartsTooltip
-              {...TOOLTIP_STYLE}
-              formatter={(value: any, name: any) => {
-                if (name === "매출액") return formatCurrency(Number(value));
-                if (name === "평균단가") return `${formatCurrency(Number(value))}/개`;
-                return value;
-              }}
-            />
-            <Legend />
-            <Bar yAxisId="amount" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[8, 8, 0, 0]} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
-              <LabelList
-                dataKey="share"
-                position="top"
-                formatter={(v: any) => `${Number(v).toFixed(1)}%`}
-                style={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+      {itemCategoryField && itemCategorySales.length >= 2 ? (
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+          isEmpty={false}
+          title={`${itemCategoryField.label}별 매출 및 평균 단가`}
+          formula={`${itemCategoryField.label}별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)`}
+          description={`${itemCategoryField.label}별 매출 규모와 평균 단가를 보여줍니다.`}
+          benchmark={`상위 3개 ${itemCategoryField.label} 집중도 70% 이하가 바람직`}
+          reason="제품군별 매출 규모와 단가 수준을 비교하여 고마진 제품군의 확대 기회를 발굴하고, 제품군 간 가격 경쟁력을 점검합니다."
+        >
+          <ChartContainer height="h-72 md:h-96">
+            <ComposedChart data={itemCategorySales}>
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="category" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
+              <YAxis
+                yAxisId="amount"
+                orientation="left"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => formatCurrency(v, true)}
+                label={{ value: "매출액", angle: -90, position: "insideLeft", style: { fontSize: 12 } }}
               />
-            </Bar>
-            <Line yAxisId="price" type="monotone" dataKey="avgUnitPrice" stroke={CHART_COLORS[3]} strokeWidth={2} name="평균단가" dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
-          </ComposedChart>
-        </ChartContainer>
-      </ChartCard>
+              <YAxis
+                yAxisId="price"
+                orientation="right"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                label={{ value: "평균단가", angle: 90, position: "insideRight", style: { fontSize: 12 } }}
+              />
+              <RechartsTooltip
+                {...TOOLTIP_STYLE}
+                formatter={(value: any, name: any) => {
+                  if (name === "매출액") return formatCurrency(Number(value));
+                  if (name === "평균단가") return `${formatCurrency(Number(value))}/개`;
+                  return value;
+                }}
+              />
+              <Legend />
+              <Bar yAxisId="amount" dataKey="amount" fill={CHART_COLORS[0]} name="매출액" radius={[8, 8, 0, 0]} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
+                <LabelList
+                  dataKey="share"
+                  position="top"
+                  formatter={(v: any) => `${Number(v).toFixed(1)}%`}
+                  style={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                />
+              </Bar>
+              <Line yAxisId="price" type="monotone" dataKey="avgUnitPrice" stroke={CHART_COLORS[3]} strokeWidth={2} name="평균단가" dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
+            </ComposedChart>
+          </ChartContainer>
+        </ChartCard>
+      ) : (
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+          isEmpty={true}
+          title="제품군별 매출 및 평균 단가"
+          description="매출리스트에 2종 이상의 제품군/대분류/중분류 데이터가 있을 때 표시됩니다."
+        >
+          <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span>제품군·대분류·중분류·소분류·품목범주·계정구분 중 2종 이상의 값을 가진 필드가 없어 분류별 비교 분석을 표시할 수 없습니다.</span>
+          </div>
+        </ChartCard>
+      )}
     </>
   );
 }
