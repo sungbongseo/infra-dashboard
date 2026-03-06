@@ -64,8 +64,27 @@ export interface PaymentMethodAnalysis {
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? null : d;
+  const s = dateStr.trim();
+
+  // Excel 직렬번호 (40000~100000 ≈ 2009~2173)
+  const serial = Number(s);
+  if (!isNaN(serial) && serial > 40000 && serial < 100000) {
+    return new Date((serial - 25569) * 86400 * 1000);
+  }
+
+  // YYYYMMDD 8자리
+  if (s.length === 8 && /^\d{8}$/.test(s)) {
+    const d = new Date(`${s.substring(0, 4)}-${s.substring(4, 6)}-${s.substring(6, 8)}`);
+    return isNaN(d.getTime()) ? null : d;
+  }
+
+  // 표준 포맷 (YYYY-MM-DD, YYYY/MM/DD 등)
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return null;
+  // 연도 범위 검증 — 직렬번호가 연도로 잘못 파싱되는 것 방지
+  const year = d.getFullYear();
+  if (year < 1900 || year > 2200) return null;
+  return d;
 }
 
 function daysBetween(d1: Date, d2: Date): number {
