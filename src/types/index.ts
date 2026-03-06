@@ -4,6 +4,7 @@ export * from "./orders";
 export * from "./profitability";
 export * from "./receivables";
 export * from "./itemCost";
+export * from "./inventory";
 
 export type FileType =
   | "organization"
@@ -19,6 +20,7 @@ export type FileType =
   | "customerItemDetail"     // C3: 100
   | "itemCostDetail"         // 501: 품목별매출원가(상세)
   | "itemProfitability"      // 200: 품목별수익성분석(회계)
+  | "inventoryMovement"      // 품목별 수불현황
 ;
 
 export interface UploadedFile {

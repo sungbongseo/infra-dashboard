@@ -10,7 +10,7 @@ import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
 import { parseExcelFile } from "@/lib/excel/parser";
 import { detectFileType } from "@/lib/excel/schemas";
-import { saveDataset, saveAgingData, saveOrgFilter, saveUploadedFiles, clearAllDB, hasStoredData } from "@/lib/db";
+import { saveDataset, saveAgingData, saveInventoryData, saveOrgFilter, saveUploadedFiles, clearAllDB, hasStoredData } from "@/lib/db";
 import type { StoredUploadedFile } from "@/lib/db";
 import type { UploadedFile } from "@/types";
 import { cn } from "@/lib/utils";
@@ -43,6 +43,7 @@ export function FileUploader() {
     setItemCostDetail,
     setItemProfitability,
     setReceivableAging,
+    setInventoryMovement,
     clearAllData,
   } = useDataStore();
 
@@ -233,6 +234,9 @@ export function FileUploader() {
           case "receivableAging":
             setReceivableAging(result.sourceName || file.name, result.data as any[]);
             break;
+          case "inventoryMovement":
+            setInventoryMovement(result.sourceName || file.name, result.data as any[]);
+            break;
         }
 
         setProgress(100);
@@ -274,6 +278,11 @@ export function FileUploader() {
               console.error("IndexedDB 에이징 저장 실패:", e)
             );
             break;
+          case "inventoryMovement":
+            saveInventoryData(result.sourceName || file.name, result.data as any[]).catch((e) =>
+              console.error("IndexedDB 수불현황 저장 실패:", e)
+            );
+            break;
         }
 
         // Save uploaded files list to IndexedDB (fire-and-forget)
@@ -304,7 +313,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging]
+    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging, setInventoryMovement]
   );
 
   const handleDrop = useCallback(

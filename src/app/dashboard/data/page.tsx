@@ -21,6 +21,7 @@ const TYPE_LABELS: Record<string, string> = {
   customerItemDetail: "거래처별품목별손익",
   itemCostDetail: "품목별매출원가(상세)",
   itemProfitability: "품목별수익성분석(회계)",
+  inventoryMovement: "품목별수불현황",
 };
 
 /** 파일 타입별 필수 필드 */
@@ -37,6 +38,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출연월", "매출액"],
   itemCostDetail: ["영업조직팀", "품목", "매출액", "매출총이익", "공헌이익"],
   itemProfitability: ["영업조직팀", "품목", "매출액", "매출총이익", "영업이익"],
+  inventoryMovement: ["품목계정그룹", "품목", "품목명", "기초금액", "기말금액"],
 };
 
 function getCompletenessColor(rate: number): string {
@@ -64,6 +66,7 @@ export default function DataManagementPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
 
   /** receivableAging은 Map이므로 모든 소스를 합쳐서 하나의 배열로 변환 */
   const allAgingRecords = useMemo(() => {
@@ -73,6 +76,15 @@ export default function DataManagementPage() {
     });
     return records;
   }, [receivableAging]);
+
+  /** inventoryMovement은 Map이므로 모든 공장을 합쳐서 하나의 배열로 변환 */
+  const allInventoryRecords = useMemo(() => {
+    const records: any[] = [];
+    Array.from(inventoryMovement.entries()).forEach(([, data]) => {
+      records.push(...data);
+    });
+    return records;
+  }, [inventoryMovement]);
 
   /** 로드된 데이터 타입별 배열 매핑 */
   const dataMap: Record<string, any[]> = useMemo(
@@ -89,8 +101,9 @@ export default function DataManagementPage() {
       customerItemDetail,
       itemCostDetail,
       itemProfitability,
+      inventoryMovement: allInventoryRecords,
     }),
-    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability]
+    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, allInventoryRecords]
   );
 
   /** 로드된 타입만 필터링하고 품질 지표 계산 */

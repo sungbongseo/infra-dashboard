@@ -47,9 +47,17 @@ export interface StoredFilterState {
   updatedAt: Date;
 }
 
+export interface StoredInventoryData {
+  id: string; // factory name (e.g., "옥천")
+  data: any[];
+  updatedAt: Date;
+  rowCount: number;
+}
+
 class DashboardDB extends Dexie {
   datasets!: Table<StoredDataset>;
   agingData!: Table<StoredAgingData>;
+  inventoryData!: Table<StoredInventoryData>;
   uploadedFiles!: Table<StoredUploadedFile>;
   orgFilter!: Table<StoredOrgFilter>;
   filterState!: Table<StoredFilterState>;
@@ -65,6 +73,14 @@ class DashboardDB extends Dexie {
     this.version(2).stores({
       datasets: "id",
       agingData: "id",
+      uploadedFiles: "id",
+      orgFilter: "id",
+      filterState: "id",
+    });
+    this.version(3).stores({
+      datasets: "id",
+      agingData: "id",
+      inventoryData: "id",
       uploadedFiles: "id",
       orgFilter: "id",
       filterState: "id",
@@ -105,6 +121,26 @@ export async function loadAllAgingData(): Promise<Map<string, any[]>> {
   const allAging = await db.agingData.toArray();
   const map = new Map<string, any[]>();
   for (const item of allAging) {
+    map.set(item.id, item.data);
+  }
+  return map;
+}
+
+/** Inventory 데이터 저장 (공장별) */
+export async function saveInventoryData(factory: string, data: any[]): Promise<void> {
+  await db.inventoryData.put({
+    id: factory,
+    data,
+    updatedAt: new Date(),
+    rowCount: data.length,
+  });
+}
+
+/** 모든 Inventory 데이터 로드 */
+export async function loadAllInventoryData(): Promise<Map<string, any[]>> {
+  const allInventory = await db.inventoryData.toArray();
+  const map = new Map<string, any[]>();
+  for (const item of allInventory) {
     map.set(item.id, item.data);
   }
   return map;
@@ -161,6 +197,7 @@ export async function clearAllDB(): Promise<void> {
   await Promise.all([
     db.datasets.clear(),
     db.agingData.clear(),
+    db.inventoryData.clear(),
     db.uploadedFiles.clear(),
     db.orgFilter.clear(),
     db.filterState.clear(),

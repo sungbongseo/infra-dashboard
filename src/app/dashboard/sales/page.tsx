@@ -36,6 +36,7 @@ import { AnomalyTab } from "./tabs/AnomalyTab";
 import { CohortTab } from "./tabs/CohortTab";
 import { ChurnTab } from "./tabs/ChurnTab";
 import { DecompositionTab } from "./tabs/DecompositionTab";
+import { buildItemInventoryMap } from "@/lib/analysis/itemHierarchy";
 import { ItemTab } from "./tabs/ItemTab";
 import { TypeTab } from "./tabs/TypeTab";
 import { ProductGroupTab } from "./tabs/ProductGroupTab";
@@ -45,6 +46,7 @@ export default function SalesAnalysisPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
@@ -70,6 +72,12 @@ export default function SalesAnalysisPage() {
   const filteredItemProfit = useMemo(
     () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
     [itemProfitability, effectiveOrgNames]
+  );
+
+  // 재고 데이터 → 품목별 재고 매핑 (수불현황 존재 시)
+  const inventoryMap = useMemo(
+    () => inventoryMovement.size > 0 ? buildItemInventoryMap(inventoryMovement) : undefined,
+    [inventoryMovement]
   );
 
   // 303 거래처 손익 연계
@@ -265,7 +273,7 @@ export default function SalesAnalysisPage() {
 
         <TabsContent value="item" className="space-y-6">
           <ErrorBoundary>
-            <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} isDateFiltered={isDateFiltered} />
+            <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} inventoryMap={inventoryMap} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 

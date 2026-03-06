@@ -103,6 +103,12 @@ export const FILE_SCHEMAS: FileSchema[] = [
     orgFilterField: "영업조직팀",
   },
   {
+    fileType: "inventoryMovement",
+    pattern: /품목별\s*수불현황/,
+    headerRow: 0,
+    hasMergedHeader: false,
+  },
+  {
     fileType: "receivableAging",
     pattern: /미수채권연령/,
     headerRow: 0,
@@ -124,4 +130,10 @@ export function detectFileType(fileName: string): FileSchema | null {
 export function getAgingSourceName(fileName: string): string {
   const match = fileName.match(/^(.+?)_미수채권연령/);
   return match ? match[1] : fileName.replace(/\.xlsx$/i, "");
+}
+
+/** 수불현황 파일명에서 공장명 추출 (예: "품목별 수불현황_옥천.xlsx" → "옥천") */
+export function getFactoryName(fileName: string): string {
+  const match = fileName.match(/수불현황[_\s]?(.+?)\.xlsx?$/i);
+  return match ? match[1].trim() : fileName.replace(/\.xlsx?$/i, "").trim();
 }

@@ -8,10 +8,11 @@ import type {
   ItemCostDetailRecord,
   ItemProfitabilityRecord,
   ReceivableAgingRecord,
+  InventoryMovementRecord,
   PlanActualDiff,
   AgingAmounts,
 } from "@/types";
-import { detectFileType, getAgingSourceName } from "./schemas";
+import { detectFileType, getAgingSourceName, getFactoryName } from "./schemas";
 
 export interface ParseResult {
   fileType: string;
@@ -901,6 +902,31 @@ export function parseExcelFile(
       skippedRows = r.skipped;
       break;
     }
+    case "inventoryMovement": {
+      const factory = getFactoryName(fileName);
+      const rIM = safeParseRows<InventoryMovementRecord>(rawData, 1, (row) => ({
+        factory,
+        품목계정그룹: str(row[0]),
+        대분류: str(row[1]),
+        중분류: str(row[2]),
+        소분류: str(row[3]),
+        품목: str(row[4]),
+        품목명: str(row[5]),
+        단위: str(row[6]),
+        기초수량: num(row[7]),
+        기초금액: num(row[8]),
+        입고수량: num(row[9]),
+        입고금액: num(row[10]),
+        출고수량: num(row[11]),
+        출고금액: num(row[12]),
+        기말수량: num(row[13]),
+        기말금액: num(row[14]),
+        비고: str(row[15]),
+      }), warnings, "품목별수불현황");
+      parsed = rIM.parsed;
+      skippedRows = rIM.skipped;
+      break;
+    }
     case "receivableAging":
       parsed = parseReceivableAging(rawData);
       break;
@@ -943,6 +969,8 @@ export function parseExcelFile(
 
   if (schema.fileType === "receivableAging") {
     result.sourceName = getAgingSourceName(fileName);
+  } else if (schema.fileType === "inventoryMovement") {
+    result.sourceName = getFactoryName(fileName);
   }
 
   return result;

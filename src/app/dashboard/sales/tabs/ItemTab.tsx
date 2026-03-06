@@ -30,10 +30,12 @@ import {
   type DrillDownStep,
 } from "@/lib/analysis/itemHierarchy";
 import type { SalesRecord, ItemProfitabilityRecord } from "@/types";
+import type { ItemInventoryInfo } from "@/lib/analysis/itemHierarchy";
 
 interface ItemTabProps {
   filteredSales: SalesRecord[];
   filteredItemProfit: ItemProfitabilityRecord[];
+  inventoryMap?: Map<string, ItemInventoryInfo>;
   isDateFiltered?: boolean;
 }
 
@@ -51,7 +53,7 @@ const QUADRANT_LABELS: Record<string, string> = {
   dog: "Dogs (저매출+저마진)",
 };
 
-export function ItemTab({ filteredSales, filteredItemProfit, isDateFiltered }: ItemTabProps) {
+export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDateFiltered }: ItemTabProps) {
   const [drillPath, setDrillPath] = useState<DrillDownStep[]>([]);
 
   // Reset drill path when data changes
@@ -60,6 +62,7 @@ export function ItemTab({ filteredSales, filteredItemProfit, isDateFiltered }: I
   }, [filteredSales, filteredItemProfit]);
 
   const hasItemProfit = filteredItemProfit.length > 0;
+  const hasInventory = inventoryMap !== undefined && inventoryMap.size > 0;
 
   const hierarchy = useMemo(
     () => calcItemHierarchy(
@@ -270,6 +273,12 @@ export function ItemTab({ filteredSales, filteredItemProfit, isDateFiltered }: I
                     <th className="text-right py-2 px-3 font-medium">원가율</th>
                   </>
                 )}
+                {hasInventory && (
+                  <>
+                    <th className="text-right py-2 px-3 font-medium">재고금액</th>
+                    <th className="text-right py-2 px-3 font-medium">회전율</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -305,6 +314,23 @@ export function ItemTab({ filteredSales, filteredItemProfit, isDateFiltered }: I
                         </td>
                       </>
                     )}
+                    {hasInventory && (() => {
+                      const inv = inventoryMap!.get(node.code || node.name);
+                      return (
+                        <>
+                          <td className="text-right py-2 px-3 font-mono">
+                            {inv ? formatCurrency(inv.ending) : "-"}
+                          </td>
+                          <td className={`text-right py-2 px-3 font-mono ${
+                            inv ? (inv.turnover >= 6 ? "text-green-600 dark:text-green-400"
+                              : inv.turnover >= 3 ? "text-amber-600 dark:text-amber-400"
+                              : "text-red-600 dark:text-red-400") : ""
+                          }`}>
+                            {inv ? `${inv.turnover.toFixed(1)}x` : "-"}
+                          </td>
+                        </>
+                      );
+                    })()}
                   </tr>
                 );
               })}

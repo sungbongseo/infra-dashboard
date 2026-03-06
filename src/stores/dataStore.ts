@@ -4,6 +4,8 @@ import {
   loadDataset,
   saveAgingData,
   loadAllAgingData,
+  saveInventoryData,
+  loadAllInventoryData,
   saveUploadedFiles,
   loadUploadedFiles,
   saveOrgFilter,
@@ -40,6 +42,7 @@ import type {
   ItemCostDetailRecord,
   ItemProfitabilityRecord,
   ReceivableAgingRecord,
+  InventoryMovementRecord,
   Organization,
   UploadedFile,
 } from "@/types";
@@ -81,6 +84,7 @@ interface DataState {
   itemCostDetail: ItemCostDetailRecord[];
   itemProfitability: ItemProfitabilityRecord[];
   receivableAging: Map<string, ReceivableAgingRecord[]>;
+  inventoryMovement: Map<string, InventoryMovementRecord[]>;
   uploadedFiles: UploadedFile[];
   isLoading: boolean;
   loadingProgress: { fileName: string; progress: number } | null;
@@ -101,6 +105,7 @@ interface DataState {
   setItemCostDetail: (data: ItemCostDetailRecord[]) => void;
   setItemProfitability: (data: ItemProfitabilityRecord[]) => void;
   setReceivableAging: (source: string, data: ReceivableAgingRecord[]) => void;
+  setInventoryMovement: (factory: string, data: InventoryMovementRecord[]) => void;
   addUploadedFile: (file: UploadedFile) => void;
   updateUploadedFile: (id: string, updates: Partial<UploadedFile>) => void;
   setIsLoading: (loading: boolean) => void;
@@ -126,6 +131,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   itemCostDetail: [],
   itemProfitability: [],
   receivableAging: new Map(),
+  inventoryMovement: new Map(),
   uploadedFiles: [],
   isLoading: false,
   loadingProgress: null,
@@ -199,6 +205,14 @@ export const useDataStore = create<DataState>((set, get) => ({
     });
     saveAgingData(source, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
+  setInventoryMovement: (factory, data) => {
+    set((s) => {
+      const next = new Map(s.inventoryMovement);
+      next.set(factory, data);
+      return { inventoryMovement: next };
+    });
+    saveInventoryData(factory, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+  },
   addUploadedFile: (file) =>
     set((s) => {
       const next = [...s.uploadedFiles, file];
@@ -231,6 +245,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       itemCostDetail: [],
       itemProfitability: [],
       receivableAging: new Map(),
+      inventoryMovement: new Map(),
       uploadedFiles: [],
       hasStoredData: false,
     });
@@ -260,6 +275,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         itemCostDetail,
         itemProfitability,
         agingMap,
+        inventoryMap,
         storedFiles,
         orgFilter,
       ] = await Promise.all([
@@ -276,6 +292,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         loadDataset("itemCostDetail"),
         loadDataset("itemProfitability"),
         loadAllAgingData(),
+        loadAllInventoryData(),
         loadUploadedFiles(),
         loadOrgFilter(),
       ]);
@@ -315,6 +332,7 @@ export const useDataStore = create<DataState>((set, get) => ({
         itemCostDetail: (itemCostDetail as ItemCostDetailRecord[]) ?? [],
         itemProfitability: (itemProfitability as ItemProfitabilityRecord[]) ?? [],
         receivableAging: agingMap,
+        inventoryMovement: inventoryMap,
         uploadedFiles,
         orgNames,
         orgCodes,
@@ -346,6 +364,11 @@ export const useDataStore = create<DataState>((set, get) => ({
     // Aging 데이터: 소스별로 저장
     Array.from(state.receivableAging.entries()).forEach(([source, data]) => {
       saveAgingData(source, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    });
+
+    // Inventory 데이터: 공장별로 저장
+    Array.from(state.inventoryMovement.entries()).forEach(([factory, data]) => {
+      saveInventoryData(factory, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
     });
 
     // 업로드 파일 목록 저장

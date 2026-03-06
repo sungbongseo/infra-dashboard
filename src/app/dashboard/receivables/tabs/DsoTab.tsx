@@ -25,9 +25,10 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
 import { calcDSOByOrg, calcOverallDSO, calcDSOTrend } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
+import { calcDIO } from "@/lib/analysis/dio";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CCCMetric } from "@/lib/analysis/ccc";
-import type { CollectionRecord, SalesRecord } from "@/types";
+import type { CollectionRecord, SalesRecord, InventoryMovementRecord } from "@/types";
 
 const DSO_COLORS: Record<string, string> = {
   excellent: "hsl(142, 76%, 36%)",
@@ -48,6 +49,7 @@ interface DsoTabProps {
   filteredSales: SalesRecord[];
   filteredTeamContrib: any[];
   filteredCollections: CollectionRecord[];
+  inventoryData?: Map<string, InventoryMovementRecord[]>;
   isDateFiltered?: boolean;
 }
 
@@ -96,7 +98,7 @@ function calcMonthlyCollectionRate(
     });
 }
 
-export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filteredCollections, isDateFiltered }: DsoTabProps) {
+export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filteredCollections, inventoryData, isDateFiltered }: DsoTabProps) {
   const dsoMetrics = useMemo(
     () => calcDSOByOrg(allRecords, filteredSales),
     [allRecords, filteredSales]
@@ -105,9 +107,14 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
     () => calcOverallDSO(allRecords, filteredSales),
     [allRecords, filteredSales]
   );
+  const dio = useMemo(
+    () => inventoryData && inventoryData.size > 0 ? calcDIO(inventoryData) : 0,
+    [inventoryData]
+  );
+  const hasDIO = inventoryData !== undefined && inventoryData.size > 0;
   const cccMetrics = useMemo(
-    () => calcCCCByOrg(dsoMetrics, filteredTeamContrib),
-    [dsoMetrics, filteredTeamContrib]
+    () => calcCCCByOrg(dsoMetrics, filteredTeamContrib, dio > 0 ? dio : undefined),
+    [dsoMetrics, filteredTeamContrib, dio]
   );
   const cccAnalysis = useMemo(
     () => calcCCCAnalysis(cccMetrics),
@@ -141,6 +148,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       cccMetrics.map((m) => ({
         조직: m.org,
         "DSO(일)": m.dso,
+        "DIO(일)": m.dio,
         "DPO(일)": m.dpo,
         "CCC(일)": m.ccc,
         등급: DSO_LABELS[m.classification] || m.classification,
@@ -163,6 +171,15 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         header: () => <span className="block text-right">DSO (일)</span>,
         cell: ({ getValue }) => (
           <span className="block text-right tabular-nums font-medium">
+            {getValue<number>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "dio",
+        header: () => <span className="block text-right">DIO (일)</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums">
             {getValue<number>()}
           </span>
         ),
@@ -247,11 +264,27 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           reason="DSO는 현금흐름 건전성의 핵심 선행지표로, 증가 추세 시 자금 압박을 사전 경고하여 선제적 회수 독촉이 가능합니다."
         />
         <KpiCard
+          title="평균 DIO(재고 보유기간)"
+          value={cccAnalysis.avgDIO}
+          format="number"
+          icon={<RefreshCw className="h-5 w-5" />}
+          formula="DIO(일) = (평균재고 ÷ 출고금액) × 365\n평균재고 = (기초금액 + 기말금액) ÷ 2\n제품 품목계정그룹만 포함"
+          description={hasDIO
+            ? "DIO(재고 보유기간)는 완제품 재고가 출고되기까지 걸리는 평균 일수입니다. 수불현황 데이터 기반 실제 계산값입니다."
+            : "수불현황 데이터가 없어 DIO=0으로 설정됩니다. 수불현황 엑셀 파일을 업로드하면 실제 재고 기반 DIO가 반영됩니다."
+          }
+          benchmark="제조업 평균 DIO는 30~60일. 낮을수록 재고 회전이 빠르고 효율적"
+          reason="DIO는 재고 관리 효율성의 핵심 지표로, CCC 공식의 구성요소입니다."
+        />
+        <KpiCard
           title="평균 CCC(현금순환주기)"
           value={cccAnalysis.avgCCC}
           format="number"
           icon={<RefreshCw className="h-5 w-5" />}
-          formula="CCC = DSO(매출채권 회수기간) + DIO(재고 보유기간) - DPO(매입채무 지급기간)\n현재 DIO는 0으로 설정 (재고 데이터 미보유)"
+          formula={hasDIO
+            ? `CCC = DSO(${cccAnalysis.avgDSO}일) + DIO(${cccAnalysis.avgDIO}일) - DPO(${cccAnalysis.avgDPO}일)\n수불현황 데이터 기반 실제 DIO 반영`
+            : "CCC = DSO(매출채권 회수기간) + DIO(재고 보유기간) - DPO(매입채무 지급기간)\n현재 DIO는 0으로 설정 (수불현황 데이터 미업로드)"
+          }
           description="CCC(현금순환주기)는 돈을 지출한 시점부터 다시 돈을 회수하기까지 걸리는 기간입니다. 값이 작거나 음수일수록 현금 회전이 빨라 자금 운용에 유리합니다."
           benchmark="0일 미만이면 우수, 0~30일이면 양호, 30~60일이면 보통, 60일 초과이면 주의가 필요합니다"
           reason="CCC는 운전자본 효율성의 종합 지표로, DSO와 DPO의 균형을 통해 자금 조달 필요성과 유동성 전략을 수립합니다."
@@ -297,8 +330,12 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       {filteredTeamContrib.length > 0 && (
         <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4">
           <p className="text-sm text-blue-800 dark:text-blue-200">
-            <strong>CCC 추정값 안내:</strong> DIO(재고 보유기간)는 재고 데이터 미보유로 0일 적용되며, DPO(매입채무 지급기간)는 매출원가율 기반 업종 평균 추정값입니다.
-            실제 DIO·DPO와 차이가 있을 수 있으므로 CCC는 참고 지표로 활용하시기 바랍니다.
+            <strong>CCC 추정값 안내:</strong>{" "}
+            {hasDIO
+              ? `DIO(재고 보유기간)는 수불현황 데이터 기반 ${dio}일이 적용되었습니다.`
+              : "DIO(재고 보유기간)는 수불현황 데이터 미업로드로 0일 적용됩니다. 수불현황 파일을 업로드하면 실제 DIO가 반영됩니다."
+            }
+            {" "}DPO(매입채무 지급기간)는 매출원가율 기반 업종 평균 추정값입니다.
           </p>
         </div>
       )}

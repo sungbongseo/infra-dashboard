@@ -27,6 +27,7 @@ import { CollectionDelayTab } from "./tabs/CollectionDelayTab";
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
+  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
   const { filteredRecords: allRecords, filteredAgingMap } = useFilteredReceivables();
   const { filteredSales } = useFilteredSales();
   const { filteredTeamContrib } = useFilteredTeamContribution();
@@ -138,6 +139,7 @@ export default function ReceivablesPage() {
               filteredSales={filteredSales}
               filteredTeamContrib={filteredTeamContrib}
               filteredCollections={filteredCollections}
+              inventoryData={inventoryMovement}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>

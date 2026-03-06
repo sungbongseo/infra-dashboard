@@ -4,7 +4,7 @@
  * 200.품목별 수익성 분석(회계) 데이터가 있으면 full P&L 포함,
  * 없으면 salesList 기반 매출 데이터만 사용.
  */
-import type { SalesRecord, ItemProfitabilityRecord } from "@/types";
+import type { SalesRecord, ItemProfitabilityRecord, InventoryMovementRecord } from "@/types";
 import { COST_BUCKETS, type CostBucketKey } from "@/types/itemCost";
 
 // ─── Interfaces ────────────────────────────────────────────
@@ -446,4 +446,45 @@ function classifyQuadrant(
   if (highSales && !highMargin) return "cashcow";
   if (!highSales && highMargin) return "question";
   return "dog";
+}
+
+// ─── Inventory Overlay ──────────────────────────────────────
+
+export interface ItemInventoryInfo {
+  ending: number;    // 기말금액 합계
+  turnover: number;  // 재고회전율 = 출고금액 / 평균재고
+}
+
+/**
+ * 전 공장 품목별 재고 합산 → Map<품목코드, ItemInventoryInfo>
+ * 회전율 = 출고금액 / ((기초금액 + 기말금액) / 2)
+ */
+export function buildItemInventoryMap(
+  inventoryData: Map<string, InventoryMovementRecord[]>
+): Map<string, ItemInventoryInfo> {
+  const itemMap = new Map<string, { opening: number; closing: number; issued: number }>();
+
+  for (const [, records] of Array.from(inventoryData.entries())) {
+    for (const r of records) {
+      const code = (r.품목 || "").trim();
+      if (!code) continue;
+      const entry = itemMap.get(code) || { opening: 0, closing: 0, issued: 0 };
+      entry.opening += r.기초금액;
+      entry.closing += r.기말금액;
+      entry.issued += r.출고금액;
+      itemMap.set(code, entry);
+    }
+  }
+
+  const result = new Map<string, ItemInventoryInfo>();
+  for (const [code, data] of Array.from(itemMap.entries())) {
+    const avgInv = (data.opening + data.closing) / 2;
+    const turnover = avgInv > 0 ? data.issued / avgInv : 0;
+    result.set(code, {
+      ending: data.closing,
+      turnover: isFinite(turnover) ? Math.round(turnover * 100) / 100 : 0,
+    });
+  }
+
+  return result;
 }

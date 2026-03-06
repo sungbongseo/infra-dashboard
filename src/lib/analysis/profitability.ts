@@ -1,4 +1,4 @@
-import type { ProfitabilityAnalysisRecord, CustomerItemDetailRecord } from "@/types";
+import type { ProfitabilityAnalysisRecord, CustomerItemDetailRecord, InventoryMovementRecord } from "@/types";
 
 export interface ProductProfitability {
   product: string;
@@ -172,4 +172,78 @@ export function calcProfitabilityMatrix(
       grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
     }))
     .sort((a, b) => b.sales - a.sales);
+}
+
+/**
+ * 재고조정 마진 계산
+ * 재고 보유비용(자본비용+보관+보험+감모)을 반영한 실질 마진
+ */
+export function calcInventoryAdjustedMargin(
+  grossProfit: number,
+  avgInventory: number,
+  holdingRate: number = 0.15,
+): { adjustedProfit: number; holdingCost: number } {
+  const holdingCost = avgInventory * holdingRate;
+  const adjustedProfit = grossProfit - holdingCost;
+  return { adjustedProfit, holdingCost };
+}
+
+export interface ProductInventoryAdjusted {
+  product: string;
+  sales: number;
+  grossProfit: number;
+  grossMargin: number;
+  avgInventory: number;
+  holdingCost: number;
+  adjustedProfit: number;
+  adjustedMargin: number;
+  marginGap: number; // grossMargin - adjustedMargin
+}
+
+/**
+ * 품목별 재고조정 마진 분석
+ * 수익성 데이터와 재고 데이터를 매칭하여 재고보유비용 반영 실질 마진 산출
+ */
+export function calcProductInventoryAdjusted(
+  profitData: ProductProfitability[],
+  inventoryData: Map<string, InventoryMovementRecord[]>,
+  holdingRate: number = 0.15,
+): ProductInventoryAdjusted[] {
+  // 전 공장 품목별 합산: 품목명 기준 매칭
+  const invMap = new Map<string, { opening: number; closing: number }>();
+  for (const records of Array.from(inventoryData.values())) {
+    for (const r of records) {
+      const key = r.품목명.trim();
+      if (!key) continue;
+      const entry = invMap.get(key) || { opening: 0, closing: 0 };
+      entry.opening += r.기초금액;
+      entry.closing += r.기말금액;
+      invMap.set(key, entry);
+    }
+  }
+
+  return profitData
+    .filter((p) => invMap.has(p.product))
+    .map((p) => {
+      const inv = invMap.get(p.product)!;
+      const avgInventory = (inv.opening + inv.closing) / 2;
+      const { adjustedProfit, holdingCost } = calcInventoryAdjustedMargin(
+        p.grossProfit,
+        avgInventory,
+        holdingRate,
+      );
+      const adjustedMargin = p.sales !== 0 ? (adjustedProfit / p.sales) * 100 : 0;
+      return {
+        product: p.product,
+        sales: p.sales,
+        grossProfit: p.grossProfit,
+        grossMargin: p.grossMargin,
+        avgInventory,
+        holdingCost,
+        adjustedProfit,
+        adjustedMargin: isFinite(adjustedMargin) ? adjustedMargin : 0,
+        marginGap: p.grossMargin - (isFinite(adjustedMargin) ? adjustedMargin : 0),
+      };
+    })
+    .sort((a, b) => b.marginGap - a.marginGap);
 }

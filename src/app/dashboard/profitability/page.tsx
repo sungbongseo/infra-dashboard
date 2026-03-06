@@ -20,6 +20,7 @@ import { truncateLabel } from "@/components/charts";
 import {
   calcProductProfitability,
   calcCustomerProfitability,
+  calcProductInventoryAdjusted,
 } from "@/lib/analysis/profitability";
 import {
   calcPlanAchievementSummary,
@@ -75,6 +76,7 @@ export default function ProfitabilityPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
   const isLoading = useDataStore((s) => s.isLoading);
 
   const { effectiveOrgNames, dateRange } = useFilterContext();
@@ -428,6 +430,11 @@ export default function ProfitabilityPage() {
     return s > 0 ? (g / s) * 100 : 0;
   }, [productProfitability]);
 
+  const inventoryAdjusted = useMemo(() => {
+    if (inventoryMovement.size === 0) return undefined;
+    return calcProductInventoryAdjusted(productProfitability, inventoryMovement);
+  }, [productProfitability, inventoryMovement]);
+
   if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState requiredFiles={["조직별 손익", "수익성분석(901)"]} />;
 
@@ -550,6 +557,7 @@ export default function ProfitabilityPage() {
               dateRange={dateRange}
               hasData={effectiveProfAnalysis.length > 0}
               isDateFiltered={isDateFilterActive}
+              inventoryAdjusted={inventoryAdjusted}
             />
           </ErrorBoundary>
         </TabsContent>
