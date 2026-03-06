@@ -42,13 +42,13 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
     () => groupSmallCategories(calcSalesByCustomerCategory(filteredSales), 3),
     [filteredSales]
   );
-  const itemCategorySales = useMemo(
-    () => groupSmallItemCategories(calcSalesByItemCategory(filteredSales), 3),
-    [filteredSales]
-  );
-  const itemCategoryFieldName = useMemo(
+  const itemCategoryField = useMemo(
     () => detectItemCategoryField(filteredSales),
     [filteredSales]
+  );
+  const itemCategorySales = useMemo(
+    () => groupSmallItemCategories(calcSalesByItemCategory(filteredSales, itemCategoryField.key), 3),
+    [filteredSales, itemCategoryField.key]
   );
 
   if (filteredSales.length === 0) return <EmptyState />;
@@ -137,10 +137,10 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         isEmpty={itemCategorySales.length === 0}
-        title={`${itemCategoryFieldName}별 매출 및 평균 단가`}
-        formula={`${itemCategoryFieldName}별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)`}
-        description={`${itemCategoryFieldName}별 매출 규모와 평균 단가를 보여줍니다.`}
-        benchmark={`상위 3개 ${itemCategoryFieldName} 집중도 70% 이하가 바람직`}
+        title={`${itemCategoryField.label}별 매출 및 평균 단가`}
+        formula={`${itemCategoryField.label}별로 판매금액과 평균 단가를 비교 (3% 미만은 '기타'로 병합)`}
+        description={`${itemCategoryField.label}별 매출 규모와 평균 단가를 보여줍니다.`}
+        benchmark={`상위 3개 ${itemCategoryField.label} 집중도 70% 이하가 바람직`}
         reason="제품군별 매출 규모와 단가 수준을 비교하여 고마진 제품군의 확대 기회를 발굴하고, 제품군 간 가격 경쟁력을 점검합니다."
       >
         {itemCategorySales.length === 1 && (
@@ -149,7 +149,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
             <span>
               {itemCategorySales[0].category === "미분류"
                 ? "제품군/품목범주 데이터가 비어있어 모든 품목이 '미분류'로 표시됩니다. 매출리스트 Excel에 제품군 또는 품목범주 컬럼이 포함되어 있는지 확인하세요."
-                : `${itemCategoryFieldName} 분류가 단일 값('${itemCategorySales[0].category}')이어서 비교 분석이 제한됩니다.`}
+                : `${itemCategoryField.label} 분류가 단일 값('${itemCategorySales[0].category}')이어서 비교 분석이 제한됩니다.`}
             </span>
           </div>
         )}
