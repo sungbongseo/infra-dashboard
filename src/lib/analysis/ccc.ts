@@ -269,11 +269,13 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
   }
 
   // 매출액 가중평균: 매출 규모가 큰 조직의 CCC가 더 큰 영향을 미침
-  const totalWeight = cccMetrics.reduce((sum, m) => sum + m.avgMonthlySales, 0);
+  // NaN 방어: isFinite 가드로 NaN 포함 레코드 제외
+  const validMetrics = cccMetrics.filter(m => isFinite(m.avgMonthlySales) && isFinite(m.ccc));
+  const totalWeight = validMetrics.reduce((sum, m) => sum + m.avgMonthlySales, 0);
   if (totalWeight > 0) {
-    const wCCC = cccMetrics.reduce((sum, m) => sum + m.ccc * m.avgMonthlySales, 0);
-    const wDSO = cccMetrics.reduce((sum, m) => sum + m.dso * m.avgMonthlySales, 0);
-    const wDPO = cccMetrics.reduce((sum, m) => sum + m.dpo * m.avgMonthlySales, 0);
+    const wCCC = validMetrics.reduce((sum, m) => sum + m.ccc * m.avgMonthlySales, 0);
+    const wDSO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dso) ? m.dso : 0) * m.avgMonthlySales, 0);
+    const wDPO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dpo) ? m.dpo : 0) * m.avgMonthlySales, 0);
     return {
       avgCCC: Math.round(wCCC / totalWeight),
       avgDSO: Math.round(wDSO / totalWeight),

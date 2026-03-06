@@ -57,12 +57,12 @@ function persistUploadedFiles(files: UploadedFile[]): void {
     filterInfo: f.filterInfo,
     skippedRows: f.skippedRows,
   }));
-  saveUploadedFiles(stored).catch(console.error);
+  saveUploadedFiles(stored).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
 }
 
 /** 현재 orgNames/orgCodes를 IndexedDB에 저장 */
 function persistOrgFilter(orgNames: Set<string>, orgCodes: Set<string>): void {
-  saveOrgFilter(Array.from(orgNames), Array.from(orgCodes)).catch(console.error);
+  saveOrgFilter(Array.from(orgNames), Array.from(orgCodes)).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
 }
 
 interface DataState {
@@ -133,7 +133,7 @@ export const useDataStore = create<DataState>((set, get) => ({
 
   setOrganizations: (orgs) => {
     set({ organizations: orgs });
-    saveDataset("organizations", orgs).catch(console.error);
+    saveDataset("organizations", orgs).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setOrgCodes: (codes) => {
     set({ orgCodes: codes });
@@ -149,47 +149,47 @@ export const useDataStore = create<DataState>((set, get) => ({
   },
   setSalesList: (data) => {
     set({ salesList: data });
-    saveDataset("salesList", data).catch(console.error);
+    saveDataset("salesList", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setCollectionList: (data) => {
     set({ collectionList: data });
-    saveDataset("collectionList", data).catch(console.error);
+    saveDataset("collectionList", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setOrderList: (data) => {
     set({ orderList: data });
-    saveDataset("orderList", data).catch(console.error);
+    saveDataset("orderList", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setOrgProfit: (data) => {
     set({ orgProfit: data });
-    saveDataset("orgProfit", data).catch(console.error);
+    saveDataset("orgProfit", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setTeamContribution: (data) => {
     set({ teamContribution: data });
-    saveDataset("teamContribution", data).catch(console.error);
+    saveDataset("teamContribution", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setProfitabilityAnalysis: (data) => {
     set({ profitabilityAnalysis: data });
-    saveDataset("profitabilityAnalysis", data).catch(console.error);
+    saveDataset("profitabilityAnalysis", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setOrgCustomerProfit: (data) => {
     set({ orgCustomerProfit: data });
-    saveDataset("orgCustomerProfit", data).catch(console.error);
+    saveDataset("orgCustomerProfit", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setHqCustomerItemProfit: (data) => {
     set({ hqCustomerItemProfit: data });
-    saveDataset("hqCustomerItemProfit", data).catch(console.error);
+    saveDataset("hqCustomerItemProfit", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setCustomerItemDetail: (data) => {
     set({ customerItemDetail: data });
-    saveDataset("customerItemDetail", data).catch(console.error);
+    saveDataset("customerItemDetail", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setItemCostDetail: (data) => {
     set({ itemCostDetail: data });
-    saveDataset("itemCostDetail", data).catch(console.error);
+    saveDataset("itemCostDetail", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setItemProfitability: (data) => {
     set({ itemProfitability: data });
-    saveDataset("itemProfitability", data).catch(console.error);
+    saveDataset("itemProfitability", data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   setReceivableAging: (source, data) => {
     set((s) => {
@@ -197,7 +197,7 @@ export const useDataStore = create<DataState>((set, get) => ({
       next.set(source, data);
       return { receivableAging: next };
     });
-    saveAgingData(source, data).catch(console.error);
+    saveAgingData(source, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
   },
   addUploadedFile: (file) =>
     set((s) => {
@@ -214,7 +214,7 @@ export const useDataStore = create<DataState>((set, get) => ({
   setIsLoading: (loading) => set({ isLoading: loading }),
   setLoadingProgress: (progress) => set({ loadingProgress: progress }),
   clearAllData: () => {
-    clearAllDB().catch(console.error);
+    clearAllDB().catch(err => console.warn('[IndexedDB] 저장 실패:', err));
     set({
       organizations: [],
       orgCodes: new Set(),
@@ -330,22 +330,22 @@ export const useDataStore = create<DataState>((set, get) => ({
   persistToDB: () => {
     const state = get();
     // 모든 데이터셋을 IndexedDB에 저장 (fire-and-forget)
-    saveDataset("organizations", state.organizations).catch(console.error);
-    saveDataset("salesList", state.salesList).catch(console.error);
-    saveDataset("collectionList", state.collectionList).catch(console.error);
-    saveDataset("orderList", state.orderList).catch(console.error);
-    saveDataset("orgProfit", state.orgProfit).catch(console.error);
-    saveDataset("teamContribution", state.teamContribution).catch(console.error);
-    saveDataset("profitabilityAnalysis", state.profitabilityAnalysis).catch(console.error);
-    saveDataset("orgCustomerProfit", state.orgCustomerProfit).catch(console.error);
-    saveDataset("hqCustomerItemProfit", state.hqCustomerItemProfit).catch(console.error);
-    saveDataset("customerItemDetail", state.customerItemDetail).catch(console.error);
-    saveDataset("itemCostDetail", state.itemCostDetail).catch(console.error);
-    saveDataset("itemProfitability", state.itemProfitability).catch(console.error);
+    saveDataset("organizations", state.organizations).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("salesList", state.salesList).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("collectionList", state.collectionList).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("orderList", state.orderList).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("orgProfit", state.orgProfit).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("teamContribution", state.teamContribution).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("profitabilityAnalysis", state.profitabilityAnalysis).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("orgCustomerProfit", state.orgCustomerProfit).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("hqCustomerItemProfit", state.hqCustomerItemProfit).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("customerItemDetail", state.customerItemDetail).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("itemCostDetail", state.itemCostDetail).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
+    saveDataset("itemProfitability", state.itemProfitability).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
 
     // Aging 데이터: 소스별로 저장
     Array.from(state.receivableAging.entries()).forEach(([source, data]) => {
-      saveAgingData(source, data).catch(console.error);
+      saveAgingData(source, data).catch(err => console.warn('[IndexedDB] 저장 실패:', err));
     });
 
     // 업로드 파일 목록 저장

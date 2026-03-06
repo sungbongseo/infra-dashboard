@@ -189,7 +189,8 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
     .filter((r) => r.매출액.실적 !== 0)
     .map((r) => {
       const sales = Math.abs(r.매출액.실적);
-      // Math.abs 제거: 환불/역분개 시 음수 비용이 자연스럽게 차감됨
+      // 의도적 설계: Math.abs 미적용. 반제 전표로 음수 비용 발생 가능하며,
+      // 차트에서 "수익 증가"처럼 보일 수 있으나 SAP 회계 원칙상 정상 처리
       const 원재료비 = r.제조변동_원재료비.실적 + r.제조변동_부재료비.실적;
       const 상품매입 = r.변동_상품매입.실적;
       const 외주가공비 = r.판관변동_외주가공비.실적 + r.제조변동_외주가공비.실적;
@@ -303,6 +304,7 @@ export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanV
         const field = r[key] as { 계획: number; 실적: number; 차이: number };
         const plan = field.계획;
         const actual = field.실적;
+        // plan=0 → Infinity sentinel. PlanTab에서 !isFinite(rate) → "계획없음" 표시로 안전 처리됨
         const achievementRate = plan !== 0 ? (actual / plan) * 100 : actual > 0 ? Infinity : 0;
         return {
           name: label,

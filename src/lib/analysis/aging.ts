@@ -35,6 +35,16 @@ export function calcAgingSummary(records: ReceivableAgingRecord[]): AgingSummary
     summary.total += r.합계.장부금액;
   }
 
+  // 버킷 합계 교차 검증: month1~overdue 합계가 total과 1% 이상 불일치 시 경고
+  const bucketSum = summary.month1 + summary.month2 + summary.month3 +
+    summary.month4 + summary.month5 + summary.month6 + summary.overdue;
+  if (summary.total !== 0) {
+    const diff = Math.abs(bucketSum - summary.total) / Math.abs(summary.total);
+    if (diff > 0.01) {
+      console.warn(`[Aging] 버킷 합계 불일치: 버킷합=${bucketSum.toLocaleString()}, total=${summary.total.toLocaleString()} (차이 ${(diff * 100).toFixed(1)}%)`);
+    }
+  }
+
   return summary;
 }
 

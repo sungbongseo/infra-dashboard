@@ -45,17 +45,26 @@ export function calcDSOByOrg(
 ): DSOMetric[] {
   // 1. 조직별 매출을 월별로 그룹핑하여 월평균 매출 계산
   const salesByOrgMonth = new Map<string, Map<string, number>>();
+  let skippedCount = 0;
   for (const s of sales) {
     const org = (s.영업조직 || "").trim();
     if (!org) continue;
     const month = extractMonth(s.매출일);
-    if (!month) continue;
+    if (!month) { skippedCount++; continue; }
 
     if (!salesByOrgMonth.has(org)) {
       salesByOrgMonth.set(org, new Map());
     }
     const monthMap = salesByOrgMonth.get(org)!;
     monthMap.set(month, (monthMap.get(month) || 0) + s.장부금액);
+  }
+
+  // 날짜 파싱 실패율 경고
+  if (skippedCount > 0 && sales.length > 0) {
+    const skipRate = (skippedCount / sales.length) * 100;
+    if (skipRate > 5) {
+      console.warn(`[DSO] 매출 날짜 파싱 실패 ${skippedCount}건 (${skipRate.toFixed(1)}%) → DSO 분모 왜곡 가능`);
+    }
   }
 
   // 조직별 월평균 매출 계산

@@ -19,7 +19,7 @@ export interface BreakevenResult {
   fixedCosts: number; // 고정비 합계
   variableCostRatio: number; // 변동비율 (0~1)
   contributionMarginRatio: number; // 공헌이익률 (0~1)
-  bepSales: number; // 손익분기점 매출 (canBreakEven=false이면 NaN)
+  bepSales: number; // 손익분기점 매출 (canBreakEven=false이면 0)
   canBreakEven: boolean; // 손익분기 달성 가능 여부
   safetyMarginRate: number; // 안전한계율 (%)
   operatingLeverage: number; // 영업레버리지
@@ -99,7 +99,12 @@ export function calcTeamBreakeven(
     const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
+
+    // 역산 고정비가 음수인 경우 비정상 비용 구조 경고
+    if (fixedCosts < 0) {
+      console.warn(`[BEP] ${r.영업조직팀}: 역산 고정비 음수 (${fixedCosts.toLocaleString()}) → 0으로 클램프`);
+    }
 
     results.push({
       org: r.영업조직팀,
@@ -183,7 +188,7 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
 
     results.push({
       org: r.영업조직팀,
@@ -281,7 +286,7 @@ export function calcOrgBreakevenFromTeam(
     const canBreakEven = isFinite(bepSales) && bepSales >= 0;
     if (!isFinite(operatingLeverage)) operatingLeverage = operatingLeverage > 0 ? 999 : -999;
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
-    if (!isFinite(bepSales)) bepSales = NaN; // Cannot break even → NaN sentinel
+    if (!isFinite(bepSales)) bepSales = 0; // Cannot break even → 0 (canBreakEven=false가 권위적 플래그)
 
     results.push({
       org,

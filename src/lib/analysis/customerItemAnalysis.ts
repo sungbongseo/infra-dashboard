@@ -132,7 +132,7 @@ export function calcABCAnalysis(
   // 양수 품목: 정상 파레토 ABC 계산
   for (const v of positiveItems) {
     cumulative += v.sales;
-    const cumulativeShare = positiveTotal !== 0 ? (cumulative / positiveTotal) * 100 : 0;
+    const cumulativeShare = positiveTotal !== 0 ? Math.min((cumulative / positiveTotal) * 100, 100) : 0;
     const grade: "A" | "B" | "C" = cumulativeShare <= 80 ? "A" : cumulativeShare <= 95 ? "B" : "C";
     results.push({
       product: v.product, productCode: v.productCode,

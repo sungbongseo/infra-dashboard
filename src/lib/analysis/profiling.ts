@@ -199,11 +199,11 @@ function normalizeWeights(
   totalMax: number
 ): { sales: number; profit: number; collection: number; growth: number; diversity: number } {
   const raw = {
-    sales: weights?.sales ?? (totalMax / 5),
-    profit: weights?.profit ?? (totalMax / 5),
-    collection: weights?.collection ?? (totalMax / 5),
-    growth: weights?.growth ?? (totalMax / 5),
-    diversity: weights?.diversity ?? (totalMax / 5),
+    sales: Math.max(0, weights?.sales ?? (totalMax / 5)),
+    profit: Math.max(0, weights?.profit ?? (totalMax / 5)),
+    collection: Math.max(0, weights?.collection ?? (totalMax / 5)),
+    growth: Math.max(0, weights?.growth ?? (totalMax / 5)),
+    diversity: Math.max(0, weights?.diversity ?? (totalMax / 5)),
   };
   const sum = raw.sales + raw.profit + raw.collection + raw.growth + raw.diversity;
   if (sum <= 0) {
@@ -358,6 +358,7 @@ export function calcPerformanceScores(
     const profitScore =
       maxContribRate > 0 ? (contribRate / maxContribRate) * w.profit : 0;
     const collectionRate = salesAmt > 0 ? collectAmt / salesAmt : 0;
+    // 수금율 >100%(선수금 등) 가능하나 scoring 정규화 목적으로 1.0에서 클램프
     const collectionScore = Math.min(collectionRate, 1) * w.collection;
 
     // 5축: 미수금 건전성 점수 / 4축: 0

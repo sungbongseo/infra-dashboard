@@ -69,13 +69,14 @@ function assignQuintiles(
  * Returns 0 if both are the same month.
  */
 function monthDistance(from: string, to: string): number {
-  if (!from || !to) return 0;
+  // 파싱 실패 시 999 반환 (매우 오래된 것으로 취급 → Dormant/Lost 분류)
+  if (!from || !to) return 999;
 
   const [fromYear, fromMon] = from.split("-").map(Number);
   const [toYear, toMon] = to.split("-").map(Number);
 
   if (isNaN(fromYear) || isNaN(fromMon) || isNaN(toYear) || isNaN(toMon)) {
-    return 0;
+    return 999;
   }
 
   return (toYear - fromYear) * 12 + (toMon - fromMon);

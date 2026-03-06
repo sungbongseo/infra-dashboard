@@ -101,7 +101,7 @@ export function extractMonth(dateStr: string): string {
   if (!isNaN(serial) && serial > 40000 && serial < 100000) {
     const date = new Date((serial - 25569) * 86400 * 1000);
     if (!isNaN(date.getTime())) {
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+      return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
     }
   }
   return "";
@@ -171,8 +171,10 @@ function addPAD(a: PlanActualDiff, b: PlanActualDiff): PlanActualDiff {
 
 /** 비율 PlanActualDiff 재계산 (분자/분모 기반) */
 function calcRatioPAD(numerator: PlanActualDiff, denominator: PlanActualDiff): PlanActualDiff {
-  const 계획 = denominator.계획 !== 0 ? (numerator.계획 / denominator.계획) * 100 : 0;
-  const 실적 = denominator.실적 !== 0 ? (numerator.실적 / denominator.실적) * 100 : 0;
+  const raw계획 = denominator.계획 !== 0 ? (numerator.계획 / denominator.계획) * 100 : 0;
+  const raw실적 = denominator.실적 !== 0 ? (numerator.실적 / denominator.실적) * 100 : 0;
+  const 계획 = isFinite(raw계획) ? raw계획 : 0;
+  const 실적 = isFinite(raw실적) ? raw실적 : 0;
   return { 계획, 실적, 차이: 실적 - 계획 };
 }
 

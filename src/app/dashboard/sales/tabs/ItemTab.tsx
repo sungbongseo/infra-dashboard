@@ -20,10 +20,8 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, filterByOrg } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { useDataStore } from "@/stores/dataStore";
-import { useFilterContext } from "@/lib/hooks/useFilteredData";
 import {
   calcItemHierarchy,
   getNodesAtPath,
@@ -31,10 +29,11 @@ import {
   calcProfitMatrix,
   type DrillDownStep,
 } from "@/lib/analysis/itemHierarchy";
-import type { SalesRecord } from "@/types";
+import type { SalesRecord, ItemProfitabilityRecord } from "@/types";
 
 interface ItemTabProps {
   filteredSales: SalesRecord[];
+  filteredItemProfit: ItemProfitabilityRecord[];
   isDateFiltered?: boolean;
 }
 
@@ -52,15 +51,7 @@ const QUADRANT_LABELS: Record<string, string> = {
   dog: "Dogs (저매출+저마진)",
 };
 
-export function ItemTab({ filteredSales, isDateFiltered }: ItemTabProps) {
-  const itemProfitability = useDataStore(s => s.itemProfitability);
-  const { effectiveOrgNames } = useFilterContext();
-
-  const filteredItemProfit = useMemo(
-    () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
-    [itemProfitability, effectiveOrgNames],
-  );
-
+export function ItemTab({ filteredSales, filteredItemProfit, isDateFiltered }: ItemTabProps) {
   const [drillPath, setDrillPath] = useState<DrillDownStep[]>([]);
 
   // Reset drill path when data changes

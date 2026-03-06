@@ -18,6 +18,7 @@ export interface ForecastStats {
   intercept: number;
   r2: number;
   trend: "up" | "down" | "flat";
+  trendSeverity?: "mild" | "moderate" | "severe"; // |avgGrowthRate| >= 30% severe, >= 10% moderate, < 10% mild
   avgGrowthRate: number; // MoM average growth %
 }
 
@@ -117,7 +118,9 @@ function linearRegression(values: number[]): {
     ssRes += (values[i] - predicted) ** 2;
   }
 
-  const r2 = ssTot === 0 ? 1 : 1 - ssRes / ssTot;
+  // ssTot=0: 모든 값이 동일 → 변동 없으므로 설명력 0 (R²=0)
+  // 음수 R² 방지: 모델이 평균보다 나쁜 경우 0으로 클램프
+  const r2 = ssTot === 0 ? 0 : Math.max(0, 1 - ssRes / ssTot);
 
   return { slope, intercept, r2 };
 }
@@ -269,11 +272,17 @@ export function calcSalesForecast(
   // 8. Calculate average growth rate
   const avgGrowthRate = calcAvgGrowthRate(amounts);
 
+  // 트렌드 심각도: 하락/상승 정도를 구분
+  const absgr = Math.abs(avgGrowthRate);
+  const trendSeverity: "mild" | "moderate" | "severe" =
+    absgr >= 30 ? "severe" : absgr >= 10 ? "moderate" : "mild";
+
   const stats: ForecastStats = {
     slope,
     intercept,
     r2,
     trend,
+    trendSeverity: trend === "flat" ? undefined : trendSeverity,
     avgGrowthRate,
   };
 

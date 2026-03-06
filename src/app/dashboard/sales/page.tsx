@@ -44,6 +44,7 @@ export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
+  const itemProfitability = useDataStore((s) => s.itemProfitability);
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
@@ -64,6 +65,12 @@ export default function SalesAnalysisPage() {
     if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
     return filterByDateRange(orgFiltered, dateRange, "매출연월");
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
+
+  // 품목별 수익성 분석 (200) 필터 — ItemTab prop으로 전달
+  const filteredItemProfit = useMemo(
+    () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
+    [itemProfitability, effectiveOrgNames]
+  );
 
   // 303 거래처 손익 연계
   const filteredOrgCustProfit = useMemo(
@@ -258,7 +265,7 @@ export default function SalesAnalysisPage() {
 
         <TabsContent value="item" className="space-y-6">
           <ErrorBoundary>
-            <ItemTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
+            <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
 
