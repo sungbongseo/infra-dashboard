@@ -40,6 +40,7 @@ import { buildItemInventoryMap } from "@/lib/analysis/itemHierarchy";
 import { ItemTab } from "./tabs/ItemTab";
 import { TypeTab } from "./tabs/TypeTab";
 import { ProductGroupTab } from "./tabs/ProductGroupTab";
+import { Customer360Tab } from "./tabs/Customer360Tab";
 
 export default function SalesAnalysisPage() {
   const orgProfit = useDataStore((s) => s.orgProfit);
@@ -47,6 +48,9 @@ export default function SalesAnalysisPage() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
   const inventoryMovement = useDataStore((s) => s.inventoryMovement);
+  const collectionList = useDataStore((s) => s.collectionList);
+  const orderList = useDataStore((s) => s.orderList);
+  const receivableAging = useDataStore((s) => s.receivableAging);
   const isLoading = useDataStore((s) => s.isLoading);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
@@ -89,6 +93,13 @@ export default function SalesAnalysisPage() {
     () => calcCustomerRanking(filteredOrgCustProfit, "sales").slice(0, 20),
     [filteredOrgCustProfit]
   );
+
+  // 거래처 360° 뷰용 미수금 flat 배열
+  const flatAging = useMemo(() => {
+    const all: import("@/types").ReceivableAgingRecord[] = [];
+    Array.from(receivableAging.values()).forEach((arr) => all.push(...arr));
+    return all;
+  }, [receivableAging]);
 
   const topCustomersExport = useMemo(
     () => topCustomers.map((c) => ({ 거래처코드: c.code, 거래처명: c.name, 매출액: c.amount })),
@@ -177,6 +188,7 @@ export default function SalesAnalysisPage() {
           <TabsTrigger value="item">품목</TabsTrigger>
           <TabsTrigger value="type">유형별</TabsTrigger>
           <TabsTrigger value="channel">채널</TabsTrigger>
+          <TabsTrigger value="customer360">거래처 360°</TabsTrigger>
           <TabsTrigger value="productGroup" disabled={filteredCustomerItemDetail.length === 0}>품목군</TabsTrigger>
           <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
           {/* 고급 분석 */}
@@ -340,6 +352,19 @@ export default function SalesAnalysisPage() {
         <TabsContent value="productGroup" className="space-y-6">
           <ErrorBoundary>
             <ProductGroupTab filteredCustomerItemDetail={filteredCustomerItemDetail} isDateFiltered={isDateFiltered} />
+          </ErrorBoundary>
+        </TabsContent>
+
+        <TabsContent value="customer360" className="space-y-6">
+          <ErrorBoundary>
+            <Customer360Tab
+              salesList={filteredSales}
+              collectionList={collectionList}
+              orderList={orderList}
+              agingRecords={flatAging}
+              orgCustProfit={filteredOrgCustProfit}
+              isDateFiltered={isDateFiltered}
+            />
           </ErrorBoundary>
         </TabsContent>
       </Tabs>

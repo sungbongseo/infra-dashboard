@@ -100,12 +100,12 @@ export default function ReceivablesPage() {
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
           <TabsTrigger value="credit">여신 관리</TabsTrigger>
-          <TabsTrigger value="dso">매출채권회전(DSO/CCC)</TabsTrigger>
+          <TabsTrigger value="dso">매출채권회전(DSO/CCC)<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
           <TabsTrigger value="detail">채권 상세</TabsTrigger>
           <TabsTrigger value="longterm">장기 미수</TabsTrigger>
-          <TabsTrigger value="prepayment">선수금</TabsTrigger>
+          <TabsTrigger value="prepayment">선수금<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
           <TabsTrigger value="person-insight">담당자 인사이트</TabsTrigger>
-          <TabsTrigger value="collection-delay" disabled={filteredSales.length === 0 || filteredCollections.length === 0}>수금지연</TabsTrigger>
+          <TabsTrigger value="collection-delay" disabled={filteredSales.length === 0 || filteredCollections.length === 0}>수금지연<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">

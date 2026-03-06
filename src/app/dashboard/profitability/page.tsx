@@ -478,11 +478,11 @@ export default function ProfitabilityPage() {
           <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
           {/* 심화 분석 */}
           <TabsTrigger value="product" disabled={effectiveProfAnalysis.length === 0}>
-            제품 수익성{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            제품 수익성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>
           <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
-            계획 달성{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            3-way차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>
           <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>
@@ -490,16 +490,16 @@ export default function ProfitabilityPage() {
           <span className="hidden sm:inline-flex self-center mx-0.5 h-4 w-px bg-border" />
           {/* 상세 손익 */}
           <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
-            거래처 손익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            거래처 손익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="custItem" disabled={effectiveHqCustItemProfit.length === 0}>
-            거래처×품목{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            거래처×품목<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
           <TabsTrigger value="detailed" disabled={filteredCustItemDetail.length === 0}>
-            상세수익{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
+            상세수익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>{isUsingDateFiltered && <span className="ml-1 text-[10px] bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-1 py-0.5 rounded">기간</span>}
           </TabsTrigger>
-          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가</TabsTrigger>
-          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이</TabsTrigger>
+          <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
+          <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
           <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>
           <TabsTrigger value="custRiskMatrix" disabled={filteredOrgCustProfit.length === 0}>거래처리스크</TabsTrigger>
           <TabsTrigger value="sgaBreakdown" disabled={filteredOrgCustProfit.length === 0}>판관비세부</TabsTrigger>

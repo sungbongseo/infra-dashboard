@@ -1,6 +1,6 @@
 "use client";
 
-import { Moon, Sun, Menu } from "lucide-react";
+import { Moon, Sun, Menu, Presentation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/stores/uiStore";
 import { useDataStore } from "@/stores/dataStore";
@@ -8,6 +8,7 @@ import { AlertPanel } from "@/components/dashboard/AlertPanel";
 
 export function Header() {
   const { darkMode, toggleDarkMode, toggleSidebar, sidebarOpen } = useUIStore();
+  const setPresentationMode = useUIStore((s) => s.setPresentationMode);
   const { uploadedFiles } = useDataStore();
 
   const readyCount = uploadedFiles.filter((f) => f.status === "ready").length;
@@ -32,6 +33,15 @@ export function Header() {
           </span>
         )}
         <AlertPanel />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setPresentationMode(true)}
+          aria-label="발표 모드"
+          title="발표 모드"
+        >
+          <Presentation className="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}>
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </Button>

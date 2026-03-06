@@ -41,6 +41,7 @@ export interface StoredOrgFilter {
 export interface StoredFilterState {
   id: string; // "default"
   selectedOrgs: string[];
+  selectedCustomers: string[];
   dateRange: { from: string; to: string } | null;
   comparisonRange: { from: string; to: string } | null;
   comparisonPreset: string | null;
@@ -187,6 +188,7 @@ export async function loadOrgFilter(): Promise<{ orgNames: string[]; orgCodes: s
 /** 필터 상태 저장 */
 export async function saveFilterState(state: {
   selectedOrgs: string[];
+  selectedCustomers: string[];
   dateRange: { from: string; to: string } | null;
   comparisonRange: { from: string; to: string } | null;
   comparisonPreset: string | null;

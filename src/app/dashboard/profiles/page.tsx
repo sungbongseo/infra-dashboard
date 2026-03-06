@@ -221,8 +221,8 @@ export default function ProfilesPage() {
           <TabsTrigger value="performance">종합 성과</TabsTrigger>
           <TabsTrigger value="ranking">순위 / 거래처</TabsTrigger>
           <TabsTrigger value="cost">비용 효율</TabsTrigger>
-          <TabsTrigger value="trend">실적 트렌드</TabsTrigger>
-          <TabsTrigger value="product">제품 포트폴리오</TabsTrigger>
+          <TabsTrigger value="trend">실적 트렌드<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
+          <TabsTrigger value="product">제품 포트폴리오<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
         </TabsList>
 
         <TabsContent value="performance" className="space-y-6">

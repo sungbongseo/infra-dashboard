@@ -13,6 +13,9 @@ import { calcSalesForecast } from "@/lib/analysis/forecast";
 import { generateInsights, type InsightSeverity } from "@/lib/analysis/insightGenerator";
 import { calcOverallDSO } from "@/lib/analysis/dso";
 import { estimateDPO } from "@/lib/analysis/ccc";
+import { calcSalesProcessKpis } from "@/lib/analysis/salesProcess";
+import { PresentationMode, type PresentationSlide } from "@/components/dashboard/PresentationMode";
+import { ExecutiveSummaryTab } from "@/components/dashboard/ExecutiveSummaryTab";
 import {
   BarChart,
   Bar,
@@ -30,7 +33,7 @@ import {
   PolarRadiusAxis,
   Radar,
 } from "recharts";
-import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Zap, Clock, Timer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE, formatPercent } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
@@ -108,6 +111,30 @@ export default function OverviewPage() {
     [filteredSales]
   );
 
+  // ─── Sales Process KPIs ─────────────────────────────────────────
+  const salesProcessKpis = useMemo(
+    () => filteredOrders.length > 0 ? calcSalesProcessKpis(filteredOrders, filteredSales, filteredCollections) : null,
+    [filteredOrders, filteredSales, filteredCollections]
+  );
+
+  const top5ConcentrationRate = useMemo(() => {
+    if (filteredSales.length === 0) return undefined;
+    const byCustomer = new Map<string, number>();
+    let total = 0;
+    for (const s of filteredSales) {
+      const c = (s.매출처 ?? "").trim();
+      if (!c) continue;
+      const amt = Number(s.장부금액) || 0;
+      byCustomer.set(c, (byCustomer.get(c) ?? 0) + amt);
+      total += amt;
+    }
+    if (total <= 0) return undefined;
+    const sorted = Array.from(byCustomer.values()).sort((a, b) => b - a);
+    const top5Sum = sorted.slice(0, 5).reduce((a, b) => a + b, 0);
+    const rate = (top5Sum / total) * 100;
+    return isFinite(rate) ? rate : undefined;
+  }, [filteredSales]);
+
   // ─── Executive Insight Generation ─────────────────────────────
   const overallDso = useMemo(() => {
     if (flattenedAging.length === 0 || filteredSales.length === 0) return undefined;
@@ -154,9 +181,14 @@ export default function OverviewPage() {
         collectionEfficiency,
         salesTrend: forecast?.stats.trend,
         avgGrowthRate: forecast?.stats.avgGrowthRate,
+        winRate: salesProcessKpis?.winRate,
+        avgSalesCycle: salesProcessKpis?.avgSalesCycle,
+        salesVelocity: salesProcessKpis?.salesVelocity,
+        collectionLeadTime: salesProcessKpis?.avgCollectionLeadTime,
+        top5ConcentrationRate,
         ...costRatios,
       }),
-    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast, costRatios]
+    [kpis, collectionRateDetail.netCollectionRate, overallDso, overallCcc, forecastAccuracy, contributionMarginRate, grossProfitMargin, operatingLeverage, collectionEfficiency, forecast, salesProcessKpis, top5ConcentrationRate, costRatios]
   );
 
   // ─── Benchmark + Report 데이터 ────────────────────────────────
@@ -229,6 +261,63 @@ export default function OverviewPage() {
   }, [trends]);
 
   const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
+
+  // ─── Presentation Slides ──────────────────────────────────────
+  const presentationSlides: PresentationSlide[] = useMemo(() => {
+    if (!hasData) return [];
+    const slides: PresentationSlide[] = [
+      {
+        title: "핵심 KPI 요약",
+        content: (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <KpiCard title="총 매출액" value={kpis.totalSales} format="currency" icon={<TrendingUp className="h-5 w-5" />} />
+            <KpiCard title="영업이익율" value={kpis.operatingProfitRate} format="percent" icon={<Percent className="h-5 w-5" />} />
+            <KpiCard title="수금율" value={collectionRateDetail.netCollectionRate} format="percent" icon={<Wallet className="h-5 w-5" />} />
+            <KpiCard title="계획 달성율" value={kpis.salesPlanAchievement} format="percent" icon={<Target className="h-5 w-5" />} />
+          </div>
+        ),
+      },
+    ];
+    if (salesProcessKpis) {
+      slides.push({
+        title: "영업 프로세스 KPI",
+        content: (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+            <KpiCard title="Win Rate" value={salesProcessKpis.winRate} format="percent" icon={<Target className="h-5 w-5" />} />
+            <KpiCard title="평균 영업주기" value={salesProcessKpis.avgSalesCycle} format="number" icon={<Clock className="h-5 w-5" />} />
+            <KpiCard title="Sales Velocity" value={salesProcessKpis.salesVelocity} format="currency" icon={<Zap className="h-5 w-5" />} />
+            <KpiCard title="수금 리드타임" value={salesProcessKpis.avgCollectionLeadTime} format="number" icon={<Timer className="h-5 w-5" />} />
+          </div>
+        ),
+      });
+    }
+    if (insights.length > 0) {
+      slides.push({
+        title: "경영 진단 인사이트",
+        content: (
+          <div className="space-y-3 max-w-3xl mx-auto">
+            {insights.slice(0, 8).map((insight) => (
+              <div key={insight.id} className={`rounded-lg border p-4 ${INSIGHT_STYLES[insight.severity]}`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {insight.severity === "critical" || insight.severity === "warning" ? (
+                    <AlertCircle className={`h-4 w-4 ${INSIGHT_ICON_COLORS[insight.severity]}`} />
+                  ) : (
+                    <CheckCircle2 className={`h-4 w-4 ${INSIGHT_ICON_COLORS[insight.severity]}`} />
+                  )}
+                  <span className={`text-base font-semibold ${INSIGHT_ICON_COLORS[insight.severity]}`}>{insight.title}</span>
+                </div>
+                <p className="text-sm text-muted-foreground ml-6">{insight.message}</p>
+                {insight.action && (
+                  <p className="text-sm font-medium text-primary mt-1 ml-6">{"-> "}{insight.action}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        ),
+      });
+    }
+    return slides;
+  }, [hasData, kpis, collectionRateDetail.netCollectionRate, salesProcessKpis, insights]);
 
   // ─── 여신사용률 (전체 가중평균) ──────────────────────────────────
   const overallCreditUsageRate = useMemo(() => {
@@ -317,6 +406,11 @@ export default function OverviewPage() {
                 <p className="text-xs text-muted-foreground leading-relaxed ml-6">
                   {insight.message}
                 </p>
+                {insight.action && (
+                  <p className="text-xs font-medium text-primary mt-1 ml-6">
+                    {"-> "}{insight.action}
+                  </p>
+                )}
               </div>
             ))}
           </div>
@@ -343,6 +437,7 @@ export default function OverviewPage() {
           <TabsTrigger value="org-analysis">조직 분석</TabsTrigger>
           <TabsTrigger value="financial-health">재무 건전성</TabsTrigger>
           <TabsTrigger value="benchmark-report">벤치마크/보고서</TabsTrigger>
+          <TabsTrigger value="executive-summary">경영진 보고</TabsTrigger>
         </TabsList>
 
         <TabsContent value="core-kpi" className="space-y-6">
@@ -511,6 +606,52 @@ export default function OverviewPage() {
               reason="제조원가 효율성을 측정하여 원가 경쟁력 수준을 파악하고, 업종 평균 대비 위치를 확인합니다."
             />
           </div>
+
+          {/* 영업 프로세스 KPI - Row 4 */}
+          {salesProcessKpis && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <KpiCard
+                title="Win Rate"
+                value={salesProcessKpis.winRate}
+                format="percent"
+                icon={<Target className="h-5 w-5" />}
+                formula="Win Rate(%) = 완료 수주금액 / (완료 + 삭제 수주금액) x 100"
+                description="수주 건 중 실제 매출로 전환된 비율입니다. 금액 가중 기준입니다."
+                benchmark="80% 이상 우수, 50% 미만이면 견적 경쟁력 점검 필요"
+                reason="수주 전환 효율을 측정하여 영업 프로세스의 성공률을 관리하고, 취소 원인을 분석합니다."
+              />
+              <KpiCard
+                title="평균 영업주기"
+                value={salesProcessKpis.avgSalesCycle}
+                format="number"
+                icon={<Clock className="h-5 w-5" />}
+                formula="수주일 -> 매출일 평균 소요일수 (수주번호/거래처 매칭)"
+                description={`수주에서 매출까지 평균 ${salesProcessKpis.avgSalesCycle.toFixed(0)}일이 소요됩니다.`}
+                benchmark="30일 이내 신속, 90일 초과 시 병목 분석 필요"
+                reason="영업 사이클 길이를 모니터링하여 현금 회수 속도와 영업 효율을 관리합니다."
+              />
+              <KpiCard
+                title="Sales Velocity"
+                value={salesProcessKpis.salesVelocity}
+                format="currency"
+                icon={<Zap className="h-5 w-5" />}
+                formula="Sales Velocity = (수주건수 x 건당평균금액 x Win Rate) / 영업주기"
+                description="일 평균 파이프라인 전환 금액입니다. 높을수록 영업 생산성이 좋습니다."
+                benchmark="조직 전체 목표 대비 속도 추이로 판단"
+                reason="수주 활동의 종합 생산성을 단일 지표로 측정하여 영업 파이프라인의 건전성을 평가합니다."
+              />
+              <KpiCard
+                title="수금 리드타임"
+                value={salesProcessKpis.avgCollectionLeadTime}
+                format="number"
+                icon={<Timer className="h-5 w-5" />}
+                formula="매출일 -> 수금일 평균 소요일수 (거래처명 매칭)"
+                description={`매출 후 수금까지 평균 ${salesProcessKpis.avgCollectionLeadTime.toFixed(0)}일이 소요됩니다.`}
+                benchmark="30일 이내 양호, 60일 초과 시 결제조건 검토 필요"
+                reason="매출 발생 후 실제 현금 회수까지의 시간을 측정하여 현금흐름 관리에 활용합니다."
+              />
+            </div>
+          )}
 
           {/* Monthly Trend - ChartContainer 적용 */}
           <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
@@ -715,7 +856,36 @@ export default function OverviewPage() {
             isDateFiltered={isDateFiltered}
           />
         </TabsContent>
+
+        <TabsContent value="executive-summary" className="space-y-6">
+          <ExecutiveSummaryTab
+            totalSales={kpis.totalSales}
+            totalOrders={kpis.totalOrders}
+            totalCollections={kpis.totalCollection}
+            collectionRate={kpis.collectionRate}
+            gpRate={grossProfitMargin}
+            opRate={kpis.operatingProfitRate}
+            planAchievement={kpis.salesPlanAchievement}
+            dso={overallDso ?? 0}
+            salesGrowth={salesGrowth}
+            topOrg={topBottomOrg.top}
+            bottomOrg={topBottomOrg.bottom}
+            atRiskCustomers={highRiskCount}
+            totalCustomers={uniqueCustomerCount}
+            prevTotalSales={compKpis?.totalSales}
+            prevTotalOrders={compKpis?.totalOrders}
+            prevCollectionRate={compKpis?.collectionRate}
+            prevOpRate={compKpis?.operatingProfitRate}
+            winRate={salesProcessKpis?.winRate}
+            avgSalesCycle={salesProcessKpis?.avgSalesCycle}
+            salesVelocity={salesProcessKpis?.salesVelocity}
+            insights={insights}
+          />
+        </TabsContent>
       </Tabs>
+
+      {/* Presentation Mode */}
+      <PresentationMode slides={presentationSlides} />
     </div>
   );
 }

@@ -10,6 +10,8 @@ interface UIState {
   toggleSidebar: () => void;
   toggleDarkMode: () => void;
   setSidebarOpen: (open: boolean) => void;
+  presentationMode: boolean;
+  setPresentationMode: (mode: boolean) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -27,4 +29,6 @@ export const useUIStore = create<UIState>((set) => ({
       return { darkMode: next };
     }),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
+  presentationMode: false,
+  setPresentationMode: (mode) => set({ presentationMode: mode }),
 }));

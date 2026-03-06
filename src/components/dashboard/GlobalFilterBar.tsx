@@ -9,16 +9,19 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import * as Popover from "@radix-ui/react-popover";
 import * as Checkbox from "@radix-ui/react-checkbox";
-import { Filter, X, Building2, Calendar, Check, GitCompareArrows } from "lucide-react";
+import { Filter, X, Building2, Calendar, Check, GitCompareArrows, Users } from "lucide-react";
 
 export function GlobalFilterBar() {
   const orgNames = useDataStore((s) => s.orgNames);
+  const salesList = useDataStore((s) => s.salesList);
   const {
     selectedOrgs,
+    selectedCustomers,
     dateRange,
     comparisonRange,
     comparisonPreset,
     setSelectedOrgs,
+    setSelectedCustomers,
     setDateRange,
     setComparisonRange,
     applyComparisonPreset,
@@ -26,8 +29,24 @@ export function GlobalFilterBar() {
   } = useFilterStore();
 
   const [orgPopoverOpen, setOrgPopoverOpen] = useState(false);
+  const [custPopoverOpen, setCustPopoverOpen] = useState(false);
+  const [custSearch, setCustSearch] = useState("");
 
   const orgList = useMemo(() => Array.from(orgNames).sort(), [orgNames]);
+
+  const customerList = useMemo(() => {
+    const names = new Set<string>();
+    for (const row of salesList) {
+      if (row.매출처명) names.add(row.매출처명);
+    }
+    return Array.from(names).sort();
+  }, [salesList]);
+
+  const filteredCustomerList = useMemo(() => {
+    if (!custSearch.trim()) return customerList;
+    const q = custSearch.trim().toLowerCase();
+    return customerList.filter((c) => c.toLowerCase().includes(q));
+  }, [customerList, custSearch]);
 
   const [compPopoverOpen, setCompPopoverOpen] = useState(false);
 
@@ -35,10 +54,11 @@ export function GlobalFilterBar() {
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (selectedOrgs.length > 0) count++;
+    if (selectedCustomers.length > 0) count++;
     if (dateRange) count++;
     if (comparisonRange) count++;
     return count;
-  }, [selectedOrgs, dateRange, comparisonRange]);
+  }, [selectedOrgs, selectedCustomers, dateRange, comparisonRange]);
 
   const COMPARISON_PRESETS: { value: ComparisonPreset; label: string }[] = [
     { value: null, label: "비교 없음" },
@@ -61,6 +81,22 @@ export function GlobalFilterBar() {
       setSelectedOrgs([]);
     } else {
       setSelectedOrgs([...orgList]);
+    }
+  };
+
+  const handleCustToggle = (cust: string) => {
+    if (selectedCustomers.includes(cust)) {
+      setSelectedCustomers(selectedCustomers.filter((c) => c !== cust));
+    } else {
+      setSelectedCustomers([...selectedCustomers, cust]);
+    }
+  };
+
+  const handleSelectAllCusts = () => {
+    if (selectedCustomers.length === filteredCustomerList.length) {
+      setSelectedCustomers([]);
+    } else {
+      setSelectedCustomers([...filteredCustomerList]);
     }
   };
 
@@ -180,6 +216,95 @@ export function GlobalFilterBar() {
           </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
+
+      {/* Customer multi-select */}
+      {customerList.length > 0 && (
+        <Popover.Root open={custPopoverOpen} onOpenChange={(open) => { setCustPopoverOpen(open); if (!open) setCustSearch(""); }}>
+          <Popover.Trigger asChild>
+            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs">
+              <Users className="h-3.5 w-3.5" />
+              <span>
+                {selectedCustomers.length === 0
+                  ? "전체 거래처"
+                  : selectedCustomers.length === 1
+                  ? selectedCustomers[0]
+                  : `${selectedCustomers.length}개 거래처`}
+              </span>
+            </Button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              className="z-50 w-72 rounded-lg border bg-popover p-0 shadow-md animate-in fade-in-0 zoom-in-95"
+              sideOffset={5}
+              align="start"
+            >
+              {/* Search */}
+              <div className="border-b px-3 py-2">
+                <input
+                  type="text"
+                  value={custSearch}
+                  onChange={(e) => setCustSearch(e.target.value)}
+                  placeholder="거래처 검색..."
+                  className="w-full h-7 rounded-md border border-input bg-background px-2 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              {/* Select All */}
+              <div className="border-b px-3 py-2">
+                <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <Checkbox.Root
+                    className="h-4 w-4 shrink-0 rounded border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                    checked={selectedCustomers.length === filteredCustomerList.length && filteredCustomerList.length > 0}
+                    onCheckedChange={handleSelectAllCusts}
+                  >
+                    <Checkbox.Indicator className="flex items-center justify-center">
+                      <Check className="h-3 w-3" />
+                    </Checkbox.Indicator>
+                  </Checkbox.Root>
+                  <span className="font-medium">전체 선택</span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {selectedCustomers.length}/{customerList.length}
+                  </span>
+                </label>
+              </div>
+              {/* Customer list */}
+              <ScrollArea className="max-h-60">
+                <div className="p-2 space-y-0.5">
+                  {filteredCustomerList.map((cust) => (
+                    <label
+                      key={cust}
+                      className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors"
+                    >
+                      <Checkbox.Root
+                        className="h-4 w-4 shrink-0 rounded border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+                        checked={selectedCustomers.includes(cust)}
+                        onCheckedChange={() => handleCustToggle(cust)}
+                      >
+                        <Checkbox.Indicator className="flex items-center justify-center">
+                          <Check className="h-3 w-3" />
+                        </Checkbox.Indicator>
+                      </Checkbox.Root>
+                      <span className="truncate">{cust}</span>
+                    </label>
+                  ))}
+                </div>
+              </ScrollArea>
+              {/* Clear customer selection */}
+              {selectedCustomers.length > 0 && (
+                <div className="border-t px-3 py-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full h-7 text-xs"
+                    onClick={() => setSelectedCustomers([])}
+                  >
+                    거래처 선택 해제
+                  </Button>
+                </div>
+              )}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+      )}
 
       {/* Date range */}
       <div className="flex items-center gap-1.5">
@@ -308,6 +433,17 @@ export function GlobalFilterBar() {
           조직: {selectedOrgs.length}개
           <button
             onClick={() => setSelectedOrgs([])}
+            className="ml-0.5 hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      )}
+      {selectedCustomers.length > 0 && (
+        <Badge variant="secondary" className="text-[10px] gap-1 h-6">
+          거래처: {selectedCustomers.length}개
+          <button
+            onClick={() => setSelectedCustomers([])}
             className="ml-0.5 hover:text-foreground"
           >
             <X className="h-3 w-3" />

@@ -6,6 +6,7 @@ export interface Insight {
   id: string;
   title: string;
   message: string;
+  action?: string;
   severity: InsightSeverity;
   category: "매출" | "수금" | "수익성" | "수주" | "미수금";
   metric?: string;
@@ -27,6 +28,11 @@ export interface InsightConfig {
   costOfGoodsRatio?: number;
   materialCostRatio?: number;
   outsourcingRatio?: number;
+  winRate?: number;
+  avgSalesCycle?: number;
+  salesVelocity?: number;
+  collectionLeadTime?: number;
+  top5ConcentrationRate?: number;
 }
 
 // ─── 선언적 규칙 엔진 ──────────────────────────────────────────────
@@ -44,6 +50,7 @@ interface AlertRule {
     severity: InsightSeverity;
     titleSuffix: string;
     message: (v: number, c: InsightConfig) => string;
+    action?: (v: number, c: InsightConfig) => string;
   }[];
 }
 
@@ -59,8 +66,8 @@ const RULES: AlertRule[] = [
     getValue: (c) => safe(c.netCollectionRate ?? c.kpis.collectionRate),
     conditions: [
       { test: (v) => v >= 95, severity: "positive", titleSuffix: "우수", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 매우 양호합니다 (선수금 제외 기준).` },
-      { test: (v) => v < 70, severity: "critical", titleSuffix: "저조 경고", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 목표(70%) 미달입니다 (선수금 제외 기준). 연체 거래처 집중 관리가 필요합니다.` },
-      { test: (v) => v < 85, severity: "warning", titleSuffix: "주의", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 개선이 필요합니다 (선수금 제외 기준).` },
+      { test: (v) => v < 70, severity: "critical", titleSuffix: "저조 경고", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 목표(70%) 미달입니다 (선수금 제외 기준). 연체 거래처 집중 관리가 필요합니다.`, action: () => "연체 60일 이상 TOP 5 거래처 집중 관리 + 수금 독촉 일정 수립" },
+      { test: (v) => v < 85, severity: "warning", titleSuffix: "주의", message: (v) => `순수 수금율 ${v.toFixed(1)}%로 개선이 필요합니다 (선수금 제외 기준).`, action: () => "월별 수금 목표 설정 + 연체 거래처 리스트 점검" },
     ],
   },
   // Rule 2: 영업이익율
@@ -71,8 +78,8 @@ const RULES: AlertRule[] = [
     metric: "operatingProfitRate",
     getValue: (c) => safe(c.kpis.operatingProfitRate),
     conditions: [
-      { test: (v) => v < 0, severity: "critical", titleSuffix: "적자 발생", message: (v) => `영업이익율 ${v.toFixed(1)}%로 적자 상태입니다. 비용 구조 점검이 시급합니다.` },
-      { test: (v) => v < 5, severity: "warning", titleSuffix: "저조", message: (v) => `영업이익율 ${v.toFixed(1)}%로 수익성 개선이 필요합니다. 원가절감 또는 고마진 제품 확대를 검토하세요.` },
+      { test: (v) => v < 0, severity: "critical", titleSuffix: "적자 발생", message: (v) => `영업이익율 ${v.toFixed(1)}%로 적자 상태입니다. 비용 구조 점검이 시급합니다.`, action: () => "긴급 비용 구조 점검 회의 소집 + 저마진 품목 가격 재협상" },
+      { test: (v) => v < 5, severity: "warning", titleSuffix: "저조", message: (v) => `영업이익율 ${v.toFixed(1)}%로 수익성 개선이 필요합니다. 원가절감 또는 고마진 제품 확대를 검토하세요.`, action: () => "원가절감 TF 구성 + 고마진 제품 영업 강화" },
       { test: (v) => v >= 10, severity: "positive", titleSuffix: "양호", message: (v) => `영업이익율 ${v.toFixed(1)}%로 수익성이 양호합니다.` },
     ],
   },
@@ -85,7 +92,7 @@ const RULES: AlertRule[] = [
     getValue: (c) => safe(c.kpis.salesPlanAchievement),
     conditions: [
       { test: (v) => v >= 100, severity: "positive", titleSuffix: "초과 달성", message: (v) => `매출계획달성률 ${v.toFixed(1)}%로 목표를 초과 달성했습니다.` },
-      { test: (v) => v < 80, severity: "warning", titleSuffix: "미달", message: (v) => `매출계획달성률 ${v.toFixed(1)}%로 목표(80%) 미달입니다. 영업 활동 강화가 필요합니다.` },
+      { test: (v) => v < 80, severity: "warning", titleSuffix: "미달", message: (v) => `매출계획달성률 ${v.toFixed(1)}%로 목표(80%) 미달입니다. 영업 활동 강화가 필요합니다.`, action: () => "미달 조직 원인 분석 + 잔여 기간 집중 영업 계획 수립" },
     ],
   },
   // Rule 4: DSO (매출채권 회수기간)
@@ -96,8 +103,8 @@ const RULES: AlertRule[] = [
     metric: "dso",
     getValue: (c) => safe(c.dso),
     conditions: [
-      { test: (v) => v > 90, severity: "critical", titleSuffix: "과다", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 매우 길어 현금흐름에 부정적입니다. 채권 회수 속도 개선이 시급합니다.` },
-      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 업종 평균(60일) 이상입니다.` },
+      { test: (v) => v > 90, severity: "critical", titleSuffix: "과다", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 매우 길어 현금흐름에 부정적입니다. 채권 회수 속도 개선이 시급합니다.`, action: () => "장기 미수 TOP 10 거래처 채권 회수 TF 가동" },
+      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 업종 평균(60일) 이상입니다.`, action: () => "월 1회 미수금 현황 리뷰 + 결제조건 재검토" },
       { test: (v) => v <= 30, severity: "positive", titleSuffix: "우수", message: (v) => `매출채권 회수기간 ${v.toFixed(0)}일로 현금 회수가 빠릅니다.` },
     ],
   },
@@ -109,7 +116,7 @@ const RULES: AlertRule[] = [
     getValue: (c) => safe(c.ccc),
     conditions: [
       { test: (v) => v < 0, severity: "positive", titleSuffix: "우수", message: (v) => `CCC ${v.toFixed(0)}일로 매입 결제 전에 매출 회수가 이루어지고 있습니다.` },
-      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `CCC ${v.toFixed(0)}일로 운전자본 부담이 큽니다. DSO 단축과 DPO 연장을 동시에 추진하세요.` },
+      { test: (v) => v > 60, severity: "warning", titleSuffix: "주의", message: (v) => `CCC ${v.toFixed(0)}일로 운전자본 부담이 큽니다. DSO 단축과 DPO 연장을 동시에 추진하세요.`, action: () => "DSO 단축과 DPO 연장 동시 추진 + 선수금 비중 확대" },
     ],
   },
   // Rule 6: 예측 정확도
@@ -184,7 +191,7 @@ const RULES: AlertRule[] = [
       return isFinite(ratio) ? ratio : undefined;
     },
     conditions: [
-      { test: (v) => v < 80, severity: "warning", titleSuffix: "부족", message: (v) => `수주/매출 비율 ${v.toFixed(0)}%로 향후 매출 확보를 위한 수주 활동 강화가 필요합니다.` },
+      { test: (v) => v < 80, severity: "warning", titleSuffix: "부족", message: (v) => `수주/매출 비율 ${v.toFixed(0)}%로 향후 매출 확보를 위한 수주 활동 강화가 필요합니다.`, action: () => "신규 고객 발굴 캠페인 + 기존 거래처 추가 수주 제안" },
       { test: (v) => v >= 120, severity: "positive", titleSuffix: "양호", message: (v) => `수주/매출 비율 ${v.toFixed(0)}%로 향후 매출 성장 기반이 확보되어 있습니다.` },
     ],
   },
@@ -200,7 +207,7 @@ const RULES: AlertRule[] = [
       return isFinite(ratio) ? ratio : undefined;
     },
     conditions: [
-      { test: (v) => v > 50, severity: "warning", titleSuffix: "과다", message: (v) => `미수금이 매출의 ${v.toFixed(0)}%에 달합니다. 채권 회수 강화 또는 신용 한도 재검토가 필요합니다.` },
+      { test: (v) => v > 50, severity: "warning", titleSuffix: "과다", message: (v) => `미수금이 매출의 ${v.toFixed(0)}%에 달합니다. 채권 회수 강화 또는 신용 한도 재검토가 필요합니다.`, action: () => "여신한도 재검토 + 담보/보증 조건 강화" },
     ],
   },
   // Rule 13: 매출원가율
@@ -211,8 +218,8 @@ const RULES: AlertRule[] = [
     metric: "costOfGoodsRatio",
     getValue: (c) => safe(c.costOfGoodsRatio),
     conditions: [
-      { test: (v) => v > 85, severity: "critical", titleSuffix: "과다", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익 확보가 어렵습니다. 원가 절감 또는 가격 인상을 검토하세요.` },
-      { test: (v) => v > 75, severity: "warning", titleSuffix: "주의", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익성 관리에 주의가 필요합니다.` },
+      { test: (v) => v > 85, severity: "critical", titleSuffix: "과다", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익 확보가 어렵습니다. 원가 절감 또는 가격 인상을 검토하세요.`, action: () => "긴급 원가 절감 프로그램 + 가격 인상 협상" },
+      { test: (v) => v > 75, severity: "warning", titleSuffix: "주의", message: (v) => `매출원가율 ${v.toFixed(1)}%로 수익성 관리에 주의가 필요합니다.`, action: () => "분기별 원가 구조 점검 + 대체 원자재 검토" },
     ],
   },
   // Rule 14: 원재료비율
@@ -223,7 +230,7 @@ const RULES: AlertRule[] = [
     metric: "materialCostRatio",
     getValue: (c) => safe(c.materialCostRatio),
     conditions: [
-      { test: (v) => v > 40, severity: "warning", titleSuffix: "과다", message: (v) => `원재료비가 매출원가의 ${v.toFixed(1)}%를 차지합니다. 조달 단가 협상 또는 대체 원자재 검토가 필요합니다.` },
+      { test: (v) => v > 40, severity: "warning", titleSuffix: "과다", message: (v) => `원재료비가 매출원가의 ${v.toFixed(1)}%를 차지합니다. 조달 단가 협상 또는 대체 원자재 검토가 필요합니다.`, action: () => "조달 단가 재협상 + 대체 원자재/공급업체 탐색" },
     ],
   },
   // Rule 15: 외주가공비율
@@ -234,7 +241,69 @@ const RULES: AlertRule[] = [
     metric: "outsourcingRatio",
     getValue: (c) => safe(c.outsourcingRatio),
     conditions: [
-      { test: (v) => v > 30, severity: "warning", titleSuffix: "높음", message: (v) => `외주가공비가 매출원가의 ${v.toFixed(1)}%에 달합니다. 내재화 검토 또는 외주 단가 재협상을 고려하세요.` },
+      { test: (v) => v > 30, severity: "warning", titleSuffix: "높음", message: (v) => `외주가공비가 매출원가의 ${v.toFixed(1)}%에 달합니다. 내재화 검토 또는 외주 단가 재협상을 고려하세요.`, action: () => "내재화 타당성 검토 + 외주 단가 벤치마킹" },
+    ],
+  },
+  // Rule 16: Win Rate
+  {
+    id: "wr",
+    title: "수주 Win Rate",
+    category: "수주",
+    metric: "winRate",
+    getValue: (c) => safe(c.winRate),
+    conditions: [
+      { test: (v) => v < 50, severity: "warning", titleSuffix: "저조", message: (v) => `수주 Win Rate ${v.toFixed(1)}%로 절반 이상의 수주가 취소되고 있습니다.`, action: () => "수주 취소 원인 분석 + 견적 경쟁력 강화 + 고객 니즈 재파악" },
+      { test: (v) => v >= 80, severity: "positive", titleSuffix: "우수", message: (v) => `수주 Win Rate ${v.toFixed(1)}%로 수주 전환이 양호합니다.` },
+    ],
+  },
+  // Rule 17: Sales Cycle
+  {
+    id: "sc",
+    title: "평균 영업주기",
+    category: "매출",
+    metric: "avgSalesCycle",
+    getValue: (c) => safe(c.avgSalesCycle),
+    conditions: [
+      { test: (v) => v > 90, severity: "warning", titleSuffix: "장기화", message: (v) => `평균 영업주기 ${v.toFixed(0)}일로 수주-매출 전환이 지연되고 있습니다.`, action: () => "병목 단계 식별 + 프로세스 간소화 + 의사결정 가속화" },
+      { test: (v) => v <= 30, severity: "positive", titleSuffix: "신속", message: (v) => `평균 영업주기 ${v.toFixed(0)}일로 빠른 매출 전환이 이루어지고 있습니다.` },
+    ],
+  },
+  // Rule 18: Collection Lead Time
+  {
+    id: "clt",
+    title: "수금 리드타임",
+    category: "수금",
+    metric: "collectionLeadTime",
+    getValue: (c) => safe(c.collectionLeadTime),
+    conditions: [
+      { test: (v) => v > 60, severity: "warning", titleSuffix: "지연", message: (v) => `매출 후 수금까지 평균 ${v.toFixed(0)}일 소요되어 현금흐름에 부담이 됩니다.`, action: () => "결제조건 단축 협상 + 조기수금 인센티브 도입 검토" },
+      { test: (v) => v <= 30, severity: "positive", titleSuffix: "양호", message: (v) => `매출 후 평균 ${v.toFixed(0)}일 내 수금되어 현금 회수가 빠릅니다.` },
+    ],
+  },
+  // Rule 19: Sales Velocity (억원/일 기준)
+  {
+    id: "sv",
+    title: "영업 속도",
+    category: "수주",
+    metric: "salesVelocity",
+    getValue: (c) => {
+      if (c.salesVelocity === undefined || !isFinite(c.salesVelocity)) return undefined;
+      return c.salesVelocity / 1e8; // 억원 단위로 변환
+    },
+    conditions: [
+      { test: (v) => v < 0.1, severity: "warning", titleSuffix: "둔화", message: (v) => `일 평균 영업 속도가 ${(v * 100).toFixed(1)}백만원으로 낮습니다. 파이프라인 가속이 필요합니다.`, action: () => "수주 활동량 증대 + 건당 수주 금액 확대 + Win Rate 개선" },
+    ],
+  },
+  // Rule 20: Top5 거래처 집중도
+  {
+    id: "conc",
+    title: "거래처 집중도",
+    category: "매출",
+    metric: "top5ConcentrationRate",
+    getValue: (c) => safe(c.top5ConcentrationRate),
+    conditions: [
+      { test: (v) => v > 80, severity: "warning", titleSuffix: "과다", message: (v) => `상위 5개 거래처가 매출의 ${v.toFixed(1)}%를 차지하여 의존도가 높습니다.`, action: () => "신규 거래처 발굴 + 중소 거래처 육성 프로그램 + 거래처 다변화 전략" },
+      { test: (v) => v <= 50, severity: "positive", titleSuffix: "분산", message: (v) => `상위 5개 거래처 비중 ${v.toFixed(1)}%로 매출이 건전하게 분산되어 있습니다.` },
     ],
   },
 ];
@@ -262,6 +331,7 @@ export function generateInsights(config: InsightConfig): Insight[] {
           id: `${rule.id}-${cond.severity === "positive" ? "high" : cond.severity === "critical" ? "neg" : "low"}`,
           title: `${rule.title} ${cond.titleSuffix}`,
           message: cond.message(value, config),
+          action: cond.action ? cond.action(value, config) : undefined,
           severity: cond.severity,
           category: rule.category,
           metric: rule.metric,

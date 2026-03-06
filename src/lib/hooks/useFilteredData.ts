@@ -19,11 +19,23 @@ import type { ReceivableAgingRecord } from "@/types";
  * const { filteredSales } = useFilteredSales();
  */
 
+/** 거래처명 필드로 데이터를 필터링하는 헬퍼 */
+function filterByCustomer<T extends Record<string, any>>(
+  data: T[],
+  selectedCustomers: string[],
+  customerField: string,
+): T[] {
+  if (!selectedCustomers || selectedCustomers.length === 0) return data;
+  const customerSet = new Set(selectedCustomers);
+  return data.filter((row) => customerSet.has(row[customerField] as string));
+}
+
 // ─── 필터 컨텍스트 ────────────────────────────────────────────────
 
 export function useFilterContext() {
   const orgNames = useDataStore((s) => s.orgNames);
   const selectedOrgs = useFilterStore((s) => s.selectedOrgs);
+  const selectedCustomers = useFilterStore((s) => s.selectedCustomers);
   const dateRange = useFilterStore((s) => s.dateRange);
   const comparisonRange = useFilterStore((s) => s.comparisonRange);
 
@@ -31,19 +43,20 @@ export function useFilterContext() {
     return selectedOrgs && selectedOrgs.length > 0 ? new Set(selectedOrgs) : orgNames;
   }, [selectedOrgs, orgNames]);
 
-  return { effectiveOrgNames, dateRange, comparisonRange, orgNames };
+  return { effectiveOrgNames, selectedCustomers, dateRange, comparisonRange, orgNames };
 }
 
 // ─── 매출 데이터 필터링 ────────────────────────────────────────────
 
 export function useFilteredSales() {
   const salesList = useDataStore((s) => s.salesList);
-  const { effectiveOrgNames, dateRange } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
 
   const filteredSales = useMemo(() => {
     const orgFiltered = filterByOrg(salesList, effectiveOrgNames);
-    return filterByDateRange(orgFiltered, dateRange, "매출일");
-  }, [salesList, effectiveOrgNames, dateRange]);
+    const dateFiltered = filterByDateRange(orgFiltered, dateRange, "매출일");
+    return filterByCustomer(dateFiltered, selectedCustomers, "매출처명");
+  }, [salesList, effectiveOrgNames, dateRange, selectedCustomers]);
 
   return { filteredSales, salesList };
 }
@@ -52,12 +65,13 @@ export function useFilteredSales() {
 
 export function useFilteredCollections() {
   const collectionList = useDataStore((s) => s.collectionList);
-  const { effectiveOrgNames, dateRange } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
 
   const filteredCollections = useMemo(() => {
     const orgFiltered = filterByOrg(collectionList, effectiveOrgNames);
-    return filterByDateRange(orgFiltered, dateRange, "수금일");
-  }, [collectionList, effectiveOrgNames, dateRange]);
+    const dateFiltered = filterByDateRange(orgFiltered, dateRange, "수금일");
+    return filterByCustomer(dateFiltered, selectedCustomers, "거래처명");
+  }, [collectionList, effectiveOrgNames, dateRange, selectedCustomers]);
 
   return { filteredCollections, collectionList };
 }
@@ -66,12 +80,13 @@ export function useFilteredCollections() {
 
 export function useFilteredOrders() {
   const orderList = useDataStore((s) => s.orderList);
-  const { effectiveOrgNames, dateRange } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
 
   const filteredOrders = useMemo(() => {
     const orgFiltered = filterByOrg(orderList, effectiveOrgNames);
-    return filterByDateRange(orgFiltered, dateRange, "수주일");
-  }, [orderList, effectiveOrgNames, dateRange]);
+    const dateFiltered = filterByDateRange(orgFiltered, dateRange, "수주일");
+    return filterByCustomer(dateFiltered, selectedCustomers, "판매처명");
+  }, [orderList, effectiveOrgNames, dateRange, selectedCustomers]);
 
   return { filteredOrders, orderList };
 }

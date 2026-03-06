@@ -7,12 +7,14 @@ export type ComparisonPreset = "prev_month" | "prev_quarter" | "prev_year" | "cu
 interface FilterState {
   selectedOrgs: string[];
   selectedPerson: string | null;
+  selectedCustomers: string[];
   dateRange: { from: string; to: string } | null;
   comparisonRange: { from: string; to: string } | null;
   comparisonPreset: ComparisonPreset;
   searchQuery: string;
   setSelectedOrgs: (orgs: string[]) => void;
   setSelectedPerson: (person: string | null) => void;
+  setSelectedCustomers: (customers: string[]) => void;
   setDateRange: (range: { from: string; to: string } | null) => void;
   setComparisonRange: (range: { from: string; to: string } | null) => void;
   setComparisonPreset: (preset: ComparisonPreset) => void;
@@ -72,6 +74,7 @@ export function calcComparisonRange(
 function persistFilter(state: FilterState) {
   saveFilterState({
     selectedOrgs: state.selectedOrgs,
+    selectedCustomers: state.selectedCustomers,
     dateRange: state.dateRange,
     comparisonRange: state.comparisonRange,
     comparisonPreset: state.comparisonPreset,
@@ -81,6 +84,7 @@ function persistFilter(state: FilterState) {
 export const useFilterStore = create<FilterState>((set, get) => ({
   selectedOrgs: [],
   selectedPerson: null,
+  selectedCustomers: [],
   dateRange: null,
   comparisonRange: null,
   comparisonPreset: null,
@@ -90,6 +94,10 @@ export const useFilterStore = create<FilterState>((set, get) => ({
     persistFilter({ ...get(), selectedOrgs: orgs });
   },
   setSelectedPerson: (person) => set({ selectedPerson: person }),
+  setSelectedCustomers: (customers) => {
+    set({ selectedCustomers: customers });
+    persistFilter({ ...get(), selectedCustomers: customers });
+  },
   setDateRange: (range) => {
     const state = get();
     if (range && state.comparisonPreset && state.comparisonPreset !== "custom") {
@@ -135,6 +143,7 @@ export const useFilterStore = create<FilterState>((set, get) => ({
     set({
       selectedOrgs: [],
       selectedPerson: null,
+      selectedCustomers: [],
       dateRange: null,
       comparisonRange: null,
       comparisonPreset: null,
@@ -142,6 +151,7 @@ export const useFilterStore = create<FilterState>((set, get) => ({
     });
     saveFilterState({
       selectedOrgs: [],
+      selectedCustomers: [],
       dateRange: null,
       comparisonRange: null,
       comparisonPreset: null,
@@ -153,6 +163,7 @@ export const useFilterStore = create<FilterState>((set, get) => ({
       if (!stored) return;
       set({
         selectedOrgs: stored.selectedOrgs || [],
+        selectedCustomers: (stored as any).selectedCustomers || [],
         dateRange: stored.dateRange || null,
         comparisonRange: stored.comparisonRange || null,
         comparisonPreset: (stored.comparisonPreset as ComparisonPreset) || null,
