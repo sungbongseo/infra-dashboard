@@ -451,27 +451,28 @@ function classifyQuadrant(
 // ─── Inventory Overlay ──────────────────────────────────────
 
 export interface ItemInventoryInfo {
-  ending: number;    // 기말금액 합계
-  turnover: number;  // 재고회전율 = 출고금액 / 평균재고
+  ending: number;    // 기말 수량
+  turnover: number;  // 재고회전율 = 출고수량 / 평균재고수량
+  단위: string;
 }
 
 /**
  * 전 공장 품목별 재고 합산 → Map<품목코드, ItemInventoryInfo>
- * 회전율 = 출고금액 / ((기초금액 + 기말금액) / 2)
+ * 회전율 = 출고수량 / ((기초수량 + 기말수량) / 2)
  */
 export function buildItemInventoryMap(
   inventoryData: Map<string, InventoryMovementRecord[]>
 ): Map<string, ItemInventoryInfo> {
-  const itemMap = new Map<string, { opening: number; closing: number; issued: number }>();
+  const itemMap = new Map<string, { opening: number; closing: number; issued: number; 단위: string }>();
 
   for (const [, records] of Array.from(inventoryData.entries())) {
     for (const r of records) {
       const code = (r.품목 || "").trim();
       if (!code) continue;
-      const entry = itemMap.get(code) || { opening: 0, closing: 0, issued: 0 };
-      entry.opening += r.기초금액;
-      entry.closing += r.기말금액;
-      entry.issued += r.출고금액;
+      const entry = itemMap.get(code) || { opening: 0, closing: 0, issued: 0, 단위: r.단위 };
+      entry.opening += r.기초;
+      entry.closing += r.기말;
+      entry.issued += r.출고;
       itemMap.set(code, entry);
     }
   }
@@ -483,6 +484,7 @@ export function buildItemInventoryMap(
     result.set(code, {
       ending: data.closing,
       turnover: isFinite(turnover) ? Math.round(turnover * 100) / 100 : 0,
+      단위: data.단위,
     });
   }
 

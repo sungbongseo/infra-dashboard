@@ -38,7 +38,7 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출연월", "매출액"],
   itemCostDetail: ["영업조직팀", "품목", "매출액", "매출총이익", "공헌이익"],
   itemProfitability: ["영업조직팀", "품목", "매출액", "매출총이익", "영업이익"],
-  inventoryMovement: ["품목계정그룹", "품목", "품목명", "기초금액", "기말금액"],
+  inventoryMovement: ["품목계정그룹", "품목", "품목명", "기초", "입고", "출고", "기말"],
 };
 
 function getCompletenessColor(rate: number): string {

@@ -9,8 +9,6 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Package, TrendingUp, Calendar } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
-import type { ProductInventoryAdjusted } from "@/lib/analysis/profitability";
-
 interface ProductEntry {
   product: string;
   sales: number;
@@ -51,16 +49,14 @@ interface ProductTabProps {
   profAnalysisIsFallback: boolean;
   dateRange: { from?: string; to?: string } | null;
   hasData: boolean;
-  inventoryAdjusted?: ProductInventoryAdjusted[];
 }
 
 export function ProductTab({
   productProfitability, productBySales, productPieData, customerProfitability,
   productWeightedGPRate, marginErosion,
   isUsingDateFiltered, profAnalysisIsFallback, dateRange, hasData,
-  isDateFiltered, inventoryAdjusted,
+  isDateFiltered,
 }: ProductTabProps) {
-  const hasInventoryData = inventoryAdjusted && inventoryAdjusted.length > 0;
   if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/10 p-12 text-center">
@@ -310,54 +306,6 @@ export function ProductTab({
           </table>
         </div>
       </ChartCard>
-
-      {/* 재고조정 마진 분석 */}
-      {hasInventoryData && (
-        <ChartCard
-          title="재고조정 마진 분석"
-          dataSourceType="period"
-          isDateFiltered={isDateFiltered}
-          formula="재고조정마진 = 매출총이익 - (평균재고 × 보유비용률 15%)"
-          description="재고 보유비용(자본비용·보관·보험·감모 등 연 15%)을 반영한 실질 마진입니다. 매출총이익율과 재고조정마진율의 차이(갭)가 큰 품목은 재고가 많아 실질 수익성이 낮으므로 재고 최적화가 필요합니다."
-          benchmark="갭 5%p 이상이면 재고 과다 의심. 재고회전율 개선 또는 생산계획 조정 권장"
-          reason="재고 보유비용까지 반영한 실질 수익성을 파악하여 재고 최적화 대상 품목을 식별합니다"
-        >
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b bg-muted/50">
-                  <th className="text-left p-2 font-medium">품목</th>
-                  <th className="text-right p-2 font-medium">매출액</th>
-                  <th className="text-right p-2 font-medium">매출총이익율</th>
-                  <th className="text-right p-2 font-medium">평균재고</th>
-                  <th className="text-right p-2 font-medium">보유비용</th>
-                  <th className="text-right p-2 font-medium">조정마진율</th>
-                  <th className="text-right p-2 font-medium">갭</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventoryAdjusted!.slice(0, 20).map((item, i) => (
-                  <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
-                    <td className="p-2 text-xs font-medium truncate max-w-[200px]" title={item.product}>
-                      {item.product}
-                    </td>
-                    <td className="p-2 text-right font-mono text-xs">{formatCurrency(item.sales, true)}</td>
-                    <td className="p-2 text-right font-mono text-xs">{formatPercent(item.grossMargin)}</td>
-                    <td className="p-2 text-right font-mono text-xs">{formatCurrency(item.avgInventory, true)}</td>
-                    <td className="p-2 text-right font-mono text-xs text-amber-600 dark:text-amber-400">{formatCurrency(item.holdingCost, true)}</td>
-                    <td className={`p-2 text-right font-mono text-xs ${item.adjustedMargin < 0 ? "text-red-500 dark:text-red-400" : ""}`}>
-                      {formatPercent(item.adjustedMargin)}
-                    </td>
-                    <td className={`p-2 text-right font-mono text-xs font-semibold ${item.marginGap >= 5 ? "text-red-500 dark:text-red-400" : item.marginGap >= 2 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                      {isFinite(item.marginGap) ? item.marginGap.toFixed(1) : "-"}%p
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </ChartCard>
-      )}
 
       {/* 마진 침식 분석 */}
       {marginErosion.length > 0 && (

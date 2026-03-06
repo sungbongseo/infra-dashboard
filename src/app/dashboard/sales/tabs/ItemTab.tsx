@@ -275,7 +275,7 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                 )}
                 {hasInventory && (
                   <>
-                    <th className="text-right py-2 px-3 font-medium">재고금액</th>
+                    <th className="text-right py-2 px-3 font-medium">기말수량</th>
                     <th className="text-right py-2 px-3 font-medium">회전율</th>
                   </>
                 )}
@@ -319,7 +319,7 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                       return (
                         <>
                           <td className="text-right py-2 px-3 font-mono">
-                            {inv ? formatCurrency(inv.ending) : "-"}
+                            {inv ? `${inv.ending.toLocaleString()} ${inv.단위}` : "-"}
                           </td>
                           <td className={`text-right py-2 px-3 font-mono ${
                             inv ? (inv.turnover >= 6 ? "text-green-600 dark:text-green-400"

@@ -7,7 +7,6 @@ export type CCCClassification = "excellent" | "good" | "fair" | "poor";
 export interface CCCMetric {
   org: string;
   dso: number;
-  dio: number;
   dpo: number;
   ccc: number;
   avgMonthlySales: number;
@@ -18,7 +17,6 @@ export interface CCCMetric {
 export interface CCCAnalysis {
   avgCCC: number;
   avgDSO: number;
-  avgDIO: number;
   avgDPO: number;
   metrics: CCCMetric[];
 }
@@ -213,13 +211,11 @@ function estimateDPOByOrg(teamContrib: TeamContributionRecord[]): Map<string, nu
 
 /**
  * 조직별 CCC (Cash Conversion Cycle) 계산
- * CCC = DSO + DIO - DPO
- * DIO는 수불현황 데이터 존재 시 실제 재고 기반 계산, 없으면 0
+ * CCC = DSO - DPO
  */
 export function calcCCCByOrg(
   dsoMetrics: DSOMetric[],
   teamContrib: TeamContributionRecord[],
-  dio?: number
 ): CCCMetric[] {
   const dpoByOrg = estimateDPOByOrg(teamContrib);
   const overallDPO = estimateDPO(teamContrib);
@@ -244,14 +240,12 @@ export function calcCCCByOrg(
       }
     }
 
-    const effectiveDIO = dio ?? 0;
-    const ccc = dm.dso + effectiveDIO - dpo;
+    const ccc = dm.dso - dpo;
     const classification = classifyCCC(ccc);
 
     results.push({
       org: dm.org,
       dso: dm.dso,
-      dio: effectiveDIO,
       dpo,
       ccc,
       avgMonthlySales: dm.avgMonthlySales,
@@ -269,33 +263,27 @@ export function calcCCCByOrg(
  */
 export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
   if (cccMetrics.length === 0) {
-    return { avgCCC: 0, avgDSO: 0, avgDIO: 0, avgDPO: 0, metrics: [] };
+    return { avgCCC: 0, avgDSO: 0, avgDPO: 0, metrics: [] };
   }
 
-  // 매출액 가중평균: 매출 규모가 큰 조직의 CCC가 더 큰 영향을 미침
-  // NaN 방어: isFinite 가드로 NaN 포함 레코드 제외
   const validMetrics = cccMetrics.filter(m => isFinite(m.avgMonthlySales) && isFinite(m.ccc));
   const totalWeight = validMetrics.reduce((sum, m) => sum + m.avgMonthlySales, 0);
   if (totalWeight > 0) {
     const wCCC = validMetrics.reduce((sum, m) => sum + m.ccc * m.avgMonthlySales, 0);
     const wDSO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dso) ? m.dso : 0) * m.avgMonthlySales, 0);
-    const wDIO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dio) ? m.dio : 0) * m.avgMonthlySales, 0);
     const wDPO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dpo) ? m.dpo : 0) * m.avgMonthlySales, 0);
     return {
       avgCCC: Math.round(wCCC / totalWeight),
       avgDSO: Math.round(wDSO / totalWeight),
-      avgDIO: Math.round(wDIO / totalWeight),
       avgDPO: Math.round(wDPO / totalWeight),
       metrics: cccMetrics,
     };
   }
 
-  // 매출 데이터 없으면 단순 산술평균 fallback
   const count = cccMetrics.length;
   return {
     avgCCC: Math.round(cccMetrics.reduce((s, m) => s + m.ccc, 0) / count),
     avgDSO: Math.round(cccMetrics.reduce((s, m) => s + m.dso, 0) / count),
-    avgDIO: Math.round(cccMetrics.reduce((s, m) => s + m.dio, 0) / count),
     avgDPO: Math.round(cccMetrics.reduce((s, m) => s + m.dpo, 0) / count),
     metrics: cccMetrics,
   };
