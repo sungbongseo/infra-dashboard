@@ -136,8 +136,8 @@ export function SgaBreakdownTab({
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.org}</p>
-                      <p>판관비율: {d.sgaRate.toFixed(1)}%</p>
-                      <p>변동비: {formatCurrency(d.variableSga, true)} ({d.variableRatio.toFixed(0)}%)</p>
+                      <p>판관비율: {isFinite(d.sgaRate) ? d.sgaRate.toFixed(1) : "-"}%</p>
+                      <p>변동비: {formatCurrency(d.variableSga, true)} ({isFinite(d.variableRatio) ? d.variableRatio.toFixed(0) : "-"}%)</p>
                       <p>고정비: {formatCurrency(d.fixedSga, true)}</p>
                       <p>최대항목: {d.topItem} ({formatCurrency(d.topItemAmount, true)})</p>
                     </div>
@@ -169,7 +169,7 @@ export function SgaBreakdownTab({
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, name]}
+                formatter={(v: any, name: any) => [`${isFinite(Number(v)) ? Number(v).toFixed(1) : "-"}%`, name]}
               />
               <Bar dataKey="share" name="비중" fill={CHART_COLORS[1]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
             </BarChart>
@@ -209,10 +209,10 @@ export function SgaBreakdownTab({
                     <td className="py-1.5 px-3 text-right">{formatCurrency(c.sales)}</td>
                     <td className="py-1.5 px-3 text-right">{formatCurrency(c.sga)}</td>
                     <td className="py-1.5 px-3 text-right font-medium">
-                      {c.sgaRate.toFixed(1)}%
+                      {isFinite(c.sgaRate) ? c.sgaRate.toFixed(1) : "-"}%
                     </td>
                     <td className={`py-1.5 px-3 text-right font-medium ${getMarginColor(c.opMargin)}`}>
-                      {c.opMargin.toFixed(1)}%
+                      {isFinite(c.opMargin) ? c.opMargin.toFixed(1) : "-"}%
                     </td>
                     <td className="py-1.5 px-3 text-right text-xs text-muted-foreground">
                       {c.topSgaItem}

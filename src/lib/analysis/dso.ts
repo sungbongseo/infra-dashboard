@@ -156,10 +156,29 @@ export function calcDSOTrend(
   // 대안: 누적 매출 기반 rolling DSO
   // 매월 누적 미수금 잔액 추정: 미수금 × (최근N개월 매출비중)
   // 간소화: 3개월 이동평균 매출 기반 DSO
-  const result: DSOTrendPoint[] = [];
+
+  // 1단계: 각 월의 raw 미수금 배분 계산
+  const rawAllocations: { month: string; raw: number; monthlySales: number }[] = [];
   for (let i = 0; i < months.length; i++) {
     const month = months[i];
     const monthlySales = salesByMonth.get(month) || 0;
+    const raw = avgMonthlySales > 0
+      ? totalReceivables * (monthlySales / totalSales * months.length)
+      : totalReceivables / months.length;
+    rawAllocations.push({ month, raw: Math.max(raw, 0), monthlySales });
+  }
+
+  // 2단계: 정규화 — raw 합계가 totalReceivables를 초과하면 비례 축소
+  const rawTotal = rawAllocations.reduce((sum, a) => sum + a.raw, 0);
+  const normFactor = rawTotal > totalReceivables && rawTotal > 0
+    ? totalReceivables / rawTotal
+    : 1;
+
+  // 3단계: 정규화된 배분으로 DSO 계산
+  const result: DSOTrendPoint[] = [];
+  for (let i = 0; i < rawAllocations.length; i++) {
+    const { month, monthlySales } = rawAllocations[i];
+    const monthlyReceivables = rawAllocations[i].raw * normFactor;
 
     // 3개월 이동평균 매출 (최근 3개월)
     let rollingSum = 0;
@@ -169,12 +188,6 @@ export function calcDSOTrend(
       rollingCount++;
     }
     const rollingAvg = rollingCount > 0 ? rollingSum / rollingCount : 0;
-
-    // 해당월 미수금 추정: 미수금 비례 배분 (월 매출 / 평균 매출 기준), 총 미수금 초과 방지
-    const rawMonthlyReceivables = avgMonthlySales > 0
-      ? totalReceivables * (monthlySales / totalSales * months.length)
-      : totalReceivables / months.length;
-    const monthlyReceivables = Math.min(rawMonthlyReceivables, totalReceivables);
 
     const dso = rollingAvg > 0
       ? Math.round((monthlyReceivables / rollingAvg) * 30)

@@ -8,7 +8,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { calcOverviewKpis, calcMonthlyTrends, calcOrgRanking, calcForecastAccuracy, calcCollectionEfficiency, calcOperatingLeverage, calcContributionMarginRate, calcGrossProfitMargin, calcCollectionRateDetail } from "@/lib/analysis/kpi";
-import { calcRiskAssessments } from "@/lib/analysis/aging";
+import { calcRiskAssessments, calcCreditUtilization } from "@/lib/analysis/aging";
 import { calcSalesForecast } from "@/lib/analysis/forecast";
 import { generateInsights, type InsightSeverity } from "@/lib/analysis/insightGenerator";
 import { calcOverallDSO } from "@/lib/analysis/dso";
@@ -230,6 +230,20 @@ export default function OverviewPage() {
 
   const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
 
+  // ─── 여신사용률 (전체 가중평균) ──────────────────────────────────
+  const overallCreditUsageRate = useMemo(() => {
+    if (flattenedAging.length === 0) return undefined;
+    const utils = calcCreditUtilization(flattenedAging);
+    if (utils.length === 0) return undefined;
+    let totalUsed = 0;
+    let totalLimit = 0;
+    for (const u of utils) {
+      totalUsed += u.총미수금;
+      totalLimit += u.여신한도;
+    }
+    return totalLimit > 0 ? (totalUsed / totalLimit) * 100 : undefined;
+  }, [flattenedAging]);
+
   // ─── Alert evaluation ──────────────────────────────────────────
   useEffect(() => {
     if (hasData) {
@@ -237,9 +251,9 @@ export default function OverviewPage() {
         collectionRate: kpis.collectionRate,
         operatingProfitRate: kpis.operatingProfitRate,
         salesPlanAchievement: kpis.salesPlanAchievement,
-      }, overallDso);
+      }, overallDso, overallCreditUsageRate);
     }
-  }, [kpis, hasData, evaluate, overallDso]);
+  }, [kpis, hasData, evaluate, overallDso, overallCreditUsageRate]);
 
   if (isLoading) return <PageSkeleton />;
   if (!hasData) return <EmptyState />;

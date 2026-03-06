@@ -28,8 +28,8 @@ interface StatusTabProps {
 }
 
 export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: StatusTabProps) {
-  // StatusTab 기준: 91일+(month4~overdue)을 "장기 미수"로 표시
-  const overdueTotal = summary.month4 + summary.month5 + summary.month6 + summary.overdue;
+  // SAP FI-AR 표준: 61일+(month3~overdue)을 연체로 판정 (aging.ts assessRisk와 동일 기준)
+  const overdueTotal = summary.month3 + summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   const overdueRate = summary.total > 0 ? (overdueTotal / summary.total) * 100 : 0;
 
   const agingStackedData = useMemo(() =>
@@ -62,21 +62,21 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
           reason="미수금 총액은 운전자본의 핵심 구성요소로, 자금 흐름과 유동성 관리를 위해 상시 모니터링이 필요합니다."
         />
         <KpiCard
-          title="91일 이상 장기 미수"
+          title="61일 이상 연체 미수"
           value={overdueTotal}
           format="currency"
           icon={<AlertTriangle className="h-5 w-5" />}
-          formula="91일+ 장기 미수(원) = 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+). 참고: 리스크 탭의 연체는 61일+ 기준"
-          description="91일(4개월차) 이상 장기간 회수되지 않은 미수금 합계입니다. 오래 될수록 회수가 어려워지므로 즉각적인 추심 활동이 필요합니다."
+          formula="연체 미수(원) = 3개월차(61~90일) + 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+)"
+          description="SAP FI-AR 표준에 따라 61일(3개월차) 이상 회수되지 않은 미수금 합계입니다. 리스크 탭의 연체 판정 기준과 동일합니다."
           benchmark="총 미수금의 20% 미만이면 양호, 30% 이상이면 집중 관리가 필요합니다"
-          reason="장기 미수금은 대손 발생 가능성이 가장 높은 채권군으로, 조기 식별하여 회수 우선순위를 결정해야 합니다."
+          reason="연체 미수금은 대손 발생 가능성이 높은 채권군으로, 조기 식별하여 회수 우선순위를 결정해야 합니다."
         />
         <KpiCard
           title="연체비율"
           value={overdueRate}
           format="percent"
-          formula="연체비율(%) = 91일 이상 미수금(4개월차~6개월 초과) ÷ 총 미수금 × 100"
-          description="전체 미수금 중에서 91일(4개월차) 이상 장기 체류한 채권이 차지하는 비율입니다. 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
+          formula="연체비율(%) = 61일 이상 미수금(3개월차~6개월 초과) ÷ 총 미수금 × 100"
+          description="전체 미수금 중에서 61일(3개월차) 이상 체류한 채권이 차지하는 비율입니다. SAP FI-AR 표준 연체 기준이며, 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
           benchmark="20% 미만이면 양호, 30% 이상이면 위험 수준입니다"
           reason="연체비율은 채권 포트폴리오 건전성의 핵심 지표로, 비율 추이를 통해 수금 프로세스 효율성을 평가합니다."
         />

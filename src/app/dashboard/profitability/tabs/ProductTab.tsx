@@ -102,7 +102,7 @@ export function ProductTab({
           format="currency"
           icon={<TrendingUp className="h-5 w-5" />}
           formula="전체 품목 중 매출총이익(매출 - 원가)이 가장 큰 품목"
-          description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${productProfitability[0].grossMargin.toFixed(1)}%). 이 품목이 전체 이익에 가장 크게 기여하고 있습니다.` : "데이터 없음"}
+          description={productProfitability.length > 0 ? `${productProfitability[0].product} (매출총이익율 ${isFinite(productProfitability[0].grossMargin) ? productProfitability[0].grossMargin.toFixed(1) : "-"}%). 이 품목이 전체 이익에 가장 크게 기여하고 있습니다.` : "데이터 없음"}
           benchmark="최고 수익 품목이 전체 이익의 50% 이상이면 제품 집중도가 높아 리스크 관리 필요"
           reason="핵심 수익 품목을 식별하여 해당 품목의 수요 변화, 경쟁사 동향, 원가 변동에 대한 집중 모니터링 체계를 수립합니다"
         />
@@ -200,7 +200,7 @@ export function ProductTab({
                         fontSize={11}
                         fontWeight="bold"
                       >
-                        {`${(percent * 100).toFixed(0)}%`}
+                        {`${isFinite(percent * 100) ? (percent * 100).toFixed(0) : "-"}%`}
                       </text>
                     );
                   }}
@@ -333,10 +333,10 @@ export function ProductTab({
                       return (
                         <div style={{ ...TOOLTIP_STYLE.contentStyle, padding: 8 }}>
                           <p className="font-semibold text-xs mb-1">{label}</p>
-                          <p className="text-xs">계획 이익율: {item.plannedMargin.toFixed(1)}%</p>
-                          <p className="text-xs">실적 이익율: {item.actualMargin.toFixed(1)}%</p>
+                          <p className="text-xs">계획 이익율: {isFinite(item.plannedMargin) ? item.plannedMargin.toFixed(1) : "-"}%</p>
+                          <p className="text-xs">실적 이익율: {isFinite(item.actualMargin) ? item.actualMargin.toFixed(1) : "-"}%</p>
                           <p className={`text-xs ${item.erosion < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                            침식: {item.erosion > 0 ? "+" : ""}{item.erosion.toFixed(1)}%p
+                            침식: {item.erosion > 0 ? "+" : ""}{isFinite(item.erosion) ? item.erosion.toFixed(1) : "-"}%p
                           </p>
                           <p className="text-xs">매출액: {formatCurrency(item.sales)}</p>
                           <p className="text-xs font-medium">영향액: {formatCurrency(item.impactAmount)}</p>

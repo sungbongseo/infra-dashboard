@@ -4,7 +4,6 @@ import {
   assessRisk,
   calcRiskAssessments,
   calcCreditUtilization,
-  RISK_THRESHOLDS,
 } from "./aging";
 import type { ReceivableAgingRecord, AgingAmounts } from "@/types";
 

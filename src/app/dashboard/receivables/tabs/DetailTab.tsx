@@ -9,7 +9,6 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Legend,
-  Cell,
 } from "recharts";
 import { FileText, Globe, Building2, Clock } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";

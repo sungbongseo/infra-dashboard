@@ -137,7 +137,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
               <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
               <YAxis type="category" dataKey="segment" width={80} tick={{ fontSize: 11 }} />
-              <RechartsTooltip formatter={(v: any, name: any) => name.includes("율") || name.includes("비중") ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+              <RechartsTooltip formatter={(v: any, name: any) => name.includes("율") || name.includes("비중") ? `${isFinite(Number(v)) ? Number(v).toFixed(1) : "-"}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
               <Bar dataKey="totalSales" name="매출액" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Bar dataKey="totalGrossProfit" name="매출총이익" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
@@ -159,7 +159,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                   formatter={(v: any) => formatCurrency(Number(v))}
                   labelFormatter={(label) => {
                     const item = custRanking.find((r) => r.name === label);
-                    return item ? `${label} (이익율: ${item.opMargin.toFixed(1)}%)` : label;
+                    return item ? `${label} (이익율: ${isFinite(item.opMargin) ? item.opMargin.toFixed(1) : "-"}%)` : label;
                   }}
                   {...TOOLTIP_STYLE}
                 />
@@ -177,10 +177,10 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
               <ScatterChart>
                 <CartesianGrid {...GRID_PROPS} />
                 <XAxis type="number" dataKey="sales" name="매출액" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                <YAxis type="number" dataKey="opMargin" name="영업이익율(%)" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+                <YAxis type="number" dataKey="opMargin" name="영업이익율(%)" tick={{ fontSize: 10 }} tickFormatter={(v) => `${isFinite(v) ? v.toFixed(0) : "-"}%`} />
                 <ZAxis type="number" dataKey="grossProfit" range={[30, 300]} />
                 <RechartsTooltip
-                  formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                  formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${isFinite(Number(v)) ? Number(v).toFixed(1) : "-"}%` : formatCurrency(Number(v))}
                   {...TOOLTIP_STYLE}
                 />
                 <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
@@ -216,12 +216,12 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                   <td className="p-2 font-medium">{s.segment}</td>
                   <td className="p-2 text-right">{s.customerCount}</td>
                   <td className="p-2 text-right">{formatCurrency(s.totalSales, true)}</td>
-                  <td className="p-2 text-right">{s.salesShare.toFixed(1)}%</td>
+                  <td className="p-2 text-right">{isFinite(s.salesShare) ? s.salesShare.toFixed(1) : "-"}%</td>
                   <td className={`p-2 text-right ${s.avgGrossMargin >= 20 ? "text-emerald-600 dark:text-emerald-400" : s.avgGrossMargin >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                    {s.avgGrossMargin.toFixed(1)}%
+                    {isFinite(s.avgGrossMargin) ? s.avgGrossMargin.toFixed(1) : "-"}%
                   </td>
                   <td className={`p-2 text-right ${s.avgOpMargin >= 5 ? "text-emerald-600 dark:text-emerald-400" : s.avgOpMargin >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                    {s.avgOpMargin.toFixed(1)}%
+                    {isFinite(s.avgOpMargin) ? s.avgOpMargin.toFixed(1) : "-"}%
                   </td>
                 </tr>
               ))}
@@ -262,13 +262,13 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                     <td className="p-2 text-xs">{r.persons || "-"}</td>
                     <td className="p-2 text-right text-xs">{formatCurrency(r.salesActual, true)}</td>
                     <td className={`p-2 text-right text-xs ${r.gpRate >= 20 ? "text-emerald-600 dark:text-emerald-400" : r.gpRate >= 10 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                      {r.gpRate.toFixed(1)}%
+                      {isFinite(r.gpRate) ? r.gpRate.toFixed(1) : "-"}%
                     </td>
                     <td className={`p-2 text-right text-xs ${r.opActual >= 0 ? "" : "text-red-500 dark:text-red-400"}`}>
                       {formatCurrency(r.opActual, true)}
                     </td>
                     <td className={`p-2 text-right text-xs ${r.opRate >= 5 ? "text-emerald-600 dark:text-emerald-400" : r.opRate >= 0 ? "text-amber-500 dark:text-amber-400" : "text-red-500 dark:text-red-400"}`}>
-                      {r.opRate.toFixed(1)}%
+                      {isFinite(r.opRate) ? r.opRate.toFixed(1) : "-"}%
                     </td>
                   </tr>
                 ))}
