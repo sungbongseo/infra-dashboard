@@ -34,6 +34,7 @@ export interface ItemCostDetailRecord {
   No: number;
   판매사업본부: string;
   영업조직팀: string;
+  month?: string; // YYYYMM
   품목: string;
   매출수량: PlanActualDiff;
   매출액: PlanActualDiff;
@@ -68,6 +69,7 @@ export interface ItemCostDetailRecord {
 export interface ItemProfitabilityRecord {
   판매사업부: string;
   영업조직팀: string;     // Excel 컬럼명: "영업조직(팀)"
+  month?: string; // YYYYMM
   대분류: string;
   중분류: string;         // Excel: "중분류코드"
   소분류: string;         // Excel: "소분류코드"

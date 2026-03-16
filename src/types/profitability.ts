@@ -9,6 +9,7 @@ export interface OrgProfitRecord {
   판매사업본부: string;
   판매사업부: string;
   영업조직팀: string;
+  month?: string; // YYYYMM — 월별 시트 파싱 시 자동 주입
   매출액: PlanActualDiff;
   실적매출원가: PlanActualDiff;
   매출총이익: PlanActualDiff;
@@ -29,6 +30,7 @@ export interface TeamContributionRecord {
   영업그룹: string;
   영업조직팀: string;
   영업담당사번: string;
+  month?: string; // YYYYMM
   매출액: PlanActualDiff;
   실적매출원가: PlanActualDiff;
   매출총이익: PlanActualDiff;
@@ -76,6 +78,7 @@ export interface ProfitabilityAnalysisRecord {
   No: number;
   영업조직팀: string;
   영업담당사번: string;
+  month?: string; // YYYYMM
   매출거래처: string;
   품목: string;
   제품내수매출: PlanActualDiff;
@@ -94,6 +97,7 @@ export interface ProfitabilityAnalysisRecord {
 export interface OrgCustomerProfitRecord {
   No: number;
   영업조직팀: string;
+  month?: string; // YYYYMM
   거래처대분류: string;
   거래처중분류: string;
   거래처소분류: string;
@@ -126,6 +130,7 @@ export interface OrgCustomerProfitRecord {
 export interface HqCustomerItemProfitRecord {
   No: number;
   영업조직팀: string;
+  month?: string; // YYYYMM
   매출거래처: string;
   매출거래처명: string;
   품목: string;
@@ -145,6 +150,7 @@ export interface CustomerItemDetailRecord {
   No: number;
   영업조직팀: string;
   영업담당사번: string;
+  month?: string; // YYYYMM
   매출거래처: string;
   매출거래처명: string;
   품목: string;

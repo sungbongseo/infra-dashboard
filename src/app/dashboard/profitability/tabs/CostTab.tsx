@@ -1,11 +1,14 @@
 import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell, Legend,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG, BAR_RADIUS_TOP } from "@/components/charts";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 // ─── 비용 구조 상수 (CostTab 전용) ───
 const COST_BAR_COLORS: Record<string, string> = {
@@ -41,9 +44,11 @@ interface CostTabProps {
     매출원가율: number;
     orgAvg: { 원재료비율: number; 상품매입비율: number; 외주비율: number };
   }>;
+  monthlyTrend?: MonthlyTrendPoint[] | null;
+  monthlyGrowth?: MoMGrowth[];
 }
 
-export function CostTab({ costBarData, costEfficiency, isDateFiltered }: CostTabProps) {
+export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTrend, monthlyGrowth }: CostTabProps) {
   // 원가율 분포 히스토그램 데이터
   const costRateHistogram = useMemo(() => {
     return COST_RATE_BINS.map((bin) => {
@@ -217,6 +222,25 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered }: CostTab
           </table>
         </div>
       </ChartCard>
+
+      {monthlyTrend && monthlyTrend.length > 1 && (
+        <ChartCard
+          title="월별 원가·이익 추이"
+          formula="월별 시트 데이터에서 집계된 매출액·매출총이익·영업이익 추이"
+          description="월별 매출과 이익 변화를 비교하여 원가 구조 변동을 파악합니다. 매출액 대비 이익률이 하락하면 원가 상승을 의미합니다."
+          benchmark="매출총이익율이 3개월 연속 하락하면 원가 구조 점검 필요"
+          dataSourceType="period"
+          isDateFiltered={isDateFiltered}
+        >
+          <ErrorBoundary>
+            <MonthlyTrendChart
+              data={monthlyTrend}
+              growth={monthlyGrowth}
+              showGrowthRate={!!monthlyGrowth && monthlyGrowth.length > 0}
+            />
+          </ErrorBoundary>
+        </ChartCard>
+      )}
     </>
   );
 }

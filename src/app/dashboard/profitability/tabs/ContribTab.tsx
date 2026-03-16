@@ -1,7 +1,9 @@
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -10,6 +12,7 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Users } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 interface ContribEntry {
   name: string;
@@ -27,9 +30,11 @@ interface ContribTabProps {
   excludedNegativeContribCount: number;
   contribTotals: { sales: number; contrib: number; rate: number };
   isDateFiltered?: boolean;
+  monthlyTrend?: MonthlyTrendPoint[] | null;
+  monthlyGrowth?: MoMGrowth[];
 }
 
-export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered }: ContribTabProps) {
+export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered, monthlyTrend, monthlyGrowth }: ContribTabProps) {
   const contribExportData = useMemo(
     () =>
       contribRanking.map((r) => ({
@@ -216,6 +221,25 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
             </BarChart>
         </ChartContainer>
       </ChartCard>
+
+      {monthlyTrend && monthlyTrend.length > 1 && (
+        <ChartCard
+          title="월별 공헌이익 추이"
+          formula="월별 시트 데이터에서 집계된 매출액·매출총이익·영업이익 추이"
+          description="월별 매출과 이익의 변화 추이를 보여줍니다. 공헌이익이 지속 감소하면 변동비 관리 또는 매출 구조 점검이 필요합니다."
+          benchmark="MoM 성장률이 3개월 이동평균 대비 ±20% 이상 변동 시 주의"
+          dataSourceType="period"
+          isDateFiltered={isDateFiltered}
+        >
+          <ErrorBoundary>
+            <MonthlyTrendChart
+              data={monthlyTrend}
+              growth={monthlyGrowth}
+              showGrowthRate={!!monthlyGrowth && monthlyGrowth.length > 0}
+            />
+          </ErrorBoundary>
+        </ChartCard>
+      )}
     </>
   );
 }

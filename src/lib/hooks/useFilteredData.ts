@@ -6,10 +6,11 @@ import { useFilterStore } from "@/stores/filterStore";
 import {
   filterByOrg,
   filterByDateRange,
+  filterByMonth,
   filterOrgProfitLeafOnly,
   aggregateOrgProfit,
 } from "@/lib/utils";
-import type { ReceivableAgingRecord } from "@/types";
+import type { ReceivableAgingRecord, InventoryMovementRecord } from "@/types";
 
 /**
  * 공통 필터링 훅 - 모든 대시보드 페이지의 데이터 필터링 패턴을 통합
@@ -121,13 +122,14 @@ export function useFilteredReceivables() {
 
 export function useFilteredOrgProfit() {
   const orgProfit = useDataStore((s) => s.orgProfit);
-  const { effectiveOrgNames } = useFilterContext();
+  const { effectiveOrgNames, dateRange } = useFilterContext();
 
   const filteredOrgProfit = useMemo(() => {
     const orgFiltered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
-    const leafOnly = filterOrgProfitLeafOnly(orgFiltered);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    const leafOnly = filterOrgProfitLeafOnly(monthFiltered);
     return aggregateOrgProfit(leafOnly);
-  }, [orgProfit, effectiveOrgNames]);
+  }, [orgProfit, effectiveOrgNames, dateRange]);
 
   return { filteredOrgProfit, orgProfit };
 }
@@ -136,11 +138,12 @@ export function useFilteredOrgProfit() {
 
 export function useFilteredTeamContribution() {
   const teamContribution = useDataStore((s) => s.teamContribution);
-  const { effectiveOrgNames } = useFilterContext();
+  const { effectiveOrgNames, dateRange } = useFilterContext();
 
   const filteredTeamContrib = useMemo(() => {
-    return filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
-  }, [teamContribution, effectiveOrgNames]);
+    const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
+    return filterByMonth(orgFiltered, dateRange);
+  }, [teamContribution, effectiveOrgNames, dateRange]);
 
   return { filteredTeamContrib, teamContribution };
 }
@@ -149,12 +152,13 @@ export function useFilteredTeamContribution() {
 
 export function useFilteredOrgCustomerProfit() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
-  const { effectiveOrgNames, selectedCustomers } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
 
   const filteredOrgCustomerProfit = useMemo(() => {
     const orgFiltered = filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
-    return filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
-  }, [orgCustomerProfit, effectiveOrgNames, selectedCustomers]);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+  }, [orgCustomerProfit, effectiveOrgNames, selectedCustomers, dateRange]);
 
   return { filteredOrgCustomerProfit, orgCustomerProfit };
 }
@@ -179,11 +183,12 @@ export function useFilteredCustomerItemDetail() {
 
 export function useFilteredItemCostDetail() {
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
-  const { effectiveOrgNames } = useFilterContext();
+  const { effectiveOrgNames, dateRange } = useFilterContext();
 
   const filteredItemCostDetail = useMemo(() => {
-    return filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀");
-  }, [itemCostDetail, effectiveOrgNames]);
+    const orgFiltered = filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀");
+    return filterByMonth(orgFiltered, dateRange);
+  }, [itemCostDetail, effectiveOrgNames, dateRange]);
 
   return { filteredItemCostDetail, itemCostDetail };
 }
@@ -192,12 +197,39 @@ export function useFilteredItemCostDetail() {
 
 export function useFilteredHqCustomerItemProfit() {
   const hqCustomerItemProfit = useDataStore((s) => s.hqCustomerItemProfit);
-  const { effectiveOrgNames, selectedCustomers } = useFilterContext();
+  const { effectiveOrgNames, selectedCustomers, dateRange } = useFilterContext();
 
   const filteredHqProfit = useMemo(() => {
     const orgFiltered = filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀");
-    return filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
-  }, [hqCustomerItemProfit, effectiveOrgNames, selectedCustomers]);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+  }, [hqCustomerItemProfit, effectiveOrgNames, selectedCustomers, dateRange]);
 
   return { filteredHqProfit, hqCustomerItemProfit };
+}
+
+// ─── 재고 수불 데이터 (Map 기반 + 월별 필터) ──────────────────────
+
+export function useFilteredInventory() {
+  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
+  const { dateRange } = useFilterContext();
+
+  const filteredInventoryMap = useMemo(() => {
+    const filtered = new Map<string, InventoryMovementRecord[]>();
+    for (const [factory, records] of Array.from(inventoryMovement.entries())) {
+      const monthFiltered = filterByMonth(records, dateRange);
+      if (monthFiltered.length > 0) {
+        filtered.set(factory, monthFiltered);
+      }
+    }
+    return filtered;
+  }, [inventoryMovement, dateRange]);
+
+  const filteredInventoryRecords = useMemo(() => {
+    const records: InventoryMovementRecord[] = [];
+    Array.from(filteredInventoryMap.values()).forEach((arr) => records.push(...arr));
+    return records;
+  }, [filteredInventoryMap]);
+
+  return { filteredInventoryRecords, filteredInventoryMap, inventoryMovement };
 }

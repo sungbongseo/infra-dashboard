@@ -1,6 +1,7 @@
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell,
@@ -8,6 +9,7 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { TrendingUp, Target, Percent } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
+import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 interface PnlTabProps {
   totalGP: number;
@@ -22,9 +24,11 @@ interface PnlTabProps {
     type: "start" | "decrease" | "subtotal";
   }>;
   isDateFiltered?: boolean;
+  monthlyTrend?: MonthlyTrendPoint[] | null;
+  monthlyGrowth?: MoMGrowth[];
 }
 
-export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, isDateFiltered }: PnlTabProps) {
+export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, isDateFiltered, monthlyTrend, monthlyGrowth }: PnlTabProps) {
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -107,6 +111,25 @@ export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, i
           </ChartContainer>
         </ErrorBoundary>
       </ChartCard>
+
+      {monthlyTrend && monthlyTrend.length > 1 && (
+        <ChartCard
+          title="월별 손익 추이"
+          formula="월별 시트 데이터를 집계하여 매출액·매출총이익·영업이익 추이를 표시합니다"
+          description="각 월별 시트에서 파싱된 조직 손익 데이터를 시계열로 비교합니다. 막대는 매출액, 선은 매출총이익과 영업이익을 나타냅니다."
+          benchmark="MoM 성장률이 3개월 이동평균 대비 ±20% 이상 변동 시 주의가 필요합니다"
+          dataSourceType="period"
+          isDateFiltered={isDateFiltered}
+        >
+          <ErrorBoundary>
+            <MonthlyTrendChart
+              data={monthlyTrend}
+              growth={monthlyGrowth}
+              showGrowthRate={!!monthlyGrowth && monthlyGrowth.length > 0}
+            />
+          </ErrorBoundary>
+        </ChartCard>
+      )}
     </>
   );
 }

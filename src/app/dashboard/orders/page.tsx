@@ -18,12 +18,15 @@ import { OrgTab } from "./tabs/OrgTab";
 import { PipelineTab } from "./tabs/PipelineTab";
 import { O2CFlowTab } from "./tabs/O2CFlowTab";
 import { ConversionTab } from "./tabs/ConversionTab";
+import { InventoryTab } from "./tabs/InventoryTab";
+import { useFilteredInventory } from "@/lib/hooks/useFilteredData";
 
 export default function OrdersAnalysisPage() {
   const isLoading = useDataStore((s) => s.isLoading);
   const { filteredOrders } = useFilteredOrders();
   const { filteredSales } = useFilteredSales();
   const { filteredCollections } = useFilteredCollections();
+  const { filteredInventoryRecords } = useFilteredInventory();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
@@ -170,6 +173,9 @@ export default function OrdersAnalysisPage() {
           <TabsTrigger value="pipeline">O2C 파이프라인</TabsTrigger>
           <TabsTrigger value="o2c-flow">O2C 플로우</TabsTrigger>
           <TabsTrigger value="conversion">전환율</TabsTrigger>
+          {filteredInventoryRecords.length > 0 && (
+            <TabsTrigger value="inventory">재고 분석</TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -228,6 +234,14 @@ export default function OrdersAnalysisPage() {
             <ConversionTab filteredOrders={filteredOrders} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
         </TabsContent>
+
+        {filteredInventoryRecords.length > 0 && (
+          <TabsContent value="inventory" className="space-y-6">
+            <ErrorBoundary>
+              <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} />
+            </ErrorBoundary>
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

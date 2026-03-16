@@ -163,6 +163,28 @@ export function filterByDateRange<T extends Record<string, any>>(
   return result;
 }
 
+// ─── 월별 필터 ─────────────────────────────────────────────────────
+
+/**
+ * month 필드 기반 날짜 필터. dateRange가 null이면 전체 반환.
+ * P&L 타입(orgProfit, teamContribution 등)은 날짜 컬럼이 없고
+ * 월별 시트 파싱 시 주입된 month(YYYYMM) 필드로 필터링.
+ * month 필드가 없는 행(하위호환)은 통과시킴.
+ */
+export function filterByMonth<T extends Record<string, any>>(
+  data: T[],
+  dateRange: { from: string; to: string } | null,
+): T[] {
+  if (!dateRange || !dateRange.from || !dateRange.to) return data;
+  const from = dateRange.from.replace("-", ""); // "2025-01" → "202501"
+  const to = dateRange.to.replace("-", "");
+  return data.filter(row => {
+    const m = row.month;
+    if (!m) return true; // 하위호환: month 없으면 통과
+    return m >= from && m <= to;
+  });
+}
+
 // ─── OrgProfit 동일 조직 합산 ──────────────────────────────────────
 
 /** PlanActualDiff 두 값 합산 */

@@ -257,12 +257,27 @@ export default function OverviewPage() {
   const sparklines = useMemo(() => {
     const sorted = [...trends].sort((a, b) => a.month.localeCompare(b.month));
     const recent = sorted.slice(-6);
+
+    // orgProfit 월별 영업이익 sparkline
+    const monthlyOP: number[] = [];
+    if (filteredOrgProfit.some((r: any) => r.month)) {
+      const monthMap = new Map<string, number>();
+      for (const r of filteredOrgProfit) {
+        const m = (r as any).month;
+        if (!m) continue;
+        monthMap.set(m, (monthMap.get(m) || 0) + r.영업이익.실적);
+      }
+      const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
+      for (const [, v] of sortedMonths) monthlyOP.push(v);
+    }
+
     return {
       sales: recent.map((t) => t.매출),
       orders: recent.map((t) => t.수주),
       collections: recent.map((t) => t.수금),
+      operatingProfit: monthlyOP.length >= 2 ? monthlyOP : undefined,
     };
-  }, [trends]);
+  }, [trends, filteredOrgProfit]);
 
   const hasData = filteredSales.length > 0 || filteredOrders.length > 0;
 
@@ -527,6 +542,7 @@ export default function OverviewPage() {
             <KpiCard
               title="영업이익율"
               value={kpis.operatingProfitRate}
+              sparklineData={sparklines.operatingProfit}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
               formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"

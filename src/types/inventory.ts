@@ -1,5 +1,6 @@
 export interface InventoryMovementRecord {
   factory: string;           // 공장명 (파일명에서 추출)
+  month?: string;            // YYYYMM — 월별 시트 파싱 시 자동 주입
   no: number;                // 일련번호
   품목: string;              // 품목코드
   품목명: string;

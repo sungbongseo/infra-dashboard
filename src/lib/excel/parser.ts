@@ -12,7 +12,7 @@ import type {
   PlanActualDiff,
   AgingAmounts,
 } from "@/types";
-import { detectFileType, getAgingSourceName, getFactoryName } from "./schemas";
+import { detectFileType, getAgingSourceName, getFactoryName, type FileSchema } from "./schemas";
 
 export interface ParseResult {
   fileType: string;
@@ -343,51 +343,42 @@ function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 
-export function parseExcelFile(
-  buffer: ArrayBuffer,
+// ─── 월별 시트 감지 ────────────────────────────────────────────────
+
+interface MonthlySheet {
+  sheetName: string;
+  month: string; // YYYYMM
+}
+
+/**
+ * 워크북 시트 이름 중 YYYYMM 형식(6자리 숫자)을 감지.
+ * 최소 2개 이상이어야 월별 데이터로 판정.
+ */
+function detectMonthlySheets(sheetNames: string[]): MonthlySheet[] {
+  const monthly = sheetNames
+    .filter(name => /^\d{6}$/.test(name.trim()))
+    .map(name => ({ sheetName: name, month: name.trim() }));
+  return monthly.length >= 2 ? monthly : [];
+}
+
+interface SheetParseResult {
+  data: unknown[];
+  skippedRows: number;
+}
+
+/**
+ * 단일 시트의 rawData를 파일타입에 따라 파싱.
+ * parseExcelFile()의 switch 로직을 추출하여 다중 시트에서도 재사용.
+ */
+function parseSheetData(
+  rawData: unknown[][],
+  schema: FileSchema,
+  warnings: string[],
   fileName: string,
-  orgNames?: Set<string>
-): ParseResult {
-  const warnings: string[] = [];
-
-  // File size validation
-  if (buffer.byteLength > MAX_FILE_SIZE) {
-    throw new Error(`파일 크기 초과: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB (최대 100MB)`);
-  }
-
-  const schema = detectFileType(fileName);
-  if (!schema) {
-    throw new Error(`인식할 수 없는 파일: ${fileName}`);
-  }
-
-  // Workbook validation
-  let workbook: XLSX.WorkBook;
-  try {
-    workbook = XLSX.read(buffer, { type: "array" });
-  } catch (e: any) {
-    throw new Error(`엑셀 파일 읽기 실패: ${e.message || "파일이 손상되었거나 올바른 엑셀 형식이 아닙니다"}`);
-  }
-
-  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-    throw new Error("엑셀 파일에 시트가 없습니다");
-  }
-
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  if (!sheet) {
-    throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
-  }
-
-  const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-  const minRows = schema.hasMergedHeader ? 3 : 2; // header + at least 1 data row
-  if (rawData.length < minRows) {
-    throw new Error(`데이터가 부족합니다: ${rawData.length}행 (최소 ${minRows}행 필요)`);
-  }
-
+): SheetParseResult {
   let parsed: unknown[];
   let skippedRows = 0;
 
-  // Row-level safe parsing for complex types, direct parsing for simple types
   switch (schema.fileType) {
     case "organization": {
       const rOrg = safeParseRows(rawData, 1, (row) => ({
@@ -512,7 +503,6 @@ export function parseExcelFile(
           공헌이익율: parsePlanActualDiff(row, 40),
         };
       }, warnings, "조직별손익", false);
-      // 극단 이익율 경고 (절대값 ≥1000%는 계산 오류 의심 — 데이터는 보존, 차트 측에서 domain clamping으로 대응)
       let abnormalCount = 0;
       for (const p of rOP.parsed) {
         if (Math.abs(p.영업이익율.실적) >= 1000 || Math.abs(p.공헌이익율.실적) >= 1000) {
@@ -525,16 +515,12 @@ export function parseExcelFile(
       if (abnormalCount > 3) {
         warnings.push(`[조직별손익] 외 ${abnormalCount - 3}개 조직의 극단 이익율 데이터가 감지되었습니다. Excel 파일의 수식을 확인하세요.`);
       }
-      // 실적·계획 모두 0인 행만 제외
       const nonZero = rOP.parsed.filter(row => row.매출액.실적 !== 0 || row.매출액.계획 !== 0);
       parsed = fillDownHierarchicalOrg(nonZero, warnings, "조직별손익");
       skippedRows = rOP.skipped;
       break;
     }
     case "teamContribution": {
-      // Pre-pass: rawData에서 영업그룹/영업조직팀 fill-down 수행
-      // SKIP_ROW가 소계 행(영업담당사번 없음)을 제거하기 전에 조직명을 채움
-      // → 이후 상세 행이 올바른 조직명을 갖게 됨
       {
         let curGroup = "";
         let curTeam = "";
@@ -554,13 +540,10 @@ export function parseExcelFile(
           }
         }
       }
-      // teamContribution has wide rows (index up to 112), use safe parsing
-      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows(rawData, 2, (row) => {
-        // 합계 행 필터링: 영업담당사번이 없으면 제외
         const empNo = str(row[3]).trim();
         if (!empNo) {
-          throw new Error("SKIP_ROW"); // safeParseRows에서 자동으로 skip됨
+          throw new Error("SKIP_ROW");
         }
 
         const record = {
@@ -589,7 +572,6 @@ export function parseExcelFile(
           공헌이익율: parsePlanActualDiff(row, 112),
         };
 
-        // 비정상 데이터 검증: 이익율 절대값 >500%는 계산 오류 (100~500%는 정상 가능)
         if (Math.abs(record.공헌이익율.실적) >= 500 || Math.abs(record.영업이익율.실적) >= 500) {
           warnings.push(`팀원별공헌이익: 사번 ${record.영업담당사번} 이익율 이상치 보정 (공헌이익율=${record.공헌이익율.실적.toFixed(0)}%, 영업이익율=${record.영업이익율.실적.toFixed(0)}%)`);
           record.공헌이익율.실적 = 0;
@@ -602,10 +584,6 @@ export function parseExcelFile(
 
         return record;
       }, warnings, "팀원별공헌이익", false);
-      // rawData pre-pass에서 이미 fill-down 완료 → fillDownMultiLevel 불필요
-      // Excel에 요약/상세 두 섹션이 있어 동일 조직+사번이 중복됨 → 중복 제거
-      // 키: 조직_사번 (같은 사번이라도 다른 조직이면 별도 유지)
-      // 나중에 나오는 행(상세 섹션)이 더 완전한 데이터이므로 후순위 우선
       const deduped = new Map<string, (typeof r.parsed)[0]>();
       for (const row of r.parsed) {
         const key = `${(row.영업조직팀 || "").trim()}_${(row.영업담당사번 || "").trim()}`;
@@ -620,7 +598,6 @@ export function parseExcelFile(
       break;
     }
     case "profitabilityAnalysis": {
-      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<ProfitabilityAnalysisRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[1]),
@@ -638,16 +615,11 @@ export function parseExcelFile(
         판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
         영업이익: parsePlanActualDiff(row, 32),
       }), warnings, "수익성분석", false);
-      // SAP 계층 리포트: 영업조직팀이 소계 행에만 존재하므로 하위 행에 전파
       parsed = fillDownHierarchicalOrg(r.parsed, warnings, "수익성분석");
       skippedRows = r.skipped;
       break;
     }
     case "orgCustomerProfit": {
-      // 303 실제 컬럼: 0:No 1:판매사업본부 2:판매사업부 3:영업조직(팀) 4:거래처대분류
-      // 5:거래처중분류 6:거래처소분류 7:판매거래처 8~10:매출액 11~13:실적매출원가
-      // 14~16:매출총이익 17~19:판매관리비 20~22:영업이익 23+:판관비세부
-      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<OrgCustomerProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[3]),
@@ -655,15 +627,14 @@ export function parseExcelFile(
         거래처중분류: str(row[5]),
         거래처소분류: str(row[6]),
         매출거래처: str(row[7]),
-        매출거래처명: str(row[7]),  // 별도 이름 컬럼 없음, 판매거래처가 이름 역할
+        매출거래처명: str(row[7]),
         매출액: parsePlanActualDiff(row, 8),
         실적매출원가: parsePlanActualDiff(row, 11),
         매출총이익: parsePlanActualDiff(row, 14),
         판매관리비: parsePlanActualDiff(row, 17),
         영업이익: parsePlanActualDiff(row, 20),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
-        // 판관비 세부 13개 항목 (col23~61)
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
         판관변동_노무비: parsePlanActualDiff(row, 23),
         판관변동_복리후생비: parsePlanActualDiff(row, 26),
         판관변동_소모품비: parsePlanActualDiff(row, 29),
@@ -678,7 +649,6 @@ export function parseExcelFile(
         판관고정_감가상각비: parsePlanActualDiff(row, 56),
         판관고정_기타경비: parsePlanActualDiff(row, 59),
       }), warnings, "조직별거래처별손익", false);
-      // SAP 다중 레벨 계층: 영업조직팀→거래처대분류→중분류→소분류→매출거래처
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
         ["거래처대분류"],
@@ -690,27 +660,22 @@ export function parseExcelFile(
       break;
     }
     case "hqCustomerItemProfit": {
-      // 304 실제 컬럼: 0:No 1:판매사업본부 2:영업조직(팀) 3:판매사업부 4:매출거래처
-      // 5:품목계정그룹 6:중분류코드 7:품목 8~10:매출수량 11~13:환산수량
-      // 14~16:매출액 17~19:실적매출원가 20~22:매출총이익 23~25:판매관리비 26~28:영업이익
-      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<HqCustomerItemProfitRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[2]),
         매출거래처: str(row[4]),
-        매출거래처명: str(row[4]),  // 별도 이름 컬럼 없음
+        매출거래처명: str(row[4]),
         품목: str(row[7]),
-        품목명: str(row[5]) || str(row[7]),  // 품목계정그룹 또는 품목명
+        품목명: str(row[5]) || str(row[7]),
         매출수량: parsePlanActualDiff(row, 8),
         매출액: parsePlanActualDiff(row, 14),
         실적매출원가: parsePlanActualDiff(row, 17),
         매출총이익: parsePlanActualDiff(row, 20),
         판매관리비: parsePlanActualDiff(row, 23),
         영업이익: parsePlanActualDiff(row, 26),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
       }), warnings, "본부거래처품목손익", false);
-      // SAP 다중 레벨 계층: 영업조직팀→매출거래처→품목
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
         ["매출거래처", "매출거래처명"],
@@ -720,49 +685,38 @@ export function parseExcelFile(
       break;
     }
     case "customerItemDetail": {
-      // 100 실제 컬럼: 0:No 1:판매사업본부 2:판매사업부 3:영업조직(팀) 4:매출거래처
-      // 5:품목 6:대분류 7:환산단위 8:계정구분 9:거래처대분류 10:거래처중분류
-      // 11:거래처소분류 12:매출유형 13:매출연월 14:사업장 15:영업담당사번
-      // ... 30:품목제품군 ... 41:결제조건
-      // 42~44:매출수량 45~47:매출액 48~50:실적매출원가 51~53:차이매출원가
-      // 54~56:매입할인 57~59:원재료비 60~62:부재료비 63~65:상품매입
-      // 66~68:매출총이익 69~71:판매관리비 72~74:직접판매운반비 75~77:영업이익
-      // filterEmptyFirstCol=false: SAP 병합 셀에서 No 컬럼이 비어있는 상세 행 보존
       const r = safeParseRows<CustomerItemDetailRecord>(rawData, 2, (row) => ({
         No: num(row[0]),
         영업조직팀: str(row[3]),
         영업담당사번: str(row[15]),
         매출거래처: str(row[4]),
-        매출거래처명: str(row[4]),  // 별도 이름 컬럼 없음
+        매출거래처명: str(row[4]),
         품목: str(row[5]),
-        품목명: str(row[5]),  // 별도 이름 컬럼 없음
+        품목명: str(row[5]),
         거래처대분류: str(row[9]),
         거래처중분류: str(row[10]),
         거래처소분류: str(row[11]),
-        제품군: str(row[30]),  // 품목제품군
-        매출연월: str(row[13]),  // YYYYMM 형식
-        계정구분: str(row[8]),      // P1-3: 제품/상품/원자재/부재료/저장품
-        매출유형: str(row[12]),     // P1-3: 일반매출/해외매출 등
-        품목군: str(row[24]),       // P1-3: 34종 제품군 분류
-        중분류코드: str(row[25]),   // P1-3: 43종 상세분류
-        공장: str(row[28]),         // P1-3: 5개 생산공장
-        제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
-        제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
+        제품군: str(row[30]),
+        매출연월: str(row[13]),
+        계정구분: str(row[8]),
+        매출유형: str(row[12]),
+        품목군: str(row[24]),
+        중분류코드: str(row[25]),
+        공장: str(row[28]),
+        제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },
+        제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },
         매출수량: parsePlanActualDiff(row, 42),
-        환산수량: { 계획: 0, 실적: 0, 차이: 0 },  // 환산단위는 문자열(col 7)
+        환산수량: { 계획: 0, 실적: 0, 차이: 0 },
         매출액: parsePlanActualDiff(row, 45),
         실적매출원가: parsePlanActualDiff(row, 48),
-        상품매입: parsePlanActualDiff(row, 63),   // P1-3: 거래처x품목별 상품매입 원가
+        상품매입: parsePlanActualDiff(row, 63),
         매출총이익: parsePlanActualDiff(row, 66),
         판매관리비: parsePlanActualDiff(row, 69),
         판관변동_직접판매운반비: parsePlanActualDiff(row, 72),
         영업이익: parsePlanActualDiff(row, 75),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },  // 엑셀에 미존재
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },     // 엑셀에 미존재
+        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
       }), warnings, "거래처별품목별손익", false);
-      // SAP 계층: 영업조직팀→매출거래처→품목
-      // 거래처대분류/중분류/소분류는 행별 속성이지 계층 부모가 아님
-      // (대분류 변경이 매출거래처 fill-down을 리셋하면 안 됨)
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
         ["매출거래처", "매출거래처명"],
@@ -772,18 +726,12 @@ export function parseExcelFile(
       break;
     }
     case "itemProfitability": {
-      // filterEmptyFirstCol=false: SAP 계층 데이터에서 No 빈 행 보존
       const rIP = safeParseRows<ItemProfitabilityRecord>(
         rawData, 1, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
       );
-      // fillDownMultiLevel을 사용하지 않음 — KG 소계행 보존이 필요하므로 직접 fill-down 수행
-      // SAP 200 보고서 구조: 각 품목은 (상세행: 비-KG, 소량) + (KG소계행: 실제 총량) 쌍으로 구성
-      // fillDownMultiLevel은 lastLevel 빈 행을 소계로 판단해 제거하므로 사용 불가
       const ipRows = rIP.parsed;
-      // fill-down 전 원본 품목값 보존 (KG 소계행 감지에 필요)
       const origItemValues = ipRows.map(r => String(r.품목 || "").trim());
 
-      // 1단계: 7개 계층 필드 순방향 fill-down (판매사업부→영업조직팀→대분류→중분류→소분류→품목계정그룹→품목)
       const ipLevels = ["판매사업부", "영업조직팀", "대분류", "중분류", "소분류", "품목계정그룹", "품목"];
       const ipCurrent: Record<string, string> = {};
       for (const rec of ipRows) {
@@ -793,7 +741,6 @@ export function parseExcelFile(
           if (val !== "" && !isTotalRow(val)) {
             if (ipCurrent[field] !== val) {
               ipCurrent[field] = val;
-              // 하위 레벨 리셋
               for (let j = i + 1; j < ipLevels.length; j++) {
                 ipCurrent[ipLevels[j]] = "";
               }
@@ -804,7 +751,6 @@ export function parseExcelFile(
         }
       }
 
-      // 2단계: 영업조직팀 역방향 fill-down (역순 머지 대응)
       let ipCurrentOrg = "";
       for (let i = ipRows.length - 1; i >= 0; i--) {
         const val = String(ipRows[i].영업조직팀 || "").trim();
@@ -815,14 +761,11 @@ export function parseExcelFile(
         }
       }
 
-      // 3단계: KG 소계행 병합 — 품목 상세행 + KG 소계행 쌍이면 KG행 수치 사용
       const mergedIP: ItemProfitabilityRecord[] = [];
       for (let i = 0; i < ipRows.length; i++) {
         const cur = ipRows[i];
         const curItem = String(cur.품목 || "").trim();
-        // 합계/소계 행 및 빈 품목 행 건너뛰기
         if (curItem === "" || isTotalRow(curItem)) continue;
-        // 모든 레벨에서 합계 체크
         let isTotal = false;
         for (const f of ipLevels) {
           if (isTotalRow(String((cur as Record<string, any>)[f] || "").trim())) { isTotal = true; break; }
@@ -832,12 +775,11 @@ export function parseExcelFile(
         const curUnit = String(cur.기준단위 || "").trim();
         const next = i + 1 < ipRows.length ? ipRows[i + 1] : null;
         if (next) {
-          const nextItemOrig = origItemValues[i + 1] ?? ""; // fill-down 전 원래 품목값
+          const nextItemOrig = origItemValues[i + 1] ?? "";
           const nextUnit = String(next.기준단위 || "").trim();
-          // 다음 행이 원래 품목이 비어있고 KG 단위이며 현재행이 KG가 아닌 경우 → KG 소계행 사용
           if (nextItemOrig === "" && nextUnit === "KG" && curUnit !== "KG") {
-            mergedIP.push({ ...next }); // KG행 수치 + fill-down된 계층 정보
-            i++; // KG 소계행 건너뛰기
+            mergedIP.push({ ...next });
+            i++;
             continue;
           }
         }
@@ -881,14 +823,11 @@ export function parseExcelFile(
         공헌이익율: parsePlanActualDiff(row, 76),
       }), warnings, "품목별매출원가상세", false);
 
-      // SAP 계층 fill-down: 판매사업본부 → 영업조직팀 → 품목
-      // 품목이 lastLevelPrimary → 품목 비어있는 팀소계행은 non-detail로 제거됨
       let filled = fillDownMultiLevel(r.parsed, [
         ["판매사업본부"],
         ["영업조직팀"],
         ["품목"],
       ], warnings, "품목별매출원가상세");
-      // 사업본부/팀 필터 (상수 참조)
       const beforeFilterCount = filled.length;
       filled = filled.filter(
         (row) => row.판매사업본부 === ITEM_COST_HQ_FILTER && row.영업조직팀 !== ITEM_COST_EXCLUDED_TEAM
@@ -932,6 +871,88 @@ export function parseExcelFile(
       break;
     default:
       throw new Error(`파서 미구현: ${schema.fileType}`);
+  }
+
+  return { data: parsed, skippedRows };
+}
+
+export function parseExcelFile(
+  buffer: ArrayBuffer,
+  fileName: string,
+  orgNames?: Set<string>
+): ParseResult {
+  const warnings: string[] = [];
+
+  // File size validation
+  if (buffer.byteLength > MAX_FILE_SIZE) {
+    throw new Error(`파일 크기 초과: ${(buffer.byteLength / 1024 / 1024).toFixed(1)}MB (최대 100MB)`);
+  }
+
+  const schema = detectFileType(fileName);
+  if (!schema) {
+    throw new Error(`인식할 수 없는 파일: ${fileName}`);
+  }
+
+  // Workbook validation
+  let workbook: XLSX.WorkBook;
+  try {
+    workbook = XLSX.read(buffer, { type: "array" });
+  } catch (e: any) {
+    throw new Error(`엑셀 파일 읽기 실패: ${e.message || "파일이 손상되었거나 올바른 엑셀 형식이 아닙니다"}`);
+  }
+
+  if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+    throw new Error("엑셀 파일에 시트가 없습니다");
+  }
+
+  let parsed: unknown[];
+  let skippedRows = 0;
+
+  // 월별 시트 감지: YYYYMM 형식 시트가 2개 이상이면 다중 시트 파싱
+  const monthlySheets = detectMonthlySheets(workbook.SheetNames);
+
+  if (monthlySheets.length > 0) {
+    // ─── 다중 월별 시트 파싱 ─────────────────────────────────────
+    const allRows: unknown[] = [];
+    for (const ms of monthlySheets) {
+      const sheet = workbook.Sheets[ms.sheetName];
+      if (!sheet) {
+        warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
+        continue;
+      }
+      const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+      const minRows = schema.hasMergedHeader ? 3 : 2;
+      if (rawData.length < minRows) {
+        warnings.push(`시트 '${ms.sheetName}': 데이터 부족 (${rawData.length}행) — 건너뜀`);
+        continue;
+      }
+      const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
+      // month 필드 주입
+      for (const row of sheetResult.data) {
+        (row as any).month = ms.month;
+      }
+      allRows.push(...sheetResult.data);
+      skippedRows += sheetResult.skippedRows;
+    }
+    warnings.push(`월별 시트 ${monthlySheets.length}개 파싱 완료 (${allRows.length}행 통합)`);
+    parsed = allRows;
+  } else {
+    // ─── 기존 단일 시트 파싱 (하위호환) ──────────────────────────
+    const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+      throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
+    }
+
+    const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    const minRows = schema.hasMergedHeader ? 3 : 2;
+    if (rawData.length < minRows) {
+      throw new Error(`데이터가 부족합니다: ${rawData.length}행 (최소 ${minRows}행 필요)`);
+    }
+
+    const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
+    parsed = sheetResult.data;
+    skippedRows = sheetResult.skippedRows;
   }
 
   // Apply org filter if available and applicable

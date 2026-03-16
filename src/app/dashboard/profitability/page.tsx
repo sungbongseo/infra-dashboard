@@ -11,8 +11,9 @@ import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, filterOrgProfitLeafOnly, CHART_COLORS } from "@/lib/utils";
 import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
+import { calcMonthlyTrend, calcMoMGrowth, padActual } from "@/lib/analysis/monthlyTrend";
 import {
   calcCostStructure,
   calcOrgRatioMetrics,
@@ -90,8 +91,29 @@ export default function ProfitabilityPage() {
   const itemProfitability = useDataStore((s) => s.itemProfitability);
   const isLoading = useDataStore((s) => s.isLoading);
 
+  const orgProfit = useDataStore((s) => s.orgProfit);
   const { effectiveOrgNames, dateRange } = useFilterContext();
   const { filteredOrgProfit } = useFilteredOrgProfit();
+
+  // 월별 트렌드: orgProfit에 month 필드가 있을 때만 계산
+  const monthlyTrendData = useMemo(() => {
+    const orgFiltered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
+    const leafOnly = filterOrgProfitLeafOnly(orgFiltered);
+    if (!leafOnly.some((r: any) => r.month)) return null;
+    return calcMonthlyTrend(leafOnly, {
+      salesField: "매출액",
+      costField: "실적매출원가",
+      grossField: "매출총이익",
+      opField: "영업이익",
+      valueAccessor: padActual,
+    });
+  }, [orgProfit, effectiveOrgNames]);
+
+  const monthlyGrowth = useMemo(() => {
+    if (!monthlyTrendData) return undefined;
+    return calcMoMGrowth(monthlyTrendData);
+  }, [monthlyTrendData]);
+
   const filteredTeamContribution = useMemo(() => {
     const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
     return orgFiltered.filter((r: any) => {
@@ -525,7 +547,7 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="pnl" className="space-y-6">
           <ErrorBoundary>
-            <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} isDateFiltered={isDateFilterActive} />
+            <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
         </TabsContent>
 
@@ -537,13 +559,13 @@ export default function ProfitabilityPage() {
 
         <TabsContent value="contrib" className="space-y-6">
           <ErrorBoundary>
-            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} contribTotals={contribTotals} isDateFiltered={isDateFilterActive} />
+            <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} contribTotals={contribTotals} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
           <ErrorBoundary>
-            <CostTab costBarData={costBarData} costEfficiency={costEfficiency} isDateFiltered={isDateFilterActive} />
+            <CostTab costBarData={costBarData} costEfficiency={costEfficiency} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
         </TabsContent>
 
