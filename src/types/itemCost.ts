@@ -77,14 +77,17 @@ export interface ItemProfitabilityRecord {
   품목: string;           // e.g., "[CHMJ4229997] R-AA"
   기준단위: string;
   계정구분: string;       // P1-4: 제품/상품/원자재/부재료 (91%)
-  // Revenue
+  // Revenue (실적 = actual, 계획 = plan)
   매출수량: number;
   매출액: number;
   매출단가: number;
+  매출수량_계획?: number;
+  매출액_계획?: number;
   // Cost
   표준매출원가: number;   // P1-4: 표준원가 기준선 (72%)
   실적매출원가: number;
   매출원가율: number;
+  실적매출원가_계획?: number;
   // Profit
   매출총이익: number;
   매출총이익율: number;
@@ -92,6 +95,8 @@ export interface ItemProfitabilityRecord {
   직접판매운반비: number;
   판매관리비: number;
   영업이익율: number;
+  매출총이익_계획?: number;
+  영업이익_계획?: number;
   // 17 cost categories (실적 only, not PlanActualDiff)
   원재료비: number;
   부재료비: number;

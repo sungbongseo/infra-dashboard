@@ -25,6 +25,11 @@ export interface ItemHierarchyNode {
   operatingMargin?: number;
   costRatio?: number;
   children?: ItemHierarchyNode[];
+  // Plan (계획) data — available when 200 file has plan rows
+  salesPlan?: number;
+  quantityPlan?: number;
+  grossProfitPlan?: number;
+  operatingProfitPlan?: number;
 }
 
 export interface LevelCoverage {
@@ -109,6 +114,11 @@ interface GenericRow {
   operatingProfit?: number;
   costRatio?: number;
   실적매출원가?: number;
+  // Plan data
+  salesPlan?: number;
+  quantityPlan?: number;
+  grossProfitPlan?: number;
+  operatingProfitPlan?: number;
 }
 
 function toGenericRows(
@@ -128,6 +138,10 @@ function toGenericRows(
         operatingProfit: r.영업이익,
         costRatio: r.매출원가율,
         실적매출원가: r.실적매출원가,
+        salesPlan: r.매출액_계획,
+        quantityPlan: r.매출수량_계획,
+        grossProfitPlan: r.매출총이익_계획,
+        operatingProfitPlan: r.영업이익_계획,
       })),
       hasFullPL: true,
     };
@@ -177,6 +191,18 @@ function buildNode(
     node.operatingMargin = sales !== 0 ? (op / sales) * 100 : 0;
     const totalCost = rows.reduce((s, r) => s + (r.실적매출원가 ?? 0), 0);
     node.costRatio = sales !== 0 ? (totalCost / sales) * 100 : 0;
+
+    // Plan aggregation
+    const sp = rows.reduce((s, r) => s + (r.salesPlan ?? 0), 0);
+    const qp = rows.reduce((s, r) => s + (r.quantityPlan ?? 0), 0);
+    const gpp = rows.reduce((s, r) => s + (r.grossProfitPlan ?? 0), 0);
+    const opp = rows.reduce((s, r) => s + (r.operatingProfitPlan ?? 0), 0);
+    if (sp || qp) {
+      node.salesPlan = sp;
+      node.quantityPlan = qp;
+      node.grossProfitPlan = gpp;
+      node.operatingProfitPlan = opp;
+    }
   }
 
   return node;
@@ -223,6 +249,14 @@ export function calcItemHierarchy(
     root.grossMargin = totalSales !== 0 ? (root.grossProfit / totalSales) * 100 : 0;
     root.operatingProfit = rows.reduce((s, r) => s + (r.operatingProfit ?? 0), 0);
     root.operatingMargin = totalSales !== 0 ? (root.operatingProfit / totalSales) * 100 : 0;
+    // Plan totals
+    const totalSalesPlan = rows.reduce((s, r) => s + (r.salesPlan ?? 0), 0);
+    if (totalSalesPlan) {
+      root.salesPlan = totalSalesPlan;
+      root.quantityPlan = rows.reduce((s, r) => s + (r.quantityPlan ?? 0), 0);
+      root.grossProfitPlan = rows.reduce((s, r) => s + (r.grossProfitPlan ?? 0), 0);
+      root.operatingProfitPlan = rows.reduce((s, r) => s + (r.operatingProfitPlan ?? 0), 0);
+    }
   }
 
   // Build grouped children at top active level

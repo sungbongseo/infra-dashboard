@@ -53,8 +53,11 @@ const QUADRANT_LABELS: Record<string, string> = {
   dog: "Dogs (저매출+저마진)",
 };
 
+type ViewMode = "actual" | "plan" | "comparison";
+
 export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDateFiltered }: ItemTabProps) {
   const [drillPath, setDrillPath] = useState<DrillDownStep[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>("actual");
 
   // Reset drill path when data size changes (avoid excessive resets on reference changes)
   useEffect(() => {
@@ -87,15 +90,21 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
     [filteredItemProfit, hasItemProfit],
   );
 
+  const hasPlanData = (hierarchy.root.salesPlan ?? 0) > 0;
+
   if (filteredSales.length === 0 && filteredItemProfit.length === 0) {
     return <EmptyState />;
   }
 
+  // Node value accessor based on view mode
+  const getSales = (n: typeof currentNodes[0]) =>
+    viewMode === "plan" ? (n.salesPlan ?? 0) : n.sales;
+
   // Treemap data: top 30 nodes
   const treemapData = currentNodes
-    .filter(n => n.sales > 0)
+    .filter(n => getSales(n) > 0)
     .slice(0, 30)
-    .map(n => ({ name: n.name, size: n.sales }));
+    .map(n => ({ name: n.name, size: getSales(n) }));
 
   const hasChildren = (name: string) => {
     const node = currentNodes.find(n => n.name === name);
@@ -174,6 +183,23 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
             {c.level}: {c.uniqueValues}종
           </Badge>
         ))}
+        {hasPlanData && (
+          <div className="ml-auto flex items-center gap-1 rounded-lg border p-0.5">
+            {(["actual", "plan", "comparison"] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                  viewMode === mode
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {mode === "actual" ? "실적" : mode === "plan" ? "계획" : "비교"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Breadcrumb navigation */}
@@ -263,10 +289,18 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
             <thead>
               <tr className="border-b text-muted-foreground">
                 <th className="text-left py-2 px-3 font-medium">이름</th>
-                <th className="text-right py-2 px-3 font-medium">매출액</th>
+                <th className="text-right py-2 px-3 font-medium">
+                  {viewMode === "plan" ? "계획 매출" : "실적 매출"}
+                </th>
+                {viewMode === "comparison" && hasPlanData && (
+                  <>
+                    <th className="text-right py-2 px-3 font-medium">계획 매출</th>
+                    <th className="text-right py-2 px-3 font-medium">달성율</th>
+                  </>
+                )}
                 <th className="text-right py-2 px-3 font-medium">비중(%)</th>
                 <th className="text-right py-2 px-3 font-medium">건수</th>
-                {hierarchy.hasFullPL && (
+                {hierarchy.hasFullPL && viewMode !== "plan" && (
                   <>
                     <th className="text-right py-2 px-3 font-medium">매출총이익율</th>
                     <th className="text-right py-2 px-3 font-medium">영업이익율</th>
@@ -298,10 +332,32 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                         <span className="ml-1 text-xs text-muted-foreground">[{node.code}]</span>
                       )}
                     </td>
-                    <td className="text-right py-2 px-3 font-mono">{formatCurrency(node.sales)}</td>
+                    <td className="text-right py-2 px-3 font-mono">
+                      {formatCurrency(viewMode === "plan" ? (node.salesPlan ?? 0) : node.sales)}
+                    </td>
+                    {viewMode === "comparison" && hasPlanData && (() => {
+                      const plan = node.salesPlan ?? 0;
+                      const actual = node.sales;
+                      const achievement = plan > 0 ? (actual / plan) * 100 : (actual > 0 ? Infinity : 0);
+                      return (
+                        <>
+                          <td className="text-right py-2 px-3 font-mono text-muted-foreground">
+                            {formatCurrency(plan)}
+                          </td>
+                          <td className={`text-right py-2 px-3 font-semibold ${
+                            !isFinite(achievement) ? "text-muted-foreground"
+                            : achievement >= 100 ? "text-green-600 dark:text-green-400"
+                            : achievement >= 70 ? "text-amber-600 dark:text-amber-400"
+                            : "text-red-600 dark:text-red-400"
+                          }`}>
+                            {isFinite(achievement) ? `${achievement.toFixed(1)}%` : plan === 0 ? "-" : "∞"}
+                          </td>
+                        </>
+                      );
+                    })()}
                     <td className="text-right py-2 px-3">{isFinite(node.share) ? node.share.toFixed(1) : "0.0"}%</td>
                     <td className="text-right py-2 px-3">{node.count.toLocaleString()}</td>
-                    {hierarchy.hasFullPL && (
+                    {hierarchy.hasFullPL && viewMode !== "plan" && (
                       <>
                         <td className={`text-right py-2 px-3 ${marginColor(node.grossMargin)}`}>
                           {node.grossMargin !== undefined ? `${node.grossMargin.toFixed(1)}%` : "-"}

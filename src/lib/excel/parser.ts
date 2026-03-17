@@ -287,15 +287,20 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
     매출수량: num(row[11]),        // PAD(10): 실적=col 11
     매출액: num(row[14]),          // PAD(13): 실적=col 14
     매출단가: num(row[20]),        // PAD(19): 실적=col 20
+    매출수량_계획: num(row[10]),   // PAD(10): 계획=col 10
+    매출액_계획: num(row[13]),     // PAD(13): 계획=col 13
     표준매출원가: num(row[23]),    // PAD(22): 실적=col 23
     실적매출원가: num(row[26]),    // PAD(25): 실적=col 26
     매출원가율: num(row[35]),      // PAD(34): 실적=col 35
+    실적매출원가_계획: num(row[25]), // PAD(25): 계획=col 25
     매출총이익: num(row[38]),      // PAD(37): 실적=col 38
     매출총이익율: num(row[41]),    // PAD(40): 실적=col 41
     영업이익: num(row[44]),        // PAD(43): 실적=col 44
     직접판매운반비: num(row[47]),  // PAD(46): 실적=col 47
     판매관리비: num(row[50]),      // PAD(49): 실적=col 50
     영업이익율: num(row[53]),      // PAD(52): 실적=col 53
+    매출총이익_계획: num(row[37]), // PAD(37): 계획=col 37
+    영업이익_계획: num(row[43]),   // PAD(43): 계획=col 43
     원재료비: num(row[56]),        // PAD(55): 실적=col 56
     부재료비: num(row[59]),        // PAD(58): 실적=col 59
     상품매입: num(row[62]),        // PAD(61): 실적=col 62
@@ -740,7 +745,7 @@ function parseSheetData(
     }
     case "itemProfitability": {
       const rIP = safeParseRows<ItemProfitabilityRecord>(
-        rawData, 1, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
+        rawData, 2, parseItemProfitabilityRow, warnings, "품목별수익성분석", false
       );
       const ipRows = rIP.parsed;
       const origItemValues = ipRows.map(r => String(r.품목 || "").trim());
