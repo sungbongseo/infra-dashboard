@@ -126,23 +126,63 @@ function toGenericRows(
   salesData: SalesRecord[] | null,
 ): { rows: GenericRow[]; hasFullPL: boolean } {
   if (itemProfitData && itemProfitData.length > 0) {
+    // Build salesList lookup by 품목명 for fallback when 200 실적=0
+    const salesByItem = new Map<string, { sales: number; quantity: number }>();
+    if (salesData) {
+      for (const r of salesData) {
+        const key = (r.품목명 || r.품목 || "").trim().toLowerCase();
+        if (!key) continue;
+        const prev = salesByItem.get(key) || { sales: 0, quantity: 0 };
+        salesByItem.set(key, {
+          sales: prev.sales + r.장부금액,
+          quantity: prev.quantity + r.수량,
+        });
+      }
+    }
+
     return {
-      rows: itemProfitData.map(r => ({
-        대분류: r.대분류 || "(미분류)",
-        중분류: r.중분류 || "(미분류)",
-        소분류: r.소분류 || "(미분류)",
-        품목: r.품목 || "(미분류)",
-        sales: r.매출액,
-        quantity: r.매출수량,
-        grossProfit: r.매출총이익,
-        operatingProfit: r.영업이익,
-        costRatio: r.매출원가율,
-        실적매출원가: r.실적매출원가,
-        salesPlan: r.매출액_계획,
-        quantityPlan: r.매출수량_계획,
-        grossProfitPlan: r.매출총이익_계획,
-        operatingProfitPlan: r.영업이익_계획,
-      })),
+      rows: itemProfitData.map(r => {
+        const actualSales = r.매출액;
+        const actualQty = r.매출수량;
+
+        // When 200 has no 실적 but salesList has data, use salesList as actual
+        let sales = actualSales;
+        let quantity = actualQty;
+        if (actualSales === 0 && salesByItem.size > 0) {
+          const itemKey = (r.품목 || "").trim().toLowerCase();
+          // Try exact match, then partial match
+          const exact = salesByItem.get(itemKey);
+          if (exact) {
+            sales = exact.sales;
+            quantity = exact.quantity;
+          } else {
+            // Partial match: salesList 품목명 contains 200's 품목 or vice versa
+            for (const [k, v] of Array.from(salesByItem.entries())) {
+              if (k.includes(itemKey) || itemKey.includes(k)) {
+                sales += v.sales;
+                quantity += v.quantity;
+              }
+            }
+          }
+        }
+
+        return {
+          대분류: r.대분류 || "(미분류)",
+          중분류: r.중분류 || "(미분류)",
+          소분류: r.소분류 || "(미분류)",
+          품목: r.품목 || "(미분류)",
+          sales,
+          quantity,
+          grossProfit: r.매출총이익,
+          operatingProfit: r.영업이익,
+          costRatio: r.매출원가율,
+          실적매출원가: r.실적매출원가,
+          salesPlan: r.매출액_계획,
+          quantityPlan: r.매출수량_계획,
+          grossProfitPlan: r.매출총이익_계획,
+          operatingProfitPlan: r.영업이익_계획,
+        };
+      }),
       hasFullPL: true,
     };
   }
