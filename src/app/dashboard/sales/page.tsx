@@ -23,7 +23,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -99,11 +99,11 @@ export default function SalesAnalysisPage() {
     [inventoryMovement]
   );
 
-  // 303 거래처 손익 연계
-  const filteredOrgCustProfit = useMemo(
-    () => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"),
-    [orgCustomerProfit, effectiveOrgNames]
-  );
+  // 303 거래처 손익 연계 (월별 시트 데이터 → 날짜 필터 적용)
+  const filteredOrgCustProfit = useMemo(() => {
+    const orgFiltered = filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
+    return filterByMonth(orgFiltered, dateRange);
+  }, [orgCustomerProfit, effectiveOrgNames, dateRange]);
   const customerRanking = useMemo(
     () => calcCustomerRanking(filteredOrgCustProfit, "sales").slice(0, 20),
     [filteredOrgCustProfit]

@@ -38,6 +38,7 @@ export interface SalesRecord {
   영업조직: string;
   유통경로: string;
   제품군: string;
+  품목제품군?: string;
   사업부: string;
   영업그룹: string;
   영업담당자: string;

@@ -87,6 +87,7 @@ export interface ProfitabilityAnalysisRecord {
   환산수량: PlanActualDiff;
   매출액: PlanActualDiff;
   실적매출원가: PlanActualDiff;
+  차이매출원가?: PlanActualDiff;
   매출총이익: PlanActualDiff;
   판매관리비: PlanActualDiff;
   판관변동_직접판매운반비: PlanActualDiff;

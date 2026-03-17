@@ -44,7 +44,7 @@ export function KpiCard({
 
   // Sparkline: convert number[] to chart data points
   const sparkChartData = sparklineData && sparklineData.length >= 2
-    ? sparklineData.map((v, i) => ({ i, v }))
+    ? sparklineData.map((v, i) => ({ i, v: isFinite(v) ? v : 0 }))
     : null;
 
   const formattedValue =

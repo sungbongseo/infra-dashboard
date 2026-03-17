@@ -265,7 +265,8 @@ export default function OverviewPage() {
       for (const r of filteredOrgProfit) {
         const m = (r as any).month;
         if (!m) continue;
-        monthMap.set(m, (monthMap.get(m) || 0) + r.영업이익.실적);
+        const v = r.영업이익.실적;
+        if (isFinite(v)) monthMap.set(m, (monthMap.get(m) || 0) + v);
       }
       const sortedMonths = Array.from(monthMap.entries()).sort((a, b) => a[0].localeCompare(b[0])).slice(-6);
       for (const [, v] of sortedMonths) monthlyOP.push(v);

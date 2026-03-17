@@ -260,6 +260,19 @@ function safeParseRows<T>(
   return { parsed, skipped };
 }
 
+/**
+ * 200 품목별 수익성 분석(회계) 파서.
+ * 엑셀 구조: col 0-9 = 텍스트 필드, col 10+ = PAD 3열(계획/실적/차이) 반복.
+ * 여기서는 실적(actual) 값만 읽는다 (PAD 그룹의 두 번째 열).
+ *
+ * PAD 그룹 시작 인덱스:
+ *   매출수량(10) 매출액(13) 차이매출(16) 매출단가(19) 표준매출원가(22)
+ *   실적매출원가(25) 차이매출원가(28) 매입할인(31) 매출원가율(34) 매출총이익(37)
+ *   매출총이익율(40) 영업이익(43) 직접판매운반비(46) 판매관리비(49) 영업이익율(52)
+ *   원재료비(55) 부재료비(58) 상품매입(61) 노무비(64) 복리후생비(67) 소모품비(70)
+ *   수도광열비(73) 수선비(76) 연료비(79) 외주가공비(82) 운반비(85) 전력비(88)
+ *   지급수수료(91) 견본비(94) 제조고정노무비(97) 감가상각비(100) 기타경비(103)
+ */
 function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
   return {
     판매사업부: str(row[1]),
@@ -270,37 +283,36 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
     품목계정그룹: str(row[6]),
     품목: str(row[7]),
     기준단위: str(row[8]),
-    계정구분: str(row[9]),        // P1-4: 제품/상품/원자재/부재료
-    매출수량: num(row[10]),
-    매출액: num(row[11]),
-    // row[12] = 매출비중(%) — SAP 계산 필드이므로 스킵
-    매출단가: num(row[13]),
-    표준매출원가: num(row[14]),   // P1-4: 표준원가 기준선
-    실적매출원가: num(row[15]),
-    매출원가율: num(row[18]),
-    매출총이익: num(row[19]),
-    매출총이익율: num(row[20]),
-    영업이익: num(row[21]),
-    직접판매운반비: num(row[22]),
-    판매관리비: num(row[23]),
-    영업이익율: num(row[24]),
-    원재료비: num(row[25]),
-    부재료비: num(row[26]),
-    상품매입: num(row[27]),
-    노무비: num(row[28]),
-    복리후생비: num(row[29]),
-    소모품비: num(row[30]),
-    수도광열비: num(row[31]),
-    수선비: num(row[32]),
-    연료비: num(row[33]),
-    외주가공비: num(row[34]),
-    운반비: num(row[35]),
-    전력비: num(row[36]),
-    지급수수료: num(row[37]),
-    견본비: num(row[38]),
-    제조고정노무비: num(row[39]),
-    감가상각비: num(row[40]),
-    기타경비: num(row[41]),
+    계정구분: str(row[9]),
+    매출수량: num(row[11]),        // PAD(10): 실적=col 11
+    매출액: num(row[14]),          // PAD(13): 실적=col 14
+    매출단가: num(row[20]),        // PAD(19): 실적=col 20
+    표준매출원가: num(row[23]),    // PAD(22): 실적=col 23
+    실적매출원가: num(row[26]),    // PAD(25): 실적=col 26
+    매출원가율: num(row[35]),      // PAD(34): 실적=col 35
+    매출총이익: num(row[38]),      // PAD(37): 실적=col 38
+    매출총이익율: num(row[41]),    // PAD(40): 실적=col 41
+    영업이익: num(row[44]),        // PAD(43): 실적=col 44
+    직접판매운반비: num(row[47]),  // PAD(46): 실적=col 47
+    판매관리비: num(row[50]),      // PAD(49): 실적=col 50
+    영업이익율: num(row[53]),      // PAD(52): 실적=col 53
+    원재료비: num(row[56]),        // PAD(55): 실적=col 56
+    부재료비: num(row[59]),        // PAD(58): 실적=col 59
+    상품매입: num(row[62]),        // PAD(61): 실적=col 62
+    노무비: num(row[65]),          // PAD(64): 실적=col 65
+    복리후생비: num(row[68]),      // PAD(67): 실적=col 68
+    소모품비: num(row[71]),        // PAD(70): 실적=col 71
+    수도광열비: num(row[74]),      // PAD(73): 실적=col 74
+    수선비: num(row[77]),          // PAD(76): 실적=col 77
+    연료비: num(row[80]),          // PAD(79): 실적=col 80
+    외주가공비: num(row[83]),      // PAD(82): 실적=col 83
+    운반비: num(row[86]),          // PAD(85): 실적=col 86
+    전력비: num(row[89]),          // PAD(88): 실적=col 89
+    지급수수료: num(row[92]),      // PAD(91): 실적=col 92
+    견본비: num(row[95]),          // PAD(94): 실적=col 95
+    제조고정노무비: num(row[98]),  // PAD(97): 실적=col 98
+    감가상각비: num(row[101]),     // PAD(100): 실적=col 101
+    기타경비: num(row[104]),       // PAD(103): 실적=col 104
   };
 }
 
@@ -406,8 +418,8 @@ function parseSheetData(
         단위: str(row[28]), 수량: num(row[30]), 거래통화: str(row[31]),
         환율: num(row[32]), 판매단가: num(row[35]), 판매금액: num(row[36]),
         장부단가: num(row[37]), 장부금액: num(row[38]), 부가세: num(row[39]),
-        총금액: num(row[40]), 영업조직: str(row[42]), 유통경로: str(row[43]),
-        제품군: str(row[44]), 품목범주: str(row[45]), 사업부: str(row[46]), 영업그룹: str(row[47]),
+        총금액: num(row[40]), 품목범주: str(row[41]), 영업조직: str(row[42]), 유통경로: str(row[43]),
+        제품군: str(row[44]), 품목제품군: str(row[45]), 사업부: str(row[46]), 영업그룹: str(row[47]),
         계정구분: str(row[52]),
         영업담당자: str(row[48]), 영업담당자명: str(row[49]), 수주번호: str(row[57]),
         수주유형: str(row[77]), 출고일: str(row[64]),
@@ -610,10 +622,11 @@ function parseSheetData(
         환산수량: parsePlanActualDiff(row, 14),
         매출액: parsePlanActualDiff(row, 17),
         실적매출원가: parsePlanActualDiff(row, 20),
-        매출총이익: parsePlanActualDiff(row, 23),
-        판매관리비: parsePlanActualDiff(row, 26),
-        판관변동_직접판매운반비: parsePlanActualDiff(row, 29),
-        영업이익: parsePlanActualDiff(row, 32),
+        차이매출원가: parsePlanActualDiff(row, 23),
+        매출총이익: parsePlanActualDiff(row, 26),
+        판매관리비: parsePlanActualDiff(row, 29),
+        판관변동_직접판매운반비: parsePlanActualDiff(row, 32),
+        영업이익: parsePlanActualDiff(row, 35),
       }), warnings, "수익성분석", false);
       parsed = fillDownHierarchicalOrg(r.parsed, warnings, "수익성분석");
       skippedRows = r.skipped;
