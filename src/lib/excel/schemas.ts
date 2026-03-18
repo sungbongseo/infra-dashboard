@@ -72,7 +72,8 @@ export const FILE_SCHEMAS: FileSchema[] = [
     headerRow: 0,
     hasMergedHeader: true, // 실제 skipRows=2 사용 (row 0=카테고리, row 1=계획/실적/차이)
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 200은 월별 독립 데이터 (누계 아님) — concat이 올바른 전략
+    // 202504:196억→202505:32억 등 월별 변동 확인됨
   },
   {
     fileType: "profitabilityAnalysis",

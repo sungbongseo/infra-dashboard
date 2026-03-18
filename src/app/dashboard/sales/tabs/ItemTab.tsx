@@ -171,9 +171,13 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={hasItemProfit ? "default" : "secondary"}>
           {hasItemProfit
-            ? "품목별 수익성 분석(회계) — Full P&L"
-            : "매출리스트 기반 — 매출 데이터만"}
+            ? "데이터: 200.품목별 수익성 분석(회계)"
+            : "데이터: 매출리스트"}
         </Badge>
+        <span className="text-xs text-muted-foreground">
+          탭 매출 합계: {formatCurrency(hierarchy.totalSales)}
+          {hasItemProfit && " (SAP 200 리포트 기준, KPI 총매출액과 데이터 소스가 다를 수 있음)"}
+        </span>
         {hierarchy.coverage.map(c => (
           <Badge
             key={c.level}
