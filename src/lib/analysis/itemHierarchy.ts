@@ -121,21 +121,36 @@ interface GenericRow {
   operatingProfitPlan?: number;
 }
 
+/** 품목명 정규화: 공백/하이픈/언더스코어 차이를 무시하여 매칭 정확도 향상 */
+function normalizeItemName(name: string): string {
+  return name.trim().toLowerCase().replace(/[-_\s]+/g, "");
+}
+
 function toGenericRows(
   itemProfitData: ItemProfitabilityRecord[] | null,
   salesData: SalesRecord[] | null,
 ): { rows: GenericRow[]; hasFullPL: boolean } {
   if (itemProfitData && itemProfitData.length > 0) {
     // Build salesList lookup by 품목명 for fallback when 200 실적=0
+    // 두 개의 맵: 원본 키 + 정규화 키 (공백/하이픈 차이 대응)
     const salesByItem = new Map<string, { sales: number; quantity: number }>();
+    const salesByNorm = new Map<string, { sales: number; quantity: number }>();
     if (salesData) {
       for (const r of salesData) {
         const key = (r.품목명 || r.품목 || "").trim().toLowerCase();
         if (!key) continue;
         const prev = salesByItem.get(key) || { sales: 0, quantity: 0 };
-        salesByItem.set(key, {
+        const entry = {
           sales: prev.sales + r.장부금액,
           quantity: prev.quantity + r.수량,
+        };
+        salesByItem.set(key, entry);
+        // 정규화 키로도 저장 (chextop-120, chextop 120 → chextop120)
+        const normKey = normalizeItemName(key);
+        const prevNorm = salesByNorm.get(normKey) || { sales: 0, quantity: 0 };
+        salesByNorm.set(normKey, {
+          sales: prevNorm.sales + r.장부금액,
+          quantity: prevNorm.quantity + r.수량,
         });
       }
     }
@@ -150,17 +165,25 @@ function toGenericRows(
         let quantity = actualQty;
         if (actualSales === 0 && salesByItem.size > 0) {
           const itemKey = (r.품목 || "").trim().toLowerCase();
-          // Try exact match, then partial match
+          // 1차: 원본 키 exact match
           const exact = salesByItem.get(itemKey);
           if (exact) {
             sales = exact.sales;
             quantity = exact.quantity;
           } else {
-            // Partial match: salesList 품목명 contains 200's 품목 or vice versa
-            for (const [k, v] of Array.from(salesByItem.entries())) {
-              if (k.includes(itemKey) || itemKey.includes(k)) {
-                sales += v.sales;
-                quantity += v.quantity;
+            // 2차: 정규화 키 match (공백/하이픈 차이 무시)
+            const normKey = normalizeItemName(itemKey);
+            const normMatch = salesByNorm.get(normKey);
+            if (normMatch) {
+              sales = normMatch.sales;
+              quantity = normMatch.quantity;
+            } else {
+              // 3차: Partial match (포함 관계)
+              for (const [k, v] of Array.from(salesByItem.entries())) {
+                if (k.includes(itemKey) || itemKey.includes(k)) {
+                  sales += v.sales;
+                  quantity += v.quantity;
+                }
               }
             }
           }
