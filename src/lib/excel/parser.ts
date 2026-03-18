@@ -695,7 +695,7 @@ function parseSheetData(
         매출거래처: str(row[4]),
         매출거래처명: str(row[4]),
         품목: str(row[7]),
-        품목명: str(row[5]) || str(row[7]),
+        품목명: str(row[7]),
         매출수량: parsePlanActualDiff(row, 8),
         매출액: parsePlanActualDiff(row, 14),
         실적매출원가: parsePlanActualDiff(row, 17),
