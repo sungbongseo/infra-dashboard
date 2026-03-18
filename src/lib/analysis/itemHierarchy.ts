@@ -452,12 +452,12 @@ export function calcCostWaterfall(
     });
   }
 
-  // 영업이익
-  const operatingProfit = filtered.reduce((s, r) => s + r.영업이익, 0);
+  // 영업이익 — 워터폴 일관성을 위해 매출총이익 - 판관비로 산출
+  const operatingProfitWaterfall = grossProfit - sgna;
   entries.push({
     name: "영업이익",
-    value: operatingProfit,
-    cumulative: operatingProfit,
+    value: operatingProfitWaterfall,
+    cumulative: operatingProfitWaterfall,
     type: "profit",
   });
 

@@ -114,14 +114,16 @@ function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
     }
   }
 
-  // 2차: 역방향 fill-down (역순 병합 대응)
-  // 아직 빈 값인 행을 아래→위로 채움
+  // 2차: 역방향 fill-down (역순 병합 대응) — 소계 경계에서 중단
   currentOrg = "";
   for (let i = records.length - 1; i >= 0; i--) {
     const rec = records[i];
     const org = rec.영업조직팀.trim();
     if (org !== "" && !isTotalRow(org)) {
       currentOrg = org;
+    } else if (isTotalRow(org)) {
+      // 소계행을 만나면 역방향 전파 중단 (조직 경계)
+      currentOrg = "";
     } else if (org === "" && currentOrg !== "") {
       rec.영업조직팀 = currentOrg;
     }
@@ -192,7 +194,7 @@ function fillDownMultiLevel<T extends Record<string, any>>(
     }
   }
 
-  // 3단계: 역방향 fill-down (역순 병합 대응)
+  // 3단계: 역방향 fill-down (역순 병합 대응) — 소계 경계에서 중단
   // 최상위 레벨(영업조직팀 등)만 역방향 처리 (하위 레벨은 역방향 시 교차 오염 위험)
   const topLevelFields = levels[0];
   const topLevelPrimary = topLevelFields[0];
@@ -202,6 +204,9 @@ function fillDownMultiLevel<T extends Record<string, any>>(
     const val = String(rec[topLevelPrimary] || "").trim();
     if (val !== "" && !isTotalRow(val)) {
       currentTop = val;
+    } else if (isTotalRow(val)) {
+      // 소계행을 만나면 역방향 전파 중단 (조직 경계)
+      currentTop = "";
     } else if (val === "" && currentTop !== "") {
       (rec as Record<string, any>)[topLevelPrimary] = currentTop;
     }
@@ -243,19 +248,24 @@ function safeParseRows<T>(
     : data.slice(skipRows).filter(r =>
         r.some(cell => cell !== "" && cell !== null && cell !== undefined)
       );
+  const allErrors: string[] = [];
   for (let i = 0; i < rows.length; i++) {
     try {
       parsed.push(parser(rows[i]));
     } catch (e: any) {
       if (e.message === "SKIP_ROW") continue; // 의도적 필터링 (합계/소계행 등)
       skipped++;
-      if (skipped <= 5) {
-        warnings.push(`[${fileType}] ${i + skipRows + 1}행 파싱 실패: ${e.message || "알 수 없는 오류"}`);
-      }
+      allErrors.push(`${i + skipRows + 1}행: ${e.message || "알 수 없는 오류"}`);
     }
   }
-  if (skipped > 5) {
-    warnings.push(`[${fileType}] ... 외 ${skipped - 5}행 추가 실패`);
+  if (allErrors.length > 0) {
+    const show = allErrors.slice(0, 20);
+    for (const msg of show) {
+      warnings.push(`[${fileType}] ${msg}`);
+    }
+    if (allErrors.length > 20) {
+      warnings.push(`[${fileType}] ... 외 ${allErrors.length - 20}행 추가 실패`);
+    }
   }
   return { parsed, skipped };
 }
@@ -321,41 +331,42 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
   };
 }
 
-function parseReceivableAging(data: unknown[][]): ReceivableAgingRecord[] {
-  return data.slice(2)
-    .filter(r => {
-      if (!r[0]) return false;
-      // 소계행 제거: 담당자/영업조직에 "소계" 포함, 판매처명이 비어있는 행
-      const org = String(r[1] || "").trim();
-      const mgr = String(r[2] || "").trim();
-      const customer = String(r[4] || "").trim();
-      if (isTotalRow(org) || isTotalRow(mgr)) return false;
-      if (org.includes("소계") || mgr.includes("소계")) return false;
-      if (!customer) return false; // 판매처명 없는 소계/합계행 제외
-      return true;
-    })
-    .map((row) => ({
-      No: num(row[0]),
-      영업조직: str(row[1]),
-      담당자: str(row[2]),
-      판매처: str(row[3]),
-      판매처명: str(row[4]),
-      통화: str(row[5]),
-      month1: parseAgingAmounts(row, 6),
-      month2: parseAgingAmounts(row, 9),
-      month3: parseAgingAmounts(row, 12),
-      month4: parseAgingAmounts(row, 15),
-      month5: parseAgingAmounts(row, 18),
-      month6: parseAgingAmounts(row, 21),
-      overdue: parseAgingAmounts(row, 24),
-      // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
-      합계: {
-        출고금액: num(row[27]),
-        장부금액: num(row[29]),
-        거래금액: num(row[28]),
-      },
-      여신한도: num(row[30]),
-    }));
+function parseReceivableAging(data: unknown[][], warnings: string[]): ReceivableAgingRecord[] {
+  const { parsed } = safeParseRows<ReceivableAgingRecord>(
+    data, 2,
+    (row) => {
+      const org = str(row[1]).trim();
+      const mgr = str(row[2]).trim();
+      const customer = str(row[4]).trim();
+      if (isTotalRow(org) || isTotalRow(mgr)) throw new Error("SKIP_ROW");
+      if (org.includes("소계") || mgr.includes("소계")) throw new Error("SKIP_ROW");
+      if (!customer) throw new Error("SKIP_ROW");
+      return {
+        No: num(row[0]),
+        영업조직: org,
+        담당자: mgr,
+        판매처: str(row[3]),
+        판매처명: customer,
+        통화: str(row[5]),
+        month1: parseAgingAmounts(row, 6),
+        month2: parseAgingAmounts(row, 9),
+        month3: parseAgingAmounts(row, 12),
+        month4: parseAgingAmounts(row, 15),
+        month5: parseAgingAmounts(row, 18),
+        month6: parseAgingAmounts(row, 21),
+        overdue: parseAgingAmounts(row, 24),
+        // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
+        합계: {
+          출고금액: num(row[27]),
+          장부금액: num(row[29]),
+          거래금액: num(row[28]),
+        },
+        여신한도: num(row[30]),
+      };
+    },
+    warnings, "미수채권연령", true
+  );
+  return parsed;
 }
 
 const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
@@ -796,7 +807,38 @@ function parseSheetData(
           const nextItemOrig = origItemValues[i + 1] ?? "";
           const nextUnit = String(next.기준단위 || "").trim();
           if (nextItemOrig === "" && nextUnit === "KG" && curUnit !== "KG") {
-            mergedIP.push({ ...next });
+            // KG 행 기반으로 병합 — 숫자 필드는 KG 우선, 0이면 non-KG 보충
+            const merged = { ...next };
+            // 텍스트 필드: cur(non-KG)에서 보충
+            if (!merged.품목 || merged.품목.trim() === "") merged.품목 = cur.품목;
+            if (!merged.품목계정그룹 || merged.품목계정그룹.trim() === "") merged.품목계정그룹 = cur.품목계정그룹;
+            // 핵심 수치: KG 값이 0이면 non-KG 값 사용
+            const numericKeys = ["매출수량", "매출액", "매출총이익", "영업이익", "실적매출원가",
+              "매출단가", "표준매출원가", "매출원가율", "매출총이익율", "영업이익율",
+              "직접판매운반비", "판매관리비"] as const;
+            for (const key of numericKeys) {
+              if ((merged as any)[key] === 0 && (cur as any)[key] !== 0) {
+                (merged as any)[key] = (cur as any)[key];
+              }
+            }
+            // 계획 필드도 동일 처리
+            const planKeys = ["매출수량_계획", "매출액_계획", "매출총이익_계획", "영업이익_계획", "실적매출원가_계획"] as const;
+            for (const key of planKeys) {
+              if (((merged as any)[key] ?? 0) === 0 && ((cur as any)[key] ?? 0) !== 0) {
+                (merged as any)[key] = (cur as any)[key];
+              }
+            }
+            // 원가 상세 필드 보충
+            const costKeys = ["원재료비", "부재료비", "상품매입", "노무비", "복리후생비",
+              "소모품비", "수도광열비", "수선비", "연료비", "외주가공비", "운반비",
+              "전력비", "지급수수료", "견본비", "제조고정노무비", "감가상각비", "기타경비"] as const;
+            for (const key of costKeys) {
+              if ((merged as any)[key] === 0 && (cur as any)[key] !== 0) {
+                (merged as any)[key] = (cur as any)[key];
+              }
+            }
+            warnings.push(`[품목별수익성] ${cur.품목}: KG/non-KG 행 병합 (단위: ${curUnit}→KG)`);
+            mergedIP.push(merged);
             i++;
             continue;
           }
@@ -885,7 +927,7 @@ function parseSheetData(
       break;
     }
     case "receivableAging":
-      parsed = parseReceivableAging(rawData);
+      parsed = parseReceivableAging(rawData, warnings);
       break;
     default:
       throw new Error(`파서 미구현: ${schema.fileType}`);
@@ -931,29 +973,52 @@ export function parseExcelFile(
 
   if (monthlySheets.length > 0) {
     // ─── 다중 월별 시트 파싱 ─────────────────────────────────────
-    const allRows: unknown[] = [];
-    for (const ms of monthlySheets) {
-      const sheet = workbook.Sheets[ms.sheetName];
+    const strategy = schema.monthlyStrategy || "concat";
+
+    if (strategy === "latest") {
+      // 누계 보고서: 마지막 시트(가장 최근 월)만 사용
+      const lastSheet = monthlySheets[monthlySheets.length - 1];
+      const sheet = workbook.Sheets[lastSheet.sheetName];
       if (!sheet) {
-        warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
-        continue;
+        throw new Error(`최신 시트 '${lastSheet.sheetName}' 읽기 실패`);
       }
       const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
       const minRows = schema.hasMergedHeader ? 3 : 2;
       if (rawData.length < minRows) {
-        warnings.push(`시트 '${ms.sheetName}': 데이터 부족 (${rawData.length}행) — 건너뜀`);
-        continue;
+        throw new Error(`최신 시트 '${lastSheet.sheetName}': 데이터 부족 (${rawData.length}행)`);
       }
       const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
-      // month 필드 주입
       for (const row of sheetResult.data) {
-        (row as any).month = ms.month;
+        (row as any).month = lastSheet.month;
       }
-      allRows.push(...sheetResult.data);
-      skippedRows += sheetResult.skippedRows;
+      parsed = sheetResult.data;
+      skippedRows = sheetResult.skippedRows;
+      warnings.push(`월별 시트 ${monthlySheets.length}개 중 최신(${lastSheet.month})만 사용 (누계 보고서)`);
+    } else {
+      // concat: 모든 시트 합산 (월별 독립 데이터)
+      const allRows: unknown[] = [];
+      for (const ms of monthlySheets) {
+        const sheet = workbook.Sheets[ms.sheetName];
+        if (!sheet) {
+          warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
+          continue;
+        }
+        const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+        const minRows = schema.hasMergedHeader ? 3 : 2;
+        if (rawData.length < minRows) {
+          warnings.push(`시트 '${ms.sheetName}': 데이터 부족 (${rawData.length}행) — 건너뜀`);
+          continue;
+        }
+        const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
+        for (const row of sheetResult.data) {
+          (row as any).month = ms.month;
+        }
+        allRows.push(...sheetResult.data);
+        skippedRows += sheetResult.skippedRows;
+      }
+      warnings.push(`월별 시트 ${monthlySheets.length}개 파싱 완료 (${allRows.length}행 통합)`);
+      parsed = allRows;
     }
-    warnings.push(`월별 시트 ${monthlySheets.length}개 파싱 완료 (${allRows.length}행 통합)`);
-    parsed = allRows;
   } else {
     // ─── 기존 단일 시트 파싱 (하위호환) ──────────────────────────
     const sheetName = workbook.SheetNames[0];

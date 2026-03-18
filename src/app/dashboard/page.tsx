@@ -861,7 +861,7 @@ export default function OverviewPage() {
                     </div>
                     {insight.value !== undefined && isFinite(insight.value) && (
                       <span className={`text-sm font-bold tabular-nums flex-shrink-0 ${INSIGHT_ICON_COLORS[insight.severity]}`}>
-                        {insight.value.toFixed(1)}
+                        {isFinite(insight.value) ? insight.value.toFixed(1) : "-"}
                       </span>
                     )}
                   </div>

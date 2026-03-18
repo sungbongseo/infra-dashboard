@@ -3,6 +3,7 @@ import type {
   ReceivableAgingRecord,
   SalesRecord,
 } from "@/types";
+import { isSameOrg } from "@/lib/orgMapping";
 
 export interface ProfitRiskData {
   name: string;
@@ -127,8 +128,7 @@ function calcOrgSales(sales: SalesRecord[]): Map<string, number> {
  */
 /**
  * Map에서 정확히 일치하는 키를 먼저 찾고,
- * 없으면 키가 name을 포함하거나 name이 키를 포함하는 경우를 찾는다.
- * (예: "건자재팀" ↔ "건자재" 매칭)
+ * 없으면 isSameOrg로 정규화된 조직명 매칭을 수행한다.
  */
 function fuzzyGet<T>(map: Map<string, T>, name: string): T | undefined {
   const exact = map.get(name);
@@ -136,7 +136,7 @@ function fuzzyGet<T>(map: Map<string, T>, name: string): T | undefined {
   const entries = Array.from(map.entries());
   for (let i = 0; i < entries.length; i++) {
     const [key, val] = entries[i];
-    if (key.includes(name) || name.includes(key)) return val;
+    if (isSameOrg(key, name)) return val;
   }
   return undefined;
 }

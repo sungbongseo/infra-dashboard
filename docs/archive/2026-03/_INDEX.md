@@ -5,6 +5,7 @@
 | analysis | Completed | 90.5% | 2026-03-06 |
 | dashboard-ux-perf | Completed | 94% | 2026-03-06 |
 | monthly-analysis | Completed | 95%+ | 2026-03-16 |
+| data-accuracy-fix | Completed | 100% | 2026-03-18 |
 
 ## analysis
 - **Description**: 인프라 대시보드 30년차 전문가 진단 기반 5단계 개선
@@ -23,3 +24,9 @@
 - **Phases**: P1(타입+파서+필터), P2(monthlyTrend+inventoryAnalysis), P3(UI 5개 탭 통합), P4(검증)
 - **Files**: 신규 4 + 수정 13 = 17파일, ~900줄
 - **Documents**: monthly-analysis.plan.md, monthly-analysis.design.md, monthly-analysis.analysis.md, monthly-analysis.report.md
+
+## data-accuracy-fix
+- **Description**: 엑셀 데이터 정합성 3단계 개선 — KG merge, fillDown 안전, monthlyStrategy, fuzzyGet 통합
+- **Phases**: A(긴급수정), B(구조개선), C(품질개선)
+- **Files**: 수정 6파일 (parser.ts, schemas.ts, profitRiskMatrix.ts, aging.ts, itemHierarchy.ts, page.tsx)
+- **Documents**: data-accuracy-fix.plan.md, data-accuracy-fix.design.md, data-accuracy-fix.analysis.md, data-accuracy-fix.report.md

@@ -7,6 +7,8 @@ export interface FileSchema {
   hasMergedHeader: boolean;
   subHeaderRow?: number;
   orgFilterField?: string;
+  /** 월별 시트 합산 전략: concat=모든 시트 합산(기본), latest=최신 시트만(누계 보고서) */
+  monthlyStrategy?: "concat" | "latest";
 }
 
 export const FILE_SCHEMAS: FileSchema[] = [
@@ -52,6 +54,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "teamContribution",
@@ -60,12 +63,13 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "itemProfitability",
     pattern: /품목별\s*수익성\s*분석\s*[\(\（]?\s*회계|200[.\s]*품목/i,
     headerRow: 0,
-    hasMergedHeader: false,
+    hasMergedHeader: true, // 실제 skipRows=2 사용 (row 0=카테고리, row 1=계획/실적/차이)
     orgFilterField: "영업조직팀",
   },
   {
