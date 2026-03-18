@@ -46,6 +46,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "orgProfit",
@@ -71,6 +72,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     headerRow: 0,
     hasMergedHeader: true, // 실제 skipRows=2 사용 (row 0=카테고리, row 1=계획/실적/차이)
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "profitabilityAnalysis",
@@ -81,6 +83,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "hqCustomerItemProfit",
@@ -89,6 +92,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "customerItemDetail",
@@ -97,6 +101,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "itemCostDetail",
@@ -105,6 +110,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
+    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
   },
   {
     fileType: "inventoryMovement",
