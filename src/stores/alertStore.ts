@@ -36,10 +36,18 @@ export interface AlertHistoryEntry {
   timestamp: number;
 }
 
+/** Metrics that were skipped due to missing data during last evaluate() */
+export interface SkippedMetric {
+  metric: string;
+  label: string;
+  reason: string;
+}
+
 interface AlertState {
   rules: AlertRule[];
   alerts: Alert[];
   alertHistory: AlertHistoryEntry[];
+  skippedMetrics: SkippedMetric[];
   evaluate: (kpis: KpiInput, dso?: number, creditUsageRate?: number) => void;
   dismissAlert: (id: string) => void;
   dismissAll: () => void;
@@ -160,6 +168,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   rules: DEFAULT_RULES,
   alerts: [],
   alertHistory: [],
+  skippedMetrics: [],
 
   evaluate: (kpis, dso, creditUsageRate) => {
     const { rules, alerts: existingAlerts } = get();
@@ -167,12 +176,24 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     const dismissedRuleIds = new Set(dismissed.map((a) => a.ruleId));
 
     const newAlerts: Alert[] = [];
+    const skipped: SkippedMetric[] = [];
 
     for (const rule of rules) {
       if (!rule.enabled) continue;
 
       const value = getMetricValue(rule.metric, kpis, dso, creditUsageRate);
-      if (value === undefined) continue;
+      if (value === undefined) {
+        skipped.push({
+          metric: rule.metric,
+          label: METRIC_LABELS[rule.metric] || rule.metric,
+          reason: rule.metric === "dso"
+            ? "미수금 에이징 데이터 미업로드"
+            : rule.metric === "creditUsageRate"
+            ? "미수금 에이징 데이터 미업로드"
+            : "관련 데이터 미업로드",
+        });
+        continue;
+      }
 
       if (checkViolation(value, rule.condition, rule.threshold)) {
         if (dismissedRuleIds.has(rule.id)) continue;
@@ -207,7 +228,12 @@ export const useAlertStore = create<AlertState>((set, get) => ({
       });
     }
 
-    set({ alerts: [...dismissed, ...newAlerts] });
+    // Deduplicate skipped metrics by metric name
+    const uniqueSkipped = Array.from(
+      new Map(skipped.map((s) => [s.metric, s])).values()
+    );
+
+    set({ alerts: [...dismissed, ...newAlerts], skippedMetrics: uniqueSkipped });
   },
 
   dismissAlert: (id) => {

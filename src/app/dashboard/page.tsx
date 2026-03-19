@@ -547,7 +547,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<Percent className="h-5 w-5" />}
               formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
-              description="매출에서 원가, 인건비, 판관비를 모두 제외한 이익 비율입니다."
+              description="[데이터 소스: 조직별손익] 매출에서 원가, 인건비, 판관비를 모두 제외한 이익 비율입니다."
               benchmark="인프라 업종 평균 7~8%. 10% 이상 양호, 5% 미만 점검 필요"
               reason="핵심 수익성 지표로 사업부의 이익 창출 능력을 평가하고, 업종 평균 대비 경쟁력을 진단합니다."
             />
@@ -557,7 +557,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<Target className="h-5 w-5" />}
               formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100"
-              description="매출 목표 대비 실제 달성 비율입니다."
+              description="[데이터 소스: 조직별손익] 매출 목표 대비 실제 달성 비율입니다."
               benchmark="100%가 목표. 90% 이상 양호, 80% 미만 원인 분석 필요"
               reason="목표 대비 실적 달성도를 추적하여 계획 수립의 정확성과 실행력을 동시에 평가합니다."
             />
@@ -582,7 +582,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<Target className="h-5 w-5" />}
               formula="예측 정확도(%) = 100 − |실적 − 계획| ÷ 계획 × 100"
-              description="매출 계획과 실적의 일치도를 보여줍니다."
+              description="[데이터 소스: 조직별손익] 매출 계획과 실적의 일치도를 보여줍니다."
               benchmark="90% 이상 우수, 70% 미만 계획 프로세스 개선 필요"
               reason="계획 대비 실적 일치도를 측정하여 예측 프로세스의 정확성을 평가하고, 자원 배분 효율을 높입니다."
             />
@@ -602,7 +602,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<Gauge className="h-5 w-5" />}
               formula="영업레버리지(%) = 실적 영업이익율 ÷ 계획 영업이익율 × 100"
-              description="계획 대비 실제 수익성 달성 비율입니다."
+              description="[데이터 소스: 조직별손익] 계획 대비 실제 수익성 달성 비율입니다."
               benchmark="100% 이상 계획 초과, 80% 미만 비용 관리 점검 필요"
               reason="계획 대비 수익성 달성도로 비용 관리 실행력을 평가하고, 미달 시 원가 절감 대책을 수립합니다."
             />
@@ -612,7 +612,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<PieChart className="h-5 w-5" />}
               formula="공헌이익율(%) = 공헌이익 ÷ 매출액 × 100"
-              description="변동비를 차감한 이익 비율입니다. 고정비 부담 능력을 보여줍니다."
+              description="[데이터 소스: 팀공헌이익] 변동비를 차감한 이익 비율입니다. 고정비 부담 능력을 보여줍니다."
               benchmark="30% 이상 건전한 구조, 20% 미만 원가 절감 필요"
               reason="변동비 차감 후 고정비 회수 능력을 파악하여 원가 구조의 건전성을 진단하고, 손익분기점 관리에 활용합니다."
             />
@@ -622,7 +622,7 @@ export default function OverviewPage() {
               format="percent"
               icon={<BarChart3 className="h-5 w-5" />}
               formula="매출총이익율(%) = 매출총이익 ÷ 매출액 × 100"
-              description="직접 제조원가만 차감한 이익 비율입니다."
+              description="[데이터 소스: 조직별손익] 직접 제조원가만 차감한 이익 비율입니다."
               benchmark="인프라 업종 20% 이상 양호, 15% 미만 원가 경쟁력 저하"
               reason="제조원가 효율성을 측정하여 원가 경쟁력 수준을 파악하고, 업종 평균 대비 위치를 확인합니다."
             />

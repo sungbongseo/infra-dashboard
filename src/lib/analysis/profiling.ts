@@ -12,7 +12,7 @@ import { extractMonth } from "@/lib/utils";
 // ─── HHI (Herfindahl-Hirschman Index) 거래처 집중도 ────────────────────────
 
 export interface CustomerHHI {
-  hhi: number; // 0~1 사이 값, 1에 가까울수록 집중
+  hhi: number; // 0~10000 스케일 (표준 HHI), 10000에 가까울수록 집중
   topCustomerShare: number; // 최대 거래처 매출 비중
   customerCount: number;
   customers: Array<{ name: string; amount: number; share: number }>;
@@ -21,8 +21,8 @@ export interface CustomerHHI {
 
 /**
  * 담당자별 거래처 집중도(HHI) 계산
- * HHI = SUM(share_i^2), 각 share_i = 거래처_i 매출 / 담당자 총매출
- * HHI > 0.25 → high(과점), 0.15~0.25 → medium(적정 집중), < 0.15 → low(분산)
+ * HHI = SUM(share_i^2) × 10000, 표준 0~10000 스케일
+ * HHI > 2500 → high(과점), 1500~2500 → medium(적정 집중), < 1500 → low(분산)
  */
 export function calcCustomerHHI(
   salesData: SalesRecord[],
@@ -81,12 +81,12 @@ export function calcCustomerHHI(
       }))
       .sort((a, b) => b.amount - a.amount);
 
-    const hhi = customers.reduce((sum, c) => sum + c.share * c.share, 0);
+    const hhi = customers.reduce((sum, c) => sum + c.share * c.share, 0) * 10000;
     const topCustomerShare = customers.length > 0 ? customers[0].share : 0;
 
     let riskLevel: "high" | "medium" | "low";
-    if (hhi > 0.25) riskLevel = "high";
-    else if (hhi > 0.15) riskLevel = "medium";
+    if (hhi > 2500) riskLevel = "high";
+    else if (hhi > 1500) riskLevel = "medium";
     else riskLevel = "low";
 
     result.set(personId, {

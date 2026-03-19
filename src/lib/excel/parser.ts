@@ -59,6 +59,15 @@ function isTotalRow(value: string): boolean {
   return TOTAL_PATTERN.test(normalized);
 }
 
+/** 구분자/헤더 행 판별 (fill-down 시 전파 차단) */
+function isSeparatorRow(value: string): boolean {
+  const v = value.trim();
+  if (!v) return true;
+  // 숫자만으로 구성된 행 (행번호 등), "---" 패턴
+  if (/^[\d\s.,]+$/.test(v) || /^[-=_]{3,}$/.test(v)) return true;
+  return false;
+}
+
 /**
  * 빈 조직명 비율 검증 - 10% 이상 비어있으면 경고
  */
@@ -170,7 +179,12 @@ function fillDownMultiLevel<T extends Record<string, any>>(
       const primary = fields[0];
       const val = String(rec[primary] || "").trim();
 
-      if (val !== "" && !isTotalRow(val)) {
+      if (isTotalRow(val) || isSeparatorRow(val)) {
+        // 합계/구분자 행 → fill-down 중단 (경계)
+        continue;
+      }
+
+      if (val !== "") {
         // 새 값 감지 → 현재값 갱신
         if (current[primary] !== val) {
           for (const f of fields) {
@@ -183,7 +197,7 @@ function fillDownMultiLevel<T extends Record<string, any>>(
             }
           }
         }
-      } else if (val === "") {
+      } else {
         // 빈 값 → fill-down
         for (const f of fields) {
           if (!String(rec[f] || "").trim() && current[f]) {

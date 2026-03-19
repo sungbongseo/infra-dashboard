@@ -23,7 +23,7 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
-import { calcDSOByOrg, calcOverallDSO, calcDSOTrend } from "@/lib/analysis/dso";
+import { calcDSOByOrg, calcOverallDSO, calcDSOTrend, DSO_UNMEASURABLE, formatDSO } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
 import { calcItemInventory, calcGroupSummary, calcInventoryKPI } from "@/lib/analysis/inventoryAnalysis";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -334,12 +334,12 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
               <XAxis
                 type="number"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${v}일`}
+                tickFormatter={(v) => formatDSO(Number(v))}
               />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(value: any) => [`${value}일`, "DSO"]}
+                formatter={(value: any) => [formatDSO(Number(value)), "DSO"]}
                 labelFormatter={(label) => `조직: ${label}`}
               />
               <ReferenceLine x={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "top", fontSize: 10 }} />
@@ -360,7 +360,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="월별 DSO 추세"
           formula="DSO = 해당월 추정 미수금 / 3개월 이동평균 매출 x 30"
-          description="월별 DSO 변화를 추적합니다. 지속적으로 증가하면 현금흐름 악화 신호입니다."
+          description="⚠️ 추정치: 미수금 에이징은 스냅샷 데이터로 월별 미수금은 매출 비례 배분한 추정치입니다. 실제 월별 미수금과 차이가 있을 수 있습니다."
           benchmark="3개월 연속 DSO 증가면 수금 전략 점검"
           reason="DSO 추세를 시계열로 분석하여 현금흐름 악화 징후를 조기에 감지합니다."
         >
@@ -371,7 +371,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 <YAxis
                   yAxisId="dso"
                   tick={{ fontSize: 11 }}
-                  tickFormatter={(v) => `${v}일`}
+                  tickFormatter={(v) => formatDSO(Number(v))}
                 />
                 <YAxis
                   yAxisId="amount"
@@ -382,7 +382,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 <RechartsTooltip
                   {...TOOLTIP_STYLE}
                   formatter={(value: any, name: any) =>
-                    name === "DSO" ? [`${value}일`, name] : [formatCurrency(Number(value)), name]
+                    name === "DSO" ? [formatDSO(Number(value)), name] : [formatCurrency(Number(value)), name]
                   }
                 />
                 <Legend />

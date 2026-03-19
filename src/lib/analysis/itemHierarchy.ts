@@ -484,6 +484,12 @@ export function calcCostWaterfall(
     type: "profit",
   });
 
+  // 부동소수점 보정: value 합계와 cumulative 정합성 강제
+  for (const e of entries) {
+    e.value = Math.round(e.value * 100) / 100;
+    e.cumulative = Math.round(e.cumulative * 100) / 100;
+  }
+
   return entries;
 }
 

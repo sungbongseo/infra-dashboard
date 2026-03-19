@@ -30,8 +30,11 @@ function DataSourceBadge({ type, isFiltered }: { type?: "snapshot" | "period"; i
   }
 
   return (
-    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 whitespace-nowrap">
-      📋 스냅샷
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-medium rounded bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300 whitespace-nowrap"
+      title="이 데이터는 스냅샷 보고서로 기간 필터가 적용되지 않습니다. 보고서 전체 기간의 누적 데이터입니다."
+    >
+      ⚠️ 기간 필터 미적용
     </span>
   );
 }

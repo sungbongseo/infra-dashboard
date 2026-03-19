@@ -12,6 +12,7 @@ import {
   AlertOctagon,
   X,
   CheckCircle,
+  Info,
 } from "lucide-react";
 
 function SeverityIcon({ severity }: { severity: "warning" | "critical" }) {
@@ -63,6 +64,7 @@ function AlertItem({
 
 export function AlertPanel() {
   const alerts = useAlertStore((s) => s.alerts);
+  const skippedMetrics = useAlertStore((s) => s.skippedMetrics);
   const dismissAlert = useAlertStore((s) => s.dismissAlert);
   const dismissAll = useAlertStore((s) => s.dismissAll);
 
@@ -82,6 +84,7 @@ export function AlertPanel() {
   );
 
   const activeCount = activeAlerts.length;
+  const hasSkipped = skippedMetrics.length > 0;
 
   return (
     <Popover.Root>
@@ -119,7 +122,7 @@ export function AlertPanel() {
           </div>
 
           <div className="max-h-72 overflow-y-auto">
-            {sortedAlerts.length === 0 ? (
+            {sortedAlerts.length === 0 && !hasSkipped ? (
               <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                 <CheckCircle className="h-8 w-8 mb-2 text-emerald-500" />
                 <p className="text-sm font-medium">경고 없음</p>
@@ -134,6 +137,21 @@ export function AlertPanel() {
                     onDismiss={dismissAlert}
                   />
                 ))}
+                {hasSkipped && (
+                  <div className="rounded-md px-3 py-2.5 text-sm bg-slate-50 dark:bg-slate-900/30 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Info className="h-4 w-4 shrink-0 text-slate-500" />
+                      <p className="font-medium text-xs text-slate-600 dark:text-slate-400">미평가 지표</p>
+                    </div>
+                    <div className="space-y-1 ml-6">
+                      {skippedMetrics.map((s) => (
+                        <p key={s.metric} className="text-[11px] text-muted-foreground">
+                          {s.label}: {s.reason}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

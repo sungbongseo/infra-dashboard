@@ -6,21 +6,17 @@ export type ComparisonPreset = "prev_month" | "prev_quarter" | "prev_year" | "cu
 
 interface FilterState {
   selectedOrgs: string[];
-  selectedPerson: string | null;
   selectedCustomers: string[];
   dateRange: { from: string; to: string } | null;
   comparisonRange: { from: string; to: string } | null;
   comparisonPreset: ComparisonPreset;
-  searchQuery: string;
   setSelectedOrgs: (orgs: string[]) => void;
-  setSelectedPerson: (person: string | null) => void;
   setSelectedCustomers: (customers: string[]) => void;
   setDateRange: (range: { from: string; to: string } | null) => void;
   setComparisonRange: (range: { from: string; to: string } | null) => void;
   setComparisonPreset: (preset: ComparisonPreset) => void;
   /** 프리셋 선택 시 dateRange 기반으로 comparisonRange 자동 계산 */
   applyComparisonPreset: (preset: ComparisonPreset) => void;
-  setSearchQuery: (query: string) => void;
   resetFilters: () => void;
   /** IndexedDB에서 필터 상태 복원 */
   restoreFromDB: () => Promise<void>;
@@ -83,17 +79,14 @@ function persistFilter(state: FilterState) {
 
 export const useFilterStore = create<FilterState>((set, get) => ({
   selectedOrgs: [],
-  selectedPerson: null,
   selectedCustomers: [],
   dateRange: null,
   comparisonRange: null,
   comparisonPreset: null,
-  searchQuery: "",
   setSelectedOrgs: (orgs) => {
     set({ selectedOrgs: orgs });
     persistFilter({ ...get(), selectedOrgs: orgs });
   },
-  setSelectedPerson: (person) => set({ selectedPerson: person }),
   setSelectedCustomers: (customers) => {
     set({ selectedCustomers: customers });
     persistFilter({ ...get(), selectedCustomers: customers });
@@ -138,16 +131,13 @@ export const useFilterStore = create<FilterState>((set, get) => ({
       persistFilter({ ...state, comparisonPreset: preset });
     }
   },
-  setSearchQuery: (query) => set({ searchQuery: query }),
   resetFilters: () => {
     set({
       selectedOrgs: [],
-      selectedPerson: null,
       selectedCustomers: [],
       dateRange: null,
       comparisonRange: null,
       comparisonPreset: null,
-      searchQuery: "",
     });
     saveFilterState({
       selectedOrgs: [],

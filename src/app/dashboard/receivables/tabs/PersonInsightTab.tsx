@@ -48,7 +48,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
     ? Math.round(portfolio.reduce((s, p) => s + p.customerCount, 0) / personCount * 10) / 10
     : 0;
   const highRiskPersonCount = portfolio.filter((p) => p.highRiskCount > 0).length;
-  const concentratedCount = portfolio.filter((p) => p.hhi > 0.25).length;
+  const concentratedCount = portfolio.filter((p) => p.hhi > 2500).length;
 
   // 수금 효율 랭킹 데이터 (상위 15명)
   const efficiencyData = useMemo(

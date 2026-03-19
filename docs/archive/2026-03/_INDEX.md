@@ -6,6 +6,7 @@
 | dashboard-ux-perf | Completed | 94% | 2026-03-06 |
 | monthly-analysis | Completed | 95%+ | 2026-03-16 |
 | data-accuracy-fix | Completed | 100% | 2026-03-18 |
+| numerical-accuracy | Completed | 100% | 2026-03-19 |
 
 ## analysis
 - **Description**: 인프라 대시보드 30년차 전문가 진단 기반 5단계 개선
@@ -30,3 +31,9 @@
 - **Phases**: A(긴급수정), B(구조개선), C(품질개선)
 - **Files**: 수정 6파일 (parser.ts, schemas.ts, profitRiskMatrix.ts, aging.ts, itemHierarchy.ts, page.tsx)
 - **Documents**: data-accuracy-fix.plan.md, data-accuracy-fix.design.md, data-accuracy-fix.analysis.md, data-accuracy-fix.report.md
+
+## numerical-accuracy
+- **Description**: 수치 정확성 감사 19건 발견사항 전수 해결 — 데이터 소스 명시, HHI 통일, DSO 측정불가, 매출 가중 평균 등
+- **Phases**: P1(HIGH 4건), P2+P3(MEDIUM+LOW 9건), 2회 이터레이션(37%→74%→100%)
+- **Files**: 수정 14파일 (alertStore, AlertPanel, ChartCard, page.tsx, profitability/page.tsx, DsoTab, dso.ts, profiling.ts, RankingTab, PersonInsightTab, itemHierarchy, parser, orgMapping, filterStore)
+- **Documents**: numerical-accuracy.analysis.md, numerical-accuracy-fix.analysis.md, numerical-accuracy.report.md, numerical-accuracy-audit-2026-03-18.md

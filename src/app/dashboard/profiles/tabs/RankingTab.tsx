@@ -82,7 +82,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
             title="거래처 집중도 - HHI(허핀달-허쉬만 지수)"
             formula="HHI = Σ(거래처 매출 비중²)\n거래처 매출 비중 = 거래처 매출 ÷ 담당자 총 매출"
             description="HHI(허핀달-허쉬만 지수)는 매출이 특정 거래처에 얼마나 집중되어 있는지 측정하는 지표입니다. 0에 가까우면 여러 거래처에 매출이 고르게 분산된 안정적인 상태이고, 1에 가까우면 소수 거래처에 의존도가 높아 리스크가 큽니다."
-            benchmark="HHI가 0.25 초과이면 고위험(과점 상태), 0.15~0.25이면 적정 집중, 0.15 미만이면 분산(안정적)입니다"
+            benchmark="HHI가 2,500 초과이면 고위험(과점 상태), 1,500~2,500이면 적정 집중, 1,500 미만이면 분산(안정적)입니다"
             reason="거래처 집중도를 측정하여 특정 거래처 이탈 시 매출 급감 리스크를 사전에 파악하고, 거래처 다변화 전략을 수립합니다."
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -90,7 +90,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 <div className="flex items-center gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">HHI 지수</p>
-                    <p className="text-3xl font-bold">{safe(selected.hhi, 3)}</p>
+                    <p className="text-3xl font-bold">{safe(selected.hhi, 0)}</p>
                   </div>
                   <Badge
                     variant={selected.hhiRiskLevel === "high" ? "destructive" : selected.hhiRiskLevel === "medium" ? "warning" : "success"}
@@ -114,13 +114,13 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 <div className="space-y-1">
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>0 (분산)</span>
-                    <span>1 (독점)</span>
+                    <span>10,000 (독점)</span>
                   </div>
                   <div className="h-3 w-full rounded-full bg-muted overflow-hidden relative">
                     <div className="absolute inset-y-0 left-0 bg-emerald-200 dark:bg-emerald-900" style={{ width: "15%" }} />
                     <div className="absolute inset-y-0 bg-amber-200 dark:bg-amber-900" style={{ left: "15%", width: "10%" }} />
                     <div className="absolute inset-y-0 bg-red-200 dark:bg-red-900" style={{ left: "25%", width: "75%" }} />
-                    <div className="absolute inset-y-0 w-1 bg-foreground rounded-full" style={{ left: `${Math.min(selected.hhi * 100, 100)}%` }} />
+                    <div className="absolute inset-y-0 w-1 bg-foreground rounded-full" style={{ left: `${Math.min(selected.hhi / 100, 100)}%` }} />
                   </div>
                   <div className="flex text-[10px] text-muted-foreground">
                     <span className="flex-1">분산</span>

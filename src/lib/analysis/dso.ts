@@ -15,9 +15,18 @@ export interface DSOMetric {
  * DSO (Days Sales Outstanding) = (Total Receivables / Average Monthly Sales) x 30
  * 미수채권 회수에 걸리는 평균 일수
  */
+/** DSO sentinel — UI에서 "측정불가"로 표시해야 하는 값 */
+export const DSO_UNMEASURABLE = 999;
+
 export function calcDSO(receivablesTotal: number, avgMonthlySales: number): number {
-  if (avgMonthlySales <= 0) return receivablesTotal > 0 ? 999 : 0; // 999일 = 실질 회수불가
+  if (avgMonthlySales <= 0) return receivablesTotal > 0 ? DSO_UNMEASURABLE : 0;
   return Math.round((receivablesTotal / avgMonthlySales) * 30);
+}
+
+/** DSO 값을 표시용 문자열로 변환 (999 → "측정불가") */
+export function formatDSO(dso: number): string {
+  if (dso === DSO_UNMEASURABLE) return "측정불가";
+  return `${dso}일`;
 }
 
 /**

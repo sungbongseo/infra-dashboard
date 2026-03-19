@@ -287,21 +287,24 @@ export default function ProfitabilityPage() {
 
   const costEfficiency = useMemo(() => {
     if (costStructure.length === 0) return [];
-    const orgMap = new Map<string, { count: number; 원재료비율: number; 상품매입비율: number; 외주비율: number }>();
+    // 매출 가중 평균: Σ(비율_i × 매출_i) / Σ(매출_i)
+    const orgMap = new Map<string, { totalSales: number; w원재료: number; w상품매입: number; w외주: number }>();
     for (const r of costStructure) {
-      const entry = orgMap.get(r.org) || { count: 0, 원재료비율: 0, 상품매입비율: 0, 외주비율: 0 };
-      entry.count++;
-      entry.원재료비율 += r.원재료비율;
-      entry.상품매입비율 += r.상품매입비율;
-      entry.외주비율 += r.외주비율;
+      const abs = Math.abs(r.매출액);
+      const entry = orgMap.get(r.org) || { totalSales: 0, w원재료: 0, w상품매입: 0, w외주: 0 };
+      entry.totalSales += abs;
+      entry.w원재료 += r.원재료비율 * abs;
+      entry.w상품매입 += r.상품매입비율 * abs;
+      entry.w외주 += r.외주비율 * abs;
       orgMap.set(r.org, entry);
     }
     const orgAvg = new Map<string, { 원재료비율: number; 상품매입비율: number; 외주비율: number }>();
     Array.from(orgMap.entries()).forEach(([org, e]) => {
+      const s = e.totalSales || 1;
       orgAvg.set(org, {
-        원재료비율: e.원재료비율 / e.count,
-        상품매입비율: e.상품매입비율 / e.count,
-        외주비율: e.외주비율 / e.count,
+        원재료비율: e.w원재료 / s,
+        상품매입비율: e.w상품매입 / s,
+        외주비율: e.w외주 / s,
       });
     });
     return costStructure
