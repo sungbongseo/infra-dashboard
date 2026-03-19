@@ -131,65 +131,18 @@ function toGenericRows(
   salesData: SalesRecord[] | null,
 ): { rows: GenericRow[]; hasFullPL: boolean } {
   if (itemProfitData && itemProfitData.length > 0) {
-    // Build salesList lookup by 품목명 for fallback when 200 실적=0
-    // 두 개의 맵: 원본 키 + 정규화 키 (공백/하이픈 차이 대응)
-    const salesByItem = new Map<string, { sales: number; quantity: number }>();
-    const salesByNorm = new Map<string, { sales: number; quantity: number }>();
-    if (salesData) {
-      for (const r of salesData) {
-        const key = (r.품목명 || r.품목 || "").trim().toLowerCase();
-        if (!key) continue;
-        const prev = salesByItem.get(key) || { sales: 0, quantity: 0 };
-        const entry = {
-          sales: prev.sales + r.장부금액,
-          quantity: prev.quantity + r.수량,
-        };
-        salesByItem.set(key, entry);
-        // 정규화 키로도 저장 (chextop-120, chextop 120 → chextop120)
-        const normKey = normalizeItemName(key);
-        const prevNorm = salesByNorm.get(normKey) || { sales: 0, quantity: 0 };
-        salesByNorm.set(normKey, {
-          sales: prevNorm.sales + r.장부금액,
-          quantity: prevNorm.quantity + r.수량,
-        });
-      }
-    }
-
+    // 200 데이터는 자체 P&L(매출액/원가/이익)을 포함하므로
+    // salesList fallback 불필요. 월별 독립 데이터에서 매출=0인 행에
+    // salesList 전체 합산을 대체하면 N배 중복 합산됨.
     return {
       rows: itemProfitData.map(r => {
-        const actualSales = r.매출액;
-        const actualQty = r.매출수량;
-
-        // When 200 has no 실적 but salesList has data, use salesList as actual
-        let sales = actualSales;
-        let quantity = actualQty;
-        if (actualSales === 0 && salesByItem.size > 0) {
-          const itemKey = (r.품목 || "").trim().toLowerCase();
-          // 1차: 원본 키 exact match
-          const exact = salesByItem.get(itemKey);
-          if (exact) {
-            sales = exact.sales;
-            quantity = exact.quantity;
-          } else {
-            // 2차: 정규화 키 match (공백/하이픈 차이 무시)
-            const normKey = normalizeItemName(itemKey);
-            const normMatch = salesByNorm.get(normKey);
-            if (normMatch) {
-              sales = normMatch.sales;
-              quantity = normMatch.quantity;
-            }
-            // 3차 Partial match 제거: 부분 매칭이 다수의 품목을 합산하여
-            // 매출 수십 배 부풀림 발생. 정확한 매칭만 사용.
-          }
-        }
-
         return {
           대분류: r.대분류 || "(미분류)",
           중분류: r.중분류 || "(미분류)",
           소분류: r.소분류 || "(미분류)",
           품목: r.품목 || "(미분류)",
-          sales,
-          quantity,
+          sales: r.매출액,
+          quantity: r.매출수량,
           grossProfit: r.매출총이익,
           operatingProfit: r.영업이익,
           costRatio: r.매출원가율,
