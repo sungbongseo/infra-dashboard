@@ -302,11 +302,11 @@ export function calcPortfolioOptimization(
   const sorted = [...portfolioItems].sort(
     (a, b) => b.compositeScore - a.compositeScore
   );
-  const topFocus = sorted.filter((it) => it.action === "FOCUS").slice(0, 10);
+  const topFocus = sorted.filter((it) => it.action === "FOCUS").slice(0, 50);
   const topDiscontinue = [...portfolioItems]
     .sort((a, b) => a.compositeScore - b.compositeScore)
     .filter((it) => it.action === "DISCONTINUE")
-    .slice(0, 10);
+    .slice(0, 50);
 
   // 7) 대분류별 요약
   const catMap = new Map<string, { total: number; focus: number; maintain: number; optimize: number; discontinue: number }>();

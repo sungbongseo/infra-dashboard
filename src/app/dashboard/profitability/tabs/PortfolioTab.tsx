@@ -125,9 +125,9 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
 
   const renderTable = (data: PortfolioItem[], title: string, desc: string) => (
     <ChartCard isEmpty={data.length === 0} title={title} description={desc}>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
         <table className="w-full text-xs">
-          <thead>
+          <thead className="sticky top-0 bg-background z-10">
             <tr className="border-b text-left">
               <th className="p-2">품목</th>
               <th className="p-2">대분류</th>
@@ -299,8 +299,8 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
       </ChartCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {renderTable(sortedFocus, "집중 추천 TOP 10", "복합점수 상위 — 마케팅/생산 확대 추천")}
-        {renderTable(sortedDisc, "단종 후보 TOP 10", "복합점수 하위 — 단종 또는 대체품 검토")}
+        {renderTable(sortedFocus, `집중 추천 TOP ${sortedFocus.length}`, "복합점수 상위 — 마케팅/생산 확대 추천")}
+        {renderTable(sortedDisc, `단종 후보 TOP ${sortedDisc.length}`, "복합점수 하위 — 단종 또는 대체품 검토")}
       </div>
 
       {/* Category Bar Chart */}
