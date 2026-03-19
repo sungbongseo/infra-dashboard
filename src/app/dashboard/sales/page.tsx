@@ -23,14 +23,14 @@ import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
 import { useUIStore } from "@/stores/uiStore";
-import { useFilterContext, useFilteredSales } from "@/lib/hooks/useFilteredData";
+import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
 import { ClvTab } from "./tabs/ClvTab";
@@ -59,8 +59,6 @@ export default function SalesAnalysisPage() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
   const inventoryMovement = useDataStore((s) => s.inventoryMovement);
-  const collectionList = useDataStore((s) => s.collectionList);
-  const orderList = useDataStore((s) => s.orderList);
   const receivableAging = useDataStore((s) => s.receivableAging);
   const isLoading = useDataStore((s) => s.isLoading);
   const setCustomer360Target = useUIStore((s) => s.setCustomer360Target);
@@ -69,14 +67,16 @@ export default function SalesAnalysisPage() {
   const visibleTabs = new Set(activeGroup.tabs);
   const { effectiveOrgNames } = useFilterContext();
   const { filteredSales } = useFilteredSales();
+  const { filteredCollections } = useFilteredCollections();
+  const { filteredOrders } = useFilteredOrders();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
   const topCustomers = useMemo(() => calcTopCustomers(filteredSales, 15), [filteredSales]);
 
-  // CLV 분석에 필요한 조직별 손익 필터
+  // CLV 분석에 필요한 조직별 손익 필터 (leafOnly + aggregate로 소계 이중카운팅 방지)
   const filteredOrgProfit = useMemo(
-    () => filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"),
+    () => aggregateOrgProfit(filterOrgProfitLeafOnly(filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀"))),
     [orgProfit, effectiveOrgNames]
   );
 
@@ -109,12 +109,12 @@ export default function SalesAnalysisPage() {
     [filteredOrgCustProfit]
   );
 
-  // 거래처 360° 뷰용 미수금 flat 배열
+  // 거래처 360° 뷰용 미수금 flat 배열 (조직 필터 적용)
   const flatAging = useMemo(() => {
     const all: import("@/types").ReceivableAgingRecord[] = [];
     Array.from(receivableAging.values()).forEach((arr) => all.push(...arr));
-    return all;
-  }, [receivableAging]);
+    return filterByOrg(all, effectiveOrgNames, "영업조직");
+  }, [receivableAging, effectiveOrgNames]);
 
   const topCustomersExport = useMemo(
     () => topCustomers.map((c) => ({ 거래처코드: c.code, 거래처명: c.name, 매출액: c.amount })),
@@ -409,8 +409,8 @@ export default function SalesAnalysisPage() {
           <ErrorBoundary>
             <Customer360Tab
               salesList={filteredSales}
-              collectionList={collectionList}
-              orderList={orderList}
+              collectionList={filteredCollections}
+              orderList={filteredOrders}
               agingRecords={flatAging}
               orgCustProfit={filteredOrgCustProfit}
               isDateFiltered={isDateFiltered}
@@ -425,7 +425,7 @@ export default function SalesAnalysisPage() {
             <OrgScorecardTab
               orgProfit={filteredOrgProfit}
               salesList={filteredSales}
-              collectionList={collectionList}
+              collectionList={filteredCollections}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>

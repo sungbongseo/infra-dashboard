@@ -11,7 +11,7 @@ import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, aggregateToCustomerLevel, filterOrgProfitLeafOnly, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, CHART_COLORS } from "@/lib/utils";
 import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
 import { calcMonthlyTrend, calcMoMGrowth, padActual } from "@/lib/analysis/monthlyTrend";
 import {
@@ -116,11 +116,12 @@ export default function ProfitabilityPage() {
 
   const filteredTeamContribution = useMemo(() => {
     const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
-    return orgFiltered.filter((r: any) => {
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return monthFiltered.filter((r: any) => {
       const person = String(r.영업담당사번 || "").trim();
       return person !== "";
     });
-  }, [teamContribution, effectiveOrgNames]);
+  }, [teamContribution, effectiveOrgNames, dateRange]);
   // 폴백 로직 제거: 필터링 결과가 매출 0이어도 전체 데이터로 대체하지 않음
   // 대신 hasNoSales 플래그로 UI 경고 표시
   const { filteredProfAnalysis, profAnalysisHasNoSales, profAnalysisIsFallback } = useMemo(() => {
@@ -141,8 +142,8 @@ export default function ProfitabilityPage() {
   }, [receivableAging, effectiveOrgNames]);
 
   // ─── 신규 데이터 타입 필터링 ──────────────────────────────
-  const filteredOrgCustProfit = useMemo(() => filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), [orgCustomerProfit, effectiveOrgNames]);
-  const filteredHqCustItemProfit = useMemo(() => filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), [hqCustomerItemProfit, effectiveOrgNames]);
+  const filteredOrgCustProfit = useMemo(() => filterByMonth(filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), dateRange), [orgCustomerProfit, effectiveOrgNames, dateRange]);
+  const filteredHqCustItemProfit = useMemo(() => filterByMonth(filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), dateRange), [hqCustomerItemProfit, effectiveOrgNames, dateRange]);
 
   // ─── customerItemDetail 기간 필터 (스마트 데이터소스) ──────────────────
   const filteredCustItemDetail = useMemo(() => {
@@ -426,8 +427,8 @@ export default function ProfitabilityPage() {
 
   // ─── 품목별 매출원가 분석 (501) ──────────────────────────────
   const filteredItemCostDetail = useMemo(
-    () => filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀"),
-    [itemCostDetail, effectiveOrgNames]
+    () => filterByMonth(filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀"), dateRange),
+    [itemCostDetail, effectiveOrgNames, dateRange]
   );
   const itemCostSummary = useMemo(() => calcItemCostSummary(filteredItemCostDetail), [filteredItemCostDetail]);
   const costCategoryVariance = useMemo(() => calcCostCategoryVariance(filteredItemCostDetail), [filteredItemCostDetail]);

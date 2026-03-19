@@ -146,8 +146,8 @@ export function calcOrgScorecards(
     if (!org) continue;
     if (!orgMap.has(org)) orgMap.set(org, { sales: 0, opProfit: 0, collections: 0 });
     const entry = orgMap.get(org)!;
-    entry.sales += Number(op.매출액) || 0;
-    entry.opProfit += Number(op.영업이익) || 0;
+    entry.sales += op.매출액?.실적 || 0;
+    entry.opProfit += op.영업이익?.실적 || 0;
   }
 
   // 수금 데이터 매칭
