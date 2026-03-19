@@ -790,15 +790,10 @@ function parseSheetData(
         }
       }
 
-      let ipCurrentOrg = "";
-      for (let i = ipRows.length - 1; i >= 0; i--) {
-        const val = String(ipRows[i].영업조직팀 || "").trim();
-        if (val !== "" && !isTotalRow(val)) {
-          ipCurrentOrg = val;
-        } else if (val === "" && ipCurrentOrg !== "") {
-          (ipRows[i] as Record<string, any>).영업조직팀 = ipCurrentOrg;
-        }
-      }
+      // 역방향 fill-down 제거: 파일 시작부의 빈 영업조직팀 행에 마지막 조직을
+      // 역전파하면 타 사업부 품목이 잘못된 조직으로 배정됨.
+      // 순방향 fill-down(lines 774-791)만으로 충분하며,
+      // 영업조직팀이 비어있는 행은 org 필터에서 자연 제외됨.
 
       const mergedIP: ItemProfitabilityRecord[] = [];
       for (let i = 0; i < ipRows.length; i++) {
