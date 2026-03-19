@@ -1021,8 +1021,6 @@ export function parseExcelFile(
       if (!sheet) {
         throw new Error(`최신 시트 '${lastSheet.sheetName}' 읽기 실패`);
       }
-      const unmerged1 = unmergeSheet(sheet);
-      if (unmerged1 > 0) warnings.push(`셀 병합 ${unmerged1}건 해제 완료 (시트: ${lastSheet.sheetName})`);
       const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
       const minRows = schema.hasMergedHeader ? 3 : 2;
       if (rawData.length < minRows) {
@@ -1044,8 +1042,6 @@ export function parseExcelFile(
           warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
           continue;
         }
-        const unmergedN = unmergeSheet(sheet);
-        if (unmergedN > 0) warnings.push(`셀 병합 ${unmergedN}건 해제 완료 (시트: ${ms.sheetName})`);
         const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
         const minRows = schema.hasMergedHeader ? 3 : 2;
         if (rawData.length < minRows) {
@@ -1070,8 +1066,6 @@ export function parseExcelFile(
       throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
     }
 
-    const unmerged0 = unmergeSheet(sheet);
-    if (unmerged0 > 0) warnings.push(`셀 병합 ${unmerged0}건 해제 완료 (시트: ${sheetName})`);
     const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
     const minRows = schema.hasMergedHeader ? 3 : 2;
     if (rawData.length < minRows) {
