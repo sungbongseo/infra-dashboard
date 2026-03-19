@@ -286,6 +286,7 @@ export function calcItemHierarchy(
       node.children = buildSubLevels(groupRows, activeLevels, 1, node.sales, hasFullPL);
       return node;
     })
+    .filter(node => node.sales !== 0) // 매출 실적 0인 품목/대분류 제외
     .sort((a, b) => b.sales - a.sales);
 
   return {
@@ -327,6 +328,7 @@ function buildSubLevels(
       }
       return node;
     })
+    .filter(node => node.sales !== 0)
     .sort((a, b) => b.sales - a.sales);
 }
 
