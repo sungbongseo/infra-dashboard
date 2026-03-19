@@ -67,12 +67,13 @@ import { CostVarianceTab } from "./tabs/CostVarianceTab";
 import { StandardCostTab } from "./tabs/StandardCostTab";
 import { CustomerRiskMatrixTab } from "./tabs/CustomerRiskMatrixTab";
 import { SgaBreakdownTab } from "./tabs/SgaBreakdownTab";
+import { PortfolioTab } from "./tabs/PortfolioTab";
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
   { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
-  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost"] },
+  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "portfolio"] },
 ];
 
 export default function ProfitabilityPage() {
@@ -546,6 +547,7 @@ export default function ProfitabilityPage() {
           {visibleTabs.has("itemCost") && <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
           {visibleTabs.has("costVariance") && <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
           {visibleTabs.has("standardCost") && <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>}
+          {visibleTabs.has("portfolio") && <TabsTrigger value="portfolio" disabled={filteredItemProfitability.length === 0}>포트폴리오</TabsTrigger>}
         </TabsList>
         </TooltipProvider>
 
@@ -733,6 +735,17 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <SgaBreakdownTab
               filteredOrgCustProfit={filteredOrgCustProfit}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+          </LazyTabContent>
+        </TabsContent>
+
+        <TabsContent value="portfolio" className="space-y-6">
+          <LazyTabContent value="portfolio" activeTab={activeTab}>
+          <ErrorBoundary>
+            <PortfolioTab
+              filteredItemProfitability={filteredItemProfitability}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
