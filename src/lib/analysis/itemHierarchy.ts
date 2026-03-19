@@ -177,15 +177,9 @@ function toGenericRows(
             if (normMatch) {
               sales = normMatch.sales;
               quantity = normMatch.quantity;
-            } else {
-              // 3차: Partial match (포함 관계)
-              for (const [k, v] of Array.from(salesByItem.entries())) {
-                if (k.includes(itemKey) || itemKey.includes(k)) {
-                  sales += v.sales;
-                  quantity += v.quantity;
-                }
-              }
             }
+            // 3차 Partial match 제거: 부분 매칭이 다수의 품목을 합산하여
+            // 매출 수십 배 부풀림 발생. 정확한 매칭만 사용.
           }
         }
 
