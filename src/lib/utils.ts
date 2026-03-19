@@ -34,7 +34,7 @@ export function formatNumber(value: number): string {
 }
 
 export function calcChangeRate(current: number, previous: number): number {
-  if (previous === 0) return current > 0 ? 100 : 0;
+  if (previous === 0) return current > 0 ? 100 : current < 0 ? -100 : 0;
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
@@ -312,6 +312,7 @@ export function aggregateToCustomerLevel(
         영업이익: { ...row.영업이익 },
         매출총이익율: zeroPAD(),
         영업이익율: zeroPAD(),
+        판관변동_직접판매운반비: { ...row.판관변동_직접판매운반비 },
       });
     } else {
       existing.매출액 = addPAD(existing.매출액, row.매출액);
@@ -319,6 +320,7 @@ export function aggregateToCustomerLevel(
       existing.매출총이익 = addPAD(existing.매출총이익, row.매출총이익);
       existing.판매관리비 = addPAD(existing.판매관리비, row.판매관리비);
       existing.영업이익 = addPAD(existing.영업이익, row.영업이익);
+      existing.판관변동_직접판매운반비 = addPAD(existing.판관변동_직접판매운반비!, row.판관변동_직접판매운반비);
     }
   }
 

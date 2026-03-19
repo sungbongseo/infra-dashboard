@@ -491,8 +491,8 @@ export function calcCostEfficiency(
         variableCostRate: safeRate(sgaVariable),
         mfgVariableCostRate: safeRate(mfgVariable),
         fixedCostRate: safeRate(sgaFixed),
-        contributionMarginRate: r.공헌이익율?.실적 || 0,
-        operatingMarginRate: r.영업이익율?.실적 || 0,
+        contributionMarginRate: Math.max(-200, Math.min(200, r.공헌이익율?.실적 || 0)),
+        operatingMarginRate: Math.max(-200, Math.min(200, r.영업이익율?.실적 || 0)),
       };
     });
 }

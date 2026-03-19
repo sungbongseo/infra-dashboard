@@ -615,13 +615,9 @@ function parseSheetData(
         };
 
         if (Math.abs(record.공헌이익율.실적) >= 500 || Math.abs(record.영업이익율.실적) >= 500) {
-          warnings.push(`팀원별공헌이익: 사번 ${record.영업담당사번} 이익율 이상치 보정 (공헌이익율=${record.공헌이익율.실적.toFixed(0)}%, 영업이익율=${record.영업이익율.실적.toFixed(0)}%)`);
-          record.공헌이익율.실적 = 0;
-          record.공헌이익율.계획 = 0;
-          record.공헌이익율.차이 = 0;
-          record.영업이익율.실적 = 0;
-          record.영업이익율.계획 = 0;
-          record.영업이익율.차이 = 0;
+          warnings.push(`팀원별공헌이익: 사번 ${record.영업담당사번} 이익율 이상치 감지 (공헌이익율=${record.공헌이익율.실적.toFixed(0)}%, 영업이익율=${record.영업이익율.실적.toFixed(0)}%) — 원본 보존, 차트 클램핑 적용`);
+          // 원본 데이터 보존: SAP 원본 값은 변조하지 않음
+          // 차트 렌더링 시 ±200% 클램핑은 UI 레이어(profiling.ts)에서 처리
         }
 
         return record;
@@ -950,6 +946,35 @@ function parseSheetData(
   return { data: parsed, skippedRows };
 }
 
+/**
+ * 엑셀 시트의 병합 셀을 해제하여 좌상단 값을 모든 병합 범위 셀에 복사.
+ * XLSX.read() 직후, sheet_to_json() 직전에 호출하면
+ * 빈 셀로 읽히던 병합 영역이 실제 값으로 채워진다.
+ */
+function unmergeSheet(sheet: XLSX.WorkSheet): number {
+  const merges = sheet['!merges'];
+  if (!merges || merges.length === 0) return 0;
+
+  let filledCount = 0;
+  for (const merge of merges) {
+    const originAddr = XLSX.utils.encode_cell(merge.s);
+    const originCell = sheet[originAddr];
+    if (!originCell) continue;
+
+    for (let r = merge.s.r; r <= merge.e.r; r++) {
+      for (let c = merge.s.c; c <= merge.e.c; c++) {
+        if (r === merge.s.r && c === merge.s.c) continue;
+        const addr = XLSX.utils.encode_cell({ r, c });
+        sheet[addr] = { ...originCell };
+        filledCount++;
+      }
+    }
+  }
+
+  delete sheet['!merges'];
+  return filledCount;
+}
+
 export function parseExcelFile(
   buffer: ArrayBuffer,
   fileName: string,
@@ -996,6 +1021,8 @@ export function parseExcelFile(
       if (!sheet) {
         throw new Error(`최신 시트 '${lastSheet.sheetName}' 읽기 실패`);
       }
+      const unmerged1 = unmergeSheet(sheet);
+      if (unmerged1 > 0) warnings.push(`셀 병합 ${unmerged1}건 해제 완료 (시트: ${lastSheet.sheetName})`);
       const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
       const minRows = schema.hasMergedHeader ? 3 : 2;
       if (rawData.length < minRows) {
@@ -1017,6 +1044,8 @@ export function parseExcelFile(
           warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
           continue;
         }
+        const unmergedN = unmergeSheet(sheet);
+        if (unmergedN > 0) warnings.push(`셀 병합 ${unmergedN}건 해제 완료 (시트: ${ms.sheetName})`);
         const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
         const minRows = schema.hasMergedHeader ? 3 : 2;
         if (rawData.length < minRows) {
@@ -1041,6 +1070,8 @@ export function parseExcelFile(
       throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
     }
 
+    const unmerged0 = unmergeSheet(sheet);
+    if (unmerged0 > 0) warnings.push(`셀 병합 ${unmerged0}건 해제 완료 (시트: ${sheetName})`);
     const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
     const minRows = schema.hasMergedHeader ? 3 : 2;
     if (rawData.length < minRows) {

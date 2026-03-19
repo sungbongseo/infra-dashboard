@@ -67,8 +67,10 @@ export function calcParetoAnalysis(
     result.push({ name: item.name, code: item.code, value: item.value, share, cumShare, grade });
   }
 
-  // 부동소수점 보정: 마지막 양수 항목의 cumShare를 정확히 100%로
-  if (result.length > 0) result[result.length - 1].cumShare = 100;
+  // 부동소수점 보정: 마지막 양수 항목의 cumShare 오차가 0.01% 미만일 때만 100%로 보정
+  if (result.length > 0 && Math.abs(result[result.length - 1].cumShare - 100) < 0.01) {
+    result[result.length - 1].cumShare = 100;
+  }
 
   // Negative items get grade "C" and 0% share (반품/환입 등)
   for (const item of negativeItems) {

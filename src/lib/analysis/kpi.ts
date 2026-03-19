@@ -194,7 +194,7 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
       const 원재료비 = r.제조변동_원재료비.실적 + r.제조변동_부재료비.실적;
       const 상품매입 = r.변동_상품매입.실적;
       const 외주가공비 = r.판관변동_외주가공비.실적 + r.제조변동_외주가공비.실적;
-      const 운반비 = r.판관변동_운반비.실적 + r.제조변동_운반비.실적;
+      const 운반비 = r.판관변동_운반비.실적 + r.판관변동_직접판매운반비.실적 + r.제조변동_운반비.실적;
       const 지급수수료 = r.판관변동_지급수수료.실적 + r.제조변동_지급수수료.실적;
       const 노무비 =
         r.판관변동_노무비.실적 +

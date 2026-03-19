@@ -484,10 +484,14 @@ export function calcCostWaterfall(
     type: "profit",
   });
 
-  // 부동소수점 보정: value 합계와 cumulative 정합성 강제
-  for (const e of entries) {
-    e.value = Math.round(e.value * 100) / 100;
-    e.cumulative = Math.round(e.cumulative * 100) / 100;
+  // 부동소수점 보정: cumulative 기준으로 value 역산하여 합계 정합성 보장
+  for (let i = 0; i < entries.length; i++) {
+    entries[i].cumulative = Math.round(entries[i].cumulative * 100) / 100;
+    if (i === 0) {
+      entries[i].value = entries[i].cumulative;
+    } else {
+      entries[i].value = Math.round((entries[i].cumulative - entries[i - 1].cumulative) * 100) / 100;
+    }
   }
 
   return entries;
