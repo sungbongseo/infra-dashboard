@@ -43,6 +43,11 @@ export function detectAnomalies(
   const q3 = sorted[q3Idx];
   const iqr = q3 - q1;
 
+  // IQR=0 (모든 값 동일 또는 분산 없음): 이상치 탐지 불가 → 빈 결과 반환
+  if (iqr <= 0) {
+    return { q1, q3, iqr: 0, lowerFence: q1, upperFence: q3, anomalies: [], anomalyRate: 0 };
+  }
+
   const lowerFence = q1 - multiplier * iqr;
   const upperFence = q3 + multiplier * iqr;
 

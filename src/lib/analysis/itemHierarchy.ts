@@ -121,11 +121,6 @@ interface GenericRow {
   operatingProfitPlan?: number;
 }
 
-/** 품목명 정규화: 공백/하이픈/언더스코어 차이를 무시하여 매칭 정확도 향상 */
-function normalizeItemName(name: string): string {
-  return name.trim().toLowerCase().replace(/[-_\s]+/g, "");
-}
-
 function toGenericRows(
   itemProfitData: ItemProfitabilityRecord[] | null,
   salesData: SalesRecord[] | null,

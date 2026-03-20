@@ -280,6 +280,40 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
         </ChartContainer>
       </ChartCard>
 
+      {/* 세그먼트별 추천 액션 요약 */}
+      <ChartCard
+        title="세그먼트별 추천 액션"
+        description="각 RFM 세그먼트의 권장 대응 전략 요약"
+        isEmpty={rfmSummary.length === 0}
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {rfmSummary.map((seg) => {
+            const action = RFM_SEGMENT_ACTIONS[seg.segment];
+            if (!action) return null;
+            const badge = PRIORITY_BADGE[action.priority];
+            return (
+              <div key={seg.segment} className="rounded-lg bg-muted p-3 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-block w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: RFM_COLORS[seg.segment] || CHART_COLORS[0] }}
+                  />
+                  <span className="font-medium text-sm">{seg.segment}</span>
+                  <span className="text-xs text-muted-foreground">({seg.count}개사)</span>
+                  {badge && (
+                    <span className={`ml-auto inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm font-medium">{action.action}</p>
+                <p className="text-sm text-muted-foreground">{action.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </ChartCard>
+
       {/* 세그먼트별 거래처 목록 + 추천 액션 */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         action={<ExportButton data={rfmExportData} fileName="RFM분석" />}

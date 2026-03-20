@@ -22,20 +22,13 @@ import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BA
 import { DataTable } from "@/components/dashboard/DataTable";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { CHART_COLORS, TOOLTIP_STYLE, formatCurrency, extractMonth } from "@/lib/utils";
-import { calcDSOByOrg, calcOverallDSO, calcDSOTrend, DSO_UNMEASURABLE, formatDSO } from "@/lib/analysis/dso";
+import { CHART_COLORS, TOOLTIP_STYLE, DSO_COLORS, formatCurrency, extractMonth } from "@/lib/utils";
+import { calcDSOByOrg, calcOverallDSO, calcDSOTrend, formatDSO } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
 import { calcItemInventory, calcGroupSummary, calcInventoryKPI } from "@/lib/analysis/inventoryAnalysis";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CCCMetric } from "@/lib/analysis/ccc";
 import type { CollectionRecord, SalesRecord, InventoryMovementRecord } from "@/types";
-
-const DSO_COLORS: Record<string, string> = {
-  excellent: "hsl(142, 76%, 36%)",
-  good: "hsl(188, 94%, 42%)",
-  fair: "hsl(45, 93%, 47%)",
-  poor: "hsl(0, 84%, 50%)",
-};
 
 const DSO_LABELS: Record<string, string> = {
   excellent: "우수",
@@ -335,6 +328,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 type="number"
                 tick={{ fontSize: 11 }}
                 tickFormatter={(v) => formatDSO(Number(v))}
+                label={{ value: "일", position: "insideBottom", offset: -5, style: { textAnchor: "middle", fontSize: 11, fill: "#888" } }}
               />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip

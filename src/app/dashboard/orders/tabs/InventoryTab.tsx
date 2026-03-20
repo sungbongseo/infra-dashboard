@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG } from "@/components/charts";
 import { Package, RefreshCw, AlertTriangle, Clock } from "lucide-react";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { formatNumber, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcInventoryTurnover,
@@ -89,6 +90,8 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
         .slice(0, 10),
     [turnover]
   );
+
+  if (data.length === 0) return <EmptyState message="수불현황 데이터를 업로드해 주세요." />;
 
   return (
     <>

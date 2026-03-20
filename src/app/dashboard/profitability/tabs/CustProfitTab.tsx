@@ -22,7 +22,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, interpretHHI } from "@/lib/utils";
 import { calcCustomerConcentration, calcCustomerRanking, calcCustomerSegments } from "@/lib/analysis/customerProfitAnalysis";
 
 interface CustProfitTabProps {
@@ -105,8 +105,8 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
           format="number"
           icon={<Target className="h-5 w-5" />}
           formula="HHI = Σ(시장점유율²) × 10,000"
-          description={`허핀달-허쉬만 지수입니다. ${custConcentration.interpretation}. 높을수록 소수 거래처에 매출이 집중되어 리스크가 높습니다.`}
-          benchmark="1,500 미만=낮은 집중도, 1,500~2,500=보통, 2,500 이상=높은 집중도"
+          description={`허핀달-허쉬만 지수입니다. 현재 등급: ${interpretHHI(custConcentration.hhi).label} — ${interpretHHI(custConcentration.hhi).description}`}
+          benchmark="1,500 미만=비집중(양호), 1,500~2,500=중간 집중(주의), 2,500 이상=고집중(위험)"
           reason="HHI 지수로 거래처 집중도를 정량화하여 특정 거래처 이탈 시 매출 충격의 크기를 사전에 파악하고, 거래처 다변화 전략의 시급성을 판단합니다"
         />
         <KpiCard

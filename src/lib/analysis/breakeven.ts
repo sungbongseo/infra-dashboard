@@ -77,8 +77,12 @@ export function calcTeamBreakeven(
     }
 
     // Safety margin rate = (sales - BEP) / sales * 100
+    // BEP 센티넬이어도 실제 계산값을 제공하여 적자 정도 파악 가능
     let safetyMarginRate: number;
-    if (bepSales >= 9_999_999_999) {
+    if (contributionMarginRatio <= 0) {
+      // 공헌이익률 0 이하: 팔수록 적자 → 안전한계율 = -(변동비율-1)*100 으로 적자 정도 표시
+      safetyMarginRate = Math.max(-999, (contributionMarginRatio - 1) * 100);
+    } else if (bepSales >= 9_999_999_999) {
       safetyMarginRate = -999;
     } else {
       safetyMarginRate = ((sales - bepSales) / sales) * 100;
@@ -167,9 +171,11 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
       bepSales = fixedCosts / contributionMarginRatio;
     }
 
-    // Safety margin rate
+    // Safety margin rate — BEP 센티넬이어도 실제 계산값 제공
     let safetyMarginRate: number;
-    if (bepSales >= 9_999_999_999) {
+    if (contributionMarginRatio <= 0) {
+      safetyMarginRate = Math.max(-999, (contributionMarginRatio - 1) * 100);
+    } else if (bepSales >= 9_999_999_999) {
       safetyMarginRate = -999;
     } else {
       safetyMarginRate = ((sales - bepSales) / sales) * 100;

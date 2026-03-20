@@ -73,7 +73,7 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
   // KPI: trend direction as number for display (1=up, -1=down, 0=flat)
   const trendValue = decomposition.trendDirection === "up" ? 1 : decomposition.trendDirection === "down" ? -1 : 0;
 
-  if (monthlyData.length === 0) return <EmptyState />;
+  if (monthlyData.length === 0) return <EmptyState message="매출목록 데이터를 업로드해 주세요." />;
 
   // Not enough data for decomposition
   if (decomposition.points.length === 0) {
@@ -146,7 +146,7 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
           <ComposedChart data={decomposition.points} margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis dataKey="month" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={50} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "매출액", angle: -90, position: "insideLeft", style: { textAnchor: "middle", fontSize: 11, fill: "#888" } }} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => [formatCurrency(Number(value)), name]}

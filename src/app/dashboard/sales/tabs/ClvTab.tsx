@@ -31,7 +31,7 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered }: Clv
   const clvResults = useMemo(() => calcClv(filteredSales, filteredOrgProfit), [filteredSales, filteredOrgProfit]);
   const clvSummary = useMemo(() => calcClvSummary(clvResults), [clvResults]);
 
-  if (clvResults.length === 0) return <EmptyState />;
+  if (clvResults.length === 0) return <EmptyState message="매출목록과 조직손익 데이터를 업로드해 주세요." />;
 
   return (
     <>

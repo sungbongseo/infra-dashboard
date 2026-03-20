@@ -24,6 +24,8 @@ export function calcAgingSummary(records: ReceivableAgingRecord[]): AgingSummary
     month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0, overdue: 0, total: 0,
   };
 
+  if (!records || records.length === 0) return summary;
+
   for (const r of records) {
     summary.month1 += r.month1.장부금액;
     summary.month2 += r.month2.장부금액;

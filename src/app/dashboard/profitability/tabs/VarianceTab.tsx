@@ -253,7 +253,7 @@ export function VarianceTab({
           <ChartContainer height="h-64 md:h-80">
             <BarChart data={orgGapContribution} layout="vertical" margin={{ left: 80 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: any) => formatCurrency(Number(v), true)} />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: any) => formatCurrency(Number(v), true)} label={{ value: "금액", position: "insideBottom", offset: -5, style: { textAnchor: "middle", fontSize: 11, fill: "#888" } }} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
               <RechartsTooltip
                 content={({ payload }) => {

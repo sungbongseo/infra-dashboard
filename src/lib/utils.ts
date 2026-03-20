@@ -66,6 +66,21 @@ export const RISK_COLORS = {
   high: "hsl(0, 84.2%, 60.2%)",
 };
 
+/** DSO/CCC 등급별 색상 — DsoTab, CccTab 등에서 공용 */
+export const DSO_COLORS: Record<string, string> = {
+  excellent: "hsl(142, 76%, 36%)",
+  good: "hsl(188, 94%, 42%)",
+  fair: "hsl(38, 92%, 50%)",
+  poor: "hsl(0, 84%, 60%)",
+};
+
+/** HHI 해석 등급: <1500 비집중, 1500~2500 중간, >2500 고집중 */
+export function interpretHHI(hhi: number): { label: string; color: string; description: string } {
+  if (hhi < 1500) return { label: "비집중", color: DSO_COLORS.excellent, description: "거래처 분산이 양호하여 특정 거래처 의존 리스크가 낮습니다." };
+  if (hhi <= 2500) return { label: "중간 집중", color: DSO_COLORS.fair, description: "일부 거래처에 매출이 집중되어 있습니다. 거래처 다변화를 검토하세요." };
+  return { label: "고집중", color: DSO_COLORS.poor, description: "소수 거래처에 매출이 과도하게 집중되어 있습니다. 거래처 이탈 시 매출 급감 리스크가 높습니다." };
+}
+
 /** Recharts 공통 tooltip 스타일 */
 export const TOOLTIP_STYLE = {
   contentStyle: {

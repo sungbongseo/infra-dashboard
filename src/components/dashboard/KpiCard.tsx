@@ -22,6 +22,8 @@ interface KpiCardProps {
   icon?: React.ReactNode;
   compact?: boolean;
   onClick?: () => void;
+  /** true: 하락=빨강 (매출/이익 등), false: 하락=초록 (비용/DSO 등) */
+  trendPositive?: boolean;
 }
 
 export function KpiCard({
@@ -37,6 +39,7 @@ export function KpiCard({
   icon,
   compact = true,
   onClick,
+  trendPositive = true,
 }: KpiCardProps) {
   const gradientId = useId();
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
@@ -46,6 +49,19 @@ export function KpiCard({
   const sparkChartData = sparklineData && sparklineData.length >= 2
     ? sparklineData.map((v, i) => ({ i, v: isFinite(v) ? v : 0 }))
     : null;
+
+  // 스파크라인 트렌드 색상: 상승=파랑/초록, 하락=빨강/초록 (trendPositive에 따라)
+  const sparkColor = (() => {
+    if (!sparkChartData || sparkChartData.length < 2) return "hsl(221.2, 83.2%, 53.3%)";
+    const first = sparkChartData[0].v;
+    const last = sparkChartData[sparkChartData.length - 1].v;
+    const isDown = last < first;
+    if (trendPositive) {
+      return isDown ? "hsl(0, 84%, 60%)" : "hsl(142, 76%, 36%)";
+    }
+    // trendPositive=false: 비용/DSO 등 낮을수록 좋은 지표
+    return isDown ? "hsl(142, 76%, 36%)" : "hsl(0, 84%, 60%)";
+  })();
 
   const formattedValue =
     format === "currency"
@@ -110,14 +126,14 @@ export function KpiCard({
                     <AreaChart data={sparkChartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                       <defs>
                         <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0.2} />
-                          <stop offset="100%" stopColor="hsl(221.2, 83.2%, 53.3%)" stopOpacity={0} />
+                          <stop offset="0%" stopColor={sparkColor} stopOpacity={0.2} />
+                          <stop offset="100%" stopColor={sparkColor} stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <Area
                         type="monotone"
                         dataKey="v"
-                        stroke="hsl(221.2, 83.2%, 53.3%)"
+                        stroke={sparkColor}
                         strokeWidth={1.5}
                         fill={`url(#${gradientId})`}
                         isAnimationActive={false}

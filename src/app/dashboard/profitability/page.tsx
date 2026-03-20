@@ -155,7 +155,15 @@ export default function ProfitabilityPage() {
 
   const isDateFilterActive = !!(dateRange?.from && dateRange?.to);
   const hasCustItemData = filteredCustItemDetail.length > 0;
-  const isUsingDateFiltered = isDateFilterActive && hasCustItemData;
+  // 데이터가 있더라도 profit 필드가 모두 0이면 스냅샷 데이터(profitabilityAnalysis) 사용
+  const hasProfitData = useMemo(() => {
+    if (!hasCustItemData) return false;
+    return filteredCustItemDetail.some((r: any) =>
+      (r.매출총이익?.실적 ?? r.매출총이익 ?? 0) !== 0 ||
+      (r.영업이익?.실적 ?? r.영업이익 ?? 0) !== 0
+    );
+  }, [filteredCustItemDetail, hasCustItemData]);
+  const isUsingDateFiltered = isDateFilterActive && hasCustItemData && hasProfitData;
 
   const effectiveProfAnalysis = useMemo((): (typeof filteredProfAnalysis[number] | typeof filteredCustItemDetail[number])[] => {
     if (isUsingDateFiltered) return filteredCustItemDetail;

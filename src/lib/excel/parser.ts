@@ -941,35 +941,6 @@ function parseSheetData(
   return { data: parsed, skippedRows };
 }
 
-/**
- * 엑셀 시트의 병합 셀을 해제하여 좌상단 값을 모든 병합 범위 셀에 복사.
- * XLSX.read() 직후, sheet_to_json() 직전에 호출하면
- * 빈 셀로 읽히던 병합 영역이 실제 값으로 채워진다.
- */
-function unmergeSheet(sheet: XLSX.WorkSheet): number {
-  const merges = sheet['!merges'];
-  if (!merges || merges.length === 0) return 0;
-
-  let filledCount = 0;
-  for (const merge of merges) {
-    const originAddr = XLSX.utils.encode_cell(merge.s);
-    const originCell = sheet[originAddr];
-    if (!originCell) continue;
-
-    for (let r = merge.s.r; r <= merge.e.r; r++) {
-      for (let c = merge.s.c; c <= merge.e.c; c++) {
-        if (r === merge.s.r && c === merge.s.c) continue;
-        const addr = XLSX.utils.encode_cell({ r, c });
-        sheet[addr] = { ...originCell };
-        filledCount++;
-      }
-    }
-  }
-
-  delete sheet['!merges'];
-  return filledCount;
-}
-
 export function parseExcelFile(
   buffer: ArrayBuffer,
   fileName: string,

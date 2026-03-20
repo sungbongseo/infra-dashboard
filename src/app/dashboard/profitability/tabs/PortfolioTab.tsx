@@ -61,9 +61,13 @@ function ActionBadge({ action }: { action: string }) {
   );
 }
 
+const DEFAULT_SHOW_COUNT = 20;
+
 export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: PortfolioTabProps) {
   const [sortField, setSortField] = useState<"compositeScore" | "sales" | "operatingMargin">("compositeScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [expandedFocus, setExpandedFocus] = useState(false);
+  const [expandedDisc, setExpandedDisc] = useState(false);
 
   const result: PortfolioResult = useMemo(
     () => calcPortfolioOptimization(filteredItemProfitability),
@@ -123,55 +127,79 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
 
   if (items.length === 0) return <EmptyState requiredFiles={["200.품목별수익성분석(회계)"]} />;
 
-  const renderTable = (data: PortfolioItem[], title: string, desc: string) => (
-    <ChartCard isEmpty={data.length === 0} title={title} description={desc}>
-      <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-        <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-background z-10">
-            <tr className="border-b text-left">
-              <th className="p-2">품목</th>
-              <th className="p-2">대분류</th>
-              <th className="p-2">조직</th>
-              <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("sales")}>
-                매출 <ArrowUpDown className="inline h-3 w-3" />
-              </th>
-              <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("operatingMargin")}>
-                영업이익률 <ArrowUpDown className="inline h-3 w-3" />
-              </th>
-              <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("compositeScore")}>
-                복합점수 <ArrowUpDown className="inline h-3 w-3" />
-              </th>
-              <th className="p-2">전략</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((it, i) => (
-              <tr key={i} className="border-b hover:bg-muted/50">
-                <td className="p-2 font-medium" title={it.품목}>
-                  <span>{truncateLabel(it.품목.replace(/^\[([^\]]+)\]\s*/, "$1 "), 22)}</span>
-                  {it.marginErosion !== undefined && it.marginErosion < -5 && (
-                    <span title={`마진 침식 ${safeFixed(it.marginErosion)}%p`}>
-                      <AlertTriangle className="inline h-3 w-3 ml-1 text-amber-500" />
-                    </span>
-                  )}
-                </td>
-                <td className="p-2 text-muted-foreground">{truncateLabel(it.대분류, 8)}</td>
-                <td className="p-2 text-muted-foreground">{truncateLabel(it.조직, 8)}</td>
-                <td className="p-2 text-right">{formatCurrency(it.sales)}</td>
-                <td className="p-2 text-right">
-                  <span className={it.operatingMargin >= 0 ? "text-green-600" : "text-red-500"}>
-                    {safeFixed(it.operatingMargin)}%
-                  </span>
-                </td>
-                <td className="p-2 text-right font-semibold">{safeFixed(it.compositeScore)}</td>
-                <td className="p-2"><ActionBadge action={it.action} /></td>
+  const renderTable = (
+    data: PortfolioItem[],
+    title: string,
+    desc: string,
+    expanded: boolean,
+    onToggle: () => void,
+  ) => {
+    const visibleData = expanded ? data : data.slice(0, DEFAULT_SHOW_COUNT);
+    const hasMore = data.length > DEFAULT_SHOW_COUNT;
+
+    return (
+      <ChartCard isEmpty={data.length === 0} title={title} description={desc}>
+        <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+          <table className="w-full text-xs">
+            <thead className="sticky top-0 bg-background z-10">
+              <tr className="border-b text-left">
+                <th className="p-2">품목</th>
+                <th className="p-2">대분류</th>
+                <th className="p-2">조직</th>
+                <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("sales")}>
+                  매출 <ArrowUpDown className="inline h-3 w-3" />
+                </th>
+                <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("operatingMargin")}>
+                  영업이익률 <ArrowUpDown className="inline h-3 w-3" />
+                </th>
+                <th className="p-2 cursor-pointer select-none" onClick={() => toggleSort("compositeScore")}>
+                  복합점수 <ArrowUpDown className="inline h-3 w-3" />
+                </th>
+                <th className="p-2">전략</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </ChartCard>
-  );
+            </thead>
+            <tbody>
+              {visibleData.map((it, i) => (
+                <tr key={i} className="border-b hover:bg-muted/50">
+                  <td className="p-2 font-medium" title={it.품목}>
+                    <span>{truncateLabel(it.품목.replace(/^\[([^\]]+)\]\s*/, "$1 "), 22)}</span>
+                    {it.marginErosion !== undefined && it.marginErosion < -5 && (
+                      <span title={`마진 침식 ${safeFixed(it.marginErosion)}%p`}>
+                        <AlertTriangle className="inline h-3 w-3 ml-1 text-amber-500" />
+                      </span>
+                    )}
+                  </td>
+                  <td className="p-2 text-muted-foreground">{truncateLabel(it.대분류, 8)}</td>
+                  <td className="p-2 text-muted-foreground">{truncateLabel(it.조직, 8)}</td>
+                  <td className="p-2 text-right">{formatCurrency(it.sales)}</td>
+                  <td className="p-2 text-right">
+                    <span className={it.operatingMargin >= 0 ? "text-green-600" : "text-red-500"}>
+                      {safeFixed(it.operatingMargin)}%
+                    </span>
+                  </td>
+                  <td className="p-2 text-right font-semibold">{safeFixed(it.compositeScore)}</td>
+                  <td className="p-2"><ActionBadge action={it.action} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {hasMore && (
+          <div className="flex justify-center pt-3">
+            <button
+              type="button"
+              onClick={onToggle}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors px-4 py-1.5 rounded-md border hover:bg-muted/50"
+            >
+              {expanded
+                ? `접기 (상위 ${DEFAULT_SHOW_COUNT}개만 보기)`
+                : `더 보기 (전체 ${data.length}개)`}
+            </button>
+          </div>
+        )}
+      </ChartCard>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -299,8 +327,8 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
       </ChartCard>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {renderTable(sortedFocus, `집중 추천 TOP ${sortedFocus.length}`, "복합점수 상위 — 마케팅/생산 확대 추천")}
-        {renderTable(sortedDisc, `단종 후보 TOP ${sortedDisc.length}`, "복합점수 하위 — 단종 또는 대체품 검토")}
+        {renderTable(sortedFocus, `집중 추천 TOP ${sortedFocus.length}`, "복합점수 상위 — 마케팅/생산 확대 추천", expandedFocus, () => setExpandedFocus((v) => !v))}
+        {renderTable(sortedDisc, `단종 후보 TOP ${sortedDisc.length}`, "복합점수 하위 — 단종 또는 대체품 검토", expandedDisc, () => setExpandedDisc((v) => !v))}
       </div>
 
       {/* Category Bar Chart */}

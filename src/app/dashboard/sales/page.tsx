@@ -30,7 +30,7 @@ import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
 import { useUIStore } from "@/stores/uiStore";
-import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
+import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders } from "@/lib/hooks/useFilteredData";
 import { ChannelTab } from "./tabs/ChannelTab";
 import { RfmTab } from "./tabs/RfmTab";
 import { ClvTab } from "./tabs/ClvTab";
