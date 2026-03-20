@@ -165,37 +165,8 @@ export function FileUploader() {
             setOrgCodes(codes);
             const names = new Set(orgs.map((o: any) => String(o.영업조직명).trim()));
             setOrgNames(names);
-            // Re-filter already-loaded data against new org names
-            const store = useDataStore.getState();
-            const byName = (row: any) => names.has(String(row.영업조직 || "").trim());
-            const byTeam = (row: any) => names.has(String(row.영업조직팀 || "").trim());
-            if (store.salesList.length > 0)
-              setSalesList(store.salesList.filter(byName));
-            if (store.collectionList.length > 0)
-              setCollectionList(store.collectionList.filter(byName));
-            if (store.orderList.length > 0)
-              setOrderList(store.orderList.filter(byName));
-            if (store.orgProfit.length > 0)
-              setOrgProfit(store.orgProfit.filter(byTeam));
-            if (store.teamContribution.length > 0)
-              setTeamContribution(store.teamContribution.filter(byTeam));
-            if (store.profitabilityAnalysis.length > 0)
-              setProfitabilityAnalysis(store.profitabilityAnalysis.filter(byTeam));
-            if (store.orgCustomerProfit.length > 0)
-              setOrgCustomerProfit(store.orgCustomerProfit.filter(byTeam));
-            if (store.hqCustomerItemProfit.length > 0)
-              setHqCustomerItemProfit(store.hqCustomerItemProfit.filter(byTeam));
-            if (store.customerItemDetail.length > 0)
-              setCustomerItemDetail(store.customerItemDetail.filter(byTeam));
-            if (store.itemCostDetail.length > 0)
-              setItemCostDetail(store.itemCostDetail.filter(byTeam));
-            if (store.itemProfitability.length > 0)
-              setItemProfitability(store.itemProfitability.filter(byTeam));
-            if (store.receivableAging.size > 0) {
-              store.receivableAging.forEach((records, source) => {
-                setReceivableAging(source, records.filter(byName));
-              });
-            }
+            // NOTE: 조직 파일 업로드 시 기존 데이터를 필터링하지 않음.
+            // 원본 데이터를 보존하고, 필터링은 렌더 시점에 filterByOrg()로 적용됨.
             break;
           }
           case "salesList":
