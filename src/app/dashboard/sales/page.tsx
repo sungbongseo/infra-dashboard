@@ -49,7 +49,8 @@ import { OrgScorecardTab } from "./tabs/OrgScorecardTab";
 import { MarginTab } from "./tabs/MarginTab";
 
 const SALES_TAB_GROUPS: TabGroupDef[] = [
-  { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup", "margin"] },
+  { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
+  { id: "margin", label: "거래처 마진", tabs: ["margin"] },
   { id: "customer-deep", label: "고객 분석", tabs: ["customer360", "rfm", "migration", "activity"] },
   { id: "advanced", label: "고급 분석", tabs: ["fx", "anomaly", "orgScorecard"] },
   { id: "experimental", label: "실험적 분석", tabs: ["clv", "cohort", "decomposition"] },
@@ -217,14 +218,7 @@ export default function SalesAnalysisPage() {
               </Tooltip>
             ) : <TabsTrigger value="productGroup">품목군</TabsTrigger>
           )}
-          {visibleTabs.has("margin") && (
-            itemCostDetail.length === 0 ? (
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild><span><TabsTrigger value="margin" disabled>거래처 마진</TabsTrigger></span></TooltipTrigger>
-                <TooltipContent>품목별매출원가(501) 파일을 업로드하세요</TooltipContent>
-              </Tooltip>
-            ) : <TabsTrigger value="margin">거래처 마진</TabsTrigger>
-          )}
+          {visibleTabs.has("margin") && <TabsTrigger value="margin">거래처 마진</TabsTrigger>}
           {visibleTabs.has("customer360") && <TabsTrigger value="customer360">거래처 360°</TabsTrigger>}
           {visibleTabs.has("rfm") && <TabsTrigger value="rfm">RFM</TabsTrigger>}
           {visibleTabs.has("clv") && <TabsTrigger value="clv">CLV</TabsTrigger>}
