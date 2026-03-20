@@ -74,11 +74,13 @@ export function buildItemCostMap(
     const cogs = typeof row.실적매출원가 === "object" ? (row.실적매출원가?.실적 ?? 0) : (Number(row.실적매출원가) || 0);
 
     const prev = accum.get(item) || { 품목: item, org, qty: 0, sales: 0, cogs: 0 };
-    prev.qty += qty;
-    prev.sales += sales;
-    prev.cogs += cogs;
-    if (!prev.org && org) prev.org = org;
-    accum.set(item, prev);
+    accum.set(item, {
+      ...prev,
+      qty: prev.qty + qty,
+      sales: prev.sales + sales,
+      cogs: prev.cogs + cogs,
+      org: prev.org || org,
+    });
   }
 
   const result = new Map<string, ItemUnitCost>();
@@ -139,15 +141,17 @@ export function calcCustomerItemMargin(
       totalQty: 0,
       totalAmount: 0,
       txCount: 0,
-      prices: [],
+      prices: [] as number[],
       unitCost: costInfo.unitCost,
     };
-    prev.totalQty += qty;
-    prev.totalAmount += amt;
-    prev.txCount += 1;
-    if (price > 0) prev.prices.push(price);
-    if (!prev.영업담당자명 && row.영업담당자명) prev.영업담당자명 = row.영업담당자명;
-    accum.set(key, prev);
+    accum.set(key, {
+      ...prev,
+      totalQty: prev.totalQty + qty,
+      totalAmount: prev.totalAmount + amt,
+      txCount: prev.txCount + 1,
+      prices: price > 0 ? [...prev.prices, price] : prev.prices,
+      영업담당자명: prev.영업담당자명 || row.영업담당자명 || "",
+    });
   }
 
   const result: CustomerItemMarginRow[] = [];
@@ -171,8 +175,8 @@ export function calcCustomerItemMargin(
       totalAmount: v.totalAmount,
       totalMargin: isFinite(totalMargin) ? totalMargin : 0,
       txCount: v.txCount,
-      minPrice: Math.min(...v.prices),
-      maxPrice: Math.max(...v.prices),
+      minPrice: v.prices.reduce((a, b) => Math.min(a, b), Infinity),
+      maxPrice: v.prices.reduce((a, b) => Math.max(a, b), -Infinity),
     });
   }
 

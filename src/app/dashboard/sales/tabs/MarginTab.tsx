@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useRef } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { formatCurrency, formatPercent, TOOLTIP_STYLE } from "@/lib/utils";
@@ -43,9 +43,10 @@ function getMarginColor(rate: number): string {
   return MARGIN_COLORS.negative;
 }
 
-let nextLineId = 1;
-
 export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
+  const nextLineIdRef = useRef(1);
+  const getNextId = useCallback(() => ++nextLineIdRef.current, []);
+
   const itemCostMap = useMemo(() => buildItemCostMap(itemCostDetail), [itemCostDetail]);
 
   // 품목 목록 (검색용) — 501 기준
@@ -69,13 +70,13 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
 
   // ─── 시뮬레이터 상태 ─────────────────────────────
   const [simCustomer, setSimCustomer] = useState("");
-  const [simLines, setSimLines] = useState<SimLine[]>([{ id: nextLineId++, 품목: "", 수량: 1, 판매단가: 0 }]);
+  const [simLines, setSimLines] = useState<SimLine[]>(() => [{ id: nextLineIdRef.current, 품목: "", 수량: 1, 판매단가: 0 }]);
   const [itemSearch, setItemSearch] = useState<Record<number, string>>({});
   const [activeDropdown, setActiveDropdown] = useState<number | null>(null);
 
   const addLine = useCallback(() => {
-    setSimLines(prev => [...prev, { id: nextLineId++, 품목: "", 수량: 1, 판매단가: 0 }]);
-  }, []);
+    setSimLines(prev => [...prev, { id: getNextId(), 품목: "", 수량: 1, 판매단가: 0 }]);
+  }, [getNextId]);
 
   const removeLine = useCallback((id: number) => {
     setSimLines(prev => prev.length > 1 ? prev.filter(l => l.id !== id) : prev);
@@ -220,13 +221,13 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
                       value={line.품목 || searchVal}
                       onChange={(e) => {
                         if (line.품목) {
-                          updateLine(line.id, "품목", "");
-                          updateLine(line.id, "판매단가", 0);
+                          setSimLines(prev => prev.map(l => l.id === line.id ? { ...l, 품목: "", 판매단가: 0 } : l));
                         }
                         setItemSearch(prev => ({ ...prev, [line.id]: e.target.value }));
                         setActiveDropdown(line.id);
                       }}
                       onFocus={() => setActiveDropdown(line.id)}
+                      onBlur={() => { setTimeout(() => setActiveDropdown(null), 200); }}
                       placeholder="품목 검색..."
                       className={`w-full px-3 py-2 rounded-md border text-sm ${line.품목 ? "border-blue-300 bg-blue-50 dark:bg-blue-950/20 dark:border-blue-700" : "border-input bg-background"}`}
                     />
