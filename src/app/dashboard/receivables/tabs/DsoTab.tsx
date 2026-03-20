@@ -255,6 +255,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           description="매출이 발생한 뒤 현금으로 회수되기까지 걸리는 평균 일수입니다. 작을수록 현금 회수가 빠릅니다."
           benchmark="건자재/인프라 업종 평균 45~60일. 30일 미만이면 우수, 60일 초과이면 주의"
           reason="DSO는 현금흐름 건전성의 핵심 선행지표로, 증가 추세 시 자금 압박을 사전 경고합니다."
+          trendPositive={false}
         />
         <KpiCard
           title="평균 CCC(현금순환주기)"
@@ -265,6 +266,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           description="돈을 지출한 시점부터 다시 회수하기까지 걸리는 기간입니다. 작거나 음수일수록 현금 회전이 빨라 유리합니다."
           benchmark="0일 미만이면 우수, 0~30일이면 양호, 60일 초과이면 주의"
           reason="CCC는 운전자본 효율성의 종합 지표로, DSO와 DPO의 균형을 통해 자금 전략을 수립합니다."
+          trendPositive={false}
         />
         <KpiCard
           title="평균 DPO(매입채무 지급기간)"

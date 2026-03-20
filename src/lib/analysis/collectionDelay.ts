@@ -265,7 +265,8 @@ export function calcOrgCollectionDelay(
 
 export function calcMonthlyCollectionDelay(
   sales: SalesRecord[],
-  collections: CollectionRecord[]
+  collections: CollectionRecord[],
+  offsetMonths: number = 1
 ): MonthlyCollectionDelay[] {
   if (sales.length === 0) return [];
 
@@ -295,19 +296,33 @@ export function calcMonthlyCollectionDelay(
     collByMonth.set(m, entry);
   }
 
-  const months = new Set([...Array.from(salesByMonth.keys()), ...Array.from(collByMonth.keys())]);
+  // Helper: shift a YYYY-MM string backward by N months
+  function shiftMonth(ym: string, months: number): string {
+    const [y, m] = ym.split("-").map(Number);
+    const d = new Date(y, m - 1 - months, 1);
+    const ny = d.getFullYear();
+    const nm = d.getMonth() + 1;
+    return `${ny}-${String(nm).padStart(2, "0")}`;
+  }
+
+  // For each collection month, compare to sales from (month - offsetMonths)
+  const collMonths = Array.from(collByMonth.keys());
+  const allMonths = new Set([...Array.from(salesByMonth.keys()), ...collMonths]);
   const results: MonthlyCollectionDelay[] = [];
 
-  for (const month of Array.from(months)) {
-    const salesAmount = salesByMonth.get(month) || 0;
+  for (const month of Array.from(allMonths)) {
     const coll = collByMonth.get(month);
     const collectedAmount = coll?.amount || 0;
+
+    // Match collections in this month against sales from offsetMonths earlier
+    const salesMonth = shiftMonth(month, offsetMonths);
+    const salesAmount = salesByMonth.get(salesMonth) || 0;
     const collectionRate = salesAmount > 0
       ? Math.min((collectedAmount / salesAmount) * 100, 100)
       : 0;
 
-    // 평균 지연일 추정: 해당 월 수금예정일 vs 실제수금일
-    const dueDates = dueDateByMonth.get(month) || [];
+    // 평균 지연일 추정: 매출 월의 수금예정일 vs 수금 월의 실제수금일
+    const dueDates = dueDateByMonth.get(salesMonth) || [];
     const collDates = coll?.dates || [];
     let avgDelayDays = 0;
     if (dueDates.length > 0 && collDates.length > 0) {

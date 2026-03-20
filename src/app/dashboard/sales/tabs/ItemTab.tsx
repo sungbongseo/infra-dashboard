@@ -55,9 +55,22 @@ const QUADRANT_LABELS: Record<string, string> = {
 
 type ViewMode = "actual" | "plan" | "comparison";
 
+const DRILL_PATH_KEY = "itemTab_drillPath";
+
 export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDateFiltered }: ItemTabProps) {
-  const [drillPath, setDrillPath] = useState<DrillDownStep[]>([]);
+  const [drillPath, setDrillPath] = useState<DrillDownStep[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const saved = sessionStorage.getItem(DRILL_PATH_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [viewMode, setViewMode] = useState<ViewMode>("actual");
+
+  // 드릴 경로 변경 시 sessionStorage에 저장 (탭 전환 후 복귀 시 유지)
+  useEffect(() => {
+    try { sessionStorage.setItem(DRILL_PATH_KEY, JSON.stringify(drillPath)); } catch { /* ignore */ }
+  }, [drillPath]);
 
   // Reset drill path when data size changes (avoid excessive resets on reference changes)
   useEffect(() => {

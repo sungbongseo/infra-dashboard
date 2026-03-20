@@ -304,9 +304,9 @@ export default function OverviewPage() {
         content: (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             <KpiCard title="Win Rate" value={salesProcessKpis.winRate} format="percent" icon={<Target className="h-5 w-5" />} />
-            <KpiCard title="평균 영업주기" value={salesProcessKpis.avgSalesCycle} format="number" icon={<Clock className="h-5 w-5" />} />
+            <KpiCard title="평균 영업주기" value={salesProcessKpis.avgSalesCycle} format="number" icon={<Clock className="h-5 w-5" />} trendPositive={false} />
             <KpiCard title="Sales Velocity" value={salesProcessKpis.salesVelocity} format="currency" icon={<Zap className="h-5 w-5" />} />
-            <KpiCard title="수금 리드타임" value={salesProcessKpis.avgCollectionLeadTime} format="number" icon={<Timer className="h-5 w-5" />} />
+            <KpiCard title="수금 리드타임" value={salesProcessKpis.avgCollectionLeadTime} format="number" icon={<Timer className="h-5 w-5" />} trendPositive={false} />
           </div>
         ),
       });
@@ -650,6 +650,7 @@ export default function OverviewPage() {
                 description={`수주에서 매출까지 평균 ${salesProcessKpis.avgSalesCycle.toFixed(0)}일이 소요됩니다.`}
                 benchmark="30일 이내 신속, 90일 초과 시 병목 분석 필요"
                 reason="영업 사이클 길이를 모니터링하여 현금 회수 속도와 영업 효율을 관리합니다."
+                trendPositive={false}
               />
               <KpiCard
                 title="Sales Velocity"
@@ -670,6 +671,7 @@ export default function OverviewPage() {
                 description={`매출 후 수금까지 평균 ${salesProcessKpis.avgCollectionLeadTime.toFixed(0)}일이 소요됩니다.`}
                 benchmark="30일 이내 양호, 60일 초과 시 결제조건 검토 필요"
                 reason="매출 발생 후 실제 현금 회수까지의 시간을 측정하여 현금흐름 관리에 활용합니다."
+                trendPositive={false}
               />
             </div>
           )}

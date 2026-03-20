@@ -17,10 +17,11 @@ export interface AgingSummary {
   month6: number;
   overdue: number;
   total: number;
+  bucketDiscrepancy?: number; // percentage discrepancy (0 if fine)
 }
 
 export function calcAgingSummary(records: ReceivableAgingRecord[]): AgingSummary {
-  const summary: AgingSummary = {
+  let summary: AgingSummary = {
     month1: 0, month2: 0, month3: 0, month4: 0, month5: 0, month6: 0, overdue: 0, total: 0,
   };
 
@@ -42,9 +43,13 @@ export function calcAgingSummary(records: ReceivableAgingRecord[]): AgingSummary
     summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   if (summary.total !== 0) {
     const diff = Math.abs(bucketSum - summary.total) / Math.abs(summary.total);
+    const diffPct = diff * 100;
     if (diff > 0.01) {
-      console.warn(`[Aging] 버킷 합계 불일치: 버킷합=${bucketSum.toLocaleString()}, total=${summary.total.toLocaleString()} (차이 ${(diff * 100).toFixed(1)}%)`);
+      console.warn(`[Aging] 버킷 합계 불일치: 버킷합=${bucketSum.toLocaleString()}, total=${summary.total.toLocaleString()} (차이 ${diffPct.toFixed(1)}%)`);
     }
+    summary = { ...summary, bucketDiscrepancy: diff > 0.01 ? diffPct : 0 };
+  } else {
+    summary = { ...summary, bucketDiscrepancy: 0 };
   }
 
   return summary;

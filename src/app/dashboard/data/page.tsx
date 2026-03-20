@@ -6,6 +6,8 @@ import { useDataStore } from "@/stores/dataStore";
 import { calcDataQualityMetrics, type DataQualityMetrics } from "@/lib/excel/parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { FileText, Database, Building2, Clock } from "lucide-react";
 
 /** 파일 타입별 한글 라벨 */
 const TYPE_LABELS: Record<string, string> = {
@@ -54,6 +56,8 @@ function getProgressColor(rate: number): string {
 }
 
 export default function DataManagementPage() {
+  const uploadedFiles = useDataStore((s) => s.uploadedFiles);
+  const orgNames = useDataStore((s) => s.orgNames);
   const salesList = useDataStore((s) => s.salesList);
   const collectionList = useDataStore((s) => s.collectionList);
   const orderList = useDataStore((s) => s.orderList);
@@ -131,6 +135,42 @@ export default function DataManagementPage() {
 
   const hasData = qualityMetrics.length > 0;
 
+  /** 데이터 품질 KPI 계산 */
+  const totalRows = useMemo(() => {
+    return salesList.length + collectionList.length + orderList.length
+      + orgProfit.length + teamContribution.length + profitabilityAnalysis.length
+      + allAgingRecords.length + orgCustomerProfit.length + hqCustomerItemProfit.length
+      + customerItemDetail.length + itemCostDetail.length + itemProfitability.length
+      + allInventoryRecords.length;
+  }, [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, allInventoryRecords]);
+
+  const readyFileCount = useMemo(
+    () => uploadedFiles.filter((f) => f.status === "ready").length,
+    [uploadedFiles]
+  );
+
+  const lastUploadTime = useMemo(() => {
+    if (uploadedFiles.length === 0) return null;
+    const sorted = [...uploadedFiles].sort(
+      (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
+    );
+    return sorted[0].uploadedAt;
+  }, [uploadedFiles]);
+
+  const lastUploadLabel = useMemo(() => {
+    if (!lastUploadTime) return "-";
+    const d = new Date(lastUploadTime);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return "방금 전";
+    if (diffMin < 60) return `${diffMin}분 전`;
+    const diffHour = Math.floor(diffMin / 60);
+    if (diffHour < 24) return `${diffHour}시간 전`;
+    const diffDay = Math.floor(diffHour / 24);
+    return `${diffDay}일 전`;
+  }, [lastUploadTime]);
+
   return (
     <div className="space-y-6">
       <div>
@@ -140,6 +180,45 @@ export default function DataManagementPage() {
         </p>
       </div>
       <FileUploader />
+
+      {/* 데이터 품질 요약 KPI */}
+      {(readyFileCount > 0 || totalRows > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <KpiCard
+            title="유효 행 수"
+            value={totalRows}
+            format="number"
+            icon={<Database className="h-5 w-5" />}
+            formula="모든 파일 유형의 데이터 행 수를 합산"
+            description="현재 로드된 전체 데이터 행 수입니다. 파일 업로드 시 자동으로 갱신됩니다."
+          />
+          <KpiCard
+            title="파일 수"
+            value={readyFileCount}
+            format="number"
+            icon={<FileText className="h-5 w-5" />}
+            formula="업로드 완료(ready) 상태인 파일 수"
+            description="정상적으로 파싱이 완료된 엑셀 파일의 수입니다."
+            benchmark={`전체 ${Object.keys(dataMap).length}개 유형 중 ${summary.loadedTypes}개 유형 로드됨`}
+          />
+          <KpiCard
+            title="조직 수"
+            value={orgNames.size}
+            format="number"
+            icon={<Building2 className="h-5 w-5" />}
+            formula="업로드된 데이터에서 추출한 고유 영업조직 수"
+            description="데이터에 포함된 영업조직의 수입니다. 조직 필터에 사용됩니다."
+          />
+          <KpiCard
+            title="마지막 업로드"
+            value={readyFileCount}
+            format="number"
+            icon={<Clock className="h-5 w-5" />}
+            formula={lastUploadTime ? new Date(lastUploadTime).toLocaleString("ko-KR") : "업로드 이력 없음"}
+            description={`마지막 업로드: ${lastUploadLabel}`}
+          />
+        </div>
+      )}
 
       {/* 데이터 품질 지표 섹션 */}
       {hasData && (
