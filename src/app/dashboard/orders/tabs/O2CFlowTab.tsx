@@ -106,7 +106,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             <div className="text-sm font-bold">{formatCurrency(item.amount, true)}</div>
             {item.rate !== null && (
               <div className="text-xs mt-0.5" style={{ color: item.label === "미수잔액" ? healthColor(100 - item.rate, O2C_THRESHOLDS.conversionRate) : healthColor(item.rate, item.label === "수금완료 (순수)" ? O2C_THRESHOLDS.collectionRate : O2C_THRESHOLDS.conversionRate) }}>
-                {item.rate.toFixed(1)}%
+                {isFinite(item.rate) ? item.rate.toFixed(1) : "0.0"}%
               </div>
             )}
             {item.sub && (

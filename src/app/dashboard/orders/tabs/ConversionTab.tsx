@@ -146,7 +146,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
               nameKey="name"
               label={(props: any) => {
                 const { name, share } = props;
-                return `${name} ${share.toFixed(1)}%`;
+                return `${name} ${isFinite(share) ? share.toFixed(1) : "0.0"}%`;
               }}
               {...ANIMATION_CONFIG}
             >
@@ -229,8 +229,8 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.org}</p>
-                      <p className="text-green-600 dark:text-green-400">전환율: {d.conversionRate.toFixed(1)}%</p>
-                      <p className="text-red-600 dark:text-red-400">취소율: {d.cancellationRate.toFixed(1)}%</p>
+                      <p className="text-green-600 dark:text-green-400">전환율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
+                      <p className="text-red-600 dark:text-red-400">취소율: {isFinite(d.cancellationRate) ? d.cancellationRate.toFixed(1) : "0.0"}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                       <p>건당 평균: {formatCurrency(d.avgOrderAmount, true)}</p>
                     </div>
@@ -268,8 +268,8 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.currency}</p>
-                      <p className="text-green-600 dark:text-green-400">전환율: {d.conversionRate.toFixed(1)}%</p>
-                      <p className="text-red-600 dark:text-red-400">취소율: {d.cancellationRate.toFixed(1)}%</p>
+                      <p className="text-green-600 dark:text-green-400">전환율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
+                      <p className="text-red-600 dark:text-red-400">취소율: {isFinite(d.cancellationRate) ? d.cancellationRate.toFixed(1) : "0.0"}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                     </div>
                   );
