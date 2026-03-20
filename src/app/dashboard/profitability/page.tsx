@@ -501,9 +501,14 @@ export default function ProfitabilityPage() {
       </div>
 
       {isUsingDateFiltered && (
-        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center gap-2">
-          <span className="font-medium">📊 스마트 데이터소스 활성</span>
-          <span>기간 필터 적용 → 거래처별품목별 손익(100) 데이터 기준으로 분석</span>
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">📊 스마트 데이터소스 활성</span>
+            <span>기간 필터 적용 → 거래처별품목별 손익(100) 데이터 기준으로 분석</span>
+          </div>
+          <p className="text-blue-700 dark:text-blue-400">
+            전체 기간 보기 시에는 수익성분석(901) 데이터를 사용합니다. 두 보고서는 집계 방식이 달라 수치 차이가 있을 수 있습니다.
+          </p>
         </div>
       )}
 

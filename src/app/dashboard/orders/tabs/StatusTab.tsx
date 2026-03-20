@@ -18,7 +18,8 @@ import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
 interface StatusTabProps {
   totalOrders: number;
-  conversionRate: number;
+  /** 매출/수주 비율 (%) — 동일 기간 매출액÷수주액. 100% 초과 가능 */
+  salesOrderRatio: number;
   outstandingOrders: number;
   orderCount: number;
   monthlyOrders: { month: string; 수주금액: number; 수주건수: number }[];
@@ -27,7 +28,7 @@ interface StatusTabProps {
 
 export function StatusTab({
   totalOrders,
-  conversionRate,
+  salesOrderRatio,
   outstandingOrders,
   orderCount,
   monthlyOrders,
@@ -48,7 +49,7 @@ export function StatusTab({
         />
         <KpiCard
           title="기간 내 매출/수주 비율"
-          value={conversionRate}
+          value={salesOrderRatio}
           format="percent"
           icon={<TrendingUp className="h-5 w-5" />}
           formula="매출/수주 비율(%) = 기간 내 총 매출액 ÷ 기간 내 총 수주액 × 100"

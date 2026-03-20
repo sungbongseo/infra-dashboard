@@ -46,9 +46,10 @@ import { TypeTab } from "./tabs/TypeTab";
 import { ProductGroupTab } from "./tabs/ProductGroupTab";
 import { Customer360Tab } from "./tabs/Customer360Tab";
 import { OrgScorecardTab } from "./tabs/OrgScorecardTab";
+import { MarginTab } from "./tabs/MarginTab";
 
 const SALES_TAB_GROUPS: TabGroupDef[] = [
-  { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
+  { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup", "margin"] },
   { id: "customer-deep", label: "고객 분석", tabs: ["customer360", "rfm", "migration", "activity"] },
   { id: "advanced", label: "고급 분석", tabs: ["fx", "anomaly", "orgScorecard"] },
   { id: "experimental", label: "실험적 분석", tabs: ["clv", "cohort", "decomposition"] },
@@ -60,6 +61,7 @@ export default function SalesAnalysisPage() {
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
   const inventoryMovement = useDataStore((s) => s.inventoryMovement);
+  const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const receivableAging = useDataStore((s) => s.receivableAging);
   const isLoading = useDataStore((s) => s.isLoading);
   const setCustomer360Target = useUIStore((s) => s.setCustomer360Target);
@@ -214,6 +216,14 @@ export default function SalesAnalysisPage() {
                 <TooltipContent>거래처별 품목별 손익(100) 파일을 업로드하세요</TooltipContent>
               </Tooltip>
             ) : <TabsTrigger value="productGroup">품목군</TabsTrigger>
+          )}
+          {visibleTabs.has("margin") && (
+            itemCostDetail.length === 0 ? (
+              <Tooltip delayDuration={0}>
+                <TooltipTrigger asChild><span><TabsTrigger value="margin" disabled>거래처 마진</TabsTrigger></span></TooltipTrigger>
+                <TooltipContent>품목별매출원가(501) 파일을 업로드하세요</TooltipContent>
+              </Tooltip>
+            ) : <TabsTrigger value="margin">거래처 마진</TabsTrigger>
           )}
           {visibleTabs.has("customer360") && <TabsTrigger value="customer360">거래처 360°</TabsTrigger>}
           {visibleTabs.has("rfm") && <TabsTrigger value="rfm">RFM</TabsTrigger>}
@@ -401,6 +411,14 @@ export default function SalesAnalysisPage() {
           <LazyTabContent value="productGroup" activeTab={activeTab}>
           <ErrorBoundary>
             <ProductGroupTab filteredCustomerItemDetail={filteredCustomerItemDetail} isDateFiltered={isDateFiltered} />
+          </ErrorBoundary>
+          </LazyTabContent>
+        </TabsContent>
+
+        <TabsContent value="margin" className="space-y-6">
+          <LazyTabContent value="margin" activeTab={activeTab}>
+          <ErrorBoundary>
+            <MarginTab filteredSales={filteredSales} itemCostDetail={itemCostDetail} />
           </ErrorBoundary>
           </LazyTabContent>
         </TabsContent>

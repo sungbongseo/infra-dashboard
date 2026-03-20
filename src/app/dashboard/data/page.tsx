@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { FileUploader } from "@/components/dashboard/FileUploader";
 import { useDataStore } from "@/stores/dataStore";
 import { calcDataQualityMetrics, type DataQualityMetrics } from "@/lib/excel/parser";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { FileText, Database, Building2, Clock } from "lucide-react";
+import { FileText, Database, Building2, Clock, AlertTriangle, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
+import { formatCurrency } from "@/lib/utils";
+import { filterByOrg, filterOrgProfitLeafOnly } from "@/lib/utils";
 
 /** 파일 타입별 한글 라벨 */
 const TYPE_LABELS: Record<string, string> = {
@@ -55,9 +57,11 @@ function getProgressColor(rate: number): string {
   return "[&>div]:bg-red-500";
 }
 
+
 export default function DataManagementPage() {
   const uploadedFiles = useDataStore((s) => s.uploadedFiles);
   const orgNames = useDataStore((s) => s.orgNames);
+  const [dismissedBanner, setDismissedBanner] = useState(false);
   const salesList = useDataStore((s) => s.salesList);
   const collectionList = useDataStore((s) => s.collectionList);
   const orderList = useDataStore((s) => s.orderList);
@@ -180,6 +184,35 @@ export default function DataManagementPage() {
         </p>
       </div>
       <FileUploader />
+
+      {/* 재업로드 권장 배너 */}
+      {!dismissedBanner && uploadedFiles.length > 0 && (
+        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 p-4">
+          <div className="flex items-start gap-3">
+            <RefreshCw className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1 space-y-1">
+              <p className="font-semibold text-amber-800 dark:text-amber-200 text-sm">
+                데이터 무결성 보장을 위해 전체 초기화 후 재업로드를 권장합니다
+              </p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                파서 로직이 개선되어 이전에 업로드된 데이터가 부정확할 수 있습니다.
+                &quot;전체 초기화&quot; 버튼을 누른 후 모든 엑셀 파일을 다시 업로드해 주세요.
+                조직 필터는 더 이상 업로드 시점에 적용되지 않으며, 모든 데이터가 원본 그대로 보존됩니다.
+              </p>
+            </div>
+            <button
+              onClick={() => setDismissedBanner(true)}
+              className="text-amber-600 dark:text-amber-400 hover:text-amber-800 dark:hover:text-amber-200 p-1"
+              title="닫기"
+            >
+              <XCircle className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 크로스 검증 대시보드 */}
+      <CrossValidationSection />
 
       {/* 데이터 품질 요약 KPI */}
       {(readyFileCount > 0 || totalRows > 0) && (
@@ -304,6 +337,150 @@ export default function DataManagementPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/** 크로스 검증 섹션: 업로드된 데이터 소스 간 수치 교차 검증 */
+function CrossValidationSection() {
+  const salesList = useDataStore((s) => s.salesList);
+  const orgProfit = useDataStore((s) => s.orgProfit);
+  const orderList = useDataStore((s) => s.orderList);
+  const collectionList = useDataStore((s) => s.collectionList);
+  const orgNames = useDataStore((s) => s.orgNames);
+
+  const checks = useMemo(() => {
+    const results: { label: string; sourceA: string; sourceB: string; valueA: number; valueB: number | null; diffPct: number | null }[] = [];
+
+    // 전체 매출 합계 (필터 전)
+    const totalSalesAll = salesList.reduce((s, r) => s + (Number(r.장부금액) || 0), 0);
+
+    // 인프라 조직 필터 후 매출
+    const infraSales = filterByOrg(salesList, orgNames);
+    const totalSalesFiltered = infraSales.reduce((s, r) => s + (Number(r.장부금액) || 0), 0);
+
+    // 조직별손익 매출 합계
+    const orgProfitFiltered = filterOrgProfitLeafOnly(filterByOrg(orgProfit, orgNames, "영업조직팀"));
+    const orgProfitSalesSum = orgProfitFiltered.reduce((s, r) => {
+      const v = typeof r.매출액 === "object" ? r.매출액?.실적 ?? 0 : Number(r.매출액) || 0;
+      return s + v;
+    }, 0);
+
+    results.push({
+      label: "전체 매출 합계",
+      sourceA: "매출리스트 (전체)",
+      sourceB: "-",
+      valueA: totalSalesAll,
+      valueB: null,
+      diffPct: null,
+    });
+
+    results.push({
+      label: "인프라 매출 합계",
+      sourceA: "매출리스트 (필터 후)",
+      sourceB: "-",
+      valueA: totalSalesFiltered,
+      valueB: null,
+      diffPct: null,
+    });
+
+    if (orgProfitSalesSum > 0) {
+      const diff = totalSalesFiltered - orgProfitSalesSum;
+      const diffPct = orgProfitSalesSum !== 0 ? (diff / orgProfitSalesSum) * 100 : 0;
+      results.push({
+        label: "인프라 매출 (소스 비교)",
+        sourceA: "매출리스트 (필터 후)",
+        sourceB: "조직별손익 매출액.실적",
+        valueA: totalSalesFiltered,
+        valueB: orgProfitSalesSum,
+        diffPct,
+      });
+    }
+
+    if (orderList.length > 0) {
+      const infraOrders = filterByOrg(orderList, orgNames);
+      const totalOrders = infraOrders.reduce((s, r) => s + (Number(r.장부금액) || 0), 0);
+      results.push({
+        label: "수주 합계",
+        sourceA: "수주리스트 (필터 후)",
+        sourceB: "-",
+        valueA: totalOrders,
+        valueB: null,
+        diffPct: null,
+      });
+    }
+
+    if (collectionList.length > 0) {
+      const infraCollections = filterByOrg(collectionList, orgNames);
+      const totalCol = infraCollections.reduce((s, r) => s + (Number(r.장부수금액) || 0), 0);
+      results.push({
+        label: "수금 합계",
+        sourceA: "수금리스트 (필터 후)",
+        sourceB: "-",
+        valueA: totalCol,
+        valueB: null,
+        diffPct: null,
+      });
+    }
+
+    return results;
+  }, [salesList, orgProfit, orderList, collectionList, orgNames]);
+
+  if (checks.length === 0 || salesList.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h3 className="text-lg font-semibold tracking-tight">데이터 크로스 검증</h3>
+      <p className="text-xs text-muted-foreground">
+        업로드된 파일 간 수치를 교차 비교합니다. 데이터 소스가 다르므로 소폭 차이는 정상입니다 (집계 방식, 반올림 차이).
+      </p>
+      <Card>
+        <CardContent className="p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="text-left p-3 font-medium">비교 항목</th>
+                  <th className="text-left p-3 font-medium">소스 A</th>
+                  <th className="text-right p-3 font-medium">금액 A</th>
+                  <th className="text-left p-3 font-medium">소스 B</th>
+                  <th className="text-right p-3 font-medium">금액 B</th>
+                  <th className="text-right p-3 font-medium">차이</th>
+                </tr>
+              </thead>
+              <tbody>
+                {checks.map((c) => {
+                  const absDiff = c.diffPct !== null ? Math.abs(c.diffPct) : null;
+                  const diffColor =
+                    absDiff === null ? "" :
+                    absDiff >= 10 ? "text-red-600 dark:text-red-400 font-semibold" :
+                    absDiff >= 5 ? "text-amber-600 dark:text-amber-400" :
+                    "text-green-600 dark:text-green-400";
+                  const DiffIcon = absDiff === null ? null : absDiff >= 10 ? AlertTriangle : absDiff >= 5 ? AlertTriangle : CheckCircle2;
+
+                  return (
+                    <tr key={c.label} className="border-b last:border-0">
+                      <td className="p-3 font-medium">{c.label}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{c.sourceA}</td>
+                      <td className="p-3 text-right font-mono">{formatCurrency(c.valueA, true)}</td>
+                      <td className="p-3 text-muted-foreground text-xs">{c.sourceB}</td>
+                      <td className="p-3 text-right font-mono">{c.valueB !== null ? formatCurrency(c.valueB, true) : "-"}</td>
+                      <td className={`p-3 text-right ${diffColor}`}>
+                        {c.diffPct !== null ? (
+                          <span className="flex items-center justify-end gap-1">
+                            {DiffIcon && <DiffIcon className="h-3.5 w-3.5" />}
+                            {isFinite(c.diffPct) ? `${c.diffPct >= 0 ? "+" : ""}${c.diffPct.toFixed(1)}%` : "-"}
+                          </span>
+                        ) : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

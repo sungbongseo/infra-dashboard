@@ -56,7 +56,8 @@ export default function OrdersAnalysisPage() {
 
   const totalOrders = filteredOrders.reduce((s, r) => s + r.장부금액, 0);
   const totalSales = filteredSales.reduce((s, r) => s + r.장부금액, 0);
-  const conversionRate = totalOrders > 0 ? (totalSales / totalOrders) * 100 : 0;
+  // 매출/수주 비율: 동일 기간 매출액÷수주액. 수주 건별 전환 추적이 아닌 기간 비율이므로 100% 초과 가능
+  const salesOrderRatio = totalOrders > 0 ? (totalSales / totalOrders) * 100 : 0;
   const outstandingOrders = totalOrders - totalSales;
 
   // 조직별 수주 분석
@@ -182,7 +183,7 @@ export default function OrdersAnalysisPage() {
           <ErrorBoundary>
             <StatusTab
               totalOrders={totalOrders}
-              conversionRate={conversionRate}
+              salesOrderRatio={salesOrderRatio}
               outstandingOrders={outstandingOrders}
               orderCount={filteredOrders.length}
               monthlyOrders={monthlyOrders}

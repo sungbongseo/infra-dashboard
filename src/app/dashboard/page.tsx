@@ -290,7 +290,7 @@ export default function OverviewPage() {
         title: "핵심 KPI 요약",
         content: (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <KpiCard title="총 매출액" value={kpis.totalSales} format="currency" icon={<TrendingUp className="h-5 w-5" />} />
+            <KpiCard title="총 매출액" value={kpis.orgProfitSalesSum > 0 ? kpis.orgProfitSalesSum : kpis.totalSales} format="currency" icon={<TrendingUp className="h-5 w-5" />} />
             <KpiCard title="영업이익율" value={kpis.operatingProfitRate} format="percent" icon={<Percent className="h-5 w-5" />} />
             <KpiCard title="수금율" value={collectionRateDetail.netCollectionRate} format="percent" icon={<Wallet className="h-5 w-5" />} />
             <KpiCard title="계획 달성율" value={kpis.salesPlanAchievement} format="percent" icon={<Target className="h-5 w-5" />} />
@@ -465,17 +465,20 @@ export default function OverviewPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <KpiCard
               title="총 매출액"
-              value={kpis.totalSales}
+              value={kpis.orgProfitSalesSum > 0 ? kpis.orgProfitSalesSum : kpis.totalSales}
               previousValue={compKpis?.totalSales}
               sparklineData={sparklines.sales}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
               formula={
-                kpis.orgProfitSalesSum > 0 && Math.abs(kpis.totalSales - kpis.orgProfitSalesSum) >= 1e8
-                  ? `매출리스트의 모든 장부금액을 합산\n※ 303 기준: ${formatCurrency(kpis.orgProfitSalesSum, true)} (차이: ${formatCurrency(kpis.totalSales - kpis.orgProfitSalesSum, true)}) — 두 보고서의 집계 방식 차이`
-                  : "매출리스트의 모든 장부금액을 합산"
+                kpis.orgProfitSalesSum > 0
+                  ? `조직별손익(303) 매출액.실적 합산 [기준 데이터: 조직별손익]\n※ 매출리스트 기준: ${formatCurrency(kpis.totalSales, true)} (SAP 집계 방식 차이로 소폭 차이 정상)`
+                  : "매출리스트의 모든 장부금액을 합산 (조직별손익 미업로드)"
               }
-              description="선택한 영업조직에서 발생한 전체 매출 금액의 합계입니다."
+              description={kpis.orgProfitSalesSum > 0
+                ? "조직별손익(303) 보고서 기준 매출 합계입니다. SAP 손익 보고서와 동일한 값입니다."
+                : "매출리스트 기반 합계입니다. 조직별손익(303) 파일 업로드 시 더 정확한 값이 표시됩니다."
+              }
               benchmark="전년 동기 대비 10% 이상 성장이면 양호"
               reason="사업부 전체 매출 규모를 파악하여 성장 추세를 모니터링하고, 목표 대비 진척도를 관리합니다."
             />
@@ -550,8 +553,8 @@ export default function OverviewPage() {
               sparklineData={sparklines.operatingProfit}
               format="percent"
               icon={<Percent className="h-5 w-5" />}
-              formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100"
-              description="[데이터 소스: 조직별손익] 매출에서 원가, 인건비, 판관비를 모두 제외한 이익 비율입니다."
+              formula="영업이익율(%) = 영업이익 ÷ 매출액 × 100 [조직별손익 기준]"
+              description="조직별손익 데이터 기준. 매출리스트의 '총 매출액'과 집계 방식이 달라 매출 기준값이 다를 수 있습니다."
               benchmark="인프라 업종 평균 7~8%. 10% 이상 양호, 5% 미만 점검 필요"
               reason="핵심 수익성 지표로 사업부의 이익 창출 능력을 평가하고, 업종 평균 대비 경쟁력을 진단합니다."
             />
@@ -560,8 +563,8 @@ export default function OverviewPage() {
               value={kpis.salesPlanAchievement}
               format="percent"
               icon={<Target className="h-5 w-5" />}
-              formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100"
-              description="[데이터 소스: 조직별손익] 매출 목표 대비 실제 달성 비율입니다."
+              formula="매출 계획 달성율(%) = 매출 실적 ÷ 매출 계획 × 100 [조직별손익 기준]"
+              description="조직별손익 데이터 기준. 계획 대비 달성 비율로 집계 방식은 SAP 보고서를 따릅니다."
               benchmark="100%가 목표. 90% 이상 양호, 80% 미만 원인 분석 필요"
               reason="목표 대비 실적 달성도를 추적하여 계획 수립의 정확성과 실행력을 동시에 평가합니다."
             />

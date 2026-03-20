@@ -24,7 +24,6 @@ export function FileUploader() {
   const [restoring, setRestoring] = useState(false);
 
   const {
-    orgNames,
     uploadedFiles,
     addUploadedFile,
     updateUploadedFile,
@@ -153,7 +152,9 @@ export function FileUploader() {
         const buffer = await file.arrayBuffer();
         setProgress(40);
 
-        const result = parseExcelFile(buffer, file.name, orgNames.size > 0 ? orgNames : undefined);
+        // 원본 보존: orgNames를 전달하지 않아 파서에서 데이터를 제거하지 않음.
+        // 필터링은 각 페이지의 렌더 시점에 filterByOrg()로 적용.
+        const result = parseExcelFile(buffer, file.name);
         setProgress(80);
 
         // Store parsed data
@@ -284,7 +285,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [orgNames, uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging, setInventoryMovement]
+    [uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging, setInventoryMovement]
   );
 
   const handleDrop = useCallback(

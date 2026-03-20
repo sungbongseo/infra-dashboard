@@ -1084,51 +1084,21 @@ export function parseExcelFile(
     skippedRows = sheetResult.skippedRows;
   }
 
-  // Apply org filter if available and applicable
+  // 원본 보존: 파싱 시점에 조직 필터를 적용하지 않음.
+  // 모든 데이터를 저장하고, 필터링은 각 페이지의 렌더 시점에 filterByOrg()로 적용.
   let filterInfo: string | undefined;
   if (orgNames && orgNames.size > 0 && schema.orgFilterField && schema.fileType !== "organization") {
     const field = schema.orgFilterField;
-    const beforeCount = parsed.length;
-    let emptyOrgCount = 0;
-    // 제외 조직별 행수·금액 집계
-    const excludedOrgStats = new Map<string, { count: number; amount: number }>();
-    const amountField = field === "영업조직팀" ? "매출액" : "장부금액";
-    parsed = parsed.filter((row: any) => {
-      const orgValue = String(row[field] || "").trim();
-      if (orgValue === "") { emptyOrgCount++; return false; }
-      if (orgNames.has(orgValue)) return true;
-      // 제외 조직 통계 수집
-      const stat = excludedOrgStats.get(orgValue) || { count: 0, amount: 0 };
-      stat.count++;
-      // 금액 추출: orgProfit류는 매출액.실적, salesList류는 장부금액
-      const amt = amountField === "매출액"
-        ? (typeof row.매출액 === "object" ? row.매출액?.실적 ?? 0 : Number(row.매출액) || 0)
-        : (Number(row[amountField]) || 0);
-      stat.amount += amt;
-      excludedOrgStats.set(orgValue, stat);
-      return false;
-    });
-    const filtered = beforeCount - parsed.length;
-    if (filtered > 0) {
-      // 제외 조직 상세 정보 포함
-      const excludedDetails = Array.from(excludedOrgStats.entries())
-        .sort((a, b) => Math.abs(b[1].amount) - Math.abs(a[1].amount))
-        .slice(0, 5) // 상위 5개만
-        .map(([name, s]) => {
-          const amt = Math.abs(s.amount) >= 1e8
-            ? `${(s.amount / 1e8).toFixed(1)}억`
-            : Math.abs(s.amount) >= 1e4
-              ? `${(s.amount / 1e4).toFixed(0)}만`
-              : `${s.amount}`;
-          return `${name}(${amt}, ${s.count}행)`;
-        });
-      const moreCount = excludedOrgStats.size - 5;
-      const detailSuffix = moreCount > 0 ? ` 외 ${moreCount}개` : "";
-      filterInfo = `조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지) | 제외 조직: [${excludedDetails.join(", ")}${detailSuffix}]`;
+    const orgSet = new Set<string>();
+    let matchCount = 0;
+    for (const row of parsed) {
+      const orgValue = String((row as any)[field] || "").trim();
+      if (orgValue) {
+        orgSet.add(orgValue);
+        if (orgNames.has(orgValue)) matchCount++;
+      }
     }
-    if (emptyOrgCount > 0) {
-      warnings.push(`[${schema.fileType}] ${field} 필드가 비어있는 ${emptyOrgCount}행이 조직 필터에서 제외됨 — fill-down 처리를 확인하세요`);
-    }
+    filterInfo = `전체 ${parsed.length}행 보존 (${orgSet.size}개 조직 중 ${matchCount}행이 선택된 조직에 해당)`;
   }
 
   if (skippedRows > 0) {
