@@ -46,7 +46,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "orgProfit",
@@ -55,7 +55,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "teamContribution",
@@ -64,7 +64,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "itemProfitability",
@@ -84,7 +84,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "hqCustomerItemProfit",
@@ -93,7 +93,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "customerItemDetail",
@@ -102,7 +102,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "itemCostDetail",
@@ -111,7 +111,7 @@ export const FILE_SCHEMAS: FileSchema[] = [
     hasMergedHeader: true,
     subHeaderRow: 1,
     orgFilterField: "영업조직팀",
-    monthlyStrategy: "latest", // 누계 보고서 — 최신 월만 사용
+    // 단월 데이터 — concat으로 전체 시트 합산 (기본값)
   },
   {
     fileType: "inventoryMovement",
