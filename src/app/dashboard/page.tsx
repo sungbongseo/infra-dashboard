@@ -451,7 +451,7 @@ export default function OverviewPage() {
         </div>
       )}
 
-      <Tabs defaultValue="core-kpi" className="space-y-4">
+      <Tabs defaultValue="core-kpi" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="core-kpi">핵심 지표</TabsTrigger>
           <TabsTrigger value="org-analysis">조직 분석</TabsTrigger>

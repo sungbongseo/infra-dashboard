@@ -514,7 +514,7 @@ export default function ProfitabilityPage() {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="space-y-4">
         <TooltipProvider delayDuration={300}>
         {/* 2-level navigation: category pills + sub-tabs */}
         <TabGroup groups={PROFIT_TAB_GROUPS} activeTab={activeTab} onGroupChange={(gid) => {

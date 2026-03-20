@@ -165,7 +165,7 @@ export default function OrdersAnalysisPage() {
         />
       </div>
 
-      <Tabs defaultValue="status" className="space-y-4">
+      <Tabs defaultValue="status" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="status">수주 현황</TabsTrigger>
           <TabsTrigger value="analysis">수주 분석</TabsTrigger>

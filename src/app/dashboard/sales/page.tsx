@@ -196,7 +196,7 @@ export default function SalesAnalysisPage() {
         />
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="space-y-4">
         <TabGroup groups={SALES_TAB_GROUPS} activeTab={activeTab} onGroupChange={(gid) => {
           const group = SALES_TAB_GROUPS.find((g) => g.id === gid);
           if (group) setActiveTab(group.tabs[0]);

@@ -216,7 +216,7 @@ export default function ProfilesPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="performance" className="space-y-4">
+      <Tabs defaultValue="performance" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="performance">종합 성과</TabsTrigger>
           <TabsTrigger value="ranking">순위 / 거래처</TabsTrigger>

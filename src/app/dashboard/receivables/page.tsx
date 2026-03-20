@@ -95,7 +95,7 @@ export default function ReceivablesPage() {
         />
       </div>
 
-      <Tabs defaultValue="status" className="space-y-4">
+      <Tabs defaultValue="status" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>

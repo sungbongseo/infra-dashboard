@@ -121,7 +121,7 @@ export function KpiCard({
               </div>
               <p className="text-2xl font-bold tracking-tight">{formattedValue}</p>
               {sparkChartData && (
-                <div className="h-8 w-full mt-1">
+                <div className="h-6 sm:h-8 w-full mt-1">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={sparkChartData} margin={{ top: 2, right: 2, bottom: 2, left: 2 }}>
                       <defs>
