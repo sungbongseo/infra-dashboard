@@ -399,7 +399,46 @@ export function calcMonthlyCostProfiles(
 ): MonthlyCostProfile[] {
   if (sales.length === 0 || teamContrib.length === 0) return [];
 
-  // 전체 비율 계산 (teamContrib는 기간 합계)
+  // teamContrib에 month 필드가 있으면 실제 월별 데이터 (concat 모드)
+  const hasMonthField = teamContrib.some((tc: any) => tc.month);
+
+  if (hasMonthField) {
+    // ─── 실제 월별 원가 프로파일 (concat 데이터) ───────────────
+    const monthMap = new Map<string, {
+      revenue: number; cogs: number; rawMat: number;
+      purchase: number; outsource: number; sga: number;
+    }>();
+
+    for (const tc of teamContrib) {
+      const m = (tc as any).month as string;
+      if (!m) continue;
+      const existing = monthMap.get(m) || {
+        revenue: 0, cogs: 0, rawMat: 0, purchase: 0, outsource: 0, sga: 0,
+      };
+      existing.revenue += tc.매출액.실적;
+      existing.cogs += tc.실적매출원가.실적;
+      existing.rawMat += tc.제조변동_원재료비.실적 + tc.제조변동_부재료비.실적;
+      existing.purchase += tc.변동_상품매입.실적;
+      existing.outsource += tc.판관변동_외주가공비.실적 + tc.제조변동_외주가공비.실적;
+      existing.sga += tc.판매관리비.실적;
+      monthMap.set(m, existing);
+    }
+
+    return Array.from(monthMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .filter(([, agg]) => agg.revenue > 0)
+      .map(([month, agg]) => ({
+        month,
+        매출원가율: Math.round((agg.cogs / agg.revenue) * 1000) / 10,
+        원재료비율: agg.cogs > 0 ? Math.round((agg.rawMat / agg.cogs) * 1000) / 10 : 0,
+        상품매입비율: agg.cogs > 0 ? Math.round((agg.purchase / agg.cogs) * 1000) / 10 : 0,
+        외주비율: agg.cogs > 0 ? Math.round((agg.outsource / agg.cogs) * 1000) / 10 : 0,
+        판관비율: Math.round((agg.sga / agg.revenue) * 1000) / 10,
+        isSynthetic: false,
+      }));
+  }
+
+  // ─── 폴백: 합성 데이터 (month 필드 없는 레거시) ───────────────
   let totalRevenue = 0;
   let totalCOGS = 0;
   let totalRawMaterial = 0;
@@ -424,7 +463,6 @@ export function calcMonthlyCostProfiles(
   const baseOutsourcingRatio = totalCOGS > 0 ? (totalOutsourcing / totalCOGS) * 100 : 0;
   const baseSgaRatio = (totalSGA / totalRevenue) * 100;
 
-  // 월별 매출 집계
   const salesByMonth = new Map<string, number>();
   for (const s of sales) {
     const month = extractMonth(s.매출일);
@@ -432,15 +470,12 @@ export function calcMonthlyCostProfiles(
     salesByMonth.set(month, (salesByMonth.get(month) || 0) + s.장부금액);
   }
 
-  // 월별 비율: 전체 비율에 약간의 변동을 반영 (매출 비중 기준)
   const months = Array.from(salesByMonth.keys()).sort();
   const totalSales = Array.from(salesByMonth.values()).reduce((s, v) => s + v, 0);
 
   return months.map((month) => {
     const monthlySales = salesByMonth.get(month) || 0;
     const salesWeight = totalSales > 0 ? monthlySales / (totalSales / months.length) : 1;
-
-    // 매출 비중이 높은 달일수록 원가율이 약간 변동하는 근사치
     const varianceFactor = Math.min(Math.max(salesWeight, 0.85), 1.15);
 
     return {
