@@ -123,7 +123,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
           const v = getValue<number>();
           if (!v || !isFinite(v)) return <span className="block text-right text-muted-foreground">-</span>;
           return (
-            <span className={`block text-right tabular-nums ${v >= 100 ? "text-red-500 font-semibold" : v >= 80 ? "text-amber-500" : ""}`}>
+            <span className={`block text-right tabular-nums ${v >= 100 ? "text-red-500 dark:text-red-400 font-semibold" : v >= 80 ? "text-amber-500 dark:text-amber-400" : ""}`}>
               {v.toFixed(1)}%
             </span>
           );

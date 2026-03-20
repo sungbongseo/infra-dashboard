@@ -1,10 +1,22 @@
 "use client";
 
+import { useMemo } from "react";
 import { Moon, Sun, Menu, Presentation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/stores/uiStore";
 import { useDataStore } from "@/stores/dataStore";
 import { AlertPanel } from "@/components/dashboard/AlertPanel";
+
+function formatTimeAgo(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const minutes = Math.floor(diff / 60_000);
+  if (minutes < 1) return "방금 전";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return `${days}일 전`;
+}
 
 export function Header() {
   const { darkMode, toggleDarkMode, toggleSidebar, sidebarOpen } = useUIStore();
@@ -12,6 +24,14 @@ export function Header() {
   const { uploadedFiles } = useDataStore();
 
   const readyCount = uploadedFiles.filter((f) => f.status === "ready").length;
+
+  const lastUploadLabel = useMemo(() => {
+    if (uploadedFiles.length === 0) return null;
+    const latest = uploadedFiles.reduce((a, b) =>
+      new Date(b.uploadedAt).getTime() > new Date(a.uploadedAt).getTime() ? b : a
+    );
+    return formatTimeAgo(new Date(latest.uploadedAt));
+  }, [uploadedFiles]);
 
   return (
     <header
@@ -30,6 +50,11 @@ export function Header() {
         {readyCount > 0 && (
           <span className="text-xs text-muted-foreground">
             데이터: {readyCount}개 파일 로드됨
+          </span>
+        )}
+        {lastUploadLabel && (
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+            마지막 업로드: {lastUploadLabel}
           </span>
         )}
         <AlertPanel />

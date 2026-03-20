@@ -90,7 +90,7 @@ export function KpiCard({
                         <Info className="h-3.5 w-3.5 text-muted-foreground/60 hover:text-primary transition-colors cursor-help" />
                       </button>
                     </TooltipTrigger>
-                    <TooltipContent side="bottom" sideOffset={8} className="max-w-sm p-3 z-[60]">
+                    <TooltipContent side="bottom" sideOffset={8} className="max-w-xs md:max-w-sm p-3 z-[60]">
                       {formula && (
                         <div className="mb-2">
                           <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 계산방법</p>

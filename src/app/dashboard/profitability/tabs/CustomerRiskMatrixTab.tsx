@@ -88,7 +88,7 @@ export function CustomerRiskMatrixTab({
       accessorKey: "영업이익율", header: "영업이익율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v >= 0 ? "text-green-600" : "text-red-600"}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
+        return <span className={v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
       },
     },
     {
@@ -99,7 +99,7 @@ export function CustomerRiskMatrixTab({
       accessorKey: "장기미수율", header: "장기미수율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v > 30 ? "text-red-600" : v > 15 ? "text-amber-600" : ""}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
+        return <span className={v > 30 ? "text-red-600 dark:text-red-400" : v > 15 ? "text-amber-600 dark:text-amber-400" : ""}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
       },
     },
     {
@@ -130,7 +130,7 @@ export function CustomerRiskMatrixTab({
           title="핵심 유지 (Star)"
           value={summary.star.count}
           format="number"
-          icon={<Star className="h-5 w-5 text-green-600" />}
+          icon={<Star className="h-5 w-5 text-green-600 dark:text-green-400" />}
           description={`고수익-저리스크 거래처 ${summary.star.count}개. 매출 합계 ${formatCurrency(summary.star.totalSales)}, 평균 이익율 ${isFinite(summary.star.avgProfitRate) ? summary.star.avgProfitRate.toFixed(1) : "0"}%`}
           formula="영업이익율 > 중앙값 AND 장기미수율 ≤ 중앙값"
           benchmark="전체 거래처의 30% 이상이 Star이면 건전한 포트폴리오"
@@ -140,7 +140,7 @@ export function CustomerRiskMatrixTab({
           title="수금 관리 (Risk)"
           value={summary.risk.count}
           format="number"
-          icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
+          icon={<AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
           description={`고수익-고리스크 거래처 ${summary.risk.count}개. 수익은 좋지만 수금 지연이 우려됩니다. 매출 ${formatCurrency(summary.risk.totalSales)}`}
           formula="영업이익율 > 중앙값 AND 장기미수율 > 중앙값"
           benchmark="이 그룹의 수금 주기를 단축하면 CCC 개선에 큰 효과"
@@ -150,7 +150,7 @@ export function CustomerRiskMatrixTab({
           title="마진 개선 (Improve)"
           value={summary.improve.count}
           format="number"
-          icon={<TrendingUp className="h-5 w-5 text-blue-600" />}
+          icon={<TrendingUp className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           description={`저수익-저리스크 거래처 ${summary.improve.count}개. 수금은 양호하나 마진 개선이 필요. 매출 ${formatCurrency(summary.improve.totalSales)}`}
           formula="영업이익율 ≤ 중앙값 AND 장기미수율 ≤ 중앙값"
           benchmark="가격 재협상이나 원가 절감으로 Star 그룹 전환 가능성 높음"
@@ -160,7 +160,7 @@ export function CustomerRiskMatrixTab({
           title="거래 축소 (Exit)"
           value={summary.exit.count}
           format="number"
-          icon={<XCircle className="h-5 w-5 text-red-600" />}
+          icon={<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
           description={`저수익-고리스크 거래처 ${summary.exit.count}개. 수익도 낮고 미수금 리스크도 높아 거래 조건 재검토 필요. 매출 ${formatCurrency(summary.exit.totalSales)}`}
           formula="영업이익율 ≤ 중앙값 AND 장기미수율 > 중앙값"
           benchmark="이 그룹이 전체 매출의 20% 이상이면 포트폴리오 리스크 심각"

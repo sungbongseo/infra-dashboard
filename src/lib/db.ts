@@ -4,6 +4,24 @@ import Dexie, { type Table } from "dexie";
  * IndexedDB 데이터 영속성
  * 파싱된 엑셀 데이터를 브라우저 IndexedDB에 저장/복원
  * 새로고침 시 17개 파일 재업로드 불필요
+ *
+ * --- Schema Migration Guide ---
+ * Dexie handles versioning automatically. To add a new schema migration:
+ *
+ * 1. Increment version number (currently at 4)
+ *    this.version(5).stores({ ...all tables with indexes... })
+ *
+ * 2. If you need data transformation, chain .upgrade():
+ *    this.version(5).stores({ ... }).upgrade(async (tx) => {
+ *      // transform existing data, clear stale tables, etc.
+ *    });
+ *
+ * 3. Rules:
+ *    - Always list ALL tables in every version (not just changed ones)
+ *    - Only indexed fields go in stores(); non-indexed data columns are implicit
+ *    - Never remove a version() call — Dexie needs the full chain for upgrades
+ *    - Use upgrade() to clear stale data when field names change (see v4 example)
+ *    - Dexie auto-opens the latest version; users on older schemas upgrade transparently
  */
 
 export interface StoredDataset {

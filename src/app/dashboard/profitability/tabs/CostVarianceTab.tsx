@@ -322,7 +322,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
                       <div className="bg-popover border rounded-lg p-2 text-xs shadow-md">
                         <p className="font-semibold">{d.name}</p>
                         <p>원가비중: {isFinite(d.x) ? d.x.toFixed(1) : "0"}%</p>
-                        <p className={d.y > 0 ? "text-red-600" : "text-green-600"}>
+                        <p className={d.y > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}>
                           차이율: {d.y > 0 ? "+" : ""}{isFinite(d.y) ? d.y.toFixed(1) : "0"}%
                         </p>
                         <p>임팩트: {isFinite(d.z) ? d.z.toFixed(2) : "0"}</p>

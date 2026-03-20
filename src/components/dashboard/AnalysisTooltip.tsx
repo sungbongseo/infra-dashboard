@@ -24,7 +24,7 @@ export function AnalysisTooltip({ title, formula, description, benchmark, reason
               <Info className="h-4 w-4 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8} className="max-w-sm p-4 z-[60]">
+          <TooltipContent side="bottom" sideOffset={8} className="max-w-xs md:max-w-sm p-4 z-[60]">
             {formula && (
               <div className="mb-3">
                 <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 계산방법</p>

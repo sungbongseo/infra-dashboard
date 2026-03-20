@@ -93,7 +93,7 @@ export function CollectionDelayTab({
           title="수금 지연 거래처"
           value={summary.delayedCustomerCount}
           format="number"
-          icon={<AlertTriangle className="h-5 w-5 text-amber-600" />}
+          icon={<AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />}
           formula="수금예정일 대비 실제 수금이 늦은 거래처 수"
           description={`전체 ${summary.totalCustomerCount}개 거래처 중 ${summary.delayedCustomerCount}개(${isFinite(summary.delayRate) ? summary.delayRate.toFixed(1) : "0"}%)가 수금예정일을 초과했습니다.`}
           benchmark="지연율 20% 이내이면 양호, 40% 초과 시 여신 정책 점검"
@@ -103,7 +103,7 @@ export function CollectionDelayTab({
           title="전체 수금률"
           value={summary.overallCollectionRate}
           format="percent"
-          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+          icon={<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
           formula="수금 총액 / 매출 총액 × 100"
           description={`매출 ${formatCurrency(summary.totalSalesAmount, true)} 대비 수금 ${formatCurrency(summary.totalCollectedAmount, true)}`}
           benchmark="수금률 90% 이상이면 양호"
@@ -113,7 +113,7 @@ export function CollectionDelayTab({
           title="평균 지연일"
           value={summary.avgDelayDays}
           format="number"
-          icon={<Clock className="h-5 w-5 text-red-600" />}
+          icon={<Clock className="h-5 w-5 text-red-600 dark:text-red-400" />}
           formula="(실제 수금일 - 수금예정일)의 평균 (양수=지연)"
           description="수금예정일 대비 실제 수금이 얼마나 지연되었는지를 나타냅니다. 양수면 지연, 음수면 조기 수금."
           benchmark="0일 이하(조기 수금)가 이상적, 15일 초과 시 수금 관리 강화"
@@ -269,7 +269,7 @@ export function CollectionDelayTab({
                       {isFinite(e.collectionRate) ? e.collectionRate.toFixed(1) : "0"}%
                     </td>
                     <td className="py-1.5 px-3 text-right">{e.avgDaysToCollect}일</td>
-                    <td className="py-1.5 px-3 text-right font-medium text-red-600">
+                    <td className="py-1.5 px-3 text-right font-medium text-red-600 dark:text-red-400">
                       +{e.avgDelayDays}일
                     </td>
                   </tr>

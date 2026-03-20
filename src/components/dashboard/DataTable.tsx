@@ -12,7 +12,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Search } from "lucide-react";
+import { Search, ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
 
 interface DataTableProps<T> {
   data: T[];
@@ -121,11 +121,14 @@ export function DataTable<T>({
                         ? null
                         : flexRender(header.column.columnDef.header, header.getContext())}
                       {header.column.getCanSort() && (
-                        <span className="inline-block w-4 text-muted-foreground">
-                          {{
-                            asc: "▲",
-                            desc: "▼",
-                          }[header.column.getIsSorted() as string] ?? ""}
+                        <span className="inline-flex items-center text-muted-foreground">
+                          {header.column.getIsSorted() === "asc" ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : header.column.getIsSorted() === "desc" ? (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronsUpDown className="h-3.5 w-3.5 opacity-40" />
+                          )}
                         </span>
                       )}
                     </div>

@@ -81,7 +81,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
           title="수주 전환율"
           value={summary.conversionRate}
           format="percent"
-          icon={<CheckCircle className="h-5 w-5 text-green-600" />}
+          icon={<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
           formula="전환율(%) = 완료 건수 / 전체 수주 건수 × 100"
           description={`전체 ${summary.totalOrders}건 중 ${summary.completed.count}건이 완료되었습니다. 완료 금액: ${formatCurrency(summary.completed.amount, true)}`}
           benchmark="전환율 80% 이상이면 양호, 60% 미만이면 파이프라인 관리 점검 필요"
@@ -91,7 +91,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
           title="수주 취소율"
           value={summary.cancellationRate}
           format="percent"
-          icon={<XCircle className="h-5 w-5 text-red-600" />}
+          icon={<XCircle className="h-5 w-5 text-red-600 dark:text-red-400" />}
           formula="취소율(%) = 삭제 건수 / 전체 수주 건수 × 100"
           description={`전체 ${summary.totalOrders}건 중 ${summary.cancelled.count}건이 삭제되었습니다. 삭제 금액: ${formatCurrency(summary.cancelled.amount, true)}`}
           benchmark="취소율 10% 이내이면 양호, 20% 초과 시 수주 품질 점검 필요"
@@ -101,7 +101,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
           title="진행 중 수주"
           value={summary.inProgress.count}
           format="number"
-          icon={<Clock className="h-5 w-5 text-blue-600" />}
+          icon={<Clock className="h-5 w-5 text-blue-600 dark:text-blue-400" />}
           formula="품목상태가 '진행'인 수주 건수"
           description={`현재 진행 중인 수주 ${summary.inProgress.count}건, 금액 ${formatCurrency(summary.inProgress.amount, true)}. 향후 매출 전환 가능 파이프라인입니다.`}
           benchmark="진행 건의 평균 체류 기간이 30일 이내이면 양호"
@@ -229,8 +229,8 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.org}</p>
-                      <p className="text-green-600">전환율: {d.conversionRate.toFixed(1)}%</p>
-                      <p className="text-red-600">취소율: {d.cancellationRate.toFixed(1)}%</p>
+                      <p className="text-green-600 dark:text-green-400">전환율: {d.conversionRate.toFixed(1)}%</p>
+                      <p className="text-red-600 dark:text-red-400">취소율: {d.cancellationRate.toFixed(1)}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                       <p>건당 평균: {formatCurrency(d.avgOrderAmount, true)}</p>
                     </div>
@@ -268,8 +268,8 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.currency}</p>
-                      <p className="text-green-600">전환율: {d.conversionRate.toFixed(1)}%</p>
-                      <p className="text-red-600">취소율: {d.cancellationRate.toFixed(1)}%</p>
+                      <p className="text-green-600 dark:text-green-400">전환율: {d.conversionRate.toFixed(1)}%</p>
+                      <p className="text-red-600 dark:text-red-400">취소율: {d.cancellationRate.toFixed(1)}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                     </div>
                   );
