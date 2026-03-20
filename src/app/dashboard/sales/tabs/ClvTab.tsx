@@ -16,7 +16,8 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { DataSufficiencyNotice } from "@/components/dashboard/DataSufficiencyNotice";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, extractMonth } from "@/lib/utils";
 import { calcClv, calcClvSummary } from "@/lib/analysis/clv";
 import type { SalesRecord } from "@/types";
 import type { OrgProfitRecord } from "@/types/profitability";
@@ -25,13 +26,36 @@ interface ClvTabProps {
   filteredSales: SalesRecord[];
   filteredOrgProfit: OrgProfitRecord[];
   isDateFiltered?: boolean;
+  onNavigateToRfm?: () => void;
 }
 
-export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered }: ClvTabProps) {
+export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNavigateToRfm }: ClvTabProps) {
+  // 데이터 기간 체크: CLV는 최소 30개월 필요
+  const dataMonths = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of filteredSales) {
+      const m = extractMonth(r.매출일);
+      if (m) months.add(m);
+    }
+    return months.size;
+  }, [filteredSales]);
+
   const clvResults = useMemo(() => calcClv(filteredSales, filteredOrgProfit), [filteredSales, filteredOrgProfit]);
   const clvSummary = useMemo(() => calcClvSummary(clvResults), [clvResults]);
 
   if (clvResults.length === 0) return <EmptyState message="매출목록과 조직손익 데이터를 업로드해 주세요." />;
+
+  if (dataMonths < 30) {
+    return (
+      <DataSufficiencyNotice
+        title="CLV 분석에 충분한 데이터가 없습니다"
+        reason="고객생애가치(CLV)는 고객의 평균 거래수명 추정이 핵심입니다. 14개월 데이터로는 거래수명이 과소추정되어 CLV가 실제보다 낮게 산출됩니다. 신뢰할 수 있는 CLV 산출에는 최소 30개월 이상의 거래 이력이 필요합니다."
+        currentData={`${dataMonths}개월`}
+        requiredData="최소 30개월"
+        alternativeTab={onNavigateToRfm ? { label: "RFM 분석에서 현재 고객 가치 등급 확인", onClick: onNavigateToRfm } : undefined}
+      />
+    );
+  }
 
   return (
     <>

@@ -207,6 +207,16 @@ export function BenchmarkReportTab({
   // ── Render ─────────────────────────────────────────────────
   return (
     <div className="space-y-6">
+      {/* 벤치마크 데이터 출처 고지 */}
+      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+        <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+        <div>
+          <span className="font-medium">참고용 벤치마크:</span>{" "}
+          아래 벤치마크는 건설/인프라 업종 일반 참고 기준입니다. 외부 데이터 미연동 — 방향성 참고용으로만 활용하세요.
+          실제 업계 평균과 차이가 있을 수 있으며, 정확한 비교를 위해서는 한국은행 기업경영분석 등 공신력 있는 자료와 대조가 필요합니다.
+        </div>
+      </div>
+
       {/* ═══════════════════════════════════════════════════════
           Section 1: Industry Benchmark
           ═══════════════════════════════════════════════════════ */}

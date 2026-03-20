@@ -14,7 +14,8 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { DataSufficiencyNotice } from "@/components/dashboard/DataSufficiencyNotice";
+import { CHART_COLORS, TOOLTIP_STYLE, extractMonth } from "@/lib/utils";
 import { calcCohortAnalysis } from "@/lib/analysis/cohortAnalysis";
 import type { SalesRecord } from "@/types";
 
@@ -36,6 +37,16 @@ function retentionColor(rate: number): string {
 const MAX_PERIOD_COLUMNS = 12;
 
 export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
+  // 데이터 기간 체크
+  const dataMonths = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of filteredSales) {
+      const m = extractMonth(r.매출일);
+      if (m) months.add(m);
+    }
+    return months.size;
+  }, [filteredSales]);
+
   const cohortResult = useMemo(() => calcCohortAnalysis(filteredSales), [filteredSales]);
 
   // Build heatmap matrix: rows = cohort months, columns = period index
@@ -87,6 +98,17 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
   );
 
   if (totalCohorts === 0) return <EmptyState />;
+
+  if (dataMonths < 24) {
+    return (
+      <DataSufficiencyNotice
+        title="코호트 분석에 충분한 데이터가 없습니다"
+        reason="코호트 분석은 고객의 '최초 구매' 시점을 기준으로 그룹을 구성합니다. 현재 데이터 시작 이전의 거래 이력이 없어 '최초 구매'가 실제 최초인지 확인할 수 없습니다. 정확한 코호트 구성에는 최소 24개월 이상의 연속 데이터가 필요합니다."
+        currentData={`${dataMonths}개월`}
+        requiredData="최소 24개월"
+      />
+    );
+  }
 
   return (
     <>

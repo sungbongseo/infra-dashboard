@@ -38,6 +38,16 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
 
   return (
     <>
+      {/* 외화 거래 범위 안내 */}
+      {fxImpact.foreignSharePercent < 5 && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
+          <Globe className="h-4 w-4 flex-shrink-0 mt-0.5" />
+          <div>
+            현재 외화 거래는 일부 조직에 집중되어 있습니다 (전체 매출의 {fxImpact.foreignSharePercent.toFixed(1)}%).
+            나머지 조직은 원화 거래만 발생하고 있어, 아래 분석은 외화 거래가 있는 조직 중심으로 해석하세요.
+          </div>
+        </div>
+      )}
       {/* FX KPI 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard

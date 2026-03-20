@@ -14,11 +14,12 @@ import {
   ReferenceLine,
   Cell,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus, Activity, Waves, Info } from "lucide-react";
+import { TrendingUp, TrendingDown, Minus, Activity, Waves } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { DataSufficiencyNotice } from "@/components/dashboard/DataSufficiencyNotice";
 import { formatCurrency, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { decomposeTimeSeries } from "@/lib/analysis/timeSeriesDecomposition";
 import type { SalesRecord } from "@/types";
@@ -78,27 +79,29 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
   // Not enough data for decomposition
   if (decomposition.points.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-sm text-muted-foreground gap-2">
-        <Activity className="h-8 w-8 text-muted-foreground/50" />
-        <p>시계열 분해에는 최소 13개월 이상의 데이터가 필요합니다.</p>
-        <p className="text-xs">현재 {monthlyData.length}개월 데이터가 있습니다.</p>
-      </div>
+      <DataSufficiencyNotice
+        title="시계열 분해에 충분한 데이터가 없습니다"
+        reason="시계열 분해는 추세·계절성·잔차를 분리하는 분석으로, 계절 패턴 감지에 최소 2주기(24개월)가 필요합니다. 현재 데이터로는 계절 변동과 불규칙 변동을 구분할 수 없습니다."
+        currentData={`${monthlyData.length}개월`}
+        requiredData="최소 24개월 (2주기)"
+      />
+    );
+  }
+
+  // 24개월 미만: 제한적 분석 경고
+  if (decomposition.dataQuality === "limited") {
+    return (
+      <DataSufficiencyNotice
+        title="시계열 분해 신뢰도가 낮습니다"
+        reason="시계열 분해는 계절성 감지에 최소 2주기(24개월)가 필요합니다. 현재 데이터로는 계절 변동과 불규칙 변동을 구분할 수 없어, 분석 결과가 부정확할 수 있습니다."
+        currentData={`${monthlyData.length}개월`}
+        requiredData="최소 24개월 (2주기)"
+      />
     );
   }
 
   return (
     <>
-      {/* Data quality warning */}
-      {decomposition.dataQuality === "limited" && (
-        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
-          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-          <div>
-            <span className="font-medium">데이터 부족 주의:</span>{" "}
-            현재 {monthlyData.length}개월 데이터로 분석 중입니다. 시계열 분해의 신뢰도를 높이려면 24개월 이상의 데이터가 권장됩니다.
-            계절성 패턴은 참고 수준으로 활용하세요.
-          </div>
-        </div>
-      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

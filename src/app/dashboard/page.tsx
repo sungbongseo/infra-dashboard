@@ -706,8 +706,8 @@ export default function OverviewPage() {
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
-              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률`}
-              benchmark="설명력(R제곱)이 70% 이상이면 예측 신뢰도 높음"
+              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률${forecast.stats.r2 < 0.3 ? " — 데이터 포인트 부족으로 회귀선 생략, 이동평균 기준으로 추세를 판단하세요" : forecast.stats.r2 < 0.5 ? " — 회귀선 신뢰도 낮음, 이동평균 기준으로 추세를 판단하세요" : ""}`}
+              benchmark={forecast.stats.r2 < 0.3 ? "데이터 포인트 부족 — 이동평균으로 추세 판단" : forecast.stats.r2 < 0.5 ? "회귀선 신뢰도 낮음 (R² < 50%) — 이동평균 참고" : "설명력(R²)이 70% 이상이면 예측 신뢰도 높음"}
               reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망하고, 자원 배분과 목표 설정에 활용합니다."
             >
               <ChartContainer>
@@ -719,9 +719,15 @@ export default function OverviewPage() {
                   <Legend />
                   <Bar dataKey="actual" name="실적" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
                   <Line type="monotone" dataKey="movingAvg3" name="3개월 이동평균" stroke={CHART_COLORS[3]} strokeWidth={1.5} dot={false} connectNulls activeDot={{ r: 5, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
-                  <Line type="monotone" dataKey="forecast" name="예측" stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls {...ANIMATION_CONFIG} />
-                  <Area type="monotone" dataKey="upperBound" name="상한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.1} connectNulls />
-                  <Area type="monotone" dataKey="lowerBound" name="하한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.05} connectNulls />
+                  {forecast.stats.r2 >= 0.3 && (
+                    <Line type="monotone" dataKey="forecast" name={`예측 (R²=${(forecast.stats.r2 * 100).toFixed(0)}%)`} stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls {...ANIMATION_CONFIG} />
+                  )}
+                  {forecast.stats.r2 >= 0.3 && (
+                    <Area type="monotone" dataKey="upperBound" name="상한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.1} connectNulls />
+                  )}
+                  {forecast.stats.r2 >= 0.3 && (
+                    <Area type="monotone" dataKey="lowerBound" name="하한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.05} connectNulls />
+                  )}
                 </ComposedChart>
               </ChartContainer>
             </ChartCard>

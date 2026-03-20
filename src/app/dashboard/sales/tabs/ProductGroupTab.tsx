@@ -252,6 +252,38 @@ export function ProductGroupTab({
           <span><span className="inline-block w-3 h-3 rounded-full mr-1" style={{ background: QUADRANT_COLORS.question }} />Question (저매출·고마진)</span>
           <span><span className="inline-block w-3 h-3 rounded-full mr-1" style={{ background: QUADRANT_COLORS.dog }} />Dog (저매출·저마진)</span>
         </div>
+        {/* BCG 사분면 요약 패널 */}
+        {bubbleData.data.length >= 2 && (() => {
+          const quadrants: Record<string, typeof bubbleData.data> = { star: [], cashcow: [], question: [], dog: [] };
+          for (const d of bubbleData.data) quadrants[d.quadrant].push(d);
+          const topSalesGroup = [...bubbleData.data].sort((a, b) => b.sales - a.sales)[0];
+          return (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+              {([
+                { key: "star", label: "Star", strategy: "핵심 투자 유지" },
+                { key: "cashcow", label: "Cash Cow", strategy: "수익성 개선 집중" },
+                { key: "question", label: "Question", strategy: "매출 확대 기회" },
+                { key: "dog", label: "Dog", strategy: "구조 재검토" },
+              ] as const).map(({ key, label, strategy }) => (
+                <div key={key} className="rounded-md border p-2.5 text-xs space-y-1" style={{ borderLeftColor: QUADRANT_COLORS[key], borderLeftWidth: 3 }}>
+                  <p className="font-semibold">{label} ({quadrants[key].length}개)</p>
+                  <p className="text-muted-foreground">{strategy}</p>
+                  {quadrants[key].length > 0 && (
+                    <p className="font-medium truncate" title={quadrants[key].map((d) => d.group).join(", ")}>
+                      {quadrants[key].slice(0, 2).map((d) => d.group).join(", ")}
+                      {quadrants[key].length > 2 && ` 외 ${quadrants[key].length - 2}개`}
+                    </p>
+                  )}
+                </div>
+              ))}
+              {topSalesGroup && (
+                <div className="col-span-2 md:col-span-4 text-xs text-muted-foreground mt-1">
+                  최대 매출 기여: <strong className="text-foreground">{topSalesGroup.group}</strong> ({formatCurrency(topSalesGroup.sales, true)}, 이익률 {topSalesGroup.grossMargin.toFixed(1)}%)
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </ChartCard>
 
       {/* 3. 그룹×공장 히트맵 */}

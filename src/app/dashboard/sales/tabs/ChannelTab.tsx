@@ -70,13 +70,25 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
   return (
     <>
       {channelInsight && (
-        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
           <p className="font-medium">결제조건 요약</p>
           <p className="text-muted-foreground">
             최대 비중: {channelInsight.topTerm} ({channelInsight.topPct.toFixed(1)}%)
             {channelInsight.cashPct > 0 && ` | 현금성 결제 비중: ${channelInsight.cashPct.toFixed(1)}%`}
-            {channelInsight.cashPct < 20 && " — 외상 비중이 높아 미수금 관리에 유의하세요."}
           </p>
+          {/* 조건부 전략 가이드 */}
+          <div className="mt-2 space-y-1.5 text-xs">
+            {channelInsight.cashPct < 20 && (
+              <p className="text-amber-700 dark:text-amber-400">
+                <strong>⚠ 현금 결제 비중 낮음:</strong> 미수금 증가 우려. 30일 이내 결제 조건 협상 또는 조기결제 인센티브 검토가 필요합니다.
+              </p>
+            )}
+            {channelInsight.topPct > 70 && (
+              <p className="text-amber-700 dark:text-amber-400">
+                <strong>⚠ 결제조건 편중:</strong> {channelInsight.topTerm}에 {channelInsight.topPct.toFixed(0)}% 집중. 현금흐름 변동성 감축을 위해 결제조건 다각화를 검토하세요.
+              </p>
+            )}
+          </div>
         </div>
       )}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}

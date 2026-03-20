@@ -36,8 +36,8 @@ const RISK_LEVEL_COLORS: Record<string, string> = {
 };
 
 const RISK_LEVEL_LABELS: Record<string, string> = {
-  critical: "위험",
-  high: "주의",
+  critical: "활동중단",
+  high: "활동감소",
   medium: "관찰",
   low: "양호",
 };
@@ -82,11 +82,11 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
         .filter((c) => c.churnScore >= 20)
         .map((c) => ({
           거래처명: c.customerName || c.customer,
-          이탈점수: c.churnScore,
-          위험등급: RISK_LEVEL_LABELS[c.riskLevel] || c.riskLevel,
+          활동점수: c.churnScore,
+          활동등급: RISK_LEVEL_LABELS[c.riskLevel] || c.riskLevel,
           누적매출: c.totalAmount,
           마지막거래월: c.lastPurchaseMonth,
-          이탈신호: c.signals.join(", "),
+          활동감소신호: c.signals.join(", "),
         })),
     [churnSummary]
   );
@@ -99,10 +99,11 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
 
   return (
     <>
-      {/* B2B 맥락 경고 배너 */}
-      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4 text-sm text-blue-800 dark:text-blue-200">
-        <strong>B2B 인프라 사업 특성 안내:</strong> 프로젝트 단위 거래는 6~12개월 주기가 일반적이며, 일반 B2C 기준(3개월 미거래=이탈)보다 긴 허용 범위가 적용됩니다.
-        critical 등급이 다수 발생하면 정상적인 프로젝트 사이클인지 확인이 필요합니다.
+      {/* 분석 방법론 안내 */}
+      <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950/30 p-4 text-sm text-blue-800 dark:text-blue-200 space-y-1">
+        <strong>거래 활동 모니터링 안내:</strong>
+        <p>통계적 이탈 예측이 아닌, 최근 거래 빈도·금액 변화 기반의 <strong>활동 감소 거래처 식별</strong>입니다.
+        B2B 인프라 사업은 프로젝트 단위 거래(6~12개월 주기)가 일반적이므로, 활동 감소가 반드시 이탈을 의미하지는 않습니다.</p>
       </div>
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -117,14 +118,14 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
           reason="이탈 분석의 모집단 규모를 확인하여 분석 결과의 대표성을 검증하고, 전체 거래처 기반의 건전성 수준을 파악합니다."
         />
         <KpiCard
-          title="이탈 위험 거래처"
+          title="활동 감소 거래처"
           value={churnSummary.atRiskCustomers}
           format="number"
           icon={<AlertTriangle className="h-5 w-5" />}
-          formula="이탈 점수 기준 '위험' 또는 '주의' 등급 거래처 수"
-          description="이탈 위험도가 높은(critical + high) 거래처 수입니다. 최근 거래가 뜸하고, 거래 빈도가 낮으며, 거래량이 감소하는 고객이 포함됩니다."
+          formula="활동 점수 기준 '활동중단' 또는 '활동감소' 등급 거래처 수"
+          description="거래 활동이 크게 줄어든(활동중단 + 활동감소) 거래처 수입니다. 최근 거래가 뜸하고, 거래 빈도가 낮으며, 거래량이 감소하는 고객이 포함됩니다."
           benchmark="전체 대비 20% 이하면 정상 수준"
-          reason="이탈 가능성이 높은 고객을 예측하여 선제적 리텐션 활동을 전개하고, 이탈 방지를 위한 자원 배분 우선순위를 결정합니다."
+          reason="거래 활동이 감소한 고객을 식별하여 선제적 리텐션 활동을 전개하고, 관계 회복을 위한 자원 배분 우선순위를 결정합니다."
         />
         <KpiCard
           title="위험 매출 비중"
@@ -137,25 +138,25 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
           reason="이탈 위험 고객의 매출 영향을 금액으로 정량화하여 이탈 방지 활동의 긴급성과 기대 효과를 산출하고, 경영진 보고 자료로 활용합니다."
         />
         <KpiCard
-          title="위험 등급 거래처"
+          title="활동 중단 거래처"
           value={criticalCount}
           format="number"
           icon={<ShieldAlert className="h-5 w-5" />}
-          formula="이탈 점수 60점 이상인 거래처 수"
-          description="가장 높은 이탈 위험을 가진 거래처 수입니다. 6개월 이상 미거래이며 거래 빈도가 극히 낮은 고객이 해당됩니다."
+          formula="활동 점수 60점 이상인 거래처 수"
+          description="거래 활동이 사실상 중단된 거래처 수입니다. 6개월 이상 미거래이며 거래 빈도가 극히 낮은 고객이 해당됩니다."
           benchmark="주요 거래처가 포함되어 있으면 즉시 대응 필요"
-          reason="가장 긴급한 이탈 위험 거래처를 식별하여 즉각적인 영업 방문과 관계 회복 활동의 대상을 명확히 합니다."
+          reason="거래가 장기간 중단된 거래처를 식별하여 즉각적인 영업 방문과 관계 회복 활동의 대상을 명확히 합니다."
         />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Risk distribution pie chart */}
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-          title="이탈 위험도 분포"
-          formula="거래처별 최근성/빈도/금액 기반 이탈 점수(0-100) 산출 후 등급 분류"
-          description="위험(60+), 주의(40-59), 관찰(20-39), 양호(0-19) 4단계로 분류한 거래처 분포입니다."
+          title="거래 활동 등급 분포"
+          formula="거래처별 최근성/빈도/금액 기반 활동 점수(0-100) 산출 후 등급 분류"
+          description="활동중단(60+), 활동감소(40-59), 관찰(20-39), 양호(0-19) 4단계로 분류한 거래처 분포입니다."
           benchmark="양호+관찰 비중이 70% 이상이면 건전한 포트폴리오"
-          reason="거래처 전체의 이탈 위험 분포를 한눈에 파악하여 고객 포트폴리오의 전반적 건전성을 평가하고, 위험 등급 비중 증가를 조기 경보합니다."
+          reason="거래처 전체의 활동 수준 분포를 한눈에 파악하여 고객 포트폴리오의 전반적 건전성을 평가하고, 활동 감소 비중 증가를 조기 경보합니다."
         >
           <ChartContainer height="h-64 md:h-80">
             <PieChart>
@@ -212,11 +213,11 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
 
         {/* Top 20 at-risk customers bar chart */}
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-          title="이탈 점수 상위 20 거래처"
-          formula="이탈 점수 = 최근성(0-40) + 빈도(0-30) + 감소추세(0-30)"
-          description="이탈 위험 점수가 높은 상위 20개 거래처입니다. 점수가 높을수록 이탈 가능성이 큽니다."
+          title="활동 감소 상위 20 거래처"
+          formula="활동 점수 = 최근성(0-40) + 빈도(0-30) + 감소추세(0-30)"
+          description="거래 활동 감소 점수가 높은 상위 20개 거래처입니다. 점수가 높을수록 거래 활동이 크게 줄어든 상태입니다."
           benchmark="주요 매출처가 포함된 경우 즉시 방문 상담 권장"
-          reason="이탈 위험이 가장 높은 거래처를 순위별로 제시하여 영업팀의 즉각적인 방문/상담 대상을 명확히 하고, 리텐션 활동의 우선순위를 설정합니다."
+          reason="거래 활동이 가장 크게 감소한 거래처를 순위별로 제시하여 영업팀의 즉각적인 방문/상담 대상을 명확히 하고, 관계 회복 활동의 우선순위를 설정합니다."
           isEmpty={topAtRisk.length === 0}
         >
           <ChartContainer height="h-72 md:h-[28rem]">
@@ -232,9 +233,9 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(value: any) => [`${Number(value)}점`, "이탈 점수"]}
+                formatter={(value: any) => [`${Number(value)}점`, "활동 점수"]}
               />
-              <Bar dataKey="score" name="이탈 점수" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
+              <Bar dataKey="score" name="활동 점수" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {topAtRisk.map((entry, idx) => (
                   <Cell key={idx} fill={RISK_LEVEL_COLORS[entry.riskLevel] || CHART_COLORS[0]} />
                 ))}
@@ -247,9 +248,9 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
       {/* At-risk customer detail table */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         action={<ExportButton data={churnExportData} fileName="이탈위험거래처" />}
-        title="이탈 위험 거래처 상세"
-        formula="이탈 점수 20점 이상 거래처를 점수 내림차순 정렬"
-        description="이탈 점수 20점 이상 거래처의 상세 정보와 이탈 신호를 보여줍니다."
+        title="활동 감소 거래처 상세"
+        formula="활동 점수 20점 이상 거래처를 점수 내림차순 정렬"
+        description="활동 점수 20점 이상 거래처의 상세 정보와 활동 감소 신호를 보여줍니다."
         benchmark="매출 상위 10% 거래처가 포함되면 즉시 리텐션 캠페인 시행"
         reason="이탈 위험 거래처별 구체적 이탈 신호(미거래 기간, 빈도 감소, 거래량 하락)를 제공하여 맞춤형 리텐션 전략을 수립하고, 영업 담당자의 실행 액션을 구체화합니다."
         isEmpty={churnSummary.customers.filter((c) => c.churnScore >= 20).length === 0}
@@ -260,10 +261,10 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
               <tr className="border-b text-left text-muted-foreground">
                 <th className="py-2 px-3 font-medium">거래처명</th>
                 <th className="py-2 px-3 font-medium text-center">마지막 거래</th>
-                <th className="py-2 px-3 font-medium text-right">이탈 점수</th>
+                <th className="py-2 px-3 font-medium text-right">활동 점수</th>
                 <th className="py-2 px-3 font-medium text-center">등급</th>
                 <th className="py-2 px-3 font-medium text-right">누적 매출</th>
-                <th className="py-2 px-3 font-medium">이탈 신호</th>
+                <th className="py-2 px-3 font-medium">활동 감소 신호</th>
               </tr>
             </thead>
             <tbody>

@@ -49,8 +49,9 @@ import { OrgScorecardTab } from "./tabs/OrgScorecardTab";
 
 const SALES_TAB_GROUPS: TabGroupDef[] = [
   { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
-  { id: "customer-deep", label: "고객 분석", tabs: ["customer360", "rfm", "clv", "migration", "cohort"] },
-  { id: "advanced", label: "고급 분석", tabs: ["fx", "anomaly", "churn", "decomposition", "orgScorecard"] },
+  { id: "customer-deep", label: "고객 분석", tabs: ["customer360", "rfm", "migration", "activity"] },
+  { id: "advanced", label: "고급 분석", tabs: ["fx", "anomaly", "orgScorecard"] },
+  { id: "experimental", label: "실험적 분석", tabs: ["clv", "cohort", "decomposition"] },
 ];
 
 export default function SalesAnalysisPage() {
@@ -221,7 +222,7 @@ export default function SalesAnalysisPage() {
           {visibleTabs.has("cohort") && <TabsTrigger value="cohort">코호트</TabsTrigger>}
           {visibleTabs.has("fx") && <TabsTrigger value="fx">FX</TabsTrigger>}
           {visibleTabs.has("anomaly") && <TabsTrigger value="anomaly">이상치</TabsTrigger>}
-          {visibleTabs.has("churn") && <TabsTrigger value="churn">이탈 예측</TabsTrigger>}
+          {visibleTabs.has("activity") && <TabsTrigger value="activity">거래 활동</TabsTrigger>}
           {visibleTabs.has("decomposition") && <TabsTrigger value="decomposition">시계열</TabsTrigger>}
           {visibleTabs.has("orgScorecard") && (
             filteredOrgProfit.length === 0 ? (
@@ -343,7 +344,7 @@ export default function SalesAnalysisPage() {
         <TabsContent value="clv" className="space-y-6">
           <LazyTabContent value="clv" activeTab={activeTab}>
           <ErrorBoundary>
-            <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFiltered} />
+            <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFiltered} onNavigateToRfm={() => setActiveTab("rfm")} />
           </ErrorBoundary>
           </LazyTabContent>
         </TabsContent>
@@ -380,8 +381,8 @@ export default function SalesAnalysisPage() {
           </LazyTabContent>
         </TabsContent>
 
-        <TabsContent value="churn" className="space-y-6">
-          <LazyTabContent value="churn" activeTab={activeTab}>
+        <TabsContent value="activity" className="space-y-6">
+          <LazyTabContent value="activity" activeTab={activeTab}>
           <ErrorBoundary>
             <ChurnTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
