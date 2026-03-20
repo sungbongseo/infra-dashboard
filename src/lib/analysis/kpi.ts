@@ -9,6 +9,8 @@ export interface OverviewKpis {
   totalReceivables: number;
   operatingProfitRate: number;
   salesPlanAchievement: number;
+  /** orgProfit(303) 기준 매출액.실적 합계 — salesList와의 교차검증용 */
+  orgProfitSalesSum: number;
 }
 
 export function calcOverviewKpis(
@@ -41,6 +43,7 @@ export function calcOverviewKpis(
     totalReceivables,
     operatingProfitRate,
     salesPlanAchievement,
+    orgProfitSalesSum: salesSum,
   };
 }
 

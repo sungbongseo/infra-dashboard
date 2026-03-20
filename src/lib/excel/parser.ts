@@ -941,6 +941,31 @@ function parseSheetData(
   return { data: parsed, skippedRows };
 }
 
+/**
+ * 셀 병합 자동 해제: !merges 메타데이터에 등록된 병합 셀만 해제.
+ * 좌상단 셀 값을 병합 범위 내 나머지 셀에 복사한 뒤 !merges를 삭제.
+ */
+function unmergeSheet(sheet: XLSX.WorkSheet): number {
+  const merges = sheet["!merges"];
+  if (!merges || merges.length === 0) return 0;
+  let filledCount = 0;
+  for (const merge of merges) {
+    const originAddr = XLSX.utils.encode_cell(merge.s);
+    const originCell = sheet[originAddr];
+    if (!originCell) continue;
+    for (let r = merge.s.r; r <= merge.e.r; r++) {
+      for (let c = merge.s.c; c <= merge.e.c; c++) {
+        if (r === merge.s.r && c === merge.s.c) continue;
+        const addr = XLSX.utils.encode_cell({ r, c });
+        sheet[addr] = { ...originCell };
+        filledCount++;
+      }
+    }
+  }
+  delete sheet["!merges"];
+  return filledCount;
+}
+
 export function parseExcelFile(
   buffer: ArrayBuffer,
   fileName: string,
@@ -987,6 +1012,10 @@ export function parseExcelFile(
       if (!sheet) {
         throw new Error(`최신 시트 '${lastSheet.sheetName}' 읽기 실패`);
       }
+      const unmergedCount = unmergeSheet(sheet);
+      if (unmergedCount > 0) {
+        warnings.push(`[${schema.fileType}] ${unmergedCount}개 병합 셀 자동 해제`);
+      }
       const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
       const minRows = schema.hasMergedHeader ? 3 : 2;
       if (rawData.length < minRows) {
@@ -1007,6 +1036,10 @@ export function parseExcelFile(
         if (!sheet) {
           warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
           continue;
+        }
+        const msUnmerged = unmergeSheet(sheet);
+        if (msUnmerged > 0) {
+          warnings.push(`[${schema.fileType}] 시트 '${ms.sheetName}': ${msUnmerged}개 병합 셀 자동 해제`);
         }
         const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
         const minRows = schema.hasMergedHeader ? 3 : 2;
@@ -1032,6 +1065,10 @@ export function parseExcelFile(
       throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
     }
 
+    const singleUnmerged = unmergeSheet(sheet);
+    if (singleUnmerged > 0) {
+      warnings.push(`[${schema.fileType}] ${singleUnmerged}개 병합 셀 자동 해제`);
+    }
     const rawData = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
     const minRows = schema.hasMergedHeader ? 3 : 2;
     if (rawData.length < minRows) {
@@ -1049,14 +1086,41 @@ export function parseExcelFile(
     const field = schema.orgFilterField;
     const beforeCount = parsed.length;
     let emptyOrgCount = 0;
+    // 제외 조직별 행수·금액 집계
+    const excludedOrgStats = new Map<string, { count: number; amount: number }>();
+    const amountField = field === "영업조직팀" ? "매출액" : "장부금액";
     parsed = parsed.filter((row: any) => {
       const orgValue = String(row[field] || "").trim();
       if (orgValue === "") { emptyOrgCount++; return false; }
-      return orgNames.has(orgValue);
+      if (orgNames.has(orgValue)) return true;
+      // 제외 조직 통계 수집
+      const stat = excludedOrgStats.get(orgValue) || { count: 0, amount: 0 };
+      stat.count++;
+      // 금액 추출: orgProfit류는 매출액.실적, salesList류는 장부금액
+      const amt = amountField === "매출액"
+        ? (typeof row.매출액 === "object" ? row.매출액?.실적 ?? 0 : Number(row.매출액) || 0)
+        : (Number(row[amountField]) || 0);
+      stat.amount += amt;
+      excludedOrgStats.set(orgValue, stat);
+      return false;
     });
     const filtered = beforeCount - parsed.length;
     if (filtered > 0) {
-      filterInfo = `조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지)`;
+      // 제외 조직 상세 정보 포함
+      const excludedDetails = Array.from(excludedOrgStats.entries())
+        .sort((a, b) => Math.abs(b[1].amount) - Math.abs(a[1].amount))
+        .slice(0, 5) // 상위 5개만
+        .map(([name, s]) => {
+          const amt = Math.abs(s.amount) >= 1e8
+            ? `${(s.amount / 1e8).toFixed(1)}억`
+            : Math.abs(s.amount) >= 1e4
+              ? `${(s.amount / 1e4).toFixed(0)}만`
+              : `${s.amount}`;
+          return `${name}(${amt}, ${s.count}행)`;
+        });
+      const moreCount = excludedOrgStats.size - 5;
+      const detailSuffix = moreCount > 0 ? ` 외 ${moreCount}개` : "";
+      filterInfo = `조직 필터 적용: ${filtered}행 제외 (${parsed.length}행 유지) | 제외 조직: [${excludedDetails.join(", ")}${detailSuffix}]`;
     }
     if (emptyOrgCount > 0) {
       warnings.push(`[${schema.fileType}] ${field} 필드가 비어있는 ${emptyOrgCount}행이 조직 필터에서 제외됨 — fill-down 처리를 확인하세요`);

@@ -470,7 +470,11 @@ export default function OverviewPage() {
               sparklineData={sparklines.sales}
               format="currency"
               icon={<TrendingUp className="h-5 w-5" />}
-              formula="매출리스트의 모든 장부금액을 합산"
+              formula={
+                kpis.orgProfitSalesSum > 0 && Math.abs(kpis.totalSales - kpis.orgProfitSalesSum) >= 1e8
+                  ? `매출리스트의 모든 장부금액을 합산\n※ 303 기준: ${formatCurrency(kpis.orgProfitSalesSum, true)} (차이: ${formatCurrency(kpis.totalSales - kpis.orgProfitSalesSum, true)}) — 두 보고서의 집계 방식 차이`
+                  : "매출리스트의 모든 장부금액을 합산"
+              }
               description="선택한 영업조직에서 발생한 전체 매출 금액의 합계입니다."
               benchmark="전년 동기 대비 10% 이상 성장이면 양호"
               reason="사업부 전체 매출 규모를 파악하여 성장 추세를 모니터링하고, 목표 대비 진척도를 관리합니다."
