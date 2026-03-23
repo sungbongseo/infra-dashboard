@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, aggregateTeamContribution, CHART_COLORS } from "@/lib/utils";
 import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
 import { calcMonthlyTrend, calcMoMGrowth, padActual } from "@/lib/analysis/monthlyTrend";
 import {
@@ -117,10 +117,12 @@ export default function ProfitabilityPage() {
   const filteredTeamContribution = useMemo(() => {
     const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
     const monthFiltered = filterByMonth(orgFiltered, dateRange);
-    return monthFiltered.filter((r: any) => {
+    const personFiltered = monthFiltered.filter((r: any) => {
       const person = String(r.영업담당사번 || "").trim();
       return person !== "";
     });
+    // 월별 시트 concat으로 동일 (사번, 조직)이 월 수만큼 중복되므로 합산
+    return aggregateTeamContribution(personFiltered);
   }, [teamContribution, effectiveOrgNames, dateRange]);
   // 폴백 로직 제거: 필터링 결과가 매출 0이어도 전체 데이터로 대체하지 않음
   // 대신 hasNoSales 플래그로 UI 경고 표시
@@ -217,34 +219,25 @@ export default function ProfitabilityPage() {
     [filteredOrgProfit]
   );
 
-  // ─── 기여도 분석 데이터 (사번+조직 키로 월별 중복 합산) ──────────────────────────────
-  const contribRanking = useMemo(() => {
-    const agg = new Map<string, { org: string; 사번: string; 매출액: number; 공헌이익: number }>();
-    for (const r of filteredTeamContribution) {
-      const contrib = r.공헌이익?.실적 ?? 0;
-      const sales = r.매출액?.실적 ?? 0;
-      if (contrib === 0 && sales === 0) continue;
-      const key = `${r.영업담당사번}||${r.영업조직팀}`;
-      const e = agg.get(key) || { org: r.영업조직팀, 사번: r.영업담당사번, 매출액: 0, 공헌이익: 0 };
-      e.매출액 += sales;
-      e.공헌이익 += contrib;
-      agg.set(key, e);
-    }
-    return Array.from(agg.values())
-      .map((e) => {
-        const org = (e.org || "").trim();
-        const person = (e.사번 || "").trim();
+  // ─── 기여도 분석 데이터 (filteredTeamContribution은 이미 사번별 합산됨) ──────────────────
+  const contribRanking = useMemo(() =>
+    [...filteredTeamContribution]
+      .filter((r) => (r.공헌이익?.실적 || 0) !== 0 || (r.매출액?.실적 || 0) !== 0)
+      .sort((a, b) => (b.공헌이익?.실적 || 0) - (a.공헌이익?.실적 || 0))
+      .map((r) => {
+        const org = (r.영업조직팀 || "").trim();
+        const person = (r.영업담당사번 || "").trim();
         return {
           name: person,
           displayName: truncateLabel(person ? `${org}_${person}` : org, 15),
-          org: e.org,
-          사번: e.사번,
-          공헌이익: e.공헌이익,
-          공헌이익율: e.매출액 !== 0 ? (e.공헌이익 / Math.abs(e.매출액)) * 100 : 0,
+          org: r.영업조직팀,
+          사번: r.영업담당사번,
+          공헌이익: r.공헌이익?.실적 ?? 0,
+          공헌이익율: r.공헌이익율?.실적 ?? 0,
         };
-      })
-      .sort((a, b) => b.공헌이익 - a.공헌이익);
-  }, [filteredTeamContribution]);
+      }),
+    [filteredTeamContribution]
+  );
 
   const contribByRate = useMemo(
     () => [...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율),

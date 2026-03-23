@@ -9,6 +9,7 @@ import {
   filterByMonth,
   filterOrgProfitLeafOnly,
   aggregateOrgProfit,
+  aggregateTeamContribution,
 } from "@/lib/utils";
 import type { ReceivableAgingRecord, InventoryMovementRecord } from "@/types";
 
@@ -142,7 +143,9 @@ export function useFilteredTeamContribution() {
 
   const filteredTeamContrib = useMemo(() => {
     const orgFiltered = filterByOrg(teamContribution, effectiveOrgNames, "영업조직팀");
-    return filterByMonth(orgFiltered, dateRange);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    // 월별 시트 concat으로 동일 (사번, 조직)이 중복되므로 합산
+    return aggregateTeamContribution(monthFiltered);
   }, [teamContribution, effectiveOrgNames, dateRange]);
 
   return { filteredTeamContrib, teamContribution };

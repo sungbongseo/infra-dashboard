@@ -1,6 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { OrgProfitRecord, PlanActualDiff, CustomerItemDetailRecord, OrgCustomerProfitRecord } from "@/types";
+import type { OrgProfitRecord, PlanActualDiff, CustomerItemDetailRecord, OrgCustomerProfitRecord, TeamContributionRecord } from "@/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -352,5 +352,70 @@ export function aggregateToCustomerLevel(
     r.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
   }
 
+  return results;
+}
+
+const TC_PAD_ZERO: PlanActualDiff = { 계획: 0, 실적: 0, 차이: 0 };
+
+/** 동일 (사번, 조직) 키의 TeamContributionRecord를 합산. 월별 시트 concat 중복 해소. */
+export function aggregateTeamContribution(data: TeamContributionRecord[]): TeamContributionRecord[] {
+  const map = new Map<string, TeamContributionRecord>();
+
+  for (const r of data) {
+    const key = `${r.영업담당사번}||${r.영업조직팀}`;
+    const e = map.get(key);
+    if (!e) {
+      // 첫 행: 복사 (month 필드 제거하여 합산 결과임을 표시)
+      map.set(key, { ...r, month: undefined });
+      continue;
+    }
+    // 금액 필드 합산 (비율 필드는 나중에 재계산)
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.판관변동_직접판매운반비 = addPAD(e.판관변동_직접판매운반비, r.판관변동_직접판매운반비);
+    e.판매관리비 = addPAD(e.판매관리비, r.판매관리비);
+    e.영업이익 = addPAD(e.영업이익, r.영업이익);
+    // 판관변동 9개
+    e.판관변동_노무비 = addPAD(e.판관변동_노무비, r.판관변동_노무비);
+    e.판관변동_복리후생비 = addPAD(e.판관변동_복리후생비, r.판관변동_복리후생비);
+    e.판관변동_소모품비 = addPAD(e.판관변동_소모품비, r.판관변동_소모품비);
+    e.판관변동_수도광열비 = addPAD(e.판관변동_수도광열비, r.판관변동_수도광열비);
+    e.판관변동_수선비 = addPAD(e.판관변동_수선비, r.판관변동_수선비);
+    e.판관변동_외주가공비 = addPAD(e.판관변동_외주가공비, r.판관변동_외주가공비);
+    e.판관변동_운반비 = addPAD(e.판관변동_운반비, r.판관변동_운반비);
+    e.판관변동_지급수수료 = addPAD(e.판관변동_지급수수료, r.판관변동_지급수수료);
+    e.판관변동_견본비 = addPAD(e.판관변동_견본비, r.판관변동_견본비);
+    // 판관고정 3개
+    e.판관고정_노무비 = addPAD(e.판관고정_노무비, r.판관고정_노무비);
+    e.판관고정_감가상각비 = addPAD(e.판관고정_감가상각비, r.판관고정_감가상각비);
+    e.판관고정_기타경비 = addPAD(e.판관고정_기타경비, r.판관고정_기타경비);
+    // 제조변동 14개
+    e.제조변동_원재료비 = addPAD(e.제조변동_원재료비, r.제조변동_원재료비);
+    e.제조변동_부재료비 = addPAD(e.제조변동_부재료비, r.제조변동_부재료비);
+    e.변동_상품매입 = addPAD(e.변동_상품매입, r.변동_상품매입);
+    e.제조변동_노무비 = addPAD(e.제조변동_노무비, r.제조변동_노무비);
+    e.제조변동_복리후생비 = addPAD(e.제조변동_복리후생비, r.제조변동_복리후생비);
+    e.제조변동_소모품비 = addPAD(e.제조변동_소모품비, r.제조변동_소모품비);
+    e.제조변동_수도광열비 = addPAD(e.제조변동_수도광열비, r.제조변동_수도광열비);
+    e.제조변동_수선비 = addPAD(e.제조변동_수선비, r.제조변동_수선비);
+    e.제조변동_연료비 = addPAD(e.제조변동_연료비, r.제조변동_연료비);
+    e.제조변동_외주가공비 = addPAD(e.제조변동_외주가공비, r.제조변동_외주가공비);
+    e.제조변동_운반비 = addPAD(e.제조변동_운반비, r.제조변동_운반비);
+    e.제조변동_전력비 = addPAD(e.제조변동_전력비, r.제조변동_전력비);
+    e.제조변동_견본비 = addPAD(e.제조변동_견본비, r.제조변동_견본비);
+    e.제조변동_지급수수료 = addPAD(e.제조변동_지급수수료, r.제조변동_지급수수료);
+    // 합계
+    e.변동비합계 = addPAD(e.변동비합계, r.변동비합계);
+    e.공헌이익 = addPAD(e.공헌이익, r.공헌이익);
+  }
+
+  // 비율 필드 재계산
+  const results = Array.from(map.values());
+  for (const r of results) {
+    r.매출총이익율 = calcRatioPAD(r.매출총이익, r.매출액);
+    r.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
+    r.공헌이익율 = calcRatioPAD(r.공헌이익, r.매출액);
+  }
   return results;
 }
