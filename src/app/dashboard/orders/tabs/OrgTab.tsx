@@ -18,7 +18,7 @@ import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/li
 
 interface OrgTabProps {
   orgOrders: { org: string; amount: number }[];
-  monthlyGap: { month: string; 수주: number; 매출: number; 갭: number; 전환율: number }[];
+  monthlyGap: { month: string; 수주: number; 매출: number; 갭: number; 매출전환율: number }[];
   isDateFiltered?: boolean;
 }
 
@@ -121,7 +121,7 @@ export function OrgTab({ orgOrders, monthlyGap, isDateFiltered }: OrgTabProps) {
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(value: any, name: any) =>
-                  name === "전환율" ? `${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}%` : formatCurrency(Number(value))
+                  name === "매출전환율" ? `${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}%` : formatCurrency(Number(value))
                 }
               />
               <Legend />
@@ -130,10 +130,10 @@ export function OrgTab({ orgOrders, monthlyGap, isDateFiltered }: OrgTabProps) {
               <Line
                 yAxisId="right"
                 type="monotone"
-                dataKey="전환율"
+                dataKey="매출전환율"
                 stroke={CHART_COLORS[4]}
                 strokeWidth={2}
-                name="전환율"
+                name="매출전환율"
                 dot={{ r: 3 }}
                 activeDot={{ r: 6, strokeWidth: 2 }}
                 {...ANIMATION_CONFIG}

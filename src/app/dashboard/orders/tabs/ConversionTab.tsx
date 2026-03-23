@@ -78,13 +78,13 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
-          title="수주 전환율"
+          title="수주완료율(건수기준)"
           value={summary.conversionRate}
           format="percent"
           icon={<CheckCircle className="h-5 w-5 text-green-600 dark:text-green-400" />}
-          formula="전환율(%) = 완료 건수 / 전체 수주 건수 × 100"
+          formula="수주완료율(%) = 완료 건수 / 전체 수주 건수 × 100"
           description={`전체 ${summary.totalOrders}건 중 ${summary.completed.count}건이 완료되었습니다. 완료 금액: ${formatCurrency(summary.completed.amount, true)}`}
-          benchmark="전환율 80% 이상이면 양호, 60% 미만이면 파이프라인 관리 점검 필요"
+          benchmark="수주완료율 80% 이상이면 양호, 60% 미만이면 파이프라인 관리 점검 필요"
           reason="수주가 실제 매출로 전환되는 비율을 추적하여 영업 효율성과 파이프라인 건전성을 평가합니다"
         />
         <KpiCard
@@ -165,14 +165,14 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
 
       {/* 월별 전환율 추세 */}
       <ChartCard
-        title="월별 수주 전환율 추세"
+        title="월별 수주완료율 추세"
         isEmpty={monthlyTrend.length === 0}
         dataSourceType="period"
         isDateFiltered={isDateFiltered}
         formula="월별 완료 건수/전체 건수 × 100, 삭제 건수/전체 건수 × 100"
-        description="월별로 수주 완료율과 취소율의 추이를 보여줍니다. 스택 바 차트로 상태별 건수를, 라인으로 전환율/취소율을 표시합니다."
-        benchmark="전환율이 지속 하락하면 수주 품질 또는 납기 관리 이슈 점검"
-        reason="월별 전환율 추이를 통해 특정 시점의 이상 변동(대량 취소, 전환 지연)을 감지하고 원인을 분석합니다"
+        description="월별로 수주 완료율과 취소율의 추이를 보여줍니다. 스택 바 차트로 상태별 건수를, 라인으로 완료율/취소율을 표시합니다."
+        benchmark="수주완료율이 지속 하락하면 수주 품질 또는 납기 관리 이슈 점검"
+        reason="월별 수주완료율 추이를 통해 특정 시점의 이상 변동(대량 취소, 전환 지연)을 감지하고 원인을 분석합니다"
       >
         <ChartContainer height="h-72 md:h-96">
           <ComposedChart data={monthlyTrend}>
@@ -190,7 +190,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
               {...TOOLTIP_STYLE}
               formatter={(v: any, name: any) => {
                 const n = String(name);
-                if (n === "전환율" || n === "취소율") return `${Number(v).toFixed(1)}%`;
+                if (n === "수주완료율" || n === "취소율") return `${Number(v).toFixed(1)}%`;
                 return `${Number(v).toLocaleString()}건`;
               }}
             />
@@ -198,7 +198,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
             <Bar yAxisId="left" dataKey="완료" stackId="status" fill={STATUS_COLORS.완료} {...ANIMATION_CONFIG} />
             <Bar yAxisId="left" dataKey="진행" stackId="status" fill={STATUS_COLORS.진행} {...ANIMATION_CONFIG} />
             <Bar yAxisId="left" dataKey="삭제" stackId="status" fill={STATUS_COLORS.삭제} radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG} />
-            <Line yAxisId="right" type="monotone" dataKey="전환율" stroke="hsl(145, 80%, 30%)" strokeWidth={2} dot={{ r: 3 }} />
+            <Line yAxisId="right" type="monotone" dataKey="전환율" stroke="hsl(145, 80%, 30%)" strokeWidth={2} dot={{ r: 3 }} name="수주완료율" />
             <Line yAxisId="right" type="monotone" dataKey="취소율" stroke="hsl(0, 80%, 45%)" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="5 5" />
           </ComposedChart>
         </ChartContainer>
@@ -207,14 +207,14 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* 조직별 전환율 비교 */}
         <ChartCard
-          title="조직별 전환율 비교"
+          title="조직별 수주완료율 비교"
           isEmpty={orgConversion.length === 0}
           dataSourceType="period"
           isDateFiltered={isDateFiltered}
           formula="조직별 완료 건수/전체 건수 × 100"
-          description="영업조직별 수주 전환율과 취소율을 비교합니다. 전환율이 높고 취소율이 낮은 조직이 수주 품질이 우수합니다."
-          benchmark="조직 간 전환율 편차가 20%p 이상이면 수주 프로세스 표준화 필요"
-          reason="조직 간 전환 성과 차이를 파악하여 우수 조직의 수주 관리 노하우를 전파하고, 부진 조직의 개선점을 도출합니다"
+          description="영업조직별 수주완료율과 취소율을 비교합니다. 완료율이 높고 취소율이 낮은 조직이 수주 품질이 우수합니다."
+          benchmark="조직 간 수주완료율 편차가 20%p 이상이면 수주 프로세스 표준화 필요"
+          reason="조직 간 수주완료 성과 차이를 파악하여 우수 조직의 수주 관리 노하우를 전파하고, 부진 조직의 개선점을 도출합니다"
         >
           <ChartContainer height="h-72 md:h-80">
             <BarChart data={orgConversion.slice(0, 10)} margin={{ top: 10, right: 20, left: 10, bottom: 40 }}>
@@ -229,7 +229,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.org}</p>
-                      <p className="text-green-600 dark:text-green-400">전환율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
+                      <p className="text-green-600 dark:text-green-400">수주완료율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
                       <p className="text-red-600 dark:text-red-400">취소율: {isFinite(d.cancellationRate) ? d.cancellationRate.toFixed(1) : "0.0"}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                       <p>건당 평균: {formatCurrency(d.avgOrderAmount, true)}</p>
@@ -238,22 +238,22 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                 }}
               />
               <Legend />
-              <Bar dataKey="conversionRate" name="전환율" fill={STATUS_COLORS.완료} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="conversionRate" name="수주완료율" fill={STATUS_COLORS.완료} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Bar dataKey="cancellationRate" name="취소율" fill={STATUS_COLORS.삭제} radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG} />
             </BarChart>
           </ChartContainer>
         </ChartCard>
 
-        {/* 통화별 전환율 */}
+        {/* 통화별 수주완료율 */}
         <ChartCard
-          title="통화별 전환율 (내수/수출)"
+          title="통화별 수주완료율 (내수/수출)"
           isEmpty={currencyConversion.length === 0}
           dataSourceType="period"
           isDateFiltered={isDateFiltered}
           formula="단가통화별 완료/삭제 비율 계산"
-          description="KRW(내수)와 외화(수출) 수주의 전환율·취소율을 비교합니다. 수출 수주는 리드타임이 길어 전환율이 다를 수 있습니다."
+          description="KRW(내수)와 외화(수출) 수주의 완료율·취소율을 비교합니다. 수출 수주는 리드타임이 길어 완료율이 다를 수 있습니다."
           benchmark="수출 수주 취소율이 내수 대비 2배 이상이면 수출 견적 프로세스 점검"
-          reason="내수/수출 채널별 전환 패턴 차이를 분석하여 채널별 맞춤 수주 관리 전략을 수립합니다"
+          reason="내수/수출 채널별 수주완료 패턴 차이를 분석하여 채널별 맞춤 수주 관리 전략을 수립합니다"
         >
           <ChartContainer height="h-72 md:h-80">
             <BarChart data={currencyConversion} margin={{ top: 10, right: 20, left: 10, bottom: 20 }}>
@@ -268,7 +268,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.currency}</p>
-                      <p className="text-green-600 dark:text-green-400">전환율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
+                      <p className="text-green-600 dark:text-green-400">수주완료율: {isFinite(d.conversionRate) ? d.conversionRate.toFixed(1) : "0.0"}%</p>
                       <p className="text-red-600 dark:text-red-400">취소율: {isFinite(d.cancellationRate) ? d.cancellationRate.toFixed(1) : "0.0"}%</p>
                       <p>총 {d.totalCount}건 ({formatCurrency(d.totalAmount, true)})</p>
                     </div>
@@ -276,7 +276,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
                 }}
               />
               <Legend />
-              <Bar dataKey="conversionRate" name="전환율" fill={STATUS_COLORS.완료} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+              <Bar dataKey="conversionRate" name="수주완료율" fill={STATUS_COLORS.완료} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Bar dataKey="cancellationRate" name="취소율" fill={STATUS_COLORS.삭제} radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG} />
             </BarChart>
           </ChartContainer>

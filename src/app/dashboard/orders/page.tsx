@@ -94,7 +94,7 @@ export default function OrdersAnalysisPage() {
       .map((d) => ({
         ...d,
         갭: d.수주 - d.매출,
-        전환율: d.수주 > 0 ? (d.매출 / d.수주) * 100 : 0,
+        매출전환율: d.수주 > 0 ? (d.매출 / d.수주) * 100 : 0,
       }));
   }, [filteredOrders, filteredSales]);
 
@@ -107,7 +107,8 @@ export default function OrdersAnalysisPage() {
       if (isNaN(orderDate.getTime()) || isNaN(deliveryDate.getTime())) continue;
       const days = Math.round((deliveryDate.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
       let bin = "";
-      if (days <= 7) bin = "~7일";
+      if (days < 0) bin = "음수(확인필요)";
+      else if (days <= 7) bin = "~7일";
       else if (days <= 14) bin = "~14일";
       else if (days <= 30) bin = "~30일";
       else if (days <= 60) bin = "~60일";
@@ -115,7 +116,7 @@ export default function OrdersAnalysisPage() {
       else bin = "90일+";
       bins.set(bin, (bins.get(bin) || 0) + 1);
     }
-    const order = ["~7일", "~14일", "~30일", "~60일", "~90일", "90일+"];
+    const order = ["음수(확인필요)", "~7일", "~14일", "~30일", "~60일", "~90일", "90일+"];
     return order.map((bin) => ({ bin, count: bins.get(bin) || 0 }));
   }, [filteredOrders]);
 
@@ -231,6 +232,7 @@ export default function OrdersAnalysisPage() {
               pipelineStages={pipelineStages}
               monthlyConversion={monthlyConversion}
               isDateFiltered={isDateFiltered}
+              isAgingBased={pipelineResult.isAgingBased}
             />
           </ErrorBoundary>
           </Suspense>

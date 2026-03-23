@@ -101,6 +101,12 @@ export function extractMonth(dateStr: string): string {
   if (!dateStr) return "";
   const d = String(dateStr).trim();
   if (d.includes("-")) return d.substring(0, 7);
+  if (d.includes(".")) {
+    const parts = d.split(".");
+    if (parts.length >= 2) {
+      return `${parts[0]}-${parts[1].padStart(2, "0")}`;
+    }
+  }
   if (d.includes("/")) {
     const parts = d.split("/");
     if (parts.length >= 2) {

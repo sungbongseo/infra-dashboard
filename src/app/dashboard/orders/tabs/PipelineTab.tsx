@@ -28,6 +28,7 @@ interface PipelineTabProps {
   pipelineStages: O2CPipelineResult["stages"];
   monthlyConversion: { month: string; 수주: number; 매출: number; 수금: number; 전환율: number; 수금율: number }[];
   isDateFiltered?: boolean;
+  isAgingBased?: boolean;
 }
 
 export function PipelineTab({
@@ -38,6 +39,7 @@ export function PipelineTab({
   pipelineStages,
   monthlyConversion,
   isDateFiltered,
+  isAgingBased,
 }: PipelineTabProps) {
   const funnelData = useMemo(() => {
     const stageColors = [CHART_COLORS[0], CHART_COLORS[1], CHART_COLORS[2], CHART_COLORS[4]];
@@ -88,7 +90,7 @@ export function PipelineTab({
           format="currency"
           icon={<AlertCircle className="h-5 w-5" />}
           formula="미수잔액(원) = 총 매출액 − 순수 수금액 (선수금 제외, 0 미만이면 0)"
-          description="매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다."
+          description={`매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다.${isAgingBased ? " (채권연령 데이터 기준)" : isDateFiltered ? " ⚠️ 기간 필터 적용 시 매출대비 추정치이며, 채권연령 데이터 업로드 시 정확한 값으로 대체됩니다." : ""}`}
           benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
           reason="미수잔액 규모를 모니터링하여 유동성 리스크를 관리하고, 수금 활동 강화 시점을 판단합니다."
         />

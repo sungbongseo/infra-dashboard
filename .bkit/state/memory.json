@@ -1,16 +1,18 @@
 {
-  "sessionCount": 48,
+  "sessionCount": 49,
   "lastSession": {
-    "startedAt": "2026-03-23T04:07:29.070Z",
+    "startedAt": "2026-03-23T05:24:53.444Z",
     "platform": "claude",
     "level": "Dynamic"
   },
   "pdca": {
-    "feature": "dashboard-improvement",
-    "phase": "completed",
+    "feature": "orders-accuracy-fix",
+    "phase": "archived",
     "matchRate": 100,
     "iterationCount": 0,
-    "startedAt": "2026-03-20T00:00:00.000Z",
-    "completedAt": "2026-03-20T03:00:00.000Z"
+    "startedAt": "2026-03-23T00:00:00.000Z",
+    "completedAt": "2026-03-23T12:00:00.000Z",
+    "archivedAt": "2026-03-23T12:30:00.000Z",
+    "archivedTo": "docs/archive/2026-03/orders-accuracy-fix/"
   }
 }

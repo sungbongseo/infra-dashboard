@@ -9,6 +9,7 @@
 | numerical-accuracy | Completed | 100% | 2026-03-19 |
 | dashboard-enhancement | Completed | 90% | 2026-03-23 |
 | data-accuracy-audit | Completed | 100% | 2026-03-23 |
+| orders-accuracy-fix | Completed | 100% | 2026-03-23 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -54,3 +55,10 @@
 - **Files**: 수정 10파일, ~160줄 (parser, utils, collectionDelay, breakeven, forecast, orgMapping, rfm, receivableDetail, kpi, page.tsx)
 - **Match Rate**: 100% (12/12)
 - **Documents**: data-accuracy-audit.analysis.md, data-accuracy-audit.report.md
+
+## orders-accuracy-fix
+- **Description**: 수주 분석 7탭 데이터 정확성 수정 — 리드타임 음수 분류, 전환율 용어 통일, 미수잔액 경고, extractMonth 점 구분자
+- **Phases**: P1(리드타임 HIGH), P2(전환율 라벨 MEDIUM), P3(미수잔액 경고 MEDIUM), P4(extractMonth LOW)
+- **Files**: 수정 5파일, ~35줄 (page.tsx, OrgTab.tsx, ConversionTab.tsx, PipelineTab.tsx, utils.ts)
+- **Match Rate**: 100% (4/4, False Positive 9건 제외)
+- **Documents**: orders-accuracy-fix.report.md
