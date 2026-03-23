@@ -217,25 +217,34 @@ export default function ProfitabilityPage() {
     [filteredOrgProfit]
   );
 
-  // ─── 기여도 분석 데이터 ──────────────────────────────
-  const contribRanking = useMemo(() =>
-    [...filteredTeamContribution]
-      .filter((r) => (r.공헌이익?.실적 || 0) !== 0 || (r.매출액?.실적 || 0) !== 0)
-      .sort((a, b) => (b.공헌이익?.실적 || 0) - (a.공헌이익?.실적 || 0))
-      .map((r) => {
-        const org = (r.영업조직팀 || "").trim();
-        const person = (r.영업담당사번 || "").trim();
+  // ─── 기여도 분석 데이터 (사번+조직 키로 월별 중복 합산) ──────────────────────────────
+  const contribRanking = useMemo(() => {
+    const agg = new Map<string, { org: string; 사번: string; 매출액: number; 공헌이익: number }>();
+    for (const r of filteredTeamContribution) {
+      const contrib = r.공헌이익?.실적 ?? 0;
+      const sales = r.매출액?.실적 ?? 0;
+      if (contrib === 0 && sales === 0) continue;
+      const key = `${r.영업담당사번}||${r.영업조직팀}`;
+      const e = agg.get(key) || { org: r.영업조직팀, 사번: r.영업담당사번, 매출액: 0, 공헌이익: 0 };
+      e.매출액 += sales;
+      e.공헌이익 += contrib;
+      agg.set(key, e);
+    }
+    return Array.from(agg.values())
+      .map((e) => {
+        const org = (e.org || "").trim();
+        const person = (e.사번 || "").trim();
         return {
           name: person,
           displayName: truncateLabel(person ? `${org}_${person}` : org, 15),
-          org: r.영업조직팀,
-          사번: r.영업담당사번,
-          공헌이익: r.공헌이익?.실적 ?? 0,
-          공헌이익율: r.공헌이익율?.실적 ?? 0,
+          org: e.org,
+          사번: e.사번,
+          공헌이익: e.공헌이익,
+          공헌이익율: e.매출액 !== 0 ? (e.공헌이익 / Math.abs(e.매출액)) * 100 : 0,
         };
-      }),
-    [filteredTeamContribution]
-  );
+      })
+      .sort((a, b) => b.공헌이익 - a.공헌이익);
+  }, [filteredTeamContribution]);
 
   const contribByRate = useMemo(
     () => [...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율),
