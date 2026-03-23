@@ -8,6 +8,7 @@
 | data-accuracy-fix | Completed | 100% | 2026-03-18 |
 | numerical-accuracy | Completed | 100% | 2026-03-19 |
 | dashboard-enhancement | Completed | 90% | 2026-03-23 |
+| data-accuracy-audit | Completed | 100% | 2026-03-23 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -46,3 +47,10 @@
 - **Files**: 1 NEW + 14 MODIFY = 15파일, +616/-237줄
 - **Match Rate**: 90% (P1-P3: 100%, P4 LOW 미진행)
 - **Documents**: dashboard-enhancement.plan.md, dashboard-enhancement.design.md, dashboard-enhancement.analysis.md, dashboard-enhancement.report.md
+
+## data-accuracy-audit
+- **Description**: 전체 탭 데이터 정확성 전수 감사 — 3개 병렬 에이전트 조사 후 12건 수정 (C4/H4/M4)
+- **Phases**: P1(파서 정밀화), P2(분석 모듈 4건), P3(매칭 개선), P4(UI 안내), P5(검증)
+- **Files**: 수정 10파일, ~160줄 (parser, utils, collectionDelay, breakeven, forecast, orgMapping, rfm, receivableDetail, kpi, page.tsx)
+- **Match Rate**: 100% (12/12)
+- **Documents**: data-accuracy-audit.analysis.md, data-accuracy-audit.report.md
