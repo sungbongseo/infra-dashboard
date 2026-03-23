@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   ComposedChart,
   Bar,
@@ -14,7 +15,7 @@ import { ShoppingCart, TrendingUp, Clock, Package } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
 interface StatusTabProps {
   totalOrders: number;
@@ -34,6 +35,35 @@ export function StatusTab({
   monthlyOrders,
   isDateFiltered,
 }: StatusTabProps) {
+  const pipelineInsight = useMemo(() => {
+    if (monthlyOrders.length === 0) return null;
+    const totalMonthlyAmount = monthlyOrders.reduce((s, m) => s + m.수주금액, 0);
+    const avgMonthlySales = totalMonthlyAmount / monthlyOrders.length;
+
+    // 수주잔고 소진율
+    const burnMonths = avgMonthlySales > 0 ? outstandingOrders / avgMonthlySales : 0;
+    const burnLabel = burnMonths < 3 ? "위험 — 신규 수주 확보 시급" : burnMonths < 6 ? "양호" : "풍부";
+
+    // 신규 수주 추이 (최근월 vs 전월)
+    let newOrderGrowth: number | null = null;
+    if (monthlyOrders.length >= 2) {
+      const latest = monthlyOrders[monthlyOrders.length - 1].수주금액;
+      const prev = monthlyOrders[monthlyOrders.length - 2].수주금액;
+      newOrderGrowth = prev > 0 ? ((latest - prev) / prev) * 100 : null;
+    }
+
+    return { burnMonths, burnLabel, newOrderGrowth };
+  }, [monthlyOrders, outstandingOrders]);
+
+  if (totalOrders === 0 && orderCount === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">수주 데이터를 업로드해 주세요 (수주 현황 파일)</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -78,6 +108,18 @@ export function StatusTab({
           reason="건수 추이로 영업 활동량의 변화를 감지하고, 건당 단가와 결합하여 수주 구조 변화를 분석합니다."
         />
       </div>
+
+      {pipelineInsight && outstandingOrders > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📊 파이프라인 건강도</h4>
+          <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+            <li>• 수주잔고 소진율: 현재 수주잔고 기준 약 {isFinite(pipelineInsight.burnMonths) ? pipelineInsight.burnMonths.toFixed(1) : "0"}개월분 — {pipelineInsight.burnLabel}</li>
+            {pipelineInsight.newOrderGrowth !== null && isFinite(pipelineInsight.newOrderGrowth) && (
+              <li>• 신규 수주: 전월 대비 {formatPercent(Math.abs(pipelineInsight.newOrderGrowth))} {pipelineInsight.newOrderGrowth >= 0 ? "증가" : "감소"}</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 수주 추이"

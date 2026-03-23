@@ -57,9 +57,9 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
 
   if (profitRiskData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground text-sm">
-        <Info className="h-8 w-8 mb-2" />
-        <p>수익성×리스크 매트릭스를 표시하려면 조직별 손익 데이터가 필요합니다.</p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">손익 데이터를 업로드해 주세요 (수익성 리스크 분석)</p>
       </div>
     );
   }
@@ -120,8 +120,8 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
                       <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                         <p className="font-semibold mb-1">{d.name}</p>
                         <p>영업이익율: {formatPercent(d.profitMargin)}</p>
-                        <p>리스크 점수: {d.riskScore.toFixed(1)}</p>
-                        <p className="text-xs text-muted-foreground">(3개월+ 장기미수 비율: {d.longTermRatio.toFixed(1)}%)</p>
+                        <p>리스크 점수: {isFinite(d.riskScore) ? d.riskScore.toFixed(1) : "0.0"}</p>
+                        <p className="text-xs text-muted-foreground">(3개월+ 장기미수 비율: {isFinite(d.longTermRatio) ? d.longTermRatio.toFixed(1) : "0.0"}%)</p>
                         <p>매출: {formatCurrency(d.sales, true)}</p>
                         <p>미수금: {formatCurrency(d.receivables, true)}</p>
                         <p className="mt-1 pt-1 border-t text-xs text-muted-foreground">

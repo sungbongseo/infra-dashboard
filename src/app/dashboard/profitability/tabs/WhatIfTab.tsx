@@ -59,18 +59,21 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
               <input type="range" min={-30} max={30} step={1} value={scenarioParams.salesChangePercent}
                 onChange={(e) => setScenarioParams(p => ({ ...p, salesChangePercent: Number(e.target.value) }))}
                 className="w-full accent-primary" />
+              <p className="text-xs text-muted-foreground">예: -10% = 주요 거래처 이탈 시, +15% = 신규 프로젝트 수주 시</p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium">원가율 변동: {scenarioParams.costRateChangePoints > 0 ? "+" : ""}{scenarioParams.costRateChangePoints}%p</label>
               <input type="range" min={-10} max={10} step={0.5} value={scenarioParams.costRateChangePoints}
                 onChange={(e) => setScenarioParams(p => ({ ...p, costRateChangePoints: Number(e.target.value) }))}
                 className="w-full accent-primary" />
+              <p className="text-xs text-muted-foreground">예: +5% = 원재료가 인상 시, -3% = 공급처 교체 시</p>
             </div>
             <div className="space-y-2">
               <label className="text-xs font-medium">판관비 변동: {scenarioParams.sgaChangePercent > 0 ? "+" : ""}{scenarioParams.sgaChangePercent}%</label>
               <input type="range" min={-30} max={30} step={1} value={scenarioParams.sgaChangePercent}
                 onChange={(e) => setScenarioParams(p => ({ ...p, sgaChangePercent: Number(e.target.value) }))}
                 className="w-full accent-primary" />
+              <p className="text-xs text-muted-foreground">예: +10% = 인력 증원 시, -5% = 비용 절감 시</p>
             </div>
           </div>
         </CardContent>
@@ -106,8 +109,8 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
               <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="paramValue" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v}%`} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "영업이익", angle: -90, position: "insideLeft", style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" } }} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} label={{ value: "영업이익율(%)", angle: 90, position: "insideRight", style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" } }} />
-              <RechartsTooltip formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} tickFormatter={(v) => `${isFinite(v) ? v.toFixed(0) : "0"}%`} label={{ value: "영업이익율(%)", angle: 90, position: "insideRight", style: { fontSize: 11, fill: "hsl(var(--muted-foreground))" } }} />
+              <RechartsTooltip formatter={(v: any, name: any) => name === "영업이익율(%)" ? `${isFinite(Number(v)) ? Number(v).toFixed(1) : "0.0"}%` : formatCurrency(Number(v))} {...TOOLTIP_STYLE} />
               <Legend />
               <Bar dataKey="operatingProfit" name="영업이익" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               <Line type="monotone" dataKey="operatingMargin" name="영업이익율(%)" stroke={CHART_COLORS[3]} strokeWidth={2} yAxisId="right" activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />

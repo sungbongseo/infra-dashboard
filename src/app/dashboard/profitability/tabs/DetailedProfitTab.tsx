@@ -70,8 +70,8 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
   if (data.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <BarChart3 className="h-12 w-12 mb-4 opacity-40" />
-        <p className="text-sm">거래처별 품목별 손익(100) 데이터를 업로드하면 상세 수익 분석을 확인할 수 있습니다.</p>
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">거래처별 품목별 손익 데이터를 업로드해 주세요 (100 파일)</p>
       </div>
     );
   }

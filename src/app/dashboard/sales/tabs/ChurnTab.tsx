@@ -105,6 +105,10 @@ export function ChurnTab({ filteredSales, isDateFiltered }: ChurnTabProps) {
         <p>통계적 이탈 예측이 아닌, 최근 거래 빈도·금액 변화 기반의 <strong>활동 감소 거래처 식별</strong>입니다.
         B2B 인프라 사업은 프로젝트 단위 거래(6~12개월 주기)가 일반적이므로, 활동 감소가 반드시 이탈을 의미하지는 않습니다.</p>
       </div>
+      {/* B2B 이탈 판정 기준 안내 */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-200">
+        B2B 건자재 특성상 프로젝트 단위 발주로 장기 비거래가 정상일 수 있습니다. 이탈 판정 기준: 18개월 이상 비거래.
+      </div>
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard

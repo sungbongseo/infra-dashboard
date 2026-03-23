@@ -223,7 +223,7 @@ export default function SalesAnalysisPage() {
           {visibleTabs.has("rfm") && <TabsTrigger value="rfm">RFM</TabsTrigger>}
           {visibleTabs.has("clv") && <TabsTrigger value="clv">CLV</TabsTrigger>}
           {visibleTabs.has("migration") && <TabsTrigger value="migration">거래처 이동</TabsTrigger>}
-          {visibleTabs.has("cohort") && <TabsTrigger value="cohort">코호트</TabsTrigger>}
+          {visibleTabs.has("cohort") && <TabsTrigger value="cohort">신규거래처 재거래율</TabsTrigger>}
           {visibleTabs.has("fx") && <TabsTrigger value="fx">FX</TabsTrigger>}
           {visibleTabs.has("anomaly") && <TabsTrigger value="anomaly">이상치</TabsTrigger>}
           {visibleTabs.has("activity") && <TabsTrigger value="activity">거래 활동</TabsTrigger>}

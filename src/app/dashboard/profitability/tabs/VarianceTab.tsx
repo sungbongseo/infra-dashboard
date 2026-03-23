@@ -16,14 +16,14 @@ import type { PlanDataQuality, MarginDriftResult, OrgGapContribution } from "@/l
 // ── Interfaces ──────────────────────────────────────────────
 
 interface PlanSummary {
-  salesAchievement: number;
+  salesAchievement: number | null;
   salesGap: number;
   totalSalesPlan: number;
   totalSalesActual: number;
-  gpAchievement: number;
+  gpAchievement: number | null;
   totalGPPlan: number;
   totalGPActual: number;
-  opAchievement: number;
+  opAchievement: number | null;
   totalOPPlan: number;
   totalOPActual: number;
   marginDrift: number;
@@ -38,10 +38,10 @@ interface OrgAchievementEntry {
   org: string;
   salesPlan: number;
   salesActual: number;
-  salesAchievement: number;
+  salesAchievement: number | null;
   salesGap: number;
-  gpAchievement: number;
-  opAchievement: number;
+  gpAchievement: number | null;
+  opAchievement: number | null;
   plannedGPRate: number;
   actualGPRate: number;
 }
@@ -91,10 +91,10 @@ export function VarianceTab({
         조직: o.org,
         매출계획: o.salesPlan,
         매출실적: o.salesActual,
-        "매출달성율(%)": isFinite(o.salesAchievement) ? Number(o.salesAchievement.toFixed(1)) : 0,
+        "매출달성율(%)": o.salesAchievement !== null && isFinite(o.salesAchievement) ? Number(o.salesAchievement.toFixed(1)) : 0,
         매출차이: o.salesGap,
-        "GP달성율(%)": isFinite(o.gpAchievement) ? Number(o.gpAchievement.toFixed(1)) : 0,
-        "OP달성율(%)": isFinite(o.opAchievement) ? Number(o.opAchievement.toFixed(1)) : 0,
+        "GP달성율(%)": o.gpAchievement !== null && isFinite(o.gpAchievement) ? Number(o.gpAchievement.toFixed(1)) : 0,
+        "OP달성율(%)": o.opAchievement !== null && isFinite(o.opAchievement) ? Number(o.opAchievement.toFixed(1)) : 0,
         "계획이익율(%)": isFinite(o.plannedGPRate) ? Number(o.plannedGPRate.toFixed(1)) : 0,
         "실적이익율(%)": isFinite(o.actualGPRate) ? Number(o.actualGPRate.toFixed(1)) : 0,
       })),
@@ -141,6 +141,33 @@ export function VarianceTab({
         </div>
       )}
 
+      {/* 계획 달성 차이 해석 가이드 */}
+      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+        <p className="font-medium">차이 분석 해석 가이드</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-muted-foreground">
+          <div>
+            <span className="font-medium text-foreground">가격 차이 음(−)</span>
+            <p>계획 대비 낮은 단가로 판매 → 단가 정책/할인 관리 검토</p>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">가격 차이 양(+)</span>
+            <p>계획 대비 높은 단가 실현 → 프리미엄 전략 유효</p>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">수량 차이 양(+)</span>
+            <p>계획 이상 판매 → 생산/공급 캐파 확인 필요</p>
+          </div>
+          <div>
+            <span className="font-medium text-foreground">수량 차이 음(−)</span>
+            <p>계획 미달 판매 → 영업 활동 강화 필요</p>
+          </div>
+          <div className="md:col-span-2 lg:col-span-1">
+            <span className="font-medium text-foreground">믹스 차이</span>
+            <p>고마진 제품 비중 변화 → 제품 포트폴리오 전략 검토</p>
+          </div>
+        </div>
+      </div>
+
       {/* 2-D: 달성율 게이지 3개 (F1 해결) */}
       {planQuality.hasMeaningfulPlan && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -149,14 +176,14 @@ export function VarianceTab({
             { label: "매출총이익 달성", pct: planSummary.gpAchievement, plan: planSummary.totalGPPlan, actual: planSummary.totalGPActual, gap: planSummary.totalGPActual - planSummary.totalGPPlan },
             { label: "영업이익 달성", pct: planSummary.opAchievement, plan: planSummary.totalOPPlan, actual: planSummary.totalOPActual, gap: planSummary.totalOPActual - planSummary.totalOPPlan },
           ] as const).map((item) => {
-            const clampedPct = Math.min(Math.max(isFinite(item.pct) ? item.pct : 0, 0), 150);
-            const displayPct = isFinite(item.pct) ? item.pct : 0;
+            const clampedPct = Math.min(Math.max(item.pct !== null && isFinite(item.pct) ? item.pct : 0, 0), 150);
+            const displayPct = item.pct !== null && isFinite(item.pct) ? item.pct : 0;
             return (
               <div key={item.label} className={`rounded-lg p-4 ${gaugeBgColor(displayPct)}`}>
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">{item.label}</span>
-                  <span className={`text-lg font-bold ${displayPct >= 100 ? "text-emerald-600 dark:text-emerald-400" : displayPct >= 80 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
-                    {displayPct.toFixed(1)}%
+                  <span className={`text-lg font-bold ${item.pct === null ? "text-gray-400" : displayPct >= 100 ? "text-emerald-600 dark:text-emerald-400" : displayPct >= 80 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
+                    {item.pct === null ? "계획없음" : `${displayPct.toFixed(1)}%`}
                   </span>
                 </div>
                 <Progress
@@ -180,7 +207,7 @@ export function VarianceTab({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <KpiCard
           title="매출 달성율"
-          value={planSummary.salesAchievement}
+          value={planSummary.salesAchievement ?? 0}
           format="percent"
           icon={<Target className="h-5 w-5" />}
           formula="매출 달성율 = 매출액 실적 ÷ 매출액 계획 × 100"
@@ -200,7 +227,7 @@ export function VarianceTab({
         />
         <KpiCard
           title="매출총이익 달성율"
-          value={planSummary.gpAchievement}
+          value={planSummary.gpAchievement ?? 0}
           format="percent"
           formula="매출총이익 달성율 = 매출총이익 실적 ÷ 매출총이익 계획 × 100"
           description={`계획 매출총이익 ${formatCurrency(planSummary.totalGPPlan, true)} 대비 실적 ${formatCurrency(planSummary.totalGPActual, true)}의 달성율입니다.`}
@@ -219,7 +246,7 @@ export function VarianceTab({
         />
         <KpiCard
           title="영업이익 달성율"
-          value={planSummary.opAchievement}
+          value={planSummary.opAchievement ?? 0}
           format="percent"
           icon={<BarChart3 className="h-5 w-5" />}
           formula="영업이익 달성율 = 영업이익 실적 ÷ 영업이익 계획 × 100"
@@ -307,9 +334,9 @@ export function VarianceTab({
                 return (
                   <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                     <p className="font-semibold mb-1">{d.org}</p>
-                    <p>매출 달성율: {isFinite(d.salesAchievement) ? d.salesAchievement.toFixed(1) : "0.0"}%</p>
-                    <p>GP 달성율: {isFinite(d.gpAchievement) ? d.gpAchievement.toFixed(1) : "0.0"}%</p>
-                    <p>OP 달성율: {isFinite(d.opAchievement) ? d.opAchievement.toFixed(1) : "0.0"}%</p>
+                    <p>매출 달성율: {d.salesAchievement !== null && isFinite(d.salesAchievement) ? d.salesAchievement.toFixed(1) : "계획없음"}%</p>
+                    <p>GP 달성율: {d.gpAchievement !== null && isFinite(d.gpAchievement) ? d.gpAchievement.toFixed(1) : "계획없음"}%</p>
+                    <p>OP 달성율: {d.opAchievement !== null && isFinite(d.opAchievement) ? d.opAchievement.toFixed(1) : "계획없음"}%</p>
                     <p className="text-xs text-muted-foreground mt-1">계획: {formatCurrency(d.salesPlan, true)} / 실적: {formatCurrency(d.salesActual, true)}</p>
                   </div>
                 );

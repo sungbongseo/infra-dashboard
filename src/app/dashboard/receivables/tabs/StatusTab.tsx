@@ -52,7 +52,7 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
     <>
       {(summary.bucketDiscrepancy ?? 0) > 0 && (
         <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" /> Aging 버킷 합계 {summary.bucketDiscrepancy!.toFixed(1)}% 불일치
+          <AlertTriangle className="h-3 w-3" /> Aging 버킷 합계 {isFinite(summary.bucketDiscrepancy!) ? summary.bucketDiscrepancy!.toFixed(1) : "0.0"}% 불일치
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

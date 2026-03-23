@@ -59,14 +59,9 @@ export function ProductTab({
 }: ProductTabProps) {
   if (!hasData) {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/10 p-12 text-center">
-        <Package className="h-12 w-12 text-muted-foreground/50" />
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold">수익성 분석 데이터 없음</h3>
-          <p className="text-xs text-muted-foreground">
-            손익분석 파일을 업로드하면 품목별/거래처별 수익성 분석을 확인할 수 있습니다.
-          </p>
-        </div>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">수익성 분석 데이터를 업로드해 주세요</p>
       </div>
     );
   }

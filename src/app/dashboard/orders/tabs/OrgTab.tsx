@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -13,7 +14,7 @@ import {
 } from "recharts";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 
 interface OrgTabProps {
   orgOrders: { org: string; amount: number }[];
@@ -22,8 +23,50 @@ interface OrgTabProps {
 }
 
 export function OrgTab({ orgOrders, monthlyGap, isDateFiltered }: OrgTabProps) {
+  const orgInsight = useMemo(() => {
+    if (orgOrders.length === 0) return null;
+    const totalAmount = orgOrders.reduce((s, o) => s + o.amount, 0);
+    if (totalAmount <= 0) return null;
+
+    // 평균 수주 단가 (조직당 평균)
+    const avgPerOrg = totalAmount / orgOrders.length;
+
+    // 대형 수주 집중도: 상위 10% 조직이 전체의 몇%
+    const sorted = [...orgOrders].sort((a, b) => b.amount - a.amount);
+    const top10PctCount = Math.max(1, Math.ceil(sorted.length * 0.1));
+    const top10PctAmount = sorted.slice(0, top10PctCount).reduce((s, o) => s + o.amount, 0);
+    const concentrationPct = (top10PctAmount / totalAmount) * 100;
+
+    // 최대 수주 조직
+    const topOrg = sorted[0];
+
+    return { avgPerOrg, concentrationPct, topOrg, top10PctCount };
+  }, [orgOrders]);
+
+  if (orgOrders.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">수주 데이터를 업로드해 주세요</p>
+      </div>
+    );
+  }
+
   return (
     <>
+      {orgInsight && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📊 조직별 수주 품질</h4>
+          <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+            <li>• 조직당 평균 수주액: {formatCurrency(orgInsight.avgPerOrg)}</li>
+            <li>• 대형 수주 집중도: 상위 {orgInsight.top10PctCount}개 조직이 전체의 {formatPercent(orgInsight.concentrationPct)} 차지</li>
+            {orgInsight.topOrg && (
+              <li>• 최대 수주 조직: {orgInsight.topOrg.org} ({formatCurrency(orgInsight.topOrg.amount)})</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="조직별 수주 비중"
         formula="영업조직별 장부금액 합계를 구한 뒤 금액 순으로 정렬"
@@ -73,12 +116,12 @@ export function OrgTab({ orgOrders, monthlyGap, isDateFiltered }: OrgTabProps) {
                 yAxisId="right"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${v.toFixed(0)}%`}
+                tickFormatter={(v) => `${isFinite(v) ? v.toFixed(0) : "0"}%`}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(value: any, name: any) =>
-                  name === "전환율" ? `${Number(value).toFixed(1)}%` : formatCurrency(Number(value))
+                  name === "전환율" ? `${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}%` : formatCurrency(Number(value))
                 }
               />
               <Legend />

@@ -67,8 +67,9 @@ export function Customer360Tab({
 
   if (customerNames.length === 0) {
     return (
-      <div className="text-center py-12 text-muted-foreground">
-        거래처 데이터가 없습니다. 매출 파일을 업로드해 주세요.
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">거래처 데이터가 없습니다. 매출/손익 데이터를 업로드해 주세요.</p>
       </div>
     );
   }

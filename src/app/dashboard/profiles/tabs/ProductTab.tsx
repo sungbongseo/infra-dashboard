@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
@@ -5,7 +6,7 @@ import {
   Tooltip as RechartsTooltip, Cell,
 } from "recharts";
 import { ChartContainer } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import type { RepProductPortfolio } from "@/lib/analysis/profiling";
 
@@ -18,22 +19,36 @@ interface ProductTabProps {
 }
 
 export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFiltered }: ProductTabProps) {
-  if (!hasCustomerItemDetail) {
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          거래처별 품목별 손익(100) 데이터가 업로드되지 않아 제품 포트폴리오 분석을 수행할 수 없습니다.
-        </p>
-      </div>
-    );
-  }
+  const marginInsight = useMemo(() => {
+    if (!productPortfolio || productPortfolio.productMix.length === 0) return null;
+    const mix = productPortfolio.productMix;
+    const avgMargin = productPortfolio.avgMarginByProduct;
+    if (!isFinite(avgMargin) || avgMargin === 0) return null;
 
-  if (!productPortfolio) {
+    const totalSales = mix.reduce((s, p) => s + p.salesAmount, 0);
+    if (totalSales <= 0) return null;
+
+    const highMarginThreshold = avgMargin * 1.2;
+    const lowMarginThreshold = avgMargin * 0.8;
+
+    const highMarginSales = mix
+      .filter((p) => isFinite(p.grossMarginRate) && p.grossMarginRate > highMarginThreshold)
+      .reduce((s, p) => s + p.salesAmount, 0);
+    const lowMarginSales = mix
+      .filter((p) => isFinite(p.grossMarginRate) && p.grossMarginRate < lowMarginThreshold)
+      .reduce((s, p) => s + p.salesAmount, 0);
+
+    const highMarginPct = (highMarginSales / totalSales) * 100;
+    const lowMarginPct = (lowMarginSales / totalSales) * 100;
+
+    return { highMarginPct, lowMarginPct };
+  }, [productPortfolio]);
+
+  if (!hasCustomerItemDetail || !productPortfolio) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          선택된 영업사원의 품목 데이터가 없습니다.
-        </p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">제품 포트폴리오 데이터가 없습니다</p>
       </div>
     );
   }
@@ -78,6 +93,22 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
           reason="주력 품목을 파악하여 수급 리스크를 관리하고, 대체 품목 육성 전략을 수립합니다."
         />
       </div>
+
+      {marginInsight && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📊 마진 분석</h4>
+          <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+            <li>• 고마진 품목 비중: {formatPercent(marginInsight.highMarginPct)} (평균 마진율의 1.2배 초과 품목)</li>
+            <li>• 저마진 품목 비중: {formatPercent(marginInsight.lowMarginPct)} (평균 마진율의 0.8배 미만 품목)
+              {marginInsight.lowMarginPct > 50 && (
+                <span className="ml-1 text-amber-700 dark:text-amber-400 font-medium">
+                  — 저마진 품목 의존도 높음, 품목 포트폴리오 다변화 필요
+                </span>
+              )}
+            </li>
+          </ul>
+        </div>
+      )}
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="품목별 매출 비중 (Top 10)"

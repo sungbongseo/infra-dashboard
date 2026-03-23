@@ -95,20 +95,21 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
     const signals: string[] = [];
     let score = 0;
 
-    // Recency signal (0-40 points) — B2B 인프라 사업 기준
-    // 프로젝트 사이클 6-12개월이 일반적이므로 임계값 상향 조정
-    if (monthsSinceLast >= 12) {
+    // Recency signal (0-40 points) — B2B 건자재/인프라 사업 기준
+    // 프로젝트 단위 발주(수주→납품→검수)로 6~18개월 간격 거래가 정상적이므로
+    // 이탈 판정 임계값을 일반 B2C(3~6개월) 대비 대폭 상향 조정
+    if (monthsSinceLast >= 18) {
       score += 40;
-      signals.push("12개월 이상 미거래");
-    } else if (monthsSinceLast >= 9) {
+      signals.push("18개월 이상 미거래");
+    } else if (monthsSinceLast >= 12) {
       score += 30;
+      signals.push("12~17개월 미거래");
+    } else if (monthsSinceLast >= 9) {
+      score += 20;
       signals.push("9~11개월 미거래");
     } else if (monthsSinceLast >= 6) {
-      score += 20;
-      signals.push("6~8개월 미거래");
-    } else if (monthsSinceLast >= 3) {
       score += 10;
-      signals.push("3~5개월 미거래");
+      signals.push("6~8개월 미거래");
     }
 
     // Frequency signal (0-30 points)

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,12 +17,42 @@ interface TrendTabProps {
 }
 
 export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
+  const trendInsight = useMemo(() => {
+    if (!repTrend || repTrend.monthlyData.length < 2) return null;
+    const salesArr = repTrend.monthlyData.map((m) => m.sales);
+    const totalAvg = salesArr.reduce((s, v) => s + v, 0) / salesArr.length;
+
+    // 최근 3개월 이동평균
+    const recent3 = salesArr.slice(-Math.min(3, salesArr.length));
+    const recent3Avg = recent3.reduce((s, v) => s + v, 0) / recent3.length;
+
+    // 트렌드 판정
+    let trendLabel: string;
+    let trendColor: string;
+    if (recent3Avg > totalAvg * 1.05) {
+      trendLabel = "상승 추세";
+      trendColor = "text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-900/40";
+    } else if (recent3Avg < totalAvg * 0.95) {
+      trendLabel = "하락 추세";
+      trendColor = "text-red-700 dark:text-red-400 bg-red-100 dark:bg-red-900/40";
+    } else {
+      trendLabel = "정체";
+      trendColor = "text-gray-700 dark:text-gray-400 bg-gray-100 dark:bg-gray-800/40";
+    }
+
+    // 변동계수 (CV)
+    const variance = salesArr.reduce((s, v) => s + (v - totalAvg) ** 2, 0) / salesArr.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = totalAvg > 0 ? stdDev / totalAvg : 0;
+
+    return { recent3Avg, totalAvg, trendLabel, trendColor, cv };
+  }, [repTrend]);
+
   if (!repTrend) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          선택된 영업사원의 거래 이력이 충분하지 않아 트렌드를 분석할 수 없습니다.
-        </p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">실적 트렌드 데이터가 없습니다</p>
       </div>
     );
   }
@@ -66,6 +97,30 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
           </CardContent>
         </Card>
       </div>
+
+      {trendInsight && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📊 트렌드 방향 신호</h4>
+          <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+            <li className="flex items-center gap-2">
+              • 매출 추세:
+              <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${trendInsight.trendColor}`}>
+                {trendInsight.trendLabel}
+              </span>
+              <span className="text-xs text-blue-600 dark:text-blue-300">
+                (최근 3개월 평균 {formatCurrency(trendInsight.recent3Avg)} vs 전체 평균 {formatCurrency(trendInsight.totalAvg)})
+              </span>
+            </li>
+            <li>• 변동계수(CV): {isFinite(trendInsight.cv) ? trendInsight.cv.toFixed(2) : "0.00"}
+              {trendInsight.cv > 0.3 && (
+                <span className="ml-2 text-amber-700 dark:text-amber-400 font-medium">
+                  — 변동성 높음 (CV {'>'} 0.3)
+                </span>
+              )}
+            </li>
+          </ul>
+        </div>
+      )}
 
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 매출/수주/수금 추이"

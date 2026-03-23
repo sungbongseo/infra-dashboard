@@ -144,7 +144,7 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
     const exportPct = (salesByType.exported / total) * 100;
     const topAccounts = accountBreakdown
       .slice(0, 3)
-      .map((a) => `${a.accountType} ${((a.amount / total) * 100).toFixed(1)}%`);
+      .map((a) => { const pct = (a.amount / total) * 100; return `${a.accountType} ${isFinite(pct) ? pct.toFixed(1) : "0.0"}%`; });
     return { domesticPct, exportPct, topAccounts };
   }, [salesByType, accountBreakdown]);
 
@@ -156,7 +156,7 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
         <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
           <p className="font-medium">매출 유형 요약</p>
           <p className="text-muted-foreground">
-            내수 {typeInsight.domesticPct.toFixed(1)}% / 수출 {typeInsight.exportPct.toFixed(1)}%
+            내수 {isFinite(typeInsight.domesticPct) ? typeInsight.domesticPct.toFixed(1) : "0.0"}% / 수출 {isFinite(typeInsight.exportPct) ? typeInsight.exportPct.toFixed(1) : "0.0"}%
             {typeInsight.domesticPct >= 80 && " — 내수 편중이 높아 시장 다변화를 검토하세요."}
             {typeInsight.exportPct >= 80 && " — 수출 편중이 높아 환율 리스크 관리가 중요합니다."}
             {typeInsight.topAccounts.length > 0 && ` | 계정구분: ${typeInsight.topAccounts.join(", ")}`}
@@ -325,7 +325,7 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
             <XAxis
               type="number"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v: any) => `${isFinite(Number(v)) ? Number(v).toFixed(0) : "0"}%`}
               domain={[0, "auto"]}
             />
             <YAxis
@@ -337,7 +337,7 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => [
-                `${Number(value).toFixed(1)}%`,
+                `${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}%`,
                 String(name),
               ]}
             />
@@ -352,7 +352,7 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
               <LabelList
                 dataKey="merchandiseDependency"
                 position="right"
-                formatter={(v: any) => `${Number(v).toFixed(1)}%`}
+                formatter={(v: any) => `${isFinite(Number(v)) ? Number(v).toFixed(1) : "0.0"}%`}
                 style={{ fontSize: 10, fill: "hsl(var(--foreground))" }}
               />
             </Bar>

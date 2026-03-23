@@ -22,6 +22,15 @@ interface RankingTabProps {
 }
 
 export function RankingTab({ selected, rankingData, customerPieData, rankFormulaText, isDateFiltered }: RankingTabProps) {
+  if (rankingData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">영업사원 순위 데이터가 없습니다</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}

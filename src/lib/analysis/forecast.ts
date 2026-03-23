@@ -13,6 +13,8 @@ export interface ForecastPoint {
   lowerBound?: number;  // -1 std dev
 }
 
+export type ForecastConfidence = "insufficient" | "low" | "normal";
+
 export interface ForecastStats {
   slope: number;
   intercept: number;
@@ -20,6 +22,7 @@ export interface ForecastStats {
   trend: "up" | "down" | "flat";
   trendSeverity?: "mild" | "moderate" | "severe"; // |avgGrowthRate| >= 30% severe, >= 10% moderate, < 10% mild
   avgGrowthRate: number; // MoM average growth %
+  confidence: ForecastConfidence; // data sufficiency: <6 insufficient, 6-11 low, 12+ normal (R²<0.3 forces low)
 }
 
 // ─── Monthly totals ──────────────────────────────────────────
@@ -195,6 +198,7 @@ export function calcSalesForecast(
     r2: 0,
     trend: "flat",
     avgGrowthRate: 0,
+    confidence: "insufficient",
   };
 
   if (sales.length === 0) {
@@ -277,6 +281,21 @@ export function calcSalesForecast(
   const trendSeverity: "mild" | "moderate" | "severe" =
     absgr >= 30 ? "severe" : absgr >= 10 ? "moderate" : "mild";
 
+  // 9. Determine forecast confidence based on data point count and R²
+  const dataPointCount = amounts.length;
+  let confidence: ForecastConfidence;
+  if (dataPointCount < 6) {
+    confidence = "insufficient";
+  } else if (dataPointCount < 12) {
+    confidence = "low";
+  } else {
+    confidence = "normal";
+  }
+  // R² < 0.3이면 회귀 부적합 → confidence를 "low"로 강제 (insufficient는 유지)
+  if (r2 < 0.3 && confidence === "normal") {
+    confidence = "low";
+  }
+
   const stats: ForecastStats = {
     slope,
     intercept,
@@ -284,6 +303,7 @@ export function calcSalesForecast(
     trend,
     trendSeverity: trend === "flat" ? undefined : trendSeverity,
     avgGrowthRate,
+    confidence,
   };
 
   return { points, stats };

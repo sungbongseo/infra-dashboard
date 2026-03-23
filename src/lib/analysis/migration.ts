@@ -115,6 +115,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
   if (!sales || sales.length === 0) return emptyResult;
 
   // Step 1: Group sales by month, then aggregate by customer (매출처)
+  // 음수 매출(반품)은 등급 산정에서 제외하고 별도 집계하지 않음
   // monthCustomerSales: Map<month, Map<customer, totalSales>>
   const monthCustomerSales = new Map<string, Map<string, number>>();
 
@@ -125,13 +126,17 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
     const customer = record.매출처 || "";
     if (!customer) continue;
 
+    // 음수 매출(반품) 행은 등급 산정에서 제외
+    const amount = record.장부금액 || 0;
+    if (amount < 0) continue;
+
     if (!monthCustomerSales.has(month)) {
       monthCustomerSales.set(month, new Map<string, number>());
     }
 
     const customerMap = monthCustomerSales.get(month)!;
     const currentTotal = customerMap.get(customer) || 0;
-    customerMap.set(customer, currentTotal + (record.장부금액 || 0));
+    customerMap.set(customer, currentTotal + amount);
   }
 
   // Get sorted months
@@ -139,6 +144,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
   if (months.length === 0) return emptyResult;
 
   // Step 2: Calculate dynamic thresholds from all positive customer-month amounts
+  // percentile 경계: 85th/60th/30th (건자재 B2B 거래 편중 반영)
   const allPositiveAmounts: number[] = [];
   for (const [, customerMap] of Array.from(monthCustomerSales.entries())) {
     for (const [, amount] of Array.from(customerMap.entries())) {
@@ -150,9 +156,9 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
 
   allPositiveAmounts.sort((a, b) => a - b);
 
-  const thresholdA = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 80) : 0;
+  const thresholdA = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 85) : 0;
   const thresholdB = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 60) : 0;
-  const thresholdC = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 40) : 0;
+  const thresholdC = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 30) : 0;
 
   const thresholds: [number, number, number] = [thresholdA, thresholdB, thresholdC];
 
@@ -165,6 +171,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
   }
 
   // Step 3: Assign grades per customer per month
+  // B2B 보정: "연속 3개월 이상 거래 없음"만 비활성(N) 처리 (단월 공백 무시)
   // monthGrades: Map<month, Map<customer, grade>>
   const monthGrades = new Map<string, Map<string, CustomerGrade>>();
 
@@ -178,6 +185,29 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
     }
 
     monthGrades.set(month, gradeMap);
+  }
+
+  // B2B 보정: 연속 3개월 미만의 거래 공백은 N이 아닌 이전 등급 유지
+  // 연속 3개월 이상 거래 없을 때만 N으로 전환
+  for (const customer of Array.from(allCustomers)) {
+    let consecutiveZero = 0;
+    let lastActiveGrade: CustomerGrade = "N";
+
+    for (let i = 0; i < months.length; i++) {
+      const gradeMap = monthGrades.get(months[i])!;
+      const grade = gradeMap.get(customer) || "N";
+
+      if (grade === "N") {
+        consecutiveZero++;
+        // 연속 공백이 3개월 미만이고 이전에 활성 거래가 있었으면 이전 등급 유지
+        if (consecutiveZero < 3 && lastActiveGrade !== "N") {
+          gradeMap.set(customer, lastActiveGrade);
+        }
+      } else {
+        consecutiveZero = 0;
+        lastActiveGrade = grade;
+      }
+    }
   }
 
   // Steps 4-5: Build migration matrices and summaries for consecutive months
@@ -289,7 +319,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
 export function calcGradeDistribution(sales: SalesRecord[]): GradeDistributionEntry[] {
   if (!sales || sales.length === 0) return [];
 
-  // Group sales by month, then aggregate by customer
+  // Group sales by month, then aggregate by customer (음수 매출 제외)
   const monthCustomerSales = new Map<string, Map<string, number>>();
 
   for (const record of sales) {
@@ -299,16 +329,19 @@ export function calcGradeDistribution(sales: SalesRecord[]): GradeDistributionEn
     const customer = record.매출처 || "";
     if (!customer) continue;
 
+    const amount = record.장부금액 || 0;
+    if (amount < 0) continue; // 반품 제외
+
     if (!monthCustomerSales.has(month)) {
       monthCustomerSales.set(month, new Map<string, number>());
     }
 
     const customerMap = monthCustomerSales.get(month)!;
     const currentTotal = customerMap.get(customer) || 0;
-    customerMap.set(customer, currentTotal + (record.장부금액 || 0));
+    customerMap.set(customer, currentTotal + amount);
   }
 
-  // Calculate thresholds from all positive amounts
+  // Calculate thresholds from all positive amounts (85th/60th/30th B2B 보정)
   const allPositiveAmounts: number[] = [];
   for (const [, customerMap] of Array.from(monthCustomerSales.entries())) {
     for (const [, amount] of Array.from(customerMap.entries())) {
@@ -320,9 +353,9 @@ export function calcGradeDistribution(sales: SalesRecord[]): GradeDistributionEn
 
   allPositiveAmounts.sort((a, b) => a - b);
 
-  const thresholdA = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 80) : 0;
+  const thresholdA = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 85) : 0;
   const thresholdB = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 60) : 0;
-  const thresholdC = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 40) : 0;
+  const thresholdC = allPositiveAmounts.length > 0 ? percentile(allPositiveAmounts, 30) : 0;
   const thresholds: [number, number, number] = [thresholdA, thresholdB, thresholdC];
 
   // Build distribution for each month

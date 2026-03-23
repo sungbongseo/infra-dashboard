@@ -72,16 +72,70 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
     }));
   }, [costBarData]);
 
+  // 비용 절감 우선순위: 계획 초과 항목 추출
+  const costOverrunInsight = useMemo(() => {
+    if (costBarData.length === 0) return null;
+    // costBarData의 각 행에 '계획_xxx' 필드가 있을 수 있으므로, 조직 단위 합산 후 비교
+    // costBarData는 담당자별 비용이므로, costEfficiency에서 매출원가율 > 100% 인 경우 초과로 판단
+    const overrunPersons = costEfficiency.filter(r => r.매출원가율 > 100);
+    const dangerPersons = costEfficiency.filter(r => r.매출원가율 >= 95 && r.매출원가율 < 100);
+    const avgRate = costEfficiency.length > 0
+      ? costEfficiency.reduce((s, r) => s + r.매출원가율, 0) / costEfficiency.length
+      : 0;
+    // 비용 항목별 총액 → 가장 큰 항목
+    const totals = COST_KEYS.map((key) => ({
+      key,
+      total: costBarData.reduce((s, d) => s + (Number(d[key]) || 0), 0),
+    })).sort((a, b) => b.total - a.total);
+    const topCost = totals[0];
+    return {
+      overrunCount: overrunPersons.length,
+      dangerCount: dangerPersons.length,
+      avgRate,
+      topCostName: topCost?.key || "",
+      topCostAmount: topCost?.total || 0,
+      totalPersons: costEfficiency.length,
+    };
+  }, [costBarData, costEfficiency]);
+
+  if (costBarData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">손익 데이터를 업로드해 주세요 (비용 구조 분석)</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {costInsight && (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
           <p className="font-medium">비용 구조 핵심 요약</p>
           <p className="text-muted-foreground">
-            비용 Top 3: {costInsight.map((c) => `${c.name} ${c.share.toFixed(1)}%`).join(", ")}
-            {" — "}이 3개 항목이 전체 비용의 {costInsight.reduce((s, c) => s + c.share, 0).toFixed(0)}%를 차지합니다.
+            비용 Top 3: {costInsight.map((c) => `${c.name} ${isFinite(c.share) ? c.share.toFixed(1) : "0.0"}%`).join(", ")}
+            {" — "}이 3개 항목이 전체 비용의 {(() => { const t = costInsight.reduce((s, c) => s + c.share, 0); return isFinite(t) ? t.toFixed(0) : "0"; })()}%를 차지합니다.
             {costInsight[0].share >= 50 && ` ${costInsight[0].name} 비중이 과반으로, 이 항목의 효율화가 원가 절감의 핵심입니다.`}
           </p>
+        </div>
+      )}
+
+      {/* 비용 절감 우선순위 인사이트 */}
+      {costOverrunInsight && costOverrunInsight.totalPersons > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+          <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-2 text-sm">비용 절감 우선순위</h4>
+          <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-200">
+            <li>• 가장 큰 비용 항목: <span className="font-medium">{costOverrunInsight.topCostName}</span> ({formatCurrency(costOverrunInsight.topCostAmount)}) — 이 항목 효율화가 최우선</li>
+            <li>• 평균 매출원가율: <span className="font-medium">{isFinite(costOverrunInsight.avgRate) ? costOverrunInsight.avgRate.toFixed(1) : "0.0"}%</span>
+              {costOverrunInsight.avgRate >= 85 && " — 조직 전체 원가 구조 점검 필요"}
+            </li>
+            {costOverrunInsight.overrunCount > 0 && (
+              <li>• <span className="font-medium text-red-700 dark:text-red-400">매출원가율 100% 초과 담당자 {costOverrunInsight.overrunCount}명</span> — 매출보다 원가가 많은 적자 상태, 즉시 원인 분석 필요</li>
+            )}
+            {costOverrunInsight.dangerCount > 0 && (
+              <li>• 매출원가율 95~100% 위험 구간 담당자 {costOverrunInsight.dangerCount}명 — 손익분기 근접</li>
+            )}
+          </ul>
         </div>
       )}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">

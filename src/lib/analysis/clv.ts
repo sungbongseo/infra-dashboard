@@ -14,6 +14,7 @@ export interface ClvResult {
   clv: number;                  // customerValue * margin * lifespan
   currentSales: number;
   clvToSalesRatio: number;
+  confidence: "insufficient" | "low" | "normal";  // 데이터 기간 기반 신뢰도
 }
 
 export interface ClvSummary {
@@ -143,37 +144,56 @@ export function calcClv(
   const customerMap = aggregateCustomerSales(sales);
   if (customerMap.size === 0) return [];
 
-  // 4. Calculate average purchase frequency across all customers
-  let totalFrequency = 0;
-  let customerCount = 0;
   const entries = Array.from(customerMap.entries());
 
-  for (const [, data] of entries) {
-    totalFrequency += data.transactionCount / years;
-    customerCount += 1;
-  }
-  const avgFrequency = customerCount > 0 ? totalFrequency / customerCount : 1;
+  // 5. Determine confidence based on data span
+  const confidence: ClvResult["confidence"] =
+    years < 1 ? "insufficient" : years < 2 ? "low" : "normal";
 
-  // 5. Calculate CLV for each customer
+  // 6. Detect max month for B2B recency-based lifespan estimation
+  let maxMonthStr = "0000-00";
+  for (const r of sales) {
+    const month = extractMonth(r.매출일);
+    if (month && month > maxMonthStr) maxMonthStr = month;
+  }
+
+  // 7. Calculate CLV for each customer
   const results: ClvResult[] = entries.map(([customer, data]) => {
     const avgTransactionValue =
       data.transactionCount > 0 ? data.totalSales / data.transactionCount : 0;
     const purchaseFrequency = data.transactionCount / years;
     const customerValue = avgTransactionValue * purchaseFrequency;
 
-    // Retention factor: customers who purchase more frequently than average
-    // are likely to stay longer. Scale between 0.2 (minimum) and 1.0 (maximum).
-    const retentionFactor =
-      avgFrequency > 0
-        ? Math.min(1, purchaseFrequency / avgFrequency) * 0.8 + 0.2
-        : 0.5;
+    // B2B recency-based lifespan estimation:
+    // 최근 12개월 내 거래 → 3년, 12~24개월 → 2년, 24개월+ → 1년
+    let estimatedLifespan = 1;
+    if (confidence !== "insufficient") {
+      const customerMonths = new Set<string>();
+      for (const r of sales) {
+        if ((r.매출처 || "") === customer) {
+          const m = extractMonth(r.매출일);
+          if (m) customerMonths.add(m);
+        }
+      }
+      let lastMonth = "0000-00";
+      for (const m of Array.from(customerMonths)) {
+        if (m > lastMonth) lastMonth = m;
+      }
+      // Calculate months since last transaction relative to data max month
+      if (lastMonth !== "0000-00" && maxMonthStr !== "0000-00") {
+        const [ly, lm] = lastMonth.split("-").map(Number);
+        const [my, mm] = maxMonthStr.split("-").map(Number);
+        const monthsSinceLast = (my - ly) * 12 + (mm - lm);
+        if (monthsSinceLast <= 12) estimatedLifespan = 3;
+        else if (monthsSinceLast <= 24) estimatedLifespan = 2;
+        else estimatedLifespan = 1;
+      }
+    }
 
-    // 인프라/건설 B2B 평균 프로젝트 사이클 기준 (일반 프로젝트 1-2년, 장기 계약 3-5년)
-    // retentionFactor로 고객별 활동 빈도에 따라 0.6~3.0년 범위로 조정됨
-    const BASE_LIFESPAN_YEARS = 3;
-    const estimatedLifespan = BASE_LIFESPAN_YEARS * retentionFactor;
-
-    const clv = customerValue * avgProfitMargin * estimatedLifespan;
+    // confidence === "insufficient" → CLV = 0 (데이터 부족)
+    const clv = confidence === "insufficient"
+      ? 0
+      : customerValue * avgProfitMargin * estimatedLifespan;
     const clvToSalesRatio =
       data.totalSales > 0 ? clv / data.totalSales : 0;
 
@@ -188,6 +208,7 @@ export function calcClv(
       clv,
       currentSales: data.totalSales,
       clvToSalesRatio,
+      confidence,
     };
   });
 

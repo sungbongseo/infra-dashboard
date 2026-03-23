@@ -13,14 +13,14 @@ import type { ProfitabilityAnalysisRecord } from "@/types";
 export interface PlanAchievementSummary {
   totalSalesPlan: number;
   totalSalesActual: number;
-  salesAchievement: number; // %
+  salesAchievement: number | null; // % (null = 계획미설정)
   salesGap: number; // 실적 - 계획
   totalGPPlan: number;
   totalGPActual: number;
-  gpAchievement: number;
+  gpAchievement: number | null;
   totalOPPlan: number;
   totalOPActual: number;
-  opAchievement: number;
+  opAchievement: number | null;
   plannedGPRate: number; // 계획 매출총이익율
   actualGPRate: number; // 실적 매출총이익율
   marginDrift: number; // 이익율 변동 (pp)
@@ -56,14 +56,14 @@ export function calcPlanAchievementSummary(
   return {
     totalSalesPlan: salesPlan,
     totalSalesActual: salesActual,
-    salesAchievement: salesPlan !== 0 ? (salesActual / salesPlan) * 100 : 0,
+    salesAchievement: salesPlan !== 0 ? (salesActual / salesPlan) * 100 : null,
     salesGap: salesActual - salesPlan,
     totalGPPlan: gpPlan,
     totalGPActual: gpActual,
-    gpAchievement: gpPlan !== 0 ? (gpActual / gpPlan) * 100 : 0,
+    gpAchievement: gpPlan !== 0 ? (gpActual / gpPlan) * 100 : null,
     totalOPPlan: opPlan,
     totalOPActual: opActual,
-    opAchievement: opPlan !== 0 ? (opActual / opPlan) * 100 : 0,
+    opAchievement: opPlan !== 0 ? (opActual / opPlan) * 100 : null,
     plannedGPRate,
     actualGPRate,
     marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
@@ -79,17 +79,17 @@ export interface OrgAchievement {
   org: string;
   salesPlan: number;
   salesActual: number;
-  salesAchievement: number;
+  salesAchievement: number | null; // null = 계획미설정
   salesGap: number;
   gpPlan: number;
   gpActual: number;
-  gpAchievement: number;
+  gpAchievement: number | null;
   plannedGPRate: number;
   actualGPRate: number;
   marginDrift: number;
   opPlan: number;
   opActual: number;
-  opAchievement: number;
+  opAchievement: number | null;
 }
 
 export function calcOrgAchievement(
@@ -137,19 +137,19 @@ export function calcOrgAchievement(
         salesPlan: v.salesPlan,
         salesActual: v.salesActual,
         salesAchievement:
-          v.salesPlan !== 0 ? (v.salesActual / v.salesPlan) * 100 : 0,
+          v.salesPlan !== 0 ? (v.salesActual / v.salesPlan) * 100 : null,
         salesGap: v.salesActual - v.salesPlan,
         gpPlan: v.gpPlan,
         gpActual: v.gpActual,
         gpAchievement:
-          v.gpPlan !== 0 ? (v.gpActual / v.gpPlan) * 100 : 0,
+          v.gpPlan !== 0 ? (v.gpActual / v.gpPlan) * 100 : null,
         plannedGPRate,
         actualGPRate,
         marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
         opPlan: v.opPlan,
         opActual: v.opActual,
         opAchievement:
-          v.opPlan !== 0 ? (v.opActual / v.opPlan) * 100 : 0,
+          v.opPlan !== 0 ? (v.opActual / v.opPlan) * 100 : null,
       };
     })
     .sort((a, b) => b.salesActual - a.salesActual);
@@ -441,7 +441,8 @@ export function generatePlanInsight(
   }
 
   // 매출 vs 이익 달성율 비교 → 원가율 변동 진단
-  if (summary.salesAchievement > 0 && summary.gpAchievement > 0) {
+  if (summary.salesAchievement !== null && summary.gpAchievement !== null &&
+      summary.salesAchievement > 0 && summary.gpAchievement > 0) {
     const salesAch = summary.salesAchievement;
     const gpAch = summary.gpAchievement;
 
@@ -465,17 +466,18 @@ export function generatePlanInsight(
   }
 
   // 조직별 관리 포인트
-  const achieved = orgData.filter((o) => o.salesAchievement >= 100);
-  const missed = orgData.filter((o) => o.salesAchievement < 100 && o.salesPlan > 0);
+  const achieved = orgData.filter((o) => o.salesAchievement !== null && o.salesAchievement >= 100);
+  const missed = orgData.filter((o) => o.salesAchievement !== null && o.salesAchievement < 100 && o.salesPlan > 0);
   if (orgData.length > 0) {
     if (missed.length === 0) {
       parts.push("모든 조직이 매출 계획을 달성하여 균형 잡힌 실적을 보이고 있습니다.");
     } else if (achieved.length === 0) {
       parts.push("전 조직이 매출 계획 미달로, 전사적 영업 전략 재검토가 필요합니다.");
     } else {
-      const worstOrg = missed.sort((a, b) => a.salesAchievement - b.salesAchievement)[0];
+      const worstOrg = missed.sort((a, b) => (a.salesAchievement ?? 0) - (b.salesAchievement ?? 0))[0];
+      const worstRate = worstOrg.salesAchievement ?? 0;
       parts.push(
-        `${achieved.length}개 조직 달성, ${missed.length}개 조직 미달. 가장 저조한 "${worstOrg.org}"(${worstOrg.salesAchievement.toFixed(0)}%)에 대한 집중 관리가 필요합니다.`
+        `${achieved.length}개 조직 달성, ${missed.length}개 조직 미달. 가장 저조한 "${worstOrg.org}"(${worstRate.toFixed(0)}%)에 대한 집중 관리가 필요합니다.`
       );
     }
   }

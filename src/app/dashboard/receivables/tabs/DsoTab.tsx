@@ -290,6 +290,25 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         />
       </div>
 
+      {/* DSO/CCC 업종 벤치마크 가이드 */}
+      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+        <p className="font-medium">DSO/CCC 업종 벤치마크 가이드</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-muted-foreground">
+          <div className="space-y-1.5">
+            <p className="font-medium text-foreground">DSO (매출채권 회수기간)</p>
+            <p>DSO &lt; 45일: <span className="text-emerald-600 dark:text-emerald-400 font-medium">우수</span> — 수금 관리 양호</p>
+            <p>DSO 45~60일: <span className="text-amber-500 dark:text-amber-400 font-medium">보통</span> — 업종 평균 수준</p>
+            <p>DSO 60~90일: <span className="text-orange-500 dark:text-orange-400 font-medium">주의</span> — 수금 관리 점검 필요</p>
+            <p>DSO &gt; 90일: <span className="text-red-500 dark:text-red-400 font-medium">위험</span> — 즉시 수금 대책 수립</p>
+          </div>
+          <div className="space-y-1.5">
+            <p className="font-medium text-foreground">CCC (현금순환주기)</p>
+            <p>CCC 음수: <span className="text-emerald-600 dark:text-emerald-400 font-medium">현금 흐름 우수</span> (선수금/매입채무 활용 효과)</p>
+            <p>CCC 양수 (높음): <span className="text-red-500 dark:text-red-400 font-medium">운전자본 부담 증가</span> → 현금 흐름 개선 필요</p>
+          </div>
+        </div>
+      </div>
+
       {filteredSales.length === 0 && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
           <p className="text-sm text-amber-700 dark:text-amber-400">

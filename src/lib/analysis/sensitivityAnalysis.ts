@@ -11,6 +11,12 @@ export interface SensitivityCell {
   opChange: number;
 }
 
+export interface CrossAnalysisItem {
+  volumeChange: number;       // % volume increase
+  maxPriceReduction: number;  // max % price drop while OP >= 0
+  resultOpProfit: number;     // OP at that boundary
+}
+
 export interface SensitivityResult {
   baseSales: number;
   baseGrossProfit: number;
@@ -18,6 +24,7 @@ export interface SensitivityResult {
   grid: SensitivityCell[];
   priceRange: number[];
   volumeRange: number[];
+  crossAnalysis?: CrossAnalysisItem[];
 }
 
 // ─── Core Function ────────────────────────────────────────────
@@ -30,14 +37,15 @@ export interface SensitivityResult {
  *   new_sales = base_sales * (1 + priceChange%) * (1 + volumeChange%)
  *   new_COGS  = base_COGS  * (1 + volumeChange%)   -- variable cost scales with volume only
  *   new_GP    = new_sales - new_COGS
- *   new_OP    = new_GP - SGA                         -- SGA (판관비) is fixed
+ *   new_SGA   = baseSGA * 0.7 + baseSGA * 0.3 * volumeFactor  -- SGA 변동비 30%
+ *   new_OP    = new_GP - new_SGA
  */
 export function calcSensitivityGrid(
   baseSales: number,
   baseGrossProfit: number,
   baseOpProfit: number,
-  priceSteps: number[] = [-20, -15, -10, -5, 0, 5, 10, 15, 20],
-  volumeSteps: number[] = [-20, -15, -10, -5, 0, 5, 10, 15, 20]
+  priceSteps: number[] = [-30, -20, -15, -10, -5, 0, 5, 10, 15, 20, 30],
+  volumeSteps: number[] = [-40, -30, -20, -10, -5, 0, 5, 10, 20, 30, 40]
 ): SensitivityResult {
   const grid: SensitivityCell[] = [];
 
@@ -54,7 +62,9 @@ export function calcSensitivityGrid(
       const resultSales = baseSales * priceFactor * volumeFactor;
       const resultCOGS = baseCOGS * volumeFactor; // COGS scales with volume only
       const resultGP = resultSales - resultCOGS;
-      const resultOP = resultGP - baseSGA; // SGA is fixed
+      // SGA 변동비 30% 적용: 고정 70% + 변동 30% * volumeFactor
+      const resultSGA = baseSGA * 0.7 + baseSGA * 0.3 * volumeFactor;
+      const resultOP = resultGP - resultSGA;
 
       grid.push({
         priceChange,
@@ -69,6 +79,9 @@ export function calcSensitivityGrid(
     }
   }
 
+  // 2-way cross analysis: 물량 +X%일 때, 가격 최대 -Y%까지 가능 (영업이익 >= 0)
+  const crossAnalysis = calcCrossAnalysis(baseSales, baseCOGS, baseSGA);
+
   return {
     baseSales,
     baseGrossProfit,
@@ -76,7 +89,55 @@ export function calcSensitivityGrid(
     grid,
     priceRange: priceSteps,
     volumeRange: volumeSteps,
+    crossAnalysis,
   };
+}
+
+// ─── 2-way Cross Analysis ──────────────────────────────────
+
+/**
+ * 물량 증가 시 허용 가능한 최대 가격 인하율 산출.
+ * 조건: 영업이익 >= 0 (손익분기)
+ * 가격을 0.5% 단위로 탐색하여 OP가 0 이상인 최대 인하율 산출.
+ */
+function calcCrossAnalysis(
+  baseSales: number,
+  baseCOGS: number,
+  baseSGA: number
+): CrossAnalysisItem[] {
+  const volumeSteps = [5, 10, 15, 20, 30, 40];
+  const results: CrossAnalysisItem[] = [];
+
+  for (const volChange of volumeSteps) {
+    const volFactor = 1 + volChange / 100;
+    let maxPriceDrop = 0;
+    let lastOP = 0;
+
+    // 가격 0%에서 -30%까지 0.5% 단위로 탐색
+    for (let priceDrop = 0; priceDrop <= 30; priceDrop += 0.5) {
+      const pFactor = 1 - priceDrop / 100;
+      const sales = baseSales * pFactor * volFactor;
+      const cogs = baseCOGS * volFactor;
+      const gp = sales - cogs;
+      const sga = baseSGA * 0.7 + baseSGA * 0.3 * volFactor;
+      const op = gp - sga;
+
+      if (op >= 0) {
+        maxPriceDrop = priceDrop;
+        lastOP = op;
+      } else {
+        break;
+      }
+    }
+
+    results.push({
+      volumeChange: volChange,
+      maxPriceReduction: maxPriceDrop,
+      resultOpProfit: lastOP,
+    });
+  }
+
+  return results;
 }
 
 // ─── Insight Generation ─────────────────────────────────────

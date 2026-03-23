@@ -23,10 +23,9 @@ interface CostTabProps {
 export function CostTab({ hasTeamContribution, selected, selectedCostData, costRadarData, costEfficiencyData, isDateFiltered }: CostTabProps) {
   if (!hasTeamContribution) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4">
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          팀기여도 데이터가 업로드되지 않아 비용 효율 분석을 수행할 수 없습니다. 팀기여도 엑셀 파일을 업로드해 주세요.
-        </p>
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">영업사원을 선택해 주세요</p>
       </div>
     );
   }

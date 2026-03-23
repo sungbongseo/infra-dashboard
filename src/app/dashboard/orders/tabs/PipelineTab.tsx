@@ -50,6 +50,15 @@ export function PipelineTab({
     }));
   }, [pipelineStages]);
 
+  if (pipelineStages.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">매출 및 수주 데이터를 업로드해 주세요 (O2C 분석)</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

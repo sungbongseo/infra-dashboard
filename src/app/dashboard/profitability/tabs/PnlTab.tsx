@@ -29,6 +29,15 @@ interface PnlTabProps {
 }
 
 export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, isDateFiltered, monthlyTrend, monthlyGrowth }: PnlTabProps) {
+  if (waterfallData.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">손익 데이터를 업로드해 주세요 (조직별 손익 파일)</p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -208,13 +208,9 @@ export function BenchmarkReportTab({
   return (
     <div className="space-y-6">
       {/* 벤치마크 데이터 출처 고지 */}
-      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4 text-sm text-yellow-800 dark:text-yellow-200 flex items-start gap-2">
         <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-medium">참고용 벤치마크:</span>{" "}
-          아래 벤치마크는 건설/인프라 업종 일반 참고 기준입니다. 외부 데이터 미연동 — 방향성 참고용으로만 활용하세요.
-          실제 업계 평균과 차이가 있을 수 있으며, 정확한 비교를 위해서는 한국은행 기업경영분석 등 공신력 있는 자료와 대조가 필요합니다.
-        </div>
+        <span>본 벤치마크는 실제 업종 데이터가 아닌 일반적 참고 수치입니다. 의사결정 시 실제 업계 데이터를 활용하시기 바랍니다.</span>
       </div>
 
       {/* ═══════════════════════════════════════════════════════

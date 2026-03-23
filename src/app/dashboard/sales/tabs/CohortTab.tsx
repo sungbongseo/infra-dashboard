@@ -113,13 +113,9 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
   return (
     <>
       {/* B2B 인프라 주의사항 */}
-      <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-start gap-2">
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4 text-sm text-blue-800 dark:text-blue-200 flex items-start gap-2">
         <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-        <div>
-          <span className="font-medium">B2B 인프라 참고사항:</span>{" "}
-          인프라/건설 B2B에서는 프로젝트 기반 불규칙 거래가 일반적이므로, 코호트 리텐션율은 참고 지표로 활용하세요.
-          B2C 대비 낮은 리텐션율이 반드시 고객 이탈을 의미하지는 않습니다.
-        </div>
+        <span>B2B 거래 특성상 재거래 주기가 길 수 있으므로, 장기 데이터(24개월 이상) 축적 후 활용을 권장합니다.</span>
       </div>
 
       {/* KPI row */}

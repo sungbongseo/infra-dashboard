@@ -88,20 +88,16 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
     );
   }
 
-  // 24개월 미만: 제한적 분석 경고
-  if (decomposition.dataQuality === "limited") {
-    return (
-      <DataSufficiencyNotice
-        title="시계열 분해 신뢰도가 낮습니다"
-        reason="시계열 분해는 계절성 감지에 최소 2주기(24개월)가 필요합니다. 현재 데이터로는 계절 변동과 불규칙 변동을 구분할 수 없어, 분석 결과가 부정확할 수 있습니다."
-        currentData={`${monthlyData.length}개월`}
-        requiredData="최소 24개월 (2주기)"
-      />
-    );
-  }
+  // 24개월 미만: 계절성 숨기고 트렌드만 표시
+  const isLimited = decomposition.dataQuality === "limited";
 
   return (
     <>
+      {isLimited && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-4 text-sm text-yellow-800 dark:text-yellow-200">
+          계절성 분석을 위해 최소 24개월 데이터가 필요합니다. 현재 {monthlyData.length}개월 데이터로 트렌드만 표시합니다.
+        </div>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -169,7 +165,7 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
         </ChartContainer>
       </ChartCard>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {!isLimited && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Seasonal component */}
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
           title="계절 성분"
@@ -231,10 +227,9 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
             </ComposedChart>
           </ChartContainer>
         </ChartCard>
-      </div>
+      </div>}
 
-      {/* Monthly seasonal pattern */}
-      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+      {!isLimited && <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 계절 패턴"
         formula="각 월(1-12)의 계절 성분 평균값 (합계=0으로 정규화)"
         description="12개월 기준 각 월의 평균 계절적 영향을 보여줍니다. 양수 월은 계절적으로 매출이 높고, 음수 월은 낮은 시기입니다."
@@ -258,7 +253,7 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
             </Bar>
           </BarChart>
         </ChartContainer>
-      </ChartCard>
+      </ChartCard>}
     </>
   );
 }

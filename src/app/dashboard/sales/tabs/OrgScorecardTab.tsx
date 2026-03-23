@@ -58,7 +58,12 @@ export function OrgScorecardTab({ orgProfit, salesList, collectionList, isDateFi
   }, [scorecards]);
 
   if (scorecards.length === 0) {
-    return <p className="text-sm text-muted-foreground py-8 text-center">조직 손익 + 매출 + 수금 데이터가 모두 필요합니다.</p>;
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">조직별 손익 데이터를 업로드해 주세요</p>
+      </div>
+    );
   }
 
   return (
@@ -70,7 +75,7 @@ export function OrgScorecardTab({ orgProfit, salesList, collectionList, isDateFi
           format="number"
           icon={<Award className="h-5 w-5" />}
           formula="수익성 30% + 수금효율 25% + 고객다각화 20% + 규모 25% 가중 합산"
-          description={`${topOrg?.orgName || "-"} (${topOrg?.overallScore?.toFixed(1) || 0}점)`}
+          description={`${topOrg?.orgName || "-"} (${topOrg?.overallScore != null && isFinite(topOrg.overallScore) ? topOrg.overallScore.toFixed(1) : "0.0"}점)`}
         />
         <KpiCard
           title="평균 종합점수"
@@ -112,7 +117,7 @@ export function OrgScorecardTab({ orgProfit, salesList, collectionList, isDateFi
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => {
                 if (name === "salesAmount") return formatCurrency(Number(value));
-                return `${Number(value).toFixed(1)}`;
+                return `${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}`;
               }}
             />
             <Bar dataKey="overallScore" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} name="종합점수" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
@@ -167,12 +172,12 @@ export function OrgScorecardTab({ orgProfit, salesList, collectionList, isDateFi
                   <td className="py-1.5 px-3">{sc.orgName}</td>
                   <td className="py-1.5 px-3 text-right">{formatCurrency(sc.salesAmount)}</td>
                   <td className={`py-1.5 px-3 text-right font-medium ${sc.profitability >= 5 ? "text-green-600" : sc.profitability < 0 ? "text-red-600" : "text-amber-600"}`}>
-                    {sc.profitability.toFixed(1)}
+                    {isFinite(sc.profitability) ? sc.profitability.toFixed(1) : "0.0"}
                   </td>
-                  <td className="py-1.5 px-3 text-right">{sc.collectionEfficiency.toFixed(1)}</td>
-                  <td className="py-1.5 px-3 text-right">{sc.customerDiversity.toFixed(1)}</td>
+                  <td className="py-1.5 px-3 text-right">{isFinite(sc.collectionEfficiency) ? sc.collectionEfficiency.toFixed(1) : "0.0"}</td>
+                  <td className="py-1.5 px-3 text-right">{isFinite(sc.customerDiversity) ? sc.customerDiversity.toFixed(1) : "0.0"}</td>
                   <td className={`py-1.5 px-3 text-right font-bold ${sc.overallScore >= 60 ? "text-green-600" : sc.overallScore < 40 ? "text-red-600" : "text-amber-600"}`}>
-                    {sc.overallScore.toFixed(1)}
+                    {isFinite(sc.overallScore) ? sc.overallScore.toFixed(1) : "0.0"}
                   </td>
                 </tr>
               ))}

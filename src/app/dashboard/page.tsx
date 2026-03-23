@@ -456,7 +456,7 @@ export default function OverviewPage() {
           <TabsTrigger value="core-kpi">핵심 지표</TabsTrigger>
           <TabsTrigger value="org-analysis">조직 분석</TabsTrigger>
           <TabsTrigger value="financial-health">재무 건전성</TabsTrigger>
-          <TabsTrigger value="benchmark-report">벤치마크/보고서</TabsTrigger>
+          <TabsTrigger value="benchmark-report">벤치마크 (추정치)</TabsTrigger>
           <TabsTrigger value="executive-summary">경영진 보고</TabsTrigger>
         </TabsList>
 
@@ -705,14 +705,19 @@ export default function OverviewPage() {
             </ChartContainer>
           </ChartCard>
 
-          {forecast && forecast.points.length > 3 && (
+          {forecast && forecast.points.length > 3 && forecast.stats.confidence !== "insufficient" && (
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
-              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률${forecast.stats.r2 < 0.3 ? " — 데이터 포인트 부족으로 회귀선 생략, 이동평균 기준으로 추세를 판단하세요" : forecast.stats.r2 < 0.5 ? " — 회귀선 신뢰도 낮음, 이동평균 기준으로 추세를 판단하세요" : ""}`}
-              benchmark={forecast.stats.r2 < 0.3 ? "데이터 포인트 부족 — 이동평균으로 추세 판단" : forecast.stats.r2 < 0.5 ? "회귀선 신뢰도 낮음 (R² < 50%) — 이동평균 참고" : "설명력(R²)이 70% 이상이면 예측 신뢰도 높음"}
+              description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률${forecast.stats.confidence === "low" ? " — 데이터 부족으로 이동평균만 표시" : forecast.stats.r2 < 0.5 ? " — 회귀선 신뢰도 낮음, 이동평균 기준으로 추세를 판단하세요" : ""}`}
+              benchmark={forecast.stats.confidence === "low" ? "데이터 부족으로 이동평균만 표시 (최소 12개월 권장)" : forecast.stats.r2 < 0.5 ? "회귀선 신뢰도 낮음 (R² < 50%) — 이동평균 참고" : "설명력(R²)이 70% 이상이면 예측 신뢰도 높음"}
               reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망하고, 자원 배분과 목표 설정에 활용합니다."
             >
+              {forecast.stats.confidence === "low" && (
+                <div className="mb-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-400 text-xs rounded">
+                  데이터 부족으로 이동평균만 표시합니다 (회귀 예측은 12개월 이상 데이터 필요)
+                </div>
+              )}
               <ChartContainer>
                 <ComposedChart data={forecast.points}>
                   <CartesianGrid {...GRID_PROPS} />
@@ -722,17 +727,27 @@ export default function OverviewPage() {
                   <Legend />
                   <Bar dataKey="actual" name="실적" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
                   <Line type="monotone" dataKey="movingAvg3" name="3개월 이동평균" stroke={CHART_COLORS[3]} strokeWidth={1.5} dot={false} connectNulls activeDot={{ r: 5, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
-                  {forecast.stats.r2 >= 0.3 && (
+                  {forecast.stats.confidence === "normal" && (
                     <Line type="monotone" dataKey="forecast" name={`예측 (R²=${(forecast.stats.r2 * 100).toFixed(0)}%)`} stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls {...ANIMATION_CONFIG} />
                   )}
-                  {forecast.stats.r2 >= 0.3 && (
+                  {forecast.stats.confidence === "normal" && (
                     <Area type="monotone" dataKey="upperBound" name="상한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.1} connectNulls />
                   )}
-                  {forecast.stats.r2 >= 0.3 && (
+                  {forecast.stats.confidence === "normal" && (
                     <Area type="monotone" dataKey="lowerBound" name="하한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.05} connectNulls />
                   )}
                 </ComposedChart>
               </ChartContainer>
+            </ChartCard>
+          )}
+          {forecast && forecast.stats.confidence === "insufficient" && (
+            <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+              title="매출 추이 및 예측"
+              reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망합니다."
+            >
+              <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
+                데이터 부족 (최소 6개월 필요) — 더 많은 매출 데이터를 업로드하면 예측이 표시됩니다
+              </div>
             </ChartCard>
           )}
         </TabsContent>

@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcSensitivityGrid, generateSensitivityInsight } from "@/lib/analysis/sensitivityAnalysis";
-import type { SensitivityCell } from "@/lib/analysis/sensitivityAnalysis";
+import type { SensitivityCell, CrossAnalysisItem } from "@/lib/analysis/sensitivityAnalysis";
 import { Card, CardContent } from "@/components/ui/card";
 import { Lightbulb, AlertTriangle, ArrowRightLeft, Info } from "lucide-react";
 
@@ -78,7 +78,8 @@ function getResultValue(cell: SensitivityCell, metric: MetricKey): number {
 
 // ─── Reduced steps for 7x7 heatmap ─────────────────────────────
 
-const STEPS = [-20, -10, -5, 0, 5, 10, 20];
+const STEPS_PRICE = [-30, -20, -10, -5, 0, 5, 10, 20, 30];
+const STEPS_VOLUME = [-40, -20, -10, -5, 0, 5, 10, 20, 40];
 
 // ─── Component ──────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export function SensitivityTab({
 
   // Compute sensitivity grid
   const result = useMemo(
-    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, STEPS, STEPS),
+    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, STEPS_PRICE, STEPS_VOLUME),
     [baseSales, baseGrossProfit, baseOpProfit]
   );
 
@@ -112,17 +113,22 @@ export function SensitivityTab({
   );
 
   // Chart data: price impact at volume=0% and volume impact at price=0%
+  // Use the union of both step arrays to cover all points
+  const impactSteps = useMemo(() => {
+    const set = new Set([...STEPS_PRICE, ...STEPS_VOLUME]);
+    return Array.from(set).sort((a, b) => a - b);
+  }, []);
   const impactChartData = useMemo(() => {
-    return STEPS.map((step) => {
+    return impactSteps.map((step) => {
       const priceCell = cellMap.get(`${step}_0`);
       const volumeCell = cellMap.get(`0_${step}`);
       return {
         change: step,
-        priceImpact: priceCell ? getResultValue(priceCell, selectedMetric) : 0,
-        volumeImpact: volumeCell ? getResultValue(volumeCell, selectedMetric) : 0,
+        priceImpact: priceCell ? getResultValue(priceCell, selectedMetric) : undefined,
+        volumeImpact: volumeCell ? getResultValue(volumeCell, selectedMetric) : undefined,
       };
     });
-  }, [cellMap, selectedMetric]);
+  }, [cellMap, selectedMetric, impactSteps]);
 
   const metricLabel = METRIC_OPTIONS.find((m) => m.key === selectedMetric)?.label ?? "영업이익";
 
@@ -247,6 +253,35 @@ export function SensitivityTab({
         </CardContent>
       </Card>
 
+      {/* 2-way Cross Analysis */}
+      {result.crossAnalysis && result.crossAnalysis.length > 0 && (
+        <Card className="border-indigo-200 dark:border-indigo-800 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30">
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-semibold text-indigo-800 dark:text-indigo-300">
+              <ArrowRightLeft className="h-4 w-4" />
+              교차 분석: 물량 증가 시 허용 가능한 최대 가격 인하
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+              {result.crossAnalysis.map((item: CrossAnalysisItem) => (
+                <div key={item.volumeChange} className="rounded-md border border-indigo-200 dark:border-indigo-700 bg-white/50 dark:bg-black/20 px-3 py-2">
+                  <span className="font-medium text-foreground">물량 +{item.volumeChange}%</span>
+                  <span className="text-muted-foreground">
+                    {" → "}가격 최대{" "}
+                    <span className={item.maxPriceReduction > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
+                      -{item.maxPriceReduction.toFixed(1)}%
+                    </span>
+                    까지 가능
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              영업이익 0원 이상(손익분기) 유지 조건. 판관비 변동비율 30% 반영.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Usage guide */}
       <div className="flex items-start gap-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 p-4 text-sm text-blue-800 dark:text-blue-300">
         <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -288,7 +323,7 @@ export function SensitivityTab({
                 <th className="p-2 border border-border bg-muted/50 text-muted-foreground font-medium min-w-[72px]">
                   물량(↕)＼가격(→)
                 </th>
-                {STEPS.map((priceStep) => (
+                {STEPS_PRICE.map((priceStep) => (
                   <th
                     key={priceStep}
                     className="p-2 border border-border bg-muted/50 text-muted-foreground font-medium min-w-[64px]"
@@ -299,12 +334,12 @@ export function SensitivityTab({
               </tr>
             </thead>
             <tbody>
-              {STEPS.map((volumeStep) => (
+              {STEPS_VOLUME.map((volumeStep) => (
                 <tr key={volumeStep}>
                   <td className="p-2 border border-border bg-muted/50 text-muted-foreground font-medium text-center">
                     {volumeStep > 0 ? `+${volumeStep}` : volumeStep}%
                   </td>
-                  {STEPS.map((priceStep) => {
+                  {STEPS_PRICE.map((priceStep) => {
                     const cell = cellMap.get(`${priceStep}_${volumeStep}`);
                     const change = cell ? getChangeValue(cell, selectedMetric) : 0;
                     const colorClass = getCellColor(change);

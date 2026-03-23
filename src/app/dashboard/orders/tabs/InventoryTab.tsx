@@ -168,7 +168,7 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
               { header: "품목명", accessorKey: "품목명" },
               { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round(info.getValue())) },
               { header: "총출고", accessorKey: "totalOut", cell: (info: any) => formatNumber(info.getValue()) },
-              { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => Number(info.getValue()).toFixed(1) },
+              { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => { const v = Number(info.getValue()); return isFinite(v) ? v.toFixed(1) : "0.0"; } },
             ]}
             data={topTurnover}
             defaultPageSize={10}
@@ -186,7 +186,7 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
               { header: "품목명", accessorKey: "품목명" },
               { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round(info.getValue())) },
               { header: "총출고", accessorKey: "totalOut", cell: (info: any) => formatNumber(info.getValue()) },
-              { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => Number(info.getValue()).toFixed(1) },
+              { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => { const v = Number(info.getValue()); return isFinite(v) ? v.toFixed(1) : "0.0"; } },
             ]}
             data={bottomTurnover}
             defaultPageSize={10}

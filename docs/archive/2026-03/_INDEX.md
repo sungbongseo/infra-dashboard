@@ -2,17 +2,18 @@
 
 | Feature | Phase | Match Rate | Archived |
 |---------|-------|:----------:|----------|
-| analysis | Completed | 90.5% | 2026-03-06 |
+| analysis | Completed (Final) | 100% | 2026-03-23 |
 | dashboard-ux-perf | Completed | 94% | 2026-03-06 |
 | monthly-analysis | Completed | 95%+ | 2026-03-16 |
 | data-accuracy-fix | Completed | 100% | 2026-03-18 |
 | numerical-accuracy | Completed | 100% | 2026-03-19 |
 
 ## analysis
-- **Description**: 인프라 대시보드 30년차 전문가 진단 기반 5단계 개선
-- **Phases**: P1(영업KPI), P2(거래처필터), P3(크로스분석), P4(아키텍처), P5(발표모드)
-- **Files**: 신규 5 + 수정 13 = 18파일, +1826줄
-- **Documents**: analysis.analysis.md, analysis.report.md
+- **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
+- **Phase 1~5**: 영업KPI, 거래처필터, 크로스분석, 아키텍처, 발표모드 (18파일, +1826줄)
+- **Phase 5~7**: 분석 모듈 로직 6건 + 탭 인사이트 39개 + 전수 감사 (46파일, +992/-216줄)
+- **Final Match Rate**: 100%
+- **Documents**: analysis.analysis.md, analysis.report.md, analysis-insight-upgrade.report.md, analysis-phase5-7.report.md
 
 ## dashboard-ux-perf
 - **Description**: Dashboard UX/성능 개선 — TabGroup 2단계 탭 + LazyMount + Customer360 모달 + 접근성

@@ -111,6 +111,33 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
           거래처 수가 {rfmResult.sampleSize}개로 적어 RFM 분석 결과의 통계적 신뢰도가 낮을 수 있습니다. 5개 이상의 거래처 데이터가 있을 때 최적의 분석이 가능합니다.
         </div>
       )}
+      {/* RFM 세그먼트별 실행 가이드 */}
+      <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
+        <p className="font-medium">세그먼트별 핵심 액션 가이드</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-muted-foreground">
+          <div>
+            <span className="font-medium" style={{ color: RFM_COLORS.VIP }}>Champions (R↑F↑M↑)</span>
+            <p>최우선 관리 — VIP 관계 유지, 신규 프로젝트 우선 제안</p>
+          </div>
+          <div>
+            <span className="font-medium" style={{ color: RFM_COLORS.Loyal }}>Loyal (R↑F↑M↓)</span>
+            <p>거래 빈도 높지만 금액 소규모 — 대형 프로젝트 제안 기회</p>
+          </div>
+          <div>
+            <span className="font-medium" style={{ color: RFM_COLORS["At-risk"] }}>At Risk (R↓F↓M↑)</span>
+            <p>과거 대형 거래처의 이탈 징후 — 즉시 영업 접촉 필요</p>
+          </div>
+          <div>
+            <span className="font-medium" style={{ color: RFM_COLORS.Lost }}>Lost (R↓F↓M↓)</span>
+            <p>장기 미거래 — 거래 재개 가능성 점검 또는 리스트 정리</p>
+          </div>
+          <div>
+            <span className="font-medium" style={{ color: RFM_COLORS.Potential }}>New (R↑F↓M↓)</span>
+            <p>신규 거래처 — 초기 관계 구축 및 추가 거래 유도</p>
+          </div>
+        </div>
+      </div>
+
       {/* 세그먼트 분포 & 세그먼트별 매출 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
@@ -175,8 +202,8 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
                           <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: RFM_COLORS[d.segment] || CHART_COLORS[0] }} />
                           {d.segment}
                         </div>
-                        <div>거래처 수: <span className="font-medium">{d.count.toLocaleString()}개사</span> ({countShare.toFixed(1)}%)</div>
-                        <div>총 매출: <span className="font-medium">{formatCurrency(d.totalSales)}</span> ({salesShare.toFixed(1)}%)</div>
+                        <div>거래처 수: <span className="font-medium">{d.count.toLocaleString()}개사</span> ({isFinite(countShare) ? countShare.toFixed(1) : "0.0"}%)</div>
+                        <div>총 매출: <span className="font-medium">{formatCurrency(d.totalSales)}</span> ({isFinite(salesShare) ? salesShare.toFixed(1) : "0.0"}%)</div>
                         <div>평균 매출: <span className="font-medium">{formatCurrency(d.avgSales)}</span></div>
                       </div>
                     );
@@ -346,7 +373,7 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
                   <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: RFM_COLORS[seg.segment] || CHART_COLORS[0] }} />
                   <span className="font-medium text-sm">{seg.segment}</span>
                   <span className="text-xs text-muted-foreground">{seg.count.toLocaleString()}개사</span>
-                  <span className="text-xs text-muted-foreground">매출 {formatCurrency(seg.totalSales)} ({segSalesShare.toFixed(1)}%)</span>
+                  <span className="text-xs text-muted-foreground">매출 {formatCurrency(seg.totalSales)} ({isFinite(segSalesShare) ? segSalesShare.toFixed(1) : "0.0"}%)</span>
                   {badge && (
                     <span className={`ml-auto inline-block rounded-full px-2 py-0.5 text-xs font-medium ${badge.className}`}>
                       {badge.label}

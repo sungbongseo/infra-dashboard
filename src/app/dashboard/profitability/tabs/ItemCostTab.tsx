@@ -186,6 +186,15 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
     [unitCostMap]
   );
 
+  if (summary.productCount === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">품목별 매출원가 데이터를 업로드해 주세요 (501 파일)</p>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* 스냅샷 데이터 안내 */}

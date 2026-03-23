@@ -73,8 +73,8 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
         <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-2">
           <p className="font-medium">결제조건 요약</p>
           <p className="text-muted-foreground">
-            최대 비중: {channelInsight.topTerm} ({channelInsight.topPct.toFixed(1)}%)
-            {channelInsight.cashPct > 0 && ` | 현금성 결제 비중: ${channelInsight.cashPct.toFixed(1)}%`}
+            최대 비중: {channelInsight.topTerm} ({isFinite(channelInsight.topPct) ? channelInsight.topPct.toFixed(1) : "0.0"}%)
+            {channelInsight.cashPct > 0 && ` | 현금성 결제 비중: ${isFinite(channelInsight.cashPct) ? channelInsight.cashPct.toFixed(1) : "0.0"}%`}
           </p>
           {/* 조건부 전략 가이드 */}
           <div className="mt-2 space-y-1.5 text-xs">
@@ -85,7 +85,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
             )}
             {channelInsight.topPct > 70 && (
               <p className="text-amber-700 dark:text-amber-400">
-                <strong>⚠ 결제조건 편중:</strong> {channelInsight.topTerm}에 {channelInsight.topPct.toFixed(0)}% 집중. 현금흐름 변동성 감축을 위해 결제조건 다각화를 검토하세요.
+                <strong>⚠ 결제조건 편중:</strong> {channelInsight.topTerm}에 {isFinite(channelInsight.topPct) ? channelInsight.topPct.toFixed(0) : "0"}% 집중. 현금흐름 변동성 감축을 위해 결제조건 다각화를 검토하세요.
               </p>
             )}
           </div>
@@ -151,7 +151,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
                           dominantBaseline="central"
                           fontSize={11}
                         >
-                          {category} {(share || 0).toFixed(1)}%
+                          {category} {isFinite(share) ? (share || 0).toFixed(1) : "0.0"}%
                         </text>
                       );
                     }
@@ -195,7 +195,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
                 yAxisId="price"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                tickFormatter={(v) => `${isFinite(v / 1000) ? (v / 1000).toFixed(0) : "0"}K`}
                 label={{ value: "평균단가", angle: 90, position: "insideRight", style: { fontSize: 12 } }}
               />
               <RechartsTooltip
@@ -211,7 +211,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
                 <LabelList
                   dataKey="share"
                   position="top"
-                  formatter={(v: any) => `${Number(v).toFixed(1)}%`}
+                  formatter={(v: any) => `${isFinite(Number(v)) ? Number(v).toFixed(1) : "0.0"}%`}
                   style={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                 />
               </Bar>

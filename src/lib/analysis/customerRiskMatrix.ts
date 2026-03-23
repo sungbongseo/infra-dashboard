@@ -12,6 +12,8 @@ export interface CustomerRiskEntry {
   미수금잔액: number;
   장기미수율: number;
   quadrant: "star" | "risk" | "improve" | "exit";
+  matchConfidence?: number;   // 거래처-미수금 매칭 신뢰도: exact=1.0, startsWith=0.8, contains=0.6
+  matchWarning?: boolean;     // confidence < 0.8일 때 true
 }
 
 export interface QuadrantSummary {
@@ -43,23 +45,36 @@ function median(values: number[]): number {
 }
 
 /**
- * 거래처명 기반 contains 매칭
+ * 거래처명 기반 3단계 매칭 (exact → startsWith → contains)
  * profitData.매출거래처명 ↔ agingData.판매처명
+ * confidence: exact=1.0, startsWith=0.8, contains=0.6
  */
 function findAgingMatch(
   customerName: string,
   agingMap: Map<string, { 미수금잔액: number; 장기미수율: number }>
-): { 미수금잔액: number; 장기미수율: number } | undefined {
-  // 정확 매칭 우선
+): { 미수금잔액: number; 장기미수율: number; confidence: number } | undefined {
+  // 1. 정확 매칭 (confidence: 1.0)
   const exact = agingMap.get(customerName);
-  if (exact !== undefined) return exact;
+  if (exact !== undefined) return { ...exact, confidence: 1.0 };
 
-  // contains 매칭
   const entries = Array.from(agingMap.entries());
+
+  // 2. startsWith 매칭 (confidence: 0.8)
   for (let i = 0; i < entries.length; i++) {
     const [key, val] = entries[i];
-    if (key.includes(customerName) || customerName.includes(key)) return val;
+    if (key.startsWith(customerName) || customerName.startsWith(key)) {
+      return { ...val, confidence: 0.8 };
+    }
   }
+
+  // 3. contains 매칭 최후수단 (confidence: 0.6)
+  for (let i = 0; i < entries.length; i++) {
+    const [key, val] = entries[i];
+    if (key.includes(customerName) || customerName.includes(key)) {
+      return { ...val, confidence: 0.6 };
+    }
+  }
+
   return undefined;
 }
 
@@ -140,13 +155,16 @@ export function calcCustomerRiskMatrix(
   const entries: CustomerRiskEntry[] = [];
 
   Array.from(profitByCustomer.entries()).forEach(([name, profit]) => {
-    const profitRate =
-      profit.매출액 !== 0 ? (profit.영업이익 / profit.매출액) * 100 : 0;
+    // profitRate: 매출액 === 0이면 null 반환하여 항목 제외
+    if (profit.매출액 === 0) return;
+    const profitRate = (profit.영업이익 / profit.매출액) * 100;
     const safeProfitRate = isFinite(profitRate) ? profitRate : 0;
 
     const agingMatch = findAgingMatch(name, agingMap);
     const 미수금잔액 = agingMatch?.미수금잔액 ?? 0;
     const 장기미수율 = agingMatch?.장기미수율 ?? 0;
+    const matchConfidence = agingMatch?.confidence;
+    const matchWarning = matchConfidence !== undefined && matchConfidence < 0.8;
 
     entries.push({
       거래처: name,
@@ -157,6 +175,8 @@ export function calcCustomerRiskMatrix(
       미수금잔액,
       장기미수율,
       quadrant: "star", // placeholder, 아래에서 median 기준으로 재분류
+      matchConfidence,
+      matchWarning: matchWarning || undefined,
     });
   });
 

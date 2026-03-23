@@ -47,12 +47,64 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
     [contribRanking]
   );
 
+  // 성과 티어 분류: 상위 20% 핵심, 중간 60% 성장, 하위 20% 관리 대상
+  const tierInsight = useMemo(() => {
+    if (contribRanking.length < 3) return null;
+    const sorted = [...contribRanking].sort((a, b) => b.공헌이익 - a.공헌이익);
+    const total = sorted.reduce((s, r) => s + r.공헌이익, 0);
+    const topN = Math.max(1, Math.ceil(sorted.length * 0.2));
+    const bottomN = Math.max(1, Math.floor(sorted.length * 0.2));
+    const topSlice = sorted.slice(0, topN);
+    const topSum = topSlice.reduce((s, r) => s + r.공헌이익, 0);
+    const topShare = total !== 0 && isFinite(total) ? (topSum / total) * 100 : 0;
+    const deficitCount = sorted.filter(r => r.공헌이익 < 0).length;
+    return { topN, topShare, bottomN, deficitCount, midN: sorted.length - topN - bottomN };
+  }, [contribRanking]);
+
+  if (contribRanking.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+        <p className="text-lg font-medium">데이터가 없습니다</p>
+        <p className="text-sm mt-1">팀별 공헌이익 데이터를 업로드해 주세요</p>
+      </div>
+    );
+  }
+
   return (
     <>
-      {/* 적자 담당자 경고 배너 */}
-      {contribRanking.filter(r => r.공헌이익 < 0).length > 0 && (
+      {/* 성과 티어 인사이트 패널 */}
+      {tierInsight && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1 text-sm">핵심 인력 (상위 20%)</h4>
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              {tierInsight.topN}명이 전체 공헌이익의 {isFinite(tierInsight.topShare) ? tierInsight.topShare.toFixed(1) : "0.0"}%를 차지 — 리텐션 필수
+            </p>
+          </div>
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1 text-sm">성장 그룹 (중간 60%)</h4>
+            <p className="text-sm text-green-800 dark:text-green-200">
+              {tierInsight.midN}명 — 코칭과 지원을 통해 핵심 인력으로 육성 가능
+            </p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+            <h4 className="font-semibold text-amber-900 dark:text-amber-100 mb-1 text-sm">관리 대상 (하위 20%)</h4>
+            <p className="text-sm text-amber-800 dark:text-amber-200">
+              {tierInsight.bottomN}명 — 비용 구조 또는 담당 거래처 재검토 필요
+              {tierInsight.deficitCount > 0 && (
+                <span className="block mt-1 font-medium text-red-700 dark:text-red-400">
+                  적자 담당자 {tierInsight.deficitCount}명 포함
+                </span>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 적자 담당자 경고 배너 (티어 패널 없을 때 폴백) */}
+      {!tierInsight && contribRanking.filter(r => r.공헌이익 < 0).length > 0 && (
         <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 flex items-center gap-2">
-          <span className="font-medium">⚠️ 공헌이익 적자 담당자 {contribRanking.filter(r => r.공헌이익 < 0).length}명</span>
+          <span className="font-medium">적자 담당자 {contribRanking.filter(r => r.공헌이익 < 0).length}명</span>
           <span>변동비가 매출을 초과하여 고정비 회수에 기여하지 못하는 담당자가 있습니다. 원인 분석이 필요합니다.</span>
         </div>
       )}

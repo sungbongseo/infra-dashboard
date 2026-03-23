@@ -45,6 +45,9 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
 
   if (clvResults.length === 0) return <EmptyState message="매출목록과 조직손익 데이터를 업로드해 주세요." />;
 
+  // confidence check from CLV model
+  const overallConfidence = clvResults[0]?.confidence ?? "normal";
+
   if (dataMonths < 30) {
     return (
       <DataSufficiencyNotice
@@ -59,6 +62,13 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
 
   return (
     <>
+      {/* confidence warning */}
+      {overallConfidence === "low" && (
+        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+          12개월 미만 데이터 — CLV 추정치 정확도 낮음. 거래 이력이 쌓이면 정확도가 개선됩니다.
+        </div>
+      )}
+
       {/* CLV KPI 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -132,7 +142,11 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
                 />
                 <RechartsTooltip
                   {...TOOLTIP_STYLE}
-                  formatter={(value: any) => [formatCurrency(Number(value)), "CLV"]}
+                  formatter={(value: any) => {
+                    if (overallConfidence === "insufficient") return ["-", "CLV"];
+                    const label = overallConfidence === "low" ? "CLV (추정)" : "CLV";
+                    return [formatCurrency(Number(value)), label];
+                  }}
                 />
                 <Bar dataKey="clv" name="CLV" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               </BarChart>
@@ -176,7 +190,7 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
                       <div className="rounded-lg border bg-background p-3 shadow-md text-sm">
                         <p className="font-medium mb-1">{data.customerName || data.customer}</p>
                         <p>현재 매출: {formatCurrency(data.currentSales)}</p>
-                        <p>CLV: {formatCurrency(data.clv)}</p>
+                        <p>CLV: {data.confidence === "insufficient" ? "-" : formatCurrency(data.clv)}{data.confidence === "low" ? " (추정)" : ""}</p>
                       </div>
                     );
                   }}

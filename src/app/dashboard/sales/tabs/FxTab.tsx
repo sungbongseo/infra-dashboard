@@ -32,6 +32,20 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
   const monthlyFxTrend = useMemo(() => calcMonthlyFxTrend(filteredSales), [filteredSales]);
   const fxPnL = useMemo(() => calcFxPnL(filteredSales), [filteredSales]);
 
+  // 환율 리스크 요약 인사이트
+  const fxRiskInsight = useMemo(() => {
+    if (fxImpact.foreignAmount === 0) return null;
+    const totalSales = fxImpact.foreignAmount + (fxImpact.currencyBreakdown.find(c => c.currency === "KRW")?.bookAmount || 0);
+    const foreignShare = totalSales > 0 ? (fxImpact.foreignAmount / totalSales) * 100 : 0;
+    const lossAt10Pct = fxImpact.foreignAmount * 0.1;
+    // 상위 3개 외화 통화 (KRW 제외)
+    const topCurrencies = fxImpact.currencyBreakdown
+      .filter(c => c.currency !== "KRW")
+      .sort((a, b) => b.bookAmount - a.bookAmount)
+      .slice(0, 3);
+    return { foreignShare, lossAt10Pct, topCurrencies };
+  }, [fxImpact]);
+
   if (fxImpact.currencyBreakdown.length <= 1 && fxImpact.foreignAmount === 0) {
     return <EmptyState />;
   }
@@ -43,11 +57,29 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
         <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-start gap-2">
           <Globe className="h-4 w-4 flex-shrink-0 mt-0.5" />
           <div>
-            현재 외화 거래는 일부 조직에 집중되어 있습니다 (전체 매출의 {fxImpact.foreignSharePercent.toFixed(1)}%).
+            현재 외화 거래는 일부 조직에 집중되어 있습니다 (전체 매출의 {isFinite(fxImpact.foreignSharePercent) ? fxImpact.foreignSharePercent.toFixed(1) : "0.0"}%).
             나머지 조직은 원화 거래만 발생하고 있어, 아래 분석은 외화 거래가 있는 조직 중심으로 해석하세요.
           </div>
         </div>
       )}
+      {/* 환율 리스크 요약 인사이트 */}
+      {fxRiskInsight && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 text-sm">환율 리스크 요약</h4>
+          <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
+            <li>• 외화 매출 비중: <span className="font-medium">{isFinite(fxRiskInsight.foreignShare) ? fxRiskInsight.foreignShare.toFixed(1) : "0.0"}%</span>
+              {fxRiskInsight.foreignShare >= 30 && " — 환헤지 전략 필수"}
+            </li>
+            <li>• 원화 강세 시 <span className="font-medium text-red-700 dark:text-red-400">{formatCurrency(fxRiskInsight.lossAt10Pct)}</span> 손실 추정 (환율 10% 변동 기준)</li>
+            {fxRiskInsight.topCurrencies.length > 0 && (
+              <li>• 주요 통화별 노출: {fxRiskInsight.topCurrencies.map(c =>
+                `${c.currency} ${formatCurrency(c.bookAmount)}`
+              ).join(", ")}</li>
+            )}
+          </ul>
+        </div>
+      )}
+
       {/* FX KPI 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -113,13 +145,13 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
                 yAxisId="right"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${v.toFixed(0)}%`}
+                tickFormatter={(v) => `${isFinite(v) ? v.toFixed(0) : "0"}%`}
                 domain={[0, 100]}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(value: any, name: any) => {
-                  if (name === "해외비중") return [`${Number(value).toFixed(1)}%`, name];
+                  if (name === "해외비중") return [`${isFinite(Number(value)) ? Number(value).toFixed(1) : "0.0"}%`, name];
                   return [formatCurrency(Number(value)), name];
                 }}
               />
@@ -197,7 +229,7 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
                       (c) => c.currency === label
                     );
                     return item
-                      ? `${label} (${item.count.toLocaleString()}건, 비중 ${item.share.toFixed(1)}%)`
+                      ? `${label} (${item.count.toLocaleString()}건, 비중 ${isFinite(item.share) ? item.share.toFixed(1) : "0.0"}%)`
                       : label;
                   }}
                 />
