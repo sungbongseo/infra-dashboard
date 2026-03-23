@@ -23,6 +23,7 @@ export interface BreakevenResult {
   canBreakEven: boolean; // 손익분기 달성 가능 여부
   safetyMarginRate: number; // 안전한계율 (%)
   operatingLeverage: number; // 영업레버리지
+  hasNegativeFixedCosts?: boolean; // SAP 반제 전표로 음수 고정비 발생
 }
 
 export interface BreakevenChartPoint {
@@ -104,23 +105,21 @@ export function calcTeamBreakeven(
     if (!isFinite(safetyMarginRate)) safetyMarginRate = safetyMarginRate > 0 ? 999 : -999;
     if (!isFinite(bepSales)) bepSales = 0; // NaN fallback (canBreakEven=false가 권위적 플래그)
 
-    // 역산 고정비가 음수인 경우 비정상 비용 구조 경고
-    if (fixedCosts < 0) {
-      console.warn(`[BEP] ${r.영업조직팀}: 역산 고정비 음수 (${fixedCosts.toLocaleString()}) → 0으로 클램프`);
-    }
+    const hasNegativeFixedCosts = fixedCosts < 0;
 
     results.push({
       org: r.영업조직팀,
       person: r.영업담당사번,
       sales,
       variableCosts,
-      fixedCosts: Math.max(fixedCosts, 0),
+      fixedCosts, // 음수 허용: SAP 반제 전표로 발생 가능
       variableCostRatio,
       contributionMarginRatio,
       bepSales,
       canBreakEven,
       safetyMarginRate,
       operatingLeverage,
+      hasNegativeFixedCosts,
     });
   }
 
@@ -159,9 +158,9 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     // Variable costs = sales * variable cost ratio
     const variableCosts = sales * variableCostRatio;
 
-    // Fixed costs = 공헌이익 - 영업이익 (음수 방지 클램핑)
+    // Fixed costs = 공헌이익 - 영업이익 (음수 허용: SAP 반제 전표)
     // This represents the fixed portion of SGA expenses
-    const fixedCosts = Math.max(r.공헌이익.실적 - r.영업이익.실적, 0);
+    const fixedCosts = r.공헌이익.실적 - r.영업이익.실적;
 
     // BEP Sales = fixedCosts / contributionMarginRatio
     let bepSales: number;
@@ -206,6 +205,7 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
       canBreakEven,
       safetyMarginRate,
       operatingLeverage,
+      hasNegativeFixedCosts: fixedCosts < 0,
     });
   }
 

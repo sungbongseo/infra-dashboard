@@ -16,6 +16,7 @@ interface O2CFlowTabProps {
   salesToCollectionRate: number;
   prepaymentAmount: number;
   grossCollections: number;
+  isAgingBased?: boolean;
   isDateFiltered?: boolean;
 }
 
@@ -24,6 +25,7 @@ export function O2CFlowTab({
   salesToCollectionRate,
   prepaymentAmount,
   grossCollections,
+  isAgingBased,
   isDateFiltered,
 }: O2CFlowTabProps) {
   if (pipelineStages.length === 0) {
@@ -48,6 +50,7 @@ export function O2CFlowTab({
         salesToCollectionRate={salesToCollectionRate}
         prepaymentAmount={prepaymentAmount}
         grossCollections={grossCollections}
+        isAgingBased={isAgingBased}
       />
     </ChartCard>
   );
@@ -60,9 +63,10 @@ interface O2CFlowDiagramProps {
   salesToCollectionRate: number;
   prepaymentAmount: number;
   grossCollections: number;
+  isAgingBased?: boolean;
 }
 
-function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, grossCollections }: O2CFlowDiagramProps) {
+function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, grossCollections, isAgingBased }: O2CFlowDiagramProps) {
   const orderStage = stages.find((s) => s.stage === "수주");
   const salesStage = stages.find((s) => s.stage === "매출전환");
   const collectionStage = stages.find((s) => s.stage === "수금완료");
@@ -295,12 +299,12 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             <rect x="620" y="220" width="180" height="76" rx="14" fill="hsl(var(--card))" stroke={colors.outstanding} strokeWidth="2" strokeDasharray="6 3" />
             <rect x="620" y="220" width="180" height="26" rx="14" fill={colors.outstanding} opacity="0.10" />
             <rect x="620" y="220" width="180" height="26" rx="14" fill="none" stroke={colors.outstanding} strokeWidth="2" strokeDasharray="6 3" />
-            <text x="710" y="238" textAnchor="middle" className="text-xs font-bold" fill={colors.outstanding}>미수잔액</text>
+            <text x="710" y="238" textAnchor="middle" className="text-xs font-bold" fill={colors.outstanding}>미수잔액{isAgingBased ? " (실제)" : ""}</text>
             <text x="710" y="264" textAnchor="middle" className="text-sm font-bold" fill="hsl(var(--foreground))">
               {formatCurrency(outAmt, true)}
             </text>
             <text x="710" y="284" textAnchor="middle" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              매출대비 {formatPercent(outRate, 1)}
+              {isAgingBased ? "채권연령 기준" : "매출대비"} {formatPercent(outRate, 1)}
             </text>
           </g>
 
@@ -324,12 +328,12 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             </text>
 
             {/* 매출→수금 순수수금율 */}
-            <circle cx="42" cy="268" r="5" fill={healthColor(collRate, O2C_THRESHOLDS.collectionRate)} />
+            <circle cx="42" cy="268" r="5" fill={healthColor(Math.min(collRate, 100), O2C_THRESHOLDS.collectionRate)} />
             <text x="54" y="272" className="text-[10px]" fill="hsl(var(--muted-foreground))">
               순수 수금율: {formatPercent(collRate, 1)} (선수금 제외)
             </text>
-            <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(collRate, O2C_THRESHOLDS.collectionRate)}>
-              {collRate >= O2C_THRESHOLDS.collectionRate ? "양호" : collRate >= O2C_THRESHOLDS.collectionRate * 0.8 ? "주의" : "위험"}
+            <text x="240" y="272" className="text-[10px] font-medium" fill={healthColor(Math.min(collRate, 100), O2C_THRESHOLDS.collectionRate)}>
+              {collRate > 100 ? "이전기간 수금 포함" : collRate >= O2C_THRESHOLDS.collectionRate ? "양호" : collRate >= O2C_THRESHOLDS.collectionRate * 0.8 ? "주의" : "위험"}
             </text>
 
             {/* 선수금 정보 */}
@@ -344,7 +348,7 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
             {/* 미수 비율 */}
             <circle cx="42" cy="314" r="5" fill={healthColor(100 - outRate, 100 - O2C_THRESHOLDS.outstandingRate)} />
             <text x="54" y="318" className="text-[10px]" fill="hsl(var(--muted-foreground))">
-              미수잔액 비중: {formatPercent(outRate, 1)}
+              미수잔액 비중: {formatPercent(outRate, 1)}{isAgingBased ? " (채권연령 기준)" : ""}
             </text>
             <text x="240" y="318" className="text-[10px] font-medium" fill={healthColor(100 - outRate, 100 - O2C_THRESHOLDS.outstandingRate)}>
               {outRate <= O2C_THRESHOLDS.outstandingRate ? "양호" : outRate <= O2C_THRESHOLDS.outstandingRate * 1.75 ? "주의" : "위험"}

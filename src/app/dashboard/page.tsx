@@ -514,8 +514,8 @@ export default function OverviewPage() {
               icon={<Wallet className="h-5 w-5" />}
               formula="수금율(%) = 총 수금액 ÷ 총 매출액 × 100"
               description={collectionRateDetail.totalCollectionRate > 100
-                ? "100%를 넘는 경우는 이전 기간 미수금 회수 또는 선수금이 포함된 경우입니다."
-                : "매출 중 실제로 현금이 회수된 비율입니다. 선수금도 포함됩니다."
+                ? `100%를 넘는 경우는 이전 기간 미수금 회수 또는 선수금이 포함된 경우입니다.${isDateFiltered ? " ⚠️ 기간 필터 적용 중이므로 미수잔액(스냅샷)과 기간이 다를 수 있습니다." : ""}`
+                : `매출 중 실제로 현금이 회수된 비율입니다. 선수금도 포함됩니다.${isDateFiltered ? " (기간 필터 적용 중 — 미수잔액은 스냅샷 기준)" : ""}`
               }
               benchmark="80% 이상이면 양호, 60% 미만이면 수금 관리 점검 필요"
               reason="매출 대비 현금 회수율로 유동성 건전성을 모니터링하고, 수금 지연 시 즉각 대응합니다."
@@ -705,7 +705,7 @@ export default function OverviewPage() {
             </ChartContainer>
           </ChartCard>
 
-          {forecast && forecast.points.length > 3 && forecast.stats.confidence !== "insufficient" && (
+          {forecast && forecast.points.length > 3 && forecast.stats.confidence !== "insufficient" && forecast.stats.confidence !== "unusable" && (
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
@@ -740,13 +740,15 @@ export default function OverviewPage() {
               </ChartContainer>
             </ChartCard>
           )}
-          {forecast && forecast.stats.confidence === "insufficient" && (
+          {forecast && (forecast.stats.confidence === "insufficient" || forecast.stats.confidence === "unusable") && (
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
               reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망합니다."
             >
               <div className="flex items-center justify-center h-48 text-sm text-muted-foreground">
-                데이터 부족 (최소 6개월 필요) — 더 많은 매출 데이터를 업로드하면 예측이 표시됩니다
+                {forecast.stats.confidence === "unusable"
+                  ? "예측 불가 — 데이터 부족 + 회귀 부적합 (R² < 30%). 더 많은 매출 데이터를 업로드하세요"
+                  : "데이터 부족 (최소 6개월 필요) — 더 많은 매출 데이터를 업로드하면 예측이 표시됩니다"}
               </div>
             </ChartCard>
           )}

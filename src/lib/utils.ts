@@ -212,7 +212,7 @@ function addPAD(a: PlanActualDiff, b: PlanActualDiff): PlanActualDiff {
 }
 
 /** 비율 PlanActualDiff 재계산 (분자/분모 기반) */
-function calcRatioPAD(numerator: PlanActualDiff, denominator: PlanActualDiff): PlanActualDiff {
+export function calcRatioPAD(numerator: PlanActualDiff, denominator: PlanActualDiff): PlanActualDiff {
   const raw계획 = denominator.계획 !== 0 ? (numerator.계획 / denominator.계획) * 100 : 0;
   const raw실적 = denominator.실적 !== 0 ? (numerator.실적 / denominator.실적) * 100 : 0;
   const 계획 = isFinite(raw계획) ? raw계획 : 0;
@@ -245,6 +245,7 @@ export function aggregateOrgProfit(data: OrgProfitRecord[]): OrgProfitRecord[] {
         판매사업본부: row.판매사업본부,
         판매사업부: row.판매사업부,
         영업조직팀: row.영업조직팀,
+        ...(row.month ? { month: row.month } : {}),
         매출액: { ...row.매출액 },
         실적매출원가: { ...row.실적매출원가 },
         매출총이익: { ...row.매출총이익 },

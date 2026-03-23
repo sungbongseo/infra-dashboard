@@ -13,7 +13,7 @@ export interface ForecastPoint {
   lowerBound?: number;  // -1 std dev
 }
 
-export type ForecastConfidence = "insufficient" | "low" | "normal";
+export type ForecastConfidence = "unusable" | "insufficient" | "low" | "normal";
 
 export interface ForecastStats {
   slope: number;
@@ -22,7 +22,7 @@ export interface ForecastStats {
   trend: "up" | "down" | "flat";
   trendSeverity?: "mild" | "moderate" | "severe"; // |avgGrowthRate| >= 30% severe, >= 10% moderate, < 10% mild
   avgGrowthRate: number; // MoM average growth %
-  confidence: ForecastConfidence; // data sufficiency: <6 insufficient, 6-11 low, 12+ normal (R²<0.3 forces low)
+  confidence: ForecastConfidence; // <6 insufficient (R²<0.3→unusable), 6-11 low, 12+ normal (R²<0.3→low)
 }
 
 // ─── Monthly totals ──────────────────────────────────────────
@@ -291,9 +291,13 @@ export function calcSalesForecast(
   } else {
     confidence = "normal";
   }
-  // R² < 0.3이면 회귀 부적합 → confidence를 "low"로 강제 (insufficient는 유지)
-  if (r2 < 0.3 && confidence === "normal") {
-    confidence = "low";
+  // R² < 0.3이면 회귀 부적합
+  if (r2 < 0.3) {
+    if (confidence === "normal") {
+      confidence = "low";
+    } else if (confidence === "insufficient") {
+      confidence = "unusable"; // 데이터 부족 + 회귀 부적합 → 예측 불가
+    }
   }
 
   const stats: ForecastStats = {

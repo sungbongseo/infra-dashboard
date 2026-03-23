@@ -185,6 +185,7 @@ export interface CostStructureRow {
   상품매입비율: number;
   외주비율: number;
   매출원가율: number;
+  hasNegativeSales?: boolean; // 반제 전표로 음수 매출 발생
 }
 
 export function calcCostStructure(teamContribData: TeamContributionRecord[]): CostStructureRow[] {
@@ -241,6 +242,7 @@ export function calcCostStructure(teamContribData: TeamContributionRecord[]): Co
         상품매입비율,
         외주비율,
         매출원가율: sales > 0 ? ((원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비) / sales) * 100 : 0,
+        ...(r.매출액.실적 < 0 ? { hasNegativeSales: true } : {}),
       };
     });
 }

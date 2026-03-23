@@ -13,6 +13,7 @@ export interface O2CPipelineResult {
   prepaymentAmount: number; // 선수금 총액
   grossCollections: number; // 총 수금액 (선수금 포함)
   netCollections: number;   // 순수 수금액 (선수금 제외)
+  isAgingBased: boolean;    // 미수잔액이 aging 실제 데이터 기반인지
 }
 
 export interface MonthlyConversion {
@@ -35,14 +36,19 @@ export interface MonthlyConversion {
 export function calcO2CPipeline(
   orders: OrderRecord[],
   sales: SalesRecord[],
-  collections: CollectionRecord[]
+  collections: CollectionRecord[],
+  receivableAgingTotal?: number // 실제 미수금 총액 (receivableAging 기반)
 ): O2CPipelineResult {
   const totalOrders = orders.reduce((s, o) => s + o.장부금액, 0);
   const totalSales = sales.reduce((s, r) => s + r.장부금액, 0);
   const grossCollections = collections.reduce((s, c) => s + c.장부수금액, 0);
   const prepaymentAmount = collections.reduce((s, c) => s + c.장부선수금액, 0);
   const netCollections = Math.max(0, grossCollections - prepaymentAmount);
-  const outstanding = Math.max(0, totalSales - netCollections);
+  // 미수잔액: receivableAging 실제 데이터가 있으면 사용, 없으면 기존 계산
+  const isAgingBased = receivableAgingTotal != null && receivableAgingTotal > 0;
+  const outstanding = isAgingBased
+    ? receivableAgingTotal
+    : Math.max(0, totalSales - netCollections);
 
   const stages: O2CStage[] = [
     {
@@ -76,6 +82,7 @@ export function calcO2CPipeline(
     prepaymentAmount,
     grossCollections,
     netCollections,
+    isAgingBased,
   };
 }
 

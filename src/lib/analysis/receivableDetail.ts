@@ -54,7 +54,7 @@ const BUCKET_KEYS: BucketKey[] = ["month1", "month2", "month3", "month4", "month
 
 // ─── 1. 거래처별 Aging 프로파일 ─────────────────────────────────────
 
-export function calcCustomerAgingProfile(records: ReceivableAgingRecord[]): CustomerAgingProfile[] {
+export function calcCustomerAgingProfile(records: ReceivableAgingRecord[]): CustomerAgingProfile[] & { bucketMismatchCount?: number } {
   const grouped = new Map<string, ReceivableAgingRecord[]>();
   for (const r of records) {
     const key = r.판매처;
@@ -109,7 +109,21 @@ export function calcCustomerAgingProfile(records: ReceivableAgingRecord[]): Cust
     });
   }
 
-  return results.sort((a, b) => b.합계 - a.합계);
+  const sorted = results.sort((a, b) => b.합계 - a.합계);
+
+  // Aging 버킷 합산 vs 합계 필드 불일치 검출
+  let mismatchCount = 0;
+  for (const r of sorted) {
+    const bucketSum = r.month1 + r.month2 + r.month3 + r.month4 + r.month5 + r.month6 + r.overdue;
+    if (Math.abs(bucketSum - r.합계) > 1) { // 1원 이내 허용 (반올림 오차)
+      mismatchCount++;
+    }
+  }
+  const result = sorted as CustomerAgingProfile[] & { bucketMismatchCount?: number };
+  if (mismatchCount > 0) {
+    result.bucketMismatchCount = mismatchCount;
+  }
+  return result;
 }
 
 // ─── 2. 통화별 미수금 노출 ──────────────────────────────────────────

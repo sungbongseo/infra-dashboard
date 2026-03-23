@@ -47,12 +47,9 @@ function assignQuintiles(
     if (n >= 5) {
       // Standard quintile: 1-5 based on rank percentile
       rawScore = Math.min(5, Math.floor((i / n) * 5) + 1);
-    } else if (n === 1) {
-      rawScore = 3; // 단일 데이터: 중간값
     } else {
-      // n=2~4: 전체 1-5 범위를 사용하여 극단 세그먼트(VIP, Lost)도 도달 가능
-      // 균등 분배: n=2 → [1,5], n=3 → [1,3,5], n=4 → [1,2,4,5]
-      rawScore = Math.round((i / (n - 1)) * 4) + 1; // 1~5 전체 범위
+      // n<5: 표본 부족 → 전체를 중간값(3)으로 통일하여 극단 세그먼트 방지
+      rawScore = 3;
     }
     const score = invertScore ? (6 - rawScore) : rawScore;
     scoreMap.set(sorted[i].index, score);

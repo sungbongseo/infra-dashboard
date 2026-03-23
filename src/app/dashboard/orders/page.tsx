@@ -10,7 +10,7 @@ import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline"
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredOrders, useFilteredSales, useFilteredCollections, useFilteredInventory } from "@/lib/hooks/useFilteredData";
+import { useFilteredOrders, useFilteredSales, useFilteredCollections, useFilteredInventory, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
 const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
 const AnalysisTab = lazy(() => import("./tabs/AnalysisTab").then(m => ({ default: m.AnalysisTab })));
@@ -26,6 +26,7 @@ export default function OrdersAnalysisPage() {
   const { filteredSales } = useFilteredSales();
   const { filteredCollections } = useFilteredCollections();
   const { filteredInventoryRecords } = useFilteredInventory();
+  const { filteredRecords: filteredAgingRecords } = useFilteredReceivables();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
@@ -118,10 +119,20 @@ export default function OrdersAnalysisPage() {
     return order.map((bin) => ({ bin, count: bins.get(bin) || 0 }));
   }, [filteredOrders]);
 
+  // receivableAging 실제 미수금 총액
+  const agingTotal = useMemo(() => {
+    if (filteredAgingRecords.length === 0) return undefined;
+    let total = 0;
+    for (const r of filteredAgingRecords) {
+      total += r.합계.장부금액;
+    }
+    return total > 0 ? total : undefined;
+  }, [filteredAgingRecords]);
+
   // O2C 파이프라인 데이터
   const pipelineResult = useMemo(
-    () => calcO2CPipeline(filteredOrders, filteredSales, filteredCollections),
-    [filteredOrders, filteredSales, filteredCollections]
+    () => calcO2CPipeline(filteredOrders, filteredSales, filteredCollections, agingTotal),
+    [filteredOrders, filteredSales, filteredCollections, agingTotal]
   );
   const pipelineStages = pipelineResult.stages;
 
@@ -233,6 +244,7 @@ export default function OrdersAnalysisPage() {
               salesToCollectionRate={salesToCollectionRate}
               prepaymentAmount={pipelineResult.prepaymentAmount}
               grossCollections={pipelineResult.grossCollections}
+              isAgingBased={pipelineResult.isAgingBased}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>

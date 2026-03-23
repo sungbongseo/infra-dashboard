@@ -7,6 +7,19 @@
 import type { SalesRecord, CollectionRecord } from "@/types";
 import { extractMonth } from "@/lib/utils";
 
+/** 거래처명 정규화: trim + 법인유형 통일 */
+function normalizeCustomerName(name: string): string {
+  return (name || "")
+    .trim()
+    .replace(/\s*주식회사\s*/g, "(주)")
+    .replace(/\s*\(주\)\s*/g, "(주)")
+    .replace(/\s*㈜\s*/g, "(주)")
+    .replace(/\s*유한회사\s*/g, "(유)")
+    .replace(/\s*\(유\)\s*/g, "(유)")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ── Types ──────────────────────────────────────────────────
 
 export interface CollectionDelayEntry {
@@ -109,7 +122,7 @@ export function calcCollectionDelay(
   }>();
 
   for (const r of sales) {
-    const customer = (r.수금처명 || r.수금처 || r.매출처명 || r.매출처 || "").trim();
+    const customer = normalizeCustomerName(r.수금처명 || r.수금처 || r.매출처명 || r.매출처 || "");
     if (!customer) continue;
     const entry = salesByCustomer.get(customer) || {
       org: r.영업조직 || "미분류",
@@ -141,7 +154,7 @@ export function calcCollectionDelay(
   }>();
 
   for (const c of collections) {
-    const customer = (c.거래처명 || "").trim();
+    const customer = normalizeCustomerName(c.거래처명 || "");
     if (!customer) continue;
     const entry = collectionByCustomer.get(customer) || {
       collectedAmount: 0,

@@ -13,6 +13,7 @@ import type {
   AgingAmounts,
 } from "@/types";
 import { detectFileType, getAgingSourceName, getFactoryName, type FileSchema } from "./schemas";
+import { calcRatioPAD } from "@/lib/utils";
 
 export interface ParseResult {
   fileType: string;
@@ -702,8 +703,8 @@ function parseSheetData(
         매출총이익: parsePlanActualDiff(row, 14),
         판매관리비: parsePlanActualDiff(row, 17),
         영업이익: parsePlanActualDiff(row, 20),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        매출총이익율: calcRatioPAD(parsePlanActualDiff(row, 14), parsePlanActualDiff(row, 8)),
+        영업이익율: calcRatioPAD(parsePlanActualDiff(row, 20), parsePlanActualDiff(row, 8)),
         판관변동_노무비: parsePlanActualDiff(row, 23),
         판관변동_복리후생비: parsePlanActualDiff(row, 26),
         판관변동_소모품비: parsePlanActualDiff(row, 29),
@@ -742,8 +743,8 @@ function parseSheetData(
         매출총이익: parsePlanActualDiff(row, 20),
         판매관리비: parsePlanActualDiff(row, 23),
         영업이익: parsePlanActualDiff(row, 26),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        매출총이익율: calcRatioPAD(parsePlanActualDiff(row, 20), parsePlanActualDiff(row, 14)),
+        영업이익율: calcRatioPAD(parsePlanActualDiff(row, 26), parsePlanActualDiff(row, 14)),
       }), warnings, "본부거래처품목손익", false);
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
@@ -783,8 +784,8 @@ function parseSheetData(
         판매관리비: parsePlanActualDiff(row, 69),
         판관변동_직접판매운반비: parsePlanActualDiff(row, 72),
         영업이익: parsePlanActualDiff(row, 75),
-        매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
-        영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
+        매출총이익율: calcRatioPAD(parsePlanActualDiff(row, 66), parsePlanActualDiff(row, 45)),
+        영업이익율: calcRatioPAD(parsePlanActualDiff(row, 75), parsePlanActualDiff(row, 45)),
       }), warnings, "거래처별품목별손익", false);
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],

@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-23T01:38:16.213Z",
+  "lastUpdated": "2026-03-23T04:15:06.293Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -17,7 +17,8 @@
     "ui",
     "orders",
     "data-accuracy-fix — Gap Analysis 완료",
-    "dashboard-improvement gap 분석"
+    "dashboard-improvement gap 분석",
+    "analysis"
   ],
   "primaryFeature": "인프라 대시보드",
   "features": {
@@ -30,12 +31,17 @@
       "archivedTo": "docs/archive/2026-03/dashboard-enhancement/"
     },
     "analysis": {
-      "phase": "archived",
+      "phase": "do",
       "matchRate": 100,
       "iterationCount": 0,
       "startedAt": "2026-03-06T04:07:05.001Z",
       "archivedAt": "2026-03-23T12:00:00.000Z",
-      "archivedTo": "docs/archive/2026-03/analysis/"
+      "archivedTo": "docs/archive/2026-03/analysis/",
+      "phaseNumber": 3,
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\lib\\analysis\\kpi.ts",
+      "timestamps": {
+        "lastUpdated": "2026-03-23T04:15:06.291Z"
+      }
     },
     "인프라 대시보드": {
       "phase": "do",
@@ -46,9 +52,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:10:39.322Z",
-        "lastUpdated": "2026-03-23T01:27:09.303Z"
+        "lastUpdated": "2026-03-23T04:12:39.031Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\types\\index.ts"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\lib\\orgMapping.ts"
     },
     "tabs": {
       "phase": "do",
@@ -59,9 +65,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:04.073Z",
-        "lastUpdated": "2026-03-23T00:26:40.103Z"
+        "lastUpdated": "2026-03-23T03:39:45.369Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\tabs\\ContribTab.tsx"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\orders\\tabs\\O2CFlowTab.tsx"
     },
     "sales": {
       "phase": "do",
@@ -98,7 +104,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:37:14.025Z",
-        "lastUpdated": "2026-03-23T01:38:16.212Z"
+        "lastUpdated": "2026-03-23T04:09:32.326Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\lib\\excel\\parser.ts"
     },
@@ -111,9 +117,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:39:59.845Z",
-        "lastUpdated": "2026-03-23T01:31:41.062Z"
+        "lastUpdated": "2026-03-23T04:12:56.905Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\components\\dashboard\\GlobalFilterBar.tsx"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\page.tsx"
     },
     "data": {
       "phase": "do",
@@ -215,7 +221,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-16T10:54:27.595Z",
-        "lastUpdated": "2026-03-23T01:30:48.395Z"
+        "lastUpdated": "2026-03-23T03:38:44.361Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\orders\\page.tsx"
     },
@@ -256,7 +262,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-23T01:38:16.213Z"
+    "lastActivity": "2026-03-23T04:15:06.293Z"
   },
   "history": [
     {
@@ -5110,6 +5116,234 @@
     {
       "timestamp": "2026-03-23T01:38:16.212Z",
       "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:37:41.036Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:37:53.979Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:02.800Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:16.321Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:24.604Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:35.514Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:44.361Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:38:53.879Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:39:06.855Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:39:18.100Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:39:25.623Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:39:34.576Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T03:39:45.369Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:08:34.249Z",
+      "feature": "인프라 대시보드",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:08:43.231Z",
+      "feature": "인프라 대시보드",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:08:56.558Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:09:08.815Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:09:24.563Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:09:32.326Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:09:50.016Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:09:57.532Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:10:03.382Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:10:19.521Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:10:32.937Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:11:03.897Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:11:12.904Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:11:26.503Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:11:34.991Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:11:44.229Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:12:09.984Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:12:21.799Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:12:39.031Z",
+      "feature": "인프라 대시보드",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:12:56.905Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:13:31.484Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:14:16.459Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:14:27.779Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:14:55.521Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T04:15:06.291Z",
+      "feature": "analysis",
       "phase": "do",
       "action": "updated"
     }
