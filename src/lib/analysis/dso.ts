@@ -25,6 +25,7 @@ export function calcDSO(receivablesTotal: number, avgMonthlySales: number): numb
 
 /** DSO 값을 표시용 문자열로 변환 (999 → "측정불가") */
 export function formatDSO(dso: number): string {
+  if (!isFinite(dso)) return "-";
   if (dso === DSO_UNMEASURABLE) return "측정불가";
   return `${dso}일`;
 }

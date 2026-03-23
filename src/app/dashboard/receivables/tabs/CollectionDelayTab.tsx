@@ -180,9 +180,9 @@ export function CollectionDelayTab({
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.org}</p>
-                      <p>수금률: {d.collectionRate.toFixed(1)}%</p>
-                      <p>평균 소요일: {d.avgDaysToCollect.toFixed(0)}일</p>
-                      <p>평균 지연일: {d.avgDelayDays.toFixed(0)}일</p>
+                      <p>수금률: {isFinite(d.collectionRate) ? d.collectionRate.toFixed(1) : "0"}%</p>
+                      <p>평균 소요일: {isFinite(d.avgDaysToCollect) ? d.avgDaysToCollect.toFixed(0) : "-"}일</p>
+                      <p>평균 지연일: {isFinite(d.avgDelayDays) ? d.avgDelayDays.toFixed(0) : "-"}일</p>
                       <p>거래처: {d.customerCount}개 (지연 {d.delayedCustomerCount}개)</p>
                       <p>매출: {formatCurrency(d.totalSalesAmount, true)}</p>
                     </div>
@@ -217,7 +217,7 @@ export function CollectionDelayTab({
                 outerRadius="65%"
                 dataKey="amount"
                 nameKey="method"
-                label={(props: any) => `${props.method} ${props.share.toFixed(1)}%`}
+                label={(props: any) => `${props.method} ${isFinite(props.share) ? props.share.toFixed(1) : "0"}%`}
                 {...ANIMATION_CONFIG}
               >
                 {paymentMethods.map((_, i) => (

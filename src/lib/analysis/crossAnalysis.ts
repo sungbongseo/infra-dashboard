@@ -167,7 +167,8 @@ export function calcOrgScorecards(
   for (const [orgName, data] of Array.from(orgMap.entries())) {
     if (data.sales === 0) continue;
 
-    const profitability = (data.opProfit / data.sales) * 100;
+    const rawProfitability = (data.opProfit / data.sales) * 100;
+    const profitability = isFinite(rawProfitability) ? rawProfitability : 0;
     const collectionEfficiency = data.sales > 0 ? (data.collections / data.sales) * 100 : 0;
 
     // HHI 기반 고객 다각화

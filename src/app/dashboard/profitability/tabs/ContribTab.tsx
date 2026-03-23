@@ -35,6 +35,29 @@ interface ContribTabProps {
 }
 
 export function ContribTab({ contribRanking, contribByRate, orgContribPie, excludedNegativeContribCount, contribTotals, isDateFiltered, monthlyTrend, monthlyGrowth }: ContribTabProps) {
+  // 공헌이익 랭킹 차트: 극단값(outlier) 처리 — 스케일 왜곡 방지
+  const { clampedDomain, outlierNote } = useMemo(() => {
+    if (contribRanking.length < 3) return { clampedDomain: undefined, outlierNote: "" };
+    const values = contribRanking.map(r => r.공헌이익).filter(v => isFinite(v));
+    if (values.length === 0) return { clampedDomain: undefined, outlierNote: "" };
+    const sorted = [...values].sort((a, b) => a - b);
+    const q1 = sorted[Math.floor(sorted.length * 0.25)];
+    const q3 = sorted[Math.floor(sorted.length * 0.75)];
+    const iqr = q3 - q1;
+    const upperFence = q3 + iqr * 3; // 극단 outlier 경계
+    const maxVal = Math.max(...values);
+    const minVal = Math.min(...values);
+    if (maxVal > upperFence && upperFence > 0) {
+      const outliers = contribRanking.filter(r => r.공헌이익 > upperFence);
+      const note = outliers.map(r => `${r.displayName} ${formatCurrency(r.공헌이익)}`).join(", ");
+      return {
+        clampedDomain: [Math.min(minVal, 0), upperFence] as [number, number],
+        outlierNote: `※ 차트 범위 초과: ${note}`,
+      };
+    }
+    return { clampedDomain: undefined, outlierNote: "" };
+  }, [contribRanking]);
+
   const contribExportData = useMemo(
     () =>
       contribRanking.map((r) => ({
@@ -165,7 +188,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
           <ChartContainer height="h-80 md:h-[500px]">
               <BarChart data={contribRanking} layout="vertical" margin={{ left: 90 }}>
                 <CartesianGrid {...GRID_PROPS} />
-                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} domain={clampedDomain} />
                 <YAxis type="category" dataKey="displayName" tick={{ fontSize: 9 }} width={85} />
                 <RechartsTooltip
                   content={({ payload }) => {
@@ -189,6 +212,9 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                 </Bar>
               </BarChart>
           </ChartContainer>
+          {outlierNote && (
+            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 px-1">{outlierNote}</p>
+          )}
         </ChartCard>
 
         <ChartCard
@@ -212,7 +238,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                   outerRadius={100}
                   label={orgContribPie.length <= 6
                     ? (props: any) => `${props.name || ""} ${(((props.percent as number) || 0) * 100).toFixed(1)}%`
-                    : false
+                    : ({ percent }: any) => Number(percent) >= 0.1 ? `${(Number(percent) * 100).toFixed(0)}%` : ""
                   }
                 >
                   {orgContribPie.map((_, i) => (

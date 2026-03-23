@@ -9,6 +9,7 @@ import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { OrgRatioMetric } from "@/lib/analysis/kpi";
 
 const MAX_RADAR_ORGS = 7;
+const DEFAULT_RADAR_ORGS = 3;
 
 /**
  * 히트맵 배경색 결정
@@ -61,7 +62,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
   }, [orgRatioMetrics]);
 
   const defaultOrgs = useMemo(
-    () => orgRatioMetrics.slice(0, MAX_RADAR_ORGS).map((r) => r.org),
+    () => orgRatioMetrics.slice(0, DEFAULT_RADAR_ORGS).map((r) => r.org),
     [orgRatioMetrics]
   );
 

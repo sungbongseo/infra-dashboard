@@ -133,6 +133,21 @@ export default function ProfilesPage() {
     };
   }, [selectedCostData, costEfficiencyData]);
 
+  // 비용 테이블 조직 전체 평균 (비교 기준선)
+  const orgAvgCostForTable = useMemo(() => {
+    if (costEfficiencyData.length === 0) return null;
+    const n = costEfficiencyData.length;
+    return {
+      salesAmount: costEfficiencyData.reduce((s, c) => s + c.salesAmount, 0) / n,
+      rawMaterialRate: costEfficiencyData.reduce((s, c) => s + c.rawMaterialRate, 0) / n,
+      outsourcingRate: costEfficiencyData.reduce((s, c) => s + c.outsourcingRate, 0) / n,
+      variableCostRate: costEfficiencyData.reduce((s, c) => s + c.variableCostRate, 0) / n,
+      fixedCostRate: costEfficiencyData.reduce((s, c) => s + c.fixedCostRate, 0) / n,
+      contributionMarginRate: costEfficiencyData.reduce((s, c) => s + c.contributionMarginRate, 0) / n,
+      operatingMarginRate: costEfficiencyData.reduce((s, c) => s + c.operatingMarginRate, 0) / n,
+    };
+  }, [costEfficiencyData]);
+
   // Tab 4: 실적 트렌드
   const repTrend = useMemo(
     () => selected ? calcRepTrend(filteredSales, filteredOrders, filteredCollections, selected.id, idToName) : null,
@@ -265,6 +280,7 @@ export default function ProfilesPage() {
               selectedCostData={selectedCostData}
               costRadarData={costRadarData}
               costEfficiencyData={costEfficiencyData}
+              orgAverage={orgAvgCostForTable}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>

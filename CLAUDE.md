@@ -6,12 +6,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev        # 개발 서버 (Next.js hot reload)
-npm run build      # 프로덕션 빌드
+npm run build      # 프로덕션 빌드 (ESLint + TypeScript errors both fail the build)
 npm start          # 프로덕션 서버
 npm run lint       # ESLint (next lint)
+npm run test       # Vitest 단일 실행
+npm run test:watch # Vitest watch 모드
 ```
 
-No test framework is configured. Deployed on Vercel.
+Vitest with globals enabled, tests at `src/**/*.test.ts`. Deployed on Vercel.
 
 ## Architecture
 
@@ -46,7 +48,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/components/dashboard/` — Shared: KpiCard (with sparklines), ChartCard, FileUploader, EmptyState, AnalysisTooltip, GlobalFilterBar, DataTable, ErrorBoundary, LoadingSkeleton, ExportButton, AlertPanel
 - `src/components/ui/` — Radix UI-based primitives
 - `src/components/charts/` — ChartContainer wrapper with shared grid/bar/animation config constants (GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR)
-- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 13 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
+- `src/lib/excel/` — Excel parsing: `schemas.ts` defines 14 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
 - `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (`useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, etc.) that encapsulate the common filter pattern
 - `src/lib/db.ts` — Dexie IndexedDB persistence for all parsed data and filter state
@@ -84,7 +86,6 @@ Advanced analytics:
 - `customerItemAnalysis.ts` — 교차 수익성, ABC 분석, 거래처 포트폴리오, 품목×거래처 매트릭스
 - `detailedProfitAnalysis.ts` — Pareto 분석, 제품군별 분석, 마진 침식 감지
 - `itemCostAnalysis.ts` — 품목별 매출원가 상세 분석 (6기본 + 4신규: 품목차이랭킹, 원가프로파일, 단가분석, 원가드라이버)
-- `standardCostAnalysis.ts` — 표준원가 분석 (품목별 표준 vs 실제 원가)
 - `standardCostVariance.ts` — 표준원가 차이 분석
 - `customerRiskMatrix.ts` — 거래처 리스크 매트릭스
 - `accountTypeAnalysis.ts` — 계정유형별 분석
@@ -99,10 +100,17 @@ Advanced analytics:
 - `autoReport.ts` — 자동 보고서 생성
 - `sensitivityAnalysis.ts` — 민감도 분석
 - `timeSeriesDecomposition.ts` — 시계열 분해
+- `productGroupAnalysis.ts` — 제품군별 분석
+- `salesProcess.ts` — 영업 프로세스 분석
+- `monthlyTrend.ts` — 월별 트렌드 분석
+- `inventoryAnalysis.ts` — 재고 수불 분석
+- `crossAnalysis.ts` — 교차 분석
+- `portfolioOptimization.ts` — 포트폴리오 최적화
+- `customerItemMargin.ts` — 거래처×품목 마진 분석
 
-### 13 Excel File Types (lib/excel/schemas.ts)
+### 14 Excel File Types (lib/excel/schemas.ts)
 
-Each file type is detected by filename regex (order matters — `orgCustomerProfit` must precede `orgProfit`). Some use merged headers (rows 0-1). Organization filtering uses different field names per type.
+Each file type is detected by filename regex (order matters — `orgCustomerProfit` must precede `orgProfit`). Some use merged headers (rows 0-1). Organization filtering uses different field names per type. `FileSchema` has optional `monthlyStrategy` field: `"concat"` (default, merge all sheets) or `"latest"` (use only last sheet, for cumulative reports).
 
 | Type | Filter Field | Notes |
 |------|-------------|-------|
@@ -115,6 +123,7 @@ Each file type is detected by filename regex (order matters — `orgCustomerProf
 | customerItemDetail (100) | 영업조직팀 | 거래처별 품목별 손익 |
 | itemCostDetail (501) | 영업조직팀 | 품목별 매출원가 상세 |
 | itemProfitability (200) | 영업조직팀 | 품목 계층+P&L+원가, 단일헤더+데이터셀머지 |
+| inventoryMovement | — | 품목별 수불현황 |
 
 ### Page Pattern
 

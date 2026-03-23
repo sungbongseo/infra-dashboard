@@ -155,6 +155,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
       { accessorKey: "grossMargin", header: () => <span title="매출총이익 / 매출액 × 100. 초록(≥20%) 양호 / 주황(10~20%) 보통 / 빨강(<10%) 주의">매출총이익율</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
+          if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
           return <span className={v >= 20 ? "text-green-600" : v >= 10 ? "text-amber-600" : "text-red-600"}>{formatPercent(v)}</span>;
         },
       },
@@ -164,6 +165,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
       { accessorKey: "contributionRate", header: () => <span title="공헌이익 / 매출액 × 100. 초록(≥30%) 우수 / 주황(15~30%) 보통 / 빨강(<15%) 주의">공헌이익율</span>,
         cell: ({ getValue }: any) => {
           const v = getValue() as number;
+          if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
           return <span className={v >= 30 ? "text-green-600" : v >= 15 ? "text-amber-600" : "text-red-600"}>{formatPercent(v)}</span>;
         },
       },

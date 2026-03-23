@@ -45,7 +45,7 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
     [filteredOrgProfit]
   );
 
-  if (filteredOrgProfit.length === 0) return <EmptyState />;
+  if (filteredOrgProfit.length === 0) return <EmptyState message="시나리오 분석에 필요한 손익 데이터가 없습니다." />;
 
   return (
     <>

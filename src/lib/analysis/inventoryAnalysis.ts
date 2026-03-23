@@ -145,6 +145,7 @@ export interface InventoryTurnover {
   factory: string;
   품목: string;
   품목명: string;
+  단위: string;
   avgInventory: number;    // (기초 + 기말) / 2 의 월평균
   totalOut: number;        // 총 출고 수량
   turnoverRate: number;    // 출고 / 평균재고
@@ -163,6 +164,7 @@ export interface SlowMovingItem {
   factory: string;
   품목: string;
   품목명: string;
+  단위: string;
   기말재고: number;
   zeroOutMonths: number;   // 출고=0인 연속 월 수
   lastOutMonth: string;    // 마지막 출고 월
@@ -189,6 +191,7 @@ export function calcInventoryTurnover(
       factory: string;
       품목: string;
       품목명: string;
+      단위: string;
       avgInvSum: number;
       totalOut: number;
       months: number;
@@ -209,6 +212,7 @@ export function calcInventoryTurnover(
         factory: row.factory,
         품목: row.품목,
         품목명: row.품목명,
+        단위: row.단위 || "",
         avgInvSum: monthAvg,
         totalOut: row.출고,
         months: 1,
@@ -224,6 +228,7 @@ export function calcInventoryTurnover(
       factory: item.factory,
       품목: item.품목,
       품목명: item.품목명,
+      단위: item.단위,
       avgInventory,
       totalOut: item.totalOut,
       turnoverRate: isFinite(turnoverRate) ? turnoverRate : 0,
@@ -295,6 +300,7 @@ export function calcSlowMoving(
       factory: string;
       품목: string;
       품목명: string;
+      단위: string;
       monthlyData: { month: string; 출고: number; 기말: number }[];
     }
   >();
@@ -313,6 +319,7 @@ export function calcSlowMoving(
         factory: row.factory,
         품목: row.품목,
         품목명: row.품목명,
+        단위: row.단위 || "",
         monthlyData: [{ month: m, 출고: row.출고, 기말: row.기말 }],
       });
     }
@@ -347,6 +354,7 @@ export function calcSlowMoving(
         factory: item.factory,
         품목: item.품목,
         품목명: item.품목명,
+        단위: item.단위,
         기말재고,
         zeroOutMonths,
         lastOutMonth,

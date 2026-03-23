@@ -236,19 +236,28 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
                 <th className="text-right p-2 font-medium">매출액</th>
                 <th className="text-right p-2 font-medium">매출원가율</th>
                 <th className="text-right p-2 font-medium">원재료비율</th>
-                <th className="text-right p-2 font-medium">조직평균</th>
                 <th className="text-right p-2 font-medium">상품매입비율</th>
-                <th className="text-right p-2 font-medium">조직평균</th>
                 <th className="text-right p-2 font-medium">외주비율</th>
-                <th className="text-right p-2 font-medium">조직평균</th>
               </tr>
             </thead>
             <tbody>
               {costEfficiency.map((r, i) => {
-                const costRateColor = r.매출원가율 >= 95 ? "text-red-600 dark:text-red-400 font-bold"
+                const costRateColor = r.매출원가율 >= 95 ? "text-red-600 dark:text-red-400 font-bold bg-red-50 dark:bg-red-950/30"
                   : r.매출원가율 >= 85 ? "text-amber-600 dark:text-amber-400 font-semibold"
                   : r.매출원가율 < 70 ? "text-green-600 dark:text-green-400"
                   : "";
+                const diffCell = (val: number, avg: number) => {
+                  const diff = val - avg;
+                  const over = diff > 5;
+                  return (
+                    <td className={`p-2 text-right font-mono text-xs ${over ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
+                      {formatPercent(val, 1)}
+                      <span className={`block text-[10px] ${over ? "text-red-400" : "text-muted-foreground"}`}>
+                        ({diff >= 0 ? "+" : ""}{diff.toFixed(1)}p)
+                      </span>
+                    </td>
+                  );
+                };
                 return (
                   <tr key={i} className="border-b hover:bg-muted/30 transition-colors">
                     <td className="p-2 font-mono text-xs">{r.id ? `${(r.org || "").trim()}_${r.id}`.substring(0, 15) : (r.org || "").substring(0, 15)}</td>
@@ -257,18 +266,9 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
                     <td className={`p-2 text-right font-mono text-xs ${costRateColor}`}>
                       {formatPercent(r.매출원가율, 1)}
                     </td>
-                    <td className={`p-2 text-right font-mono text-xs ${r.원재료비율 > r.orgAvg.원재료비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                      {formatPercent(r.원재료비율, 1)}
-                    </td>
-                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.원재료비율, 1)}</td>
-                    <td className={`p-2 text-right font-mono text-xs ${r.상품매입비율 > r.orgAvg.상품매입비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                      {formatPercent(r.상품매입비율, 1)}
-                    </td>
-                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.상품매입비율, 1)}</td>
-                    <td className={`p-2 text-right font-mono text-xs ${r.외주비율 > r.orgAvg.외주비율 + 5 ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
-                      {formatPercent(r.외주비율, 1)}
-                    </td>
-                    <td className="p-2 text-right text-xs text-muted-foreground">{formatPercent(r.orgAvg.외주비율, 1)}</td>
+                    {diffCell(r.원재료비율, r.orgAvg.원재료비율)}
+                    {diffCell(r.상품매입비율, r.orgAvg.상품매입비율)}
+                    {diffCell(r.외주비율, r.orgAvg.외주비율)}
                   </tr>
                 );
               })}

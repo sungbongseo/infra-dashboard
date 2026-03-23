@@ -88,7 +88,8 @@ export function CustomerRiskMatrixTab({
       accessorKey: "영업이익율", header: "영업이익율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
+        if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
+        return <span className={v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{v.toFixed(1)}%</span>;
       },
     },
     {
@@ -99,7 +100,8 @@ export function CustomerRiskMatrixTab({
       accessorKey: "장기미수율", header: "장기미수율(%)",
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
-        return <span className={v > 30 ? "text-red-600 dark:text-red-400" : v > 15 ? "text-amber-600 dark:text-amber-400" : ""}>{isFinite(v) ? v.toFixed(1) : "0"}%</span>;
+        if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
+        return <span className={v > 30 ? "text-red-600 dark:text-red-400" : v > 15 ? "text-amber-600 dark:text-amber-400" : ""}>{v.toFixed(1)}%</span>;
       },
     },
     {

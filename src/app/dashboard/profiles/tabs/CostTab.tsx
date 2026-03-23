@@ -1,3 +1,4 @@
+import { useState, useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
@@ -7,9 +8,13 @@ import {
 import { ChartContainer } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
+import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { SalesRepProfile, CostEfficiency } from "@/lib/analysis/profiling";
 
 const safe = (v: number, d = 1) => isFinite(v) ? v.toFixed(d) : "0";
+
+type SortKey = "salesAmount" | "rawMaterialRate" | "outsourcingRate" | "variableCostRate" | "fixedCostRate" | "contributionMarginRate" | "operatingMarginRate";
+type SortDir = "asc" | "desc";
 
 interface CostTabProps {
   hasTeamContribution: boolean;
@@ -17,10 +22,38 @@ interface CostTabProps {
   selectedCostData: CostEfficiency | undefined;
   costRadarData: Array<{ subject: string; value: number; avg: number }>;
   costEfficiencyData: CostEfficiency[];
+  orgAverage?: { salesAmount: number; rawMaterialRate: number; outsourcingRate: number; variableCostRate: number; fixedCostRate: number; contributionMarginRate: number; operatingMarginRate: number } | null;
   isDateFiltered?: boolean;
 }
 
-export function CostTab({ hasTeamContribution, selected, selectedCostData, costRadarData, costEfficiencyData, isDateFiltered }: CostTabProps) {
+export function CostTab({ hasTeamContribution, selected, selectedCostData, costRadarData, costEfficiencyData, orgAverage, isDateFiltered }: CostTabProps) {
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDir(prev => prev === "desc" ? "asc" : "desc");
+    } else {
+      setSortKey(key);
+      setSortDir("desc");
+    }
+  };
+
+  const sortedData = useMemo(() => {
+    const data = costEfficiencyData.slice(0, 30);
+    if (!sortKey) return data;
+    return [...data].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      return sortDir === "desc" ? bv - av : av - bv;
+    });
+  }, [costEfficiencyData, sortKey, sortDir]);
+
+  const SortIcon = ({ field }: { field: SortKey }) => {
+    if (sortKey !== field) return <ArrowUpDown className="h-3 w-3 opacity-40" />;
+    return sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
+  };
+
   if (!hasTeamContribution) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -110,22 +143,48 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
       >
         <div className="overflow-x-auto max-h-[500px]">
           <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-background">
+            <thead className="sticky top-0 bg-background z-10">
               <tr className="border-b text-left">
                 <th className="p-2 font-medium">사번</th>
                 <th className="p-2 font-medium">조직</th>
-                <th className="p-2 font-medium text-right">매출액</th>
-                <th className="p-2 font-medium text-right">원재료비</th>
-                <th className="p-2 font-medium text-right">외주비</th>
-                <th className="p-2 font-medium text-right">판관변동</th>
-                <th className="p-2 font-medium text-right">판관고정</th>
-                <th className="p-2 font-medium text-right">공헌이익율</th>
-                <th className="p-2 font-medium text-right">영업이익율</th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("salesAmount")}>
+                  <span className="inline-flex items-center gap-1">매출액 <SortIcon field="salesAmount" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("rawMaterialRate")}>
+                  <span className="inline-flex items-center gap-1">원재료비 <SortIcon field="rawMaterialRate" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("outsourcingRate")}>
+                  <span className="inline-flex items-center gap-1">외주비 <SortIcon field="outsourcingRate" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("variableCostRate")}>
+                  <span className="inline-flex items-center gap-1">판관변동 <SortIcon field="variableCostRate" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("fixedCostRate")}>
+                  <span className="inline-flex items-center gap-1">판관고정 <SortIcon field="fixedCostRate" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("contributionMarginRate")}>
+                  <span className="inline-flex items-center gap-1">공헌이익율 <SortIcon field="contributionMarginRate" /></span>
+                </th>
+                <th className="p-2 font-medium text-right cursor-pointer select-none hover:text-foreground" onClick={() => toggleSort("operatingMarginRate")}>
+                  <span className="inline-flex items-center gap-1">영업이익율 <SortIcon field="operatingMarginRate" /></span>
+                </th>
               </tr>
             </thead>
             <tbody>
-              {costEfficiencyData.slice(0, 30).map((c, i) => (
-                <tr key={i} className={`border-b hover:bg-muted/50 ${c.personId === selected?.id ? "bg-primary/5" : ""}`}>
+              {orgAverage && (
+                <tr className="border-b bg-muted/60 font-medium sticky top-[37px] z-[5]">
+                  <td className="p-2 text-xs" colSpan={2}>조직 평균</td>
+                  <td className="p-2 text-right text-xs">{formatCurrency(orgAverage.salesAmount, true)}</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.rawMaterialRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.outsourcingRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.variableCostRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.fixedCostRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.contributionMarginRate)}%</td>
+                  <td className="p-2 text-right text-xs">{safe(orgAverage.operatingMarginRate)}%</td>
+                </tr>
+              )}
+              {sortedData.map((c, i) => (
+                <tr key={i} className={`border-b hover:bg-muted/50 ${c.personId === selected?.id ? "bg-primary/10 border-l-2 border-l-primary" : ""}`}>
                   <td className="p-2 font-mono text-xs">{c.personId}</td>
                   <td className="p-2 text-xs">{c.org}</td>
                   <td className="p-2 text-right text-xs">{formatCurrency(c.salesAmount, true)}</td>
@@ -134,7 +193,12 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
                   <td className="p-2 text-right text-xs">{safe(c.variableCostRate)}%</td>
                   <td className="p-2 text-right text-xs">{safe(c.fixedCostRate)}%</td>
                   <td className={`p-2 text-right text-xs font-medium ${c.contributionMarginRate >= 30 ? "text-emerald-600 dark:text-emerald-400" : c.contributionMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{safe(c.contributionMarginRate)}%</td>
-                  <td className={`p-2 text-right text-xs font-medium ${c.operatingMarginRate >= 10 ? "text-emerald-600 dark:text-emerald-400" : c.operatingMarginRate >= 0 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>{safe(c.operatingMarginRate)}%</td>
+                  <td className={`p-2 text-right text-xs font-medium ${
+                    c.operatingMarginRate >= 10 ? "text-emerald-600 dark:text-emerald-400"
+                    : c.operatingMarginRate >= 0 ? "text-amber-600 dark:text-amber-400"
+                    : c.operatingMarginRate <= -10 ? "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                    : "text-red-600 dark:text-red-400"
+                  }`}>{safe(c.operatingMarginRate)}%</td>
                 </tr>
               ))}
             </tbody>

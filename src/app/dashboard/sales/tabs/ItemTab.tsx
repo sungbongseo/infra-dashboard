@@ -263,8 +263,8 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
               stroke="hsl(var(--background))"
               content={(props: any) => {
                 const { x, y, width, height, name, value } = props;
-                if (width < 40 || height < 25) return <g />;
                 const clickable = hasChildren(String(name));
+                const tooSmall = width < 40 || height < 25;
                 return (
                   <g
                     style={{ cursor: clickable ? "pointer" : "default" }}
@@ -276,12 +276,16 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                       opacity={0.85}
                       rx={4}
                     />
-                    <text x={x + width / 2} y={y + height / 2 - 6} textAnchor="middle" fill="white" fontSize={11} fontWeight={600}>
-                      {truncateLabel(String(name), 8)}
-                    </text>
-                    <text x={x + width / 2} y={y + height / 2 + 10} textAnchor="middle" fill="white" fontSize={10} opacity={0.8}>
-                      {formatCurrency(value, true)}
-                    </text>
+                    {!tooSmall && (
+                      <>
+                        <text x={x + width / 2} y={y + height / 2 - 6} textAnchor="middle" fill="white" fontSize={11} fontWeight={600}>
+                          {truncateLabel(String(name), 8)}
+                        </text>
+                        <text x={x + width / 2} y={y + height / 2 + 10} textAnchor="middle" fill="white" fontSize={10} opacity={0.8}>
+                          {formatCurrency(value, true)}
+                        </text>
+                      </>
+                    )}
                   </g>
                 );
               }}

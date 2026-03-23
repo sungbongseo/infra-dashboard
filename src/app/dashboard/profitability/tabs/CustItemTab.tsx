@@ -94,9 +94,9 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
               <CartesianGrid {...GRID_PROPS} />
               <XAxis dataKey="product" tick={{ fontSize: 9 }} tickFormatter={(v) => truncateLabel(String(v), 8)} angle={-45} textAnchor="end" height={60} />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
-              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, 100]} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={(v) => isFinite(v) ? `${v.toFixed(0)}%` : "-"} domain={[0, 100]} />
               <RechartsTooltip
-                formatter={(v: any, name: any) => name === "누적비중(%)" ? `${Number(v).toFixed(1)}%` : formatCurrency(Number(v))}
+                formatter={(v: any, name: any) => { const n = Number(v); if (!isFinite(n)) return "-"; return name === "누적비중(%)" ? `${n.toFixed(1)}%` : formatCurrency(n); }}
                 {...TOOLTIP_STYLE}
               />
               <Legend />

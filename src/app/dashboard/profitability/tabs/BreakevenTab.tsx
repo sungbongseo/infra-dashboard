@@ -85,9 +85,9 @@ export function BreakevenTab({ orgBreakeven, bepChartData, bepKpiSummary, bepFro
         <ChartContainer height="h-64 md:h-80">
             <BarChart data={orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10)} layout="vertical" margin={{ left: 80 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => isFinite(v) ? `${v.toFixed(0)}%` : "-"} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
-              <RechartsTooltip formatter={(v: any) => `${Number(v).toFixed(1)}%`} {...TOOLTIP_STYLE} />
+              <RechartsTooltip formatter={(v: any) => { const n = Number(v); return isFinite(n) ? `${n.toFixed(1)}%` : "-"; }} {...TOOLTIP_STYLE} />
               <ReferenceLine x={0} stroke="#ef4444" strokeDasharray="3 3" />
               <ReferenceLine x={20} stroke="#22c55e" strokeDasharray="3 3" label={{ value: "안전선", fontSize: 10 }} />
               <Bar dataKey="safetyMarginRate" name="안전한계율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>

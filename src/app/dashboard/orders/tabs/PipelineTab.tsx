@@ -179,7 +179,7 @@ export function PipelineTab({
                 yAxisId="right"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(v) => `${v.toFixed(0)}%`}
+                tickFormatter={(v) => isFinite(v) ? `${v.toFixed(0)}%` : "-"}
                 domain={[0, 200]}
                 allowDataOverflow={true}
               />

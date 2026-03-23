@@ -111,7 +111,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(value: any) => `${Number(value).toFixed(1)}%`}
+                formatter={(value: any) => { const n = Number(value); return isFinite(n) ? `${n.toFixed(1)}%` : "-"; }}
                 labelFormatter={(label) => `조직: ${label}`}
               />
               <ReferenceLine x={100} stroke="hsl(0, 84%, 50%)" strokeDasharray="3 3" strokeWidth={2} label={{ value: "100%", position: "top", fontSize: 10 }} />

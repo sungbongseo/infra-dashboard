@@ -96,8 +96,9 @@ export function ProductGroupTab({
     if (portfolio.length < 2) return { data: [], medianSales: 0, medianMargin: 0 };
     const salesArr = portfolio.map((p) => p.sales).sort((a, b) => a - b);
     const marginArr = portfolio.map((p) => p.grossMargin).sort((a, b) => a - b);
-    const medianSales = salesArr[Math.floor(salesArr.length / 2)];
-    const medianMargin = marginArr[Math.floor(marginArr.length / 2)];
+    const mid = Math.floor(salesArr.length / 2);
+    const medianSales = salesArr.length % 2 === 0 ? (salesArr[mid - 1] + salesArr[mid]) / 2 : salesArr[mid];
+    const medianMargin = marginArr.length % 2 === 0 ? (marginArr[mid - 1] + marginArr[mid]) / 2 : marginArr[mid];
     const data = portfolio.map((p) => {
       const quadrant =
         p.sales >= medianSales && p.grossMargin >= medianMargin ? "star"

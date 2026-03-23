@@ -7,7 +7,7 @@ import {
   PieChart, Pie,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, ShieldCheck, Info } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
 
@@ -89,9 +89,9 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
 
           <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
             title="거래처 집중도 - HHI(허핀달-허쉬만 지수)"
-            formula="HHI = Σ(거래처 매출 비중²)\n거래처 매출 비중 = 거래처 매출 ÷ 담당자 총 매출"
-            description="HHI(허핀달-허쉬만 지수)는 매출이 특정 거래처에 얼마나 집중되어 있는지 측정하는 지표입니다. 0에 가까우면 여러 거래처에 매출이 고르게 분산된 안정적인 상태이고, 1에 가까우면 소수 거래처에 의존도가 높아 리스크가 큽니다."
-            benchmark="HHI가 2,500 초과이면 고위험(과점 상태), 1,500~2,500이면 적정 집중, 1,500 미만이면 분산(안정적)입니다"
+            formula="HHI = Σ(거래처 매출 비중²) × 10,000\n거래처 매출 비중 = 거래처 매출 ÷ 담당자 총 매출"
+            description="HHI(허핀달-허쉬만 지수)는 매출이 특정 거래처에 얼마나 집중되어 있는지 측정합니다. 0에 가까우면 여러 거래처에 매출이 고르게 분산된 안정적인 상태이고, 10,000에 가까우면 소수 거래처에 의존도가 높아 리스크가 큽니다."
+            benchmark="HHI 2,500 초과 = 고위험(과점), 1,500~2,500 = 적정 집중, 1,500 미만 = 분산(안정)"
             reason="거래처 집중도를 측정하여 특정 거래처 이탈 시 매출 급감 리스크를 사전에 파악하고, 거래처 다변화 전략을 수립합니다."
           >
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -110,10 +110,44 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                     {selected.hhiRiskLevel === "low" && "분산"}
                   </Badge>
                 </div>
+
+                {/* HHI 자연어 해석 인사이트 */}
+                {selected.hhiRiskLevel === "high" && selected.topCustomers.length > 0 && (
+                  <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-3 space-y-1.5">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400 flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
+                      매출 집중 리스크
+                    </p>
+                    <p className="text-xs text-red-600 dark:text-red-400/80">
+                      <strong>{selected.topCustomers[0].name}</strong>에 매출의 <strong>{formatPercent(selected.topCustomers[0].share * 100)}</strong>가 집중되어 있습니다.
+                      이 거래처가 이탈하면 매출이 <strong>{formatCurrency(selected.topCustomers[0].amount)}</strong> 감소합니다.
+                    </p>
+                    <p className="text-xs text-red-600/70 dark:text-red-400/60">
+                      → 신규 거래처 발굴 또는 2~3위 거래처 매출 확대가 필요합니다.
+                    </p>
+                  </div>
+                )}
+                {selected.hhiRiskLevel === "medium" && (
+                  <div className="rounded-lg border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
+                    <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                      <Info className="h-3.5 w-3.5 shrink-0" />
+                      거래처 분산이 적정 수준입니다. 상위 거래처 의존도를 지속 모니터링하세요.
+                    </p>
+                  </div>
+                )}
+                {selected.hhiRiskLevel === "low" && (
+                  <div className="rounded-lg border border-emerald-200 dark:border-emerald-900 bg-emerald-50 dark:bg-emerald-950/30 p-3">
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 flex items-center gap-1.5">
+                      <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
+                      거래처가 고르게 분산되어 안정적인 포트폴리오입니다.
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">최대 거래처 비중</span>
-                    <span className="font-medium">{formatPercent((selected.topCustomerShare > 1 ? selected.topCustomerShare : selected.topCustomerShare * 100))}</span>
+                    <span className="font-medium">{formatPercent(selected.topCustomerShare * 100)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">활성 거래처 수</span>
@@ -144,7 +178,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                       <div key={i} className="space-y-1">
                         <div className="flex justify-between text-xs">
                           <span className="truncate max-w-[180px]">{c.name}</span>
-                          <span className="font-medium ml-2">{formatPercent((c.share > 1 ? c.share : c.share * 100))}</span>
+                          <span className="font-medium ml-2">{formatPercent(c.share * 100)}</span>
                         </div>
                         <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                           <div className="h-full rounded-full" style={{ width: `${Math.min(c.share * 100, 100)}%`, backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
@@ -158,7 +192,17 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 {customerPieData.length > 0 ? (
                   <ChartContainer height="h-64 md:h-80">
                     <PieChart>
-                      <Pie data={customerPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={100} label={({ name, value }: any) => `${name} ${value}%`} labelLine={{ strokeWidth: 1 }}>
+                      <Pie
+                        data={customerPieData}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={50}
+                        outerRadius={100}
+                        label={({ name, value }: any) => Number(value) >= 5 ? `${name} ${value}%` : ""}
+                        labelLine={({ payload }: any) => Number(payload?.value) >= 5 ? { strokeWidth: 1 } as any : { strokeWidth: 0 } as any}
+                      >
                         {customerPieData.map((entry, i) => (<Cell key={i} fill={entry.fill} />))}
                       </Pie>
                       <RechartsTooltip {...TOOLTIP_STYLE} formatter={(value: any, name: any, props: any) => { const amt = props.payload?.amount; return amt ? [`${value}% (${formatCurrency(amt, true)})`, name] : [`${value}%`, name]; }} />

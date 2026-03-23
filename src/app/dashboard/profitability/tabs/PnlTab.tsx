@@ -95,7 +95,7 @@ export function PnlTab({ totalGP, gpRate, opRate, totalContrib, waterfallData, i
           <ChartContainer height="h-64 md:h-80">
               <BarChart data={waterfallData}>
                 <CartesianGrid {...GRID_PROPS} />
-                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-35} textAnchor="end" height={60} interval={0} />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={80} interval={0} />
                 <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => formatCurrency(v, true)} />
                 <RechartsTooltip
                   content={({ payload }) => {
