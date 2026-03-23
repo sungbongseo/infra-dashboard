@@ -1,25 +1,24 @@
 "use client";
 
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { extractMonth } from "@/lib/utils";
 import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredOrders, useFilteredSales, useFilteredCollections } from "@/lib/hooks/useFilteredData";
+import { useFilteredOrders, useFilteredSales, useFilteredCollections, useFilteredInventory } from "@/lib/hooks/useFilteredData";
 
-import { StatusTab } from "./tabs/StatusTab";
-import { AnalysisTab } from "./tabs/AnalysisTab";
-import { OrgTab } from "./tabs/OrgTab";
-import { PipelineTab } from "./tabs/PipelineTab";
-import { O2CFlowTab } from "./tabs/O2CFlowTab";
-import { ConversionTab } from "./tabs/ConversionTab";
-import { InventoryTab } from "./tabs/InventoryTab";
-import { useFilteredInventory } from "@/lib/hooks/useFilteredData";
+const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
+const AnalysisTab = lazy(() => import("./tabs/AnalysisTab").then(m => ({ default: m.AnalysisTab })));
+const OrgTab = lazy(() => import("./tabs/OrgTab").then(m => ({ default: m.OrgTab })));
+const PipelineTab = lazy(() => import("./tabs/PipelineTab").then(m => ({ default: m.PipelineTab })));
+const O2CFlowTab = lazy(() => import("./tabs/O2CFlowTab").then(m => ({ default: m.O2CFlowTab })));
+const ConversionTab = lazy(() => import("./tabs/ConversionTab").then(m => ({ default: m.ConversionTab })));
+const InventoryTab = lazy(() => import("./tabs/InventoryTab").then(m => ({ default: m.InventoryTab })));
 
 export default function OrdersAnalysisPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -180,6 +179,7 @@ export default function OrdersAnalysisPage() {
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <StatusTab
               totalOrders={totalOrders}
@@ -190,21 +190,27 @@ export default function OrdersAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="analysis" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <AnalysisTab orderTypes={orderTypes} leadTimes={leadTimes} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <OrgTab orgOrders={orgOrders} monthlyGap={monthlyGap} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="pipeline" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PipelineTab
               orderToSalesRate={orderToSalesRate}
@@ -216,9 +222,11 @@ export default function OrdersAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="o2c-flow" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <O2CFlowTab
               pipelineStages={pipelineStages}
@@ -228,19 +236,24 @@ export default function OrdersAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="conversion" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ConversionTab filteredOrders={filteredOrders} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         {filteredInventoryRecords.length > 0 && (
           <TabsContent value="inventory" className="space-y-6">
+            <Suspense fallback={<KpiSkeleton />}>
             <ErrorBoundary>
               <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} />
             </ErrorBoundary>
+            </Suspense>
           </TabsContent>
         )}
       </Tabs>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
 import type { ComparisonPreset } from "@/stores/filterStore";
@@ -68,39 +68,39 @@ export function GlobalFilterBar() {
     { value: "custom", label: "사용자 지정" },
   ];
 
-  const handleOrgToggle = (org: string) => {
+  const handleOrgToggle = useCallback((org: string) => {
     if (selectedOrgs.includes(org)) {
       setSelectedOrgs(selectedOrgs.filter((o) => o !== org));
     } else {
       setSelectedOrgs([...selectedOrgs, org]);
     }
-  };
+  }, [selectedOrgs, setSelectedOrgs]);
 
-  const handleSelectAllOrgs = () => {
+  const handleSelectAllOrgs = useCallback(() => {
     if (selectedOrgs.length === orgList.length) {
       setSelectedOrgs([]);
     } else {
       setSelectedOrgs([...orgList]);
     }
-  };
+  }, [selectedOrgs, orgList, setSelectedOrgs]);
 
-  const handleCustToggle = (cust: string) => {
+  const handleCustToggle = useCallback((cust: string) => {
     if (selectedCustomers.includes(cust)) {
       setSelectedCustomers(selectedCustomers.filter((c) => c !== cust));
     } else {
       setSelectedCustomers([...selectedCustomers, cust]);
     }
-  };
+  }, [selectedCustomers, setSelectedCustomers]);
 
-  const handleSelectAllCusts = () => {
+  const handleSelectAllCusts = useCallback(() => {
     if (selectedCustomers.length === filteredCustomerList.length) {
       setSelectedCustomers([]);
     } else {
       setSelectedCustomers([...filteredCustomerList]);
     }
-  };
+  }, [selectedCustomers, filteredCustomerList, setSelectedCustomers]);
 
-  const handleDateFromChange = (value: string) => {
+  const handleDateFromChange = useCallback((value: string) => {
     if (!value) {
       if (!dateRange?.to) {
         setDateRange(null);
@@ -110,9 +110,9 @@ export function GlobalFilterBar() {
       return;
     }
     setDateRange({ from: value, to: dateRange?.to || value });
-  };
+  }, [dateRange, setDateRange]);
 
-  const handleDateToChange = (value: string) => {
+  const handleDateToChange = useCallback((value: string) => {
     if (!value) {
       if (!dateRange?.from) {
         setDateRange(null);
@@ -122,7 +122,7 @@ export function GlobalFilterBar() {
       return;
     }
     setDateRange({ from: dateRange?.from || value, to: value });
-  };
+  }, [dateRange, setDateRange]);
 
   return (
     <div className="bg-card border-b px-4 sm:px-6">

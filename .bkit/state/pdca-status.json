@@ -1,7 +1,8 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-23T00:34:38.167Z",
+  "lastUpdated": "2026-03-23T01:38:16.213Z",
   "activeFeatures": [
+    "dashboard-enhancement",
     "인프라 대시보드",
     "tabs",
     "sales",
@@ -19,8 +20,25 @@
     "data-accuracy-fix — Gap Analysis 완료",
     "dashboard-improvement gap 분석"
   ],
-  "primaryFeature": "인프라 대시보드",
+  "primaryFeature": "dashboard-enhancement",
   "features": {
+    "dashboard-enhancement": {
+      "phase": "completed",
+      "phaseNumber": 6,
+      "matchRate": 90,
+      "iterationCount": 0,
+      "requirements": [],
+      "documents": {
+        "plan": "docs/01-plan/features/dashboard-enhancement.plan.md",
+        "design": "docs/02-design/features/dashboard-enhancement.design.md",
+        "analysis": "docs/03-analysis/dashboard-enhancement.analysis.md",
+        "report": "docs/04-report/features/dashboard-enhancement.report.md"
+      },
+      "timestamps": {
+        "started": "2026-03-23T12:00:00.000Z",
+        "lastUpdated": "2026-03-23T16:00:00.000Z"
+      }
+    },
     "analysis": {
       "phase": "archived",
       "matchRate": 100,
@@ -38,9 +56,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:10:39.322Z",
-        "lastUpdated": "2026-03-20T05:08:52.166Z"
+        "lastUpdated": "2026-03-23T01:27:09.303Z"
       },
-      "lastFile": "D:/분석/인프라 대시보드/_cross_validate.py"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\types\\index.ts"
     },
     "tabs": {
       "phase": "do",
@@ -64,7 +82,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:23.862Z",
-        "lastUpdated": "2026-03-22T23:29:01.121Z"
+        "lastUpdated": "2026-03-23T01:28:02.877Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\sales\\page.tsx"
     },
@@ -77,9 +95,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:55.666Z",
-        "lastUpdated": "2026-03-19T04:46:39.214Z"
+        "lastUpdated": "2026-03-23T01:27:02.221Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\stores\\filterStore.ts"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\stores\\dataStore.ts"
     },
     "excel": {
       "phase": "do",
@@ -90,7 +108,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:37:14.025Z",
-        "lastUpdated": "2026-03-20T07:07:14.405Z"
+        "lastUpdated": "2026-03-23T01:38:16.212Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\lib\\excel\\parser.ts"
     },
@@ -103,9 +121,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:39:59.845Z",
-        "lastUpdated": "2026-03-23T00:16:07.612Z"
+        "lastUpdated": "2026-03-23T01:31:41.062Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\page.tsx"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\components\\dashboard\\GlobalFilterBar.tsx"
     },
     "data": {
       "phase": "do",
@@ -129,9 +147,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:51:28.485Z",
-        "lastUpdated": "2026-03-20T01:41:24.374Z"
+        "lastUpdated": "2026-03-23T01:30:13.333Z"
       },
-      "lastFile": "D:/분석/인프라 대시보드/src/app/dashboard/receivables/page.tsx"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\receivables\\page.tsx"
     },
     "profitability": {
       "phase": "do",
@@ -142,7 +160,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T05:01:01.900Z",
-        "lastUpdated": "2026-03-20T07:09:33.221Z"
+        "lastUpdated": "2026-03-23T01:29:31.301Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\page.tsx"
     },
@@ -168,9 +186,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T09:10:45.958Z",
-        "lastUpdated": "2026-03-20T01:41:27.696Z"
+        "lastUpdated": "2026-03-23T01:31:20.739Z"
       },
-      "lastFile": "D:/분석/인프라 대시보드/src/app/dashboard/profiles/page.tsx"
+      "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profiles\\page.tsx"
     },
     "charts": {
       "phase": "do",
@@ -207,7 +225,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-16T10:54:27.595Z",
-        "lastUpdated": "2026-03-20T07:18:28.670Z"
+        "lastUpdated": "2026-03-23T01:30:48.395Z"
       },
       "lastFile": "D:\\분석\\인프라 대시보드\\src\\app\\dashboard\\orders\\page.tsx"
     },
@@ -248,7 +266,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-23T00:34:38.167Z"
+    "lastActivity": "2026-03-23T01:38:16.213Z"
   },
   "history": [
     {
@@ -4868,6 +4886,240 @@
     {
       "timestamp": "2026-03-23T00:34:38.166Z",
       "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:02.739Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:17.609Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:25.788Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:32.483Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:34.872Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:38.764Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:40.322Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:47.258Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:54.667Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:26:59.443Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:02.222Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:04.442Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:09.303Z",
+      "feature": "인프라 대시보드",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:14.803Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:16.480Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:24.855Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:25.476Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:27.027Z",
+      "feature": "sales",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:34.535Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:34.742Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:43.407Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:47.064Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:51.517Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:27:58.078Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:28:02.877Z",
+      "feature": "sales",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:28:07.563Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:28:35.434Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:28:47.052Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:29:31.301Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:29:51.014Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:30:13.333Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:30:28.838Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:30:48.395Z",
+      "feature": "orders",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:31:05.048Z",
+      "feature": "profiles",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:31:17.700Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:31:20.739Z",
+      "feature": "profiles",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:31:26.808Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:31:41.062Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-23T01:38:16.212Z",
+      "feature": "excel",
       "phase": "do",
       "action": "updated"
     }

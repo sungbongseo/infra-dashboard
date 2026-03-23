@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { lazy, Suspense, useMemo } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcAgingSummary, calcAgingByOrg, calcAgingByPerson, calcRiskAssessments } from "@/lib/analysis/aging";
 import { calcPrepaymentSummary, calcOrgPrepayments, calcMonthlyPrepayments } from "@/lib/analysis/prepayment";
 import { calcPersonPortfolio, calcPersonHealthData, calcCustomerRepDetail } from "@/lib/analysis/receivableInsight";
@@ -15,15 +15,15 @@ import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
 
-import { StatusTab } from "./tabs/StatusTab";
-import { RiskTab } from "./tabs/RiskTab";
-import { CreditTab } from "./tabs/CreditTab";
-import { DsoTab } from "./tabs/DsoTab";
-import { PrepaymentTab } from "./tabs/PrepaymentTab";
-import { PersonInsightTab } from "./tabs/PersonInsightTab";
-import { DetailTab } from "./tabs/DetailTab";
-import { LongTermTab } from "./tabs/LongTermTab";
-import { CollectionDelayTab } from "./tabs/CollectionDelayTab";
+const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
+const RiskTab = lazy(() => import("./tabs/RiskTab").then(m => ({ default: m.RiskTab })));
+const CreditTab = lazy(() => import("./tabs/CreditTab").then(m => ({ default: m.CreditTab })));
+const DsoTab = lazy(() => import("./tabs/DsoTab").then(m => ({ default: m.DsoTab })));
+const PrepaymentTab = lazy(() => import("./tabs/PrepaymentTab").then(m => ({ default: m.PrepaymentTab })));
+const PersonInsightTab = lazy(() => import("./tabs/PersonInsightTab").then(m => ({ default: m.PersonInsightTab })));
+const DetailTab = lazy(() => import("./tabs/DetailTab").then(m => ({ default: m.DetailTab })));
+const LongTermTab = lazy(() => import("./tabs/LongTermTab").then(m => ({ default: m.LongTermTab })));
+const CollectionDelayTab = lazy(() => import("./tabs/CollectionDelayTab").then(m => ({ default: m.CollectionDelayTab })));
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -109,12 +109,15 @@ export default function ReceivablesPage() {
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <StatusTab summary={summary} byOrg={byOrg} highRiskCount={highRiskCount} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <RiskTab
               byPerson={byPerson}
@@ -124,15 +127,19 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="credit" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CreditTab allRecords={allRecords} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="dso" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <DsoTab
               allRecords={allRecords}
@@ -143,9 +150,11 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="detail" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <DetailTab
               profiles={customerProfiles}
@@ -155,9 +164,11 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="longterm" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <LongTermTab
               summary={longTermSummary}
@@ -167,9 +178,11 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="prepayment" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PrepaymentTab
               prepaymentSummary={prepaymentSummary}
@@ -179,9 +192,11 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="person-insight" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PersonInsightTab
               portfolio={personPortfolio}
@@ -190,9 +205,11 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="collection-delay" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CollectionDelayTab
               filteredSales={filteredSales}
@@ -200,6 +217,7 @@ export default function ReceivablesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

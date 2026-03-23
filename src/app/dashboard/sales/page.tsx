@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { calcTopCustomers } from "@/lib/analysis/kpi";
 import {
   XAxis,
@@ -21,7 +21,6 @@ import { DollarSign, Users, BarChart3, Target } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
-import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
@@ -31,22 +30,23 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
 import { useUIStore } from "@/stores/uiStore";
 import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders } from "@/lib/hooks/useFilteredData";
-import { ChannelTab } from "./tabs/ChannelTab";
-import { RfmTab } from "./tabs/RfmTab";
-import { ClvTab } from "./tabs/ClvTab";
-import { MigrationTab } from "./tabs/MigrationTab";
-import { FxTab } from "./tabs/FxTab";
-import { AnomalyTab } from "./tabs/AnomalyTab";
-import { CohortTab } from "./tabs/CohortTab";
-import { ChurnTab } from "./tabs/ChurnTab";
-import { DecompositionTab } from "./tabs/DecompositionTab";
 import { buildItemInventoryMap } from "@/lib/analysis/itemHierarchy";
-import { ItemTab } from "./tabs/ItemTab";
-import { TypeTab } from "./tabs/TypeTab";
-import { ProductGroupTab } from "./tabs/ProductGroupTab";
-import { Customer360Tab } from "./tabs/Customer360Tab";
-import { OrgScorecardTab } from "./tabs/OrgScorecardTab";
-import { MarginTab } from "./tabs/MarginTab";
+
+const ChannelTab = lazy(() => import("./tabs/ChannelTab").then(m => ({ default: m.ChannelTab })));
+const RfmTab = lazy(() => import("./tabs/RfmTab").then(m => ({ default: m.RfmTab })));
+const ClvTab = lazy(() => import("./tabs/ClvTab").then(m => ({ default: m.ClvTab })));
+const MigrationTab = lazy(() => import("./tabs/MigrationTab").then(m => ({ default: m.MigrationTab })));
+const FxTab = lazy(() => import("./tabs/FxTab").then(m => ({ default: m.FxTab })));
+const AnomalyTab = lazy(() => import("./tabs/AnomalyTab").then(m => ({ default: m.AnomalyTab })));
+const CohortTab = lazy(() => import("./tabs/CohortTab").then(m => ({ default: m.CohortTab })));
+const ChurnTab = lazy(() => import("./tabs/ChurnTab").then(m => ({ default: m.ChurnTab })));
+const DecompositionTab = lazy(() => import("./tabs/DecompositionTab").then(m => ({ default: m.DecompositionTab })));
+const ItemTab = lazy(() => import("./tabs/ItemTab").then(m => ({ default: m.ItemTab })));
+const TypeTab = lazy(() => import("./tabs/TypeTab").then(m => ({ default: m.TypeTab })));
+const ProductGroupTab = lazy(() => import("./tabs/ProductGroupTab").then(m => ({ default: m.ProductGroupTab })));
+const Customer360Tab = lazy(() => import("./tabs/Customer360Tab").then(m => ({ default: m.Customer360Tab })));
+const OrgScorecardTab = lazy(() => import("./tabs/OrgScorecardTab").then(m => ({ default: m.OrgScorecardTab })));
+const MarginTab = lazy(() => import("./tabs/MarginTab").then(m => ({ default: m.MarginTab })));
 
 const SALES_TAB_GROUPS: TabGroupDef[] = [
   { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
@@ -320,105 +320,111 @@ export default function SalesAnalysisPage() {
         </TabsContent>
 
         <TabsContent value="item" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} inventoryMap={inventoryMap} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="type" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <TypeTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="channel" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ChannelTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="rfm" className="space-y-6">
-          <LazyTabContent value="rfm" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <RfmTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="clv" className="space-y-6">
-          <LazyTabContent value="clv" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ClvTab filteredSales={filteredSales} filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFiltered} onNavigateToRfm={() => setActiveTab("rfm")} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="migration" className="space-y-6">
-          <LazyTabContent value="migration" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <MigrationTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="fx" className="space-y-6">
-          <LazyTabContent value="fx" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <FxTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="anomaly" className="space-y-6">
-          <LazyTabContent value="anomaly" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <AnomalyTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="cohort" className="space-y-6">
-          <LazyTabContent value="cohort" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CohortTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="activity" className="space-y-6">
-          <LazyTabContent value="activity" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ChurnTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="decomposition" className="space-y-6">
-          <LazyTabContent value="decomposition" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <DecompositionTab filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="productGroup" className="space-y-6">
-          <LazyTabContent value="productGroup" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ProductGroupTab filteredCustomerItemDetail={filteredCustomerItemDetail} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="margin" className="space-y-6">
-          <LazyTabContent value="margin" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <MarginTab filteredSales={filteredSales} itemCostDetail={itemCostDetail} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="customer360" className="space-y-6">
-          <LazyTabContent value="customer360" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <Customer360Tab
               salesList={filteredSales}
@@ -429,11 +435,11 @@ export default function SalesAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="orgScorecard" className="space-y-6">
-          <LazyTabContent value="orgScorecard" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <OrgScorecardTab
               orgProfit={filteredOrgProfit}
@@ -442,7 +448,7 @@ export default function SalesAnalysisPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

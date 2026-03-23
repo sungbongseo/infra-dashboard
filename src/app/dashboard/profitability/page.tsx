@@ -1,13 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
-import { LazyTabContent } from "@/components/dashboard/LazyTabContent";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,26 +47,26 @@ import {
   calcCostDriverAnalysis,
 } from "@/lib/analysis/itemCostAnalysis";
 
-import { PnlTab } from "./tabs/PnlTab";
-import { OrgTab } from "./tabs/OrgTab";
-import { ContribTab } from "./tabs/ContribTab";
-import { CostTab } from "./tabs/CostTab";
-import { PlanTab } from "./tabs/PlanTab";
-import { ProductTab } from "./tabs/ProductTab";
-import { VarianceTab } from "./tabs/VarianceTab";
-import { BreakevenTab } from "./tabs/BreakevenTab";
-import { RiskTab } from "./tabs/RiskTab";
-import { WhatIfTab } from "./tabs/WhatIfTab";
-import { CustProfitTab } from "./tabs/CustProfitTab";
-import { CustItemTab } from "./tabs/CustItemTab";
-import DetailedProfitTab from "./tabs/DetailedProfitTab";
-import { SensitivityTab } from "./tabs/SensitivityTab";
-import { ItemCostTab } from "./tabs/ItemCostTab";
-import { CostVarianceTab } from "./tabs/CostVarianceTab";
-import { StandardCostTab } from "./tabs/StandardCostTab";
-import { CustomerRiskMatrixTab } from "./tabs/CustomerRiskMatrixTab";
-import { SgaBreakdownTab } from "./tabs/SgaBreakdownTab";
-import { PortfolioTab } from "./tabs/PortfolioTab";
+const PnlTab = lazy(() => import("./tabs/PnlTab").then(m => ({ default: m.PnlTab })));
+const OrgTab = lazy(() => import("./tabs/OrgTab").then(m => ({ default: m.OrgTab })));
+const ContribTab = lazy(() => import("./tabs/ContribTab").then(m => ({ default: m.ContribTab })));
+const CostTab = lazy(() => import("./tabs/CostTab").then(m => ({ default: m.CostTab })));
+const PlanTab = lazy(() => import("./tabs/PlanTab").then(m => ({ default: m.PlanTab })));
+const ProductTab = lazy(() => import("./tabs/ProductTab").then(m => ({ default: m.ProductTab })));
+const VarianceTab = lazy(() => import("./tabs/VarianceTab").then(m => ({ default: m.VarianceTab })));
+const BreakevenTab = lazy(() => import("./tabs/BreakevenTab").then(m => ({ default: m.BreakevenTab })));
+const RiskTab = lazy(() => import("./tabs/RiskTab").then(m => ({ default: m.RiskTab })));
+const WhatIfTab = lazy(() => import("./tabs/WhatIfTab").then(m => ({ default: m.WhatIfTab })));
+const CustProfitTab = lazy(() => import("./tabs/CustProfitTab").then(m => ({ default: m.CustProfitTab })));
+const CustItemTab = lazy(() => import("./tabs/CustItemTab").then(m => ({ default: m.CustItemTab })));
+const DetailedProfitTab = lazy(() => import("./tabs/DetailedProfitTab"));
+const SensitivityTab = lazy(() => import("./tabs/SensitivityTab").then(m => ({ default: m.SensitivityTab })));
+const ItemCostTab = lazy(() => import("./tabs/ItemCostTab").then(m => ({ default: m.ItemCostTab })));
+const CostVarianceTab = lazy(() => import("./tabs/CostVarianceTab").then(m => ({ default: m.CostVarianceTab })));
+const StandardCostTab = lazy(() => import("./tabs/StandardCostTab").then(m => ({ default: m.StandardCostTab })));
+const CustomerRiskMatrixTab = lazy(() => import("./tabs/CustomerRiskMatrixTab").then(m => ({ default: m.CustomerRiskMatrixTab })));
+const SgaBreakdownTab = lazy(() => import("./tabs/SgaBreakdownTab").then(m => ({ default: m.SgaBreakdownTab })));
+const PortfolioTab = lazy(() => import("./tabs/PortfolioTab").then(m => ({ default: m.PortfolioTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
@@ -565,37 +564,47 @@ export default function ProfitabilityPage() {
         </TooltipProvider>
 
         <TabsContent value="pnl" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PnlTab totalGP={totalGP} gpRate={gpRate} opRate={opRate} totalContrib={totalContrib} waterfallData={waterfallData} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="org" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <OrgTab bubbleData={bubbleData} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="contrib" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ContribTab contribRanking={contribRanking} contribByRate={contribByRate} orgContribPie={orgContribPie} excludedNegativeContribCount={excludedNegativeContribCount} contribTotals={contribTotals} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CostTab costBarData={costBarData} costEfficiency={costEfficiency} isDateFiltered={isDateFilterActive} monthlyTrend={monthlyTrendData} monthlyGrowth={monthlyGrowth} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="plan" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PlanTab orgRatioMetrics={orgRatioMetrics} heatmapData={heatmapData} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="product" className="space-y-6">
-          <LazyTabContent value="product" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ProductTab
               productProfitability={productProfitability}
@@ -611,17 +620,19 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="risk" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="variance" className="space-y-6">
-          <LazyTabContent value="variance" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <VarianceTab
               planSummary={planSummary}
@@ -637,47 +648,51 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="breakeven" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="whatif" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <WhatIfTab filteredOrgProfit={filteredOrgProfit} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="custProfit" className="space-y-6">
-          <LazyTabContent value="custProfit" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CustProfitTab effectiveOrgCustProfit={effectiveOrgCustProfit} effectiveProfAnalysis={effectiveProfAnalysis} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="custItem" className="space-y-6">
-          <LazyTabContent value="custItem" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CustItemTab effectiveHqCustItemProfit={effectiveHqCustItemProfit} isUsingDateFiltered={isUsingDateFiltered} dateRange={dateRange} isDateFiltered={isDateFilterActive} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6">
-          <LazyTabContent value="detailed" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <DetailedProfitTab data={filteredCustItemDetail} isDateFiltered={isUsingDateFiltered} dateRange={dateRange} />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="sensitivity" className="space-y-6">
-          <LazyTabContent value="sensitivity" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <SensitivityTab
               baseSales={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.매출액?.실적 ?? 0), 0) : totalSales}
@@ -686,11 +701,11 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="itemCost" className="space-y-6">
-          <LazyTabContent value="itemCost" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ItemCostTab
               summary={itemCostSummary}
@@ -703,11 +718,11 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="costVariance" className="space-y-6">
-          <LazyTabContent value="costVariance" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CostVarianceTab
               variance={costCategoryVariance}
@@ -717,22 +732,22 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="standardCost" className="space-y-6">
-          <LazyTabContent value="standardCost" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <StandardCostTab
               filteredItemProfitability={filteredItemProfitability}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="custRiskMatrix" className="space-y-6">
-          <LazyTabContent value="custRiskMatrix" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CustomerRiskMatrixTab
               orgCustomerProfit={filteredOrgCustProfit}
@@ -740,29 +755,29 @@ export default function ProfitabilityPage() {
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="sgaBreakdown" className="space-y-6">
-          <LazyTabContent value="sgaBreakdown" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <SgaBreakdownTab
               filteredOrgCustProfit={filteredOrgCustProfit}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="portfolio" className="space-y-6">
-          <LazyTabContent value="portfolio" activeTab={activeTab}>
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PortfolioTab
               filteredItemProfitability={filteredItemProfitability}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
-          </LazyTabContent>
+          </Suspense>
         </TabsContent>
 
       </Tabs>

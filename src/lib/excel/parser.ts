@@ -30,6 +30,14 @@ function num(v: unknown): number {
   return isNaN(n) ? 0 : n;
 }
 
+// 신규: 금액/수량 등 0이 의미 있는 필드용 (0 vs 누락 구분)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
 function str(v: unknown): string {
   if (v === null || v === undefined) return "";
   return String(v).trim();
@@ -355,7 +363,7 @@ function parseReceivableAging(data: unknown[][], warnings: string[]): Receivable
       if (isTotalRow(org) || isTotalRow(mgr)) throw new Error("SKIP_ROW");
       if (org.includes("소계") || mgr.includes("소계")) throw new Error("SKIP_ROW");
       if (!customer) throw new Error("SKIP_ROW");
-      return {
+      const record: ReceivableAgingRecord = {
         No: num(row[0]),
         영업조직: org,
         담당자: mgr,
@@ -377,6 +385,19 @@ function parseReceivableAging(data: unknown[][], warnings: string[]): Receivable
         },
         여신한도: num(row[30]),
       };
+
+      // 교차 검증: 개별 월별 장부금액 합산 vs 합계.장부금액
+      const calculatedTotal =
+        record.month1.장부금액 + record.month2.장부금액 + record.month3.장부금액 +
+        record.month4.장부금액 + record.month5.장부금액 + record.month6.장부금액 +
+        record.overdue.장부금액;
+      if (Math.abs(calculatedTotal - record.합계.장부금액) > 1) {
+        warnings.push(
+          `[receivableAging] ${customer} 장부금액 합계 불일치: 계산=${calculatedTotal.toLocaleString()}, 보고=${record.합계.장부금액.toLocaleString()}`
+        );
+      }
+
+      return record;
     },
     warnings, "미수채권연령", true
   );
@@ -398,7 +419,12 @@ interface MonthlySheet {
  */
 function detectMonthlySheets(sheetNames: string[]): MonthlySheet[] {
   const monthly = sheetNames
-    .filter(name => /^\d{6}$/.test(name.trim()))
+    .filter(name => {
+      const s = name.trim();
+      if (!/^\d{6}$/.test(s)) return false;
+      const month = parseInt(s.slice(4, 6), 10);
+      return month >= 1 && month <= 12;
+    })
     .map(name => ({ sheetName: name, month: name.trim() }));
   return monthly.length >= 2 ? monthly : [];
 }
@@ -949,14 +975,18 @@ function parseSheetData(
  * 셀 병합 자동 해제: !merges 메타데이터에 등록된 병합 셀만 해제.
  * 좌상단 셀 값을 병합 범위 내 나머지 셀에 복사한 뒤 !merges를 삭제.
  */
-function unmergeSheet(sheet: XLSX.WorkSheet): number {
+function unmergeSheet(sheet: XLSX.WorkSheet, warnings?: string[]): number {
   const merges = sheet["!merges"];
   if (!merges || merges.length === 0) return 0;
   let filledCount = 0;
+  let emptyMergeCount = 0;
   for (const merge of merges) {
     const originAddr = XLSX.utils.encode_cell(merge.s);
     const originCell = sheet[originAddr];
-    if (!originCell) continue;
+    if (!originCell) {
+      emptyMergeCount++;
+      continue;
+    }
     for (let r = merge.s.r; r <= merge.e.r; r++) {
       for (let c = merge.s.c; c <= merge.e.c; c++) {
         if (r === merge.s.r && c === merge.s.c) continue;
@@ -965,6 +995,9 @@ function unmergeSheet(sheet: XLSX.WorkSheet): number {
         filledCount++;
       }
     }
+  }
+  if (emptyMergeCount > 0 && warnings) {
+    warnings.push(`[unmerge] ${emptyMergeCount}개 머지 영역의 원본 셀이 비어있어 해제 실패`);
   }
   delete sheet["!merges"];
   return filledCount;
@@ -1016,7 +1049,7 @@ export function parseExcelFile(
       if (!sheet) {
         throw new Error(`최신 시트 '${lastSheet.sheetName}' 읽기 실패`);
       }
-      const unmergedCount = unmergeSheet(sheet);
+      const unmergedCount = unmergeSheet(sheet, warnings);
       if (unmergedCount > 0) {
         warnings.push(`[${schema.fileType}] ${unmergedCount}개 병합 셀 자동 해제`);
       }
@@ -1025,9 +1058,14 @@ export function parseExcelFile(
       if (rawData.length < minRows) {
         throw new Error(`최신 시트 '${lastSheet.sheetName}': 데이터 부족 (${rawData.length}행)`);
       }
+      const skipRows = schema.hasMergedHeader ? 2 : 1;
+      const dataRowCount = rawData.length - skipRows;
+      if (dataRowCount < 1) {
+        throw new Error(`최신 시트 '${lastSheet.sheetName}': 헤더만 있고 데이터 행이 없습니다`);
+      }
       const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
       for (const row of sheetResult.data) {
-        (row as any).month = lastSheet.month;
+        (row as Record<string, unknown>).month = lastSheet.month;
       }
       parsed = sheetResult.data;
       skippedRows = sheetResult.skippedRows;
@@ -1041,7 +1079,7 @@ export function parseExcelFile(
           warnings.push(`시트 '${ms.sheetName}' 읽기 실패 — 건너뜀`);
           continue;
         }
-        const msUnmerged = unmergeSheet(sheet);
+        const msUnmerged = unmergeSheet(sheet, warnings);
         if (msUnmerged > 0) {
           warnings.push(`[${schema.fileType}] 시트 '${ms.sheetName}': ${msUnmerged}개 병합 셀 자동 해제`);
         }
@@ -1051,9 +1089,15 @@ export function parseExcelFile(
           warnings.push(`시트 '${ms.sheetName}': 데이터 부족 (${rawData.length}행) — 건너뜀`);
           continue;
         }
+        const skipRowsMs = schema.hasMergedHeader ? 2 : 1;
+        const dataRowCountMs = rawData.length - skipRowsMs;
+        if (dataRowCountMs < 1) {
+          warnings.push(`시트 '${ms.sheetName}': 헤더만 있고 데이터 행이 없습니다 — 건너뜀`);
+          continue;
+        }
         const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
         for (const row of sheetResult.data) {
-          (row as any).month = ms.month;
+          (row as Record<string, unknown>).month = ms.month;
         }
         allRows.push(...sheetResult.data);
         skippedRows += sheetResult.skippedRows;
@@ -1069,7 +1113,7 @@ export function parseExcelFile(
       throw new Error(`시트 '${sheetName}'를 읽을 수 없습니다`);
     }
 
-    const singleUnmerged = unmergeSheet(sheet);
+    const singleUnmerged = unmergeSheet(sheet, warnings);
     if (singleUnmerged > 0) {
       warnings.push(`[${schema.fileType}] ${singleUnmerged}개 병합 셀 자동 해제`);
     }
@@ -1077,6 +1121,11 @@ export function parseExcelFile(
     const minRows = schema.hasMergedHeader ? 3 : 2;
     if (rawData.length < minRows) {
       throw new Error(`데이터가 부족합니다: ${rawData.length}행 (최소 ${minRows}행 필요)`);
+    }
+    const skipRowsSingle = schema.hasMergedHeader ? 2 : 1;
+    const dataRowCountSingle = rawData.length - skipRowsSingle;
+    if (dataRowCountSingle < 1) {
+      throw new Error(`${schema.fileType}: 헤더만 있고 데이터 행이 없습니다`);
     }
 
     const sheetResult = parseSheetData(rawData, schema, warnings, fileName);
@@ -1092,7 +1141,7 @@ export function parseExcelFile(
     const orgSet = new Set<string>();
     let matchCount = 0;
     for (const row of parsed) {
-      const orgValue = String((row as any)[field] || "").trim();
+      const orgValue = String((row as Record<string, unknown>)[field] || "").trim();
       if (orgValue) {
         orgSet.add(orgValue);
         if (orgNames.has(orgValue)) matchCount++;

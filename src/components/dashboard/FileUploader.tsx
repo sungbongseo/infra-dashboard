@@ -12,7 +12,23 @@ import { parseExcelFile } from "@/lib/excel/parser";
 import { detectFileType } from "@/lib/excel/schemas";
 import { saveDataset, saveAgingData, saveInventoryData, saveOrgFilter, saveUploadedFiles, clearAllDB, hasStoredData } from "@/lib/db";
 import type { StoredUploadedFile } from "@/lib/db";
-import type { UploadedFile } from "@/types";
+import type {
+  UploadedFile,
+  Organization,
+  SalesRecord,
+  CollectionRecord,
+  OrderRecord,
+  OrgProfitRecord,
+  TeamContributionRecord,
+  ProfitabilityAnalysisRecord,
+  OrgCustomerProfitRecord,
+  HqCustomerItemProfitRecord,
+  CustomerItemDetailRecord,
+  ItemCostDetailRecord,
+  ItemProfitabilityRecord,
+  ReceivableAgingRecord,
+  InventoryMovementRecord,
+} from "@/types";
 import { cn } from "@/lib/utils";
 
 export function FileUploader() {
@@ -126,7 +142,7 @@ export function FileUploader() {
           `이미 "${existingByType.fileName}" 파일이 같은 유형(${schema.fileType})으로 업로드되어 있습니다.\n\n새 파일로 교체하시겠습니까?\n\n[확인] = 기존 데이터 교체\n[취소] = 업로드 취소`
         );
         if (!confirmed) return;
-        updateUploadedFile(existingByType.id, { status: "replaced" as any });
+        updateUploadedFile(existingByType.id, { status: "replaced" as const });
       }
 
       if (existingByName) {
@@ -160,54 +176,54 @@ export function FileUploader() {
         // Store parsed data
         switch (result.fileType) {
           case "organization": {
-            const orgs = result.data as any[];
+            const orgs = result.data as Organization[];
             setOrganizations(orgs);
-            const codes = new Set(orgs.map((o: any) => String(o.영업조직).trim()));
+            const codes = new Set(orgs.map((o) => String(o.영업조직).trim()));
             setOrgCodes(codes);
-            const names = new Set(orgs.map((o: any) => String(o.영업조직명).trim()));
+            const names = new Set(orgs.map((o) => String(o.영업조직명).trim()));
             setOrgNames(names);
             // NOTE: 조직 파일 업로드 시 기존 데이터를 필터링하지 않음.
             // 원본 데이터를 보존하고, 필터링은 렌더 시점에 filterByOrg()로 적용됨.
             break;
           }
           case "salesList":
-            setSalesList(result.data as any[]);
+            setSalesList(result.data as SalesRecord[]);
             break;
           case "collectionList":
-            setCollectionList(result.data as any[]);
+            setCollectionList(result.data as CollectionRecord[]);
             break;
           case "orderList":
-            setOrderList(result.data as any[]);
+            setOrderList(result.data as OrderRecord[]);
             break;
           case "orgProfit":
-            setOrgProfit(result.data as any[]);
+            setOrgProfit(result.data as OrgProfitRecord[]);
             break;
           case "teamContribution":
-            setTeamContribution(result.data as any[]);
+            setTeamContribution(result.data as TeamContributionRecord[]);
             break;
           case "profitabilityAnalysis":
-            setProfitabilityAnalysis(result.data as any[]);
+            setProfitabilityAnalysis(result.data as ProfitabilityAnalysisRecord[]);
             break;
           case "orgCustomerProfit":
-            setOrgCustomerProfit(result.data as any[]);
+            setOrgCustomerProfit(result.data as OrgCustomerProfitRecord[]);
             break;
           case "hqCustomerItemProfit":
-            setHqCustomerItemProfit(result.data as any[]);
+            setHqCustomerItemProfit(result.data as HqCustomerItemProfitRecord[]);
             break;
           case "customerItemDetail":
-            setCustomerItemDetail(result.data as any[]);
+            setCustomerItemDetail(result.data as CustomerItemDetailRecord[]);
             break;
           case "itemCostDetail":
-            setItemCostDetail(result.data as any[]);
+            setItemCostDetail(result.data as ItemCostDetailRecord[]);
             break;
           case "itemProfitability":
-            setItemProfitability(result.data as any[]);
+            setItemProfitability(result.data as ItemProfitabilityRecord[]);
             break;
           case "receivableAging":
-            setReceivableAging(result.sourceName || file.name, result.data as any[]);
+            setReceivableAging(result.sourceName || file.name, result.data as ReceivableAgingRecord[]);
             break;
           case "inventoryMovement":
-            setInventoryMovement(result.sourceName || file.name, result.data as any[]);
+            setInventoryMovement(result.sourceName || file.name, result.data as InventoryMovementRecord[]);
             break;
         }
 
@@ -241,17 +257,17 @@ export function FileUploader() {
           case "customerItemDetail":
           case "itemCostDetail":
           case "itemProfitability":
-            saveDataset(result.fileType, result.data as any[]).catch((e) =>
+            saveDataset(result.fileType, result.data as Record<string, unknown>[]).catch((e) =>
               console.error("IndexedDB 데이터셋 저장 실패:", e)
             );
             break;
           case "receivableAging":
-            saveAgingData(result.sourceName || file.name, result.data as any[]).catch((e) =>
+            saveAgingData(result.sourceName || file.name, result.data as ReceivableAgingRecord[]).catch((e) =>
               console.error("IndexedDB 에이징 저장 실패:", e)
             );
             break;
           case "inventoryMovement":
-            saveInventoryData(result.sourceName || file.name, result.data as any[]).catch((e) =>
+            saveInventoryData(result.sourceName || file.name, result.data as InventoryMovementRecord[]).catch((e) =>
               console.error("IndexedDB 수불현황 저장 실패:", e)
             );
             break;

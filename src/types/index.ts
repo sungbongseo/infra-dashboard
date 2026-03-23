@@ -29,7 +29,7 @@ export interface UploadedFile {
   fileType: FileType;
   uploadedAt: Date;
   rowCount: number;
-  status: "parsing" | "ready" | "error";
+  status: "parsing" | "ready" | "error" | "replaced";
   errorMessage?: string;
   warnings?: string[];
   filterInfo?: string;

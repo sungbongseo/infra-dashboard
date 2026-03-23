@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useDataStore } from "@/stores/dataStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
+import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcPerformanceScores, calcCostEfficiency, calcRepTrend, calcRepProductPortfolio } from "@/lib/analysis/profiling";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,11 +13,11 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
 
-import { PerformanceTab } from "./tabs/PerformanceTab";
-import { RankingTab } from "./tabs/RankingTab";
-import { CostTab } from "./tabs/CostTab";
-import { TrendTab } from "./tabs/TrendTab";
-import { ProductTab } from "./tabs/ProductTab";
+const PerformanceTab = lazy(() => import("./tabs/PerformanceTab").then(m => ({ default: m.PerformanceTab })));
+const RankingTab = lazy(() => import("./tabs/RankingTab").then(m => ({ default: m.RankingTab })));
+const CostTab = lazy(() => import("./tabs/CostTab").then(m => ({ default: m.CostTab })));
+const TrendTab = lazy(() => import("./tabs/TrendTab").then(m => ({ default: m.TrendTab })));
+const ProductTab = lazy(() => import("./tabs/ProductTab").then(m => ({ default: m.ProductTab })));
 
 export default function ProfilesPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
@@ -226,6 +226,7 @@ export default function ProfilesPage() {
         </TabsList>
 
         <TabsContent value="performance" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <PerformanceTab
               selected={selected}
@@ -238,9 +239,11 @@ export default function ProfilesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="ranking" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <RankingTab
               selected={selected}
@@ -250,9 +253,11 @@ export default function ProfilesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="cost" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <CostTab
               hasTeamContribution={filteredTeamContribution.length > 0}
@@ -263,15 +268,19 @@ export default function ProfilesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="trend" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <TrendTab repTrend={repTrend} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
 
         <TabsContent value="product" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <ProductTab
               hasCustomerItemDetail={filteredCustomerItemDetail.length > 0}
@@ -279,6 +288,7 @@ export default function ProfilesPage() {
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
