@@ -555,7 +555,7 @@ export function aggregateItemCostDetail(data: ItemCostDetailRecord[]): ItemCostD
   return Array.from(map.values());
 }
 
-/** 100 거래처별 품목별 손익: 동일 (조직, 사번, 거래처, 품목) 키로 합산 */
+/** 100 거래처별 품목별 손익: 동일 (조직, 사번, 거래처, 품목) 키로 합산, 비율 재계산 */
 export function aggregateCustomerItemDetail(data: CustomerItemDetailRecord[]): CustomerItemDetailRecord[] {
   const map = new Map<string, CustomerItemDetailRecord>();
   for (const r of data) {
@@ -574,5 +574,12 @@ export function aggregateCustomerItemDetail(data: CustomerItemDetailRecord[]): C
     e.판관변동_직접판매운반비 = addPAD(e.판관변동_직접판매운반비, r.판관변동_직접판매운반비);
     e.영업이익 = addPAD(e.영업이익, r.영업이익);
   }
-  return Array.from(map.values());
+  // 비율 재계산 (CustomerItemDetailRecord에 매출총이익율, 영업이익율이 있을 경우)
+  const results = Array.from(map.values());
+  for (const r of results) {
+    const rec = r as any;
+    if (rec.매출총이익율) rec.매출총이익율 = calcRatioPAD(r.매출총이익, r.매출액);
+    if (rec.영업이익율) rec.영업이익율 = calcRatioPAD(r.영업이익, r.매출액);
+  }
+  return results;
 }
