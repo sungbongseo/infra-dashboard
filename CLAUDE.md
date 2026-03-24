@@ -189,6 +189,29 @@ When dateRange filter is active and `customerItemDetail` data exists, profitabil
 - `fillDownHierarchicalOrg()` in parser.ts propagates org name from subtotal rows to subsequent detail rows
 - Applied to `profitabilityAnalysis` file type; "합계" (grand total) rows are excluded to prevent double-counting
 
+### Monthly Sheet Concat & Aggregation Pattern
+
+Excel files with multiple monthly sheets (e.g., `202501`, `202502`, ...) are detected by `detectMonthlySheets()` in parser.ts. Each row gets a `month: "YYYYMM"` field injected. The `monthlyStrategy` field in FileSchema controls behavior:
+- `"concat"` (default): All sheets concatenated → same entity appears once per month → **must aggregate by key before analysis**
+- `"latest"`: Only the most recent sheet is used (for cumulative/YTD reports)
+
+All 8 concat file types now have dedicated aggregate functions in `lib/utils.ts`:
+
+| File Type | Aggregate Function | Key |
+|-----------|-------------------|-----|
+| orgProfit | `aggregateOrgProfit()` | 영업조직팀 |
+| teamContribution | `aggregateTeamContribution()` | (사번, 조직) |
+| profitabilityAnalysis | `aggregateProfitabilityAnalysis()` | (조직, 사번, 거래처, 품목) |
+| itemProfitability | `aggregateItemProfitability()` | (조직, 품목) |
+| orgCustomerProfit (303) | `aggregateOrgCustomerProfit()` | (조직, 거래처) |
+| hqCustomerItemProfit (304) | `aggregateHqCustomerItemProfit()` | (조직, 거래처, 품목) |
+| customerItemDetail (100) | `aggregateCustomerItemDetail()` | (조직, 사번, 거래처, 품목) |
+| itemCostDetail (501) | `aggregateItemCostDetail()` | (조직, 품목) |
+
+**CRITICAL**: When consuming any concat file type, always apply `filterByMonth()` then the corresponding aggregate function. Transaction lists (salesList, collectionList, orderList) are row-level data and do NOT need aggregation — use `filterByDateRange()` instead.
+
+Aggregate functions sum all `PlanActualDiff` amount fields and recalculate ratio fields (매출총이익율, 영업이익율, 공헌이익율 etc.) from the summed amounts. The `month` field is set to `undefined` in aggregated results.
+
 ### Known Constraints
 
 - Map iteration: use `Array.from(map.entries())` instead of for-of (downlevelIteration not enabled in tsconfig)
