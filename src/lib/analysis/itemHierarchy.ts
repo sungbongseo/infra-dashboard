@@ -5,6 +5,7 @@
  * 없으면 salesList 기반 매출 데이터만 사용.
  */
 import type { SalesRecord, ItemProfitabilityRecord, InventoryMovementRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { COST_BUCKETS, type CostBucketKey } from "@/types/itemCost";
 
 // ─── Interfaces ────────────────────────────────────────────
@@ -84,7 +85,7 @@ function calcCoverage(
     return v !== "" && v !== "(미분류)";
   }).length;
   const unique = new Set(rows.map(r => String(r[levelField] || "").trim()).filter(Boolean)).size;
-  const fillRate = total > 0 ? (filled / total) * 100 : 0;
+  const fillRate = safeDivide(filled, total) * 100;
   return {
     level: levelField as ItemHierarchyLevel,
     totalRows: total,
@@ -176,7 +177,7 @@ function buildNode(
 ): ItemHierarchyNode {
   const sales = rows.reduce((s, r) => s + r.sales, 0);
   const quantity = rows.reduce((s, r) => s + r.quantity, 0);
-  const share = parentTotal !== 0 ? (sales / parentTotal) * 100 : 0;
+  const share = safeDivide(sales, parentTotal) * 100;
 
   const node: ItemHierarchyNode = {
     name,
@@ -191,11 +192,11 @@ function buildNode(
     const gp = rows.reduce((s, r) => s + (r.grossProfit ?? 0), 0);
     const op = rows.reduce((s, r) => s + (r.operatingProfit ?? 0), 0);
     node.grossProfit = gp;
-    node.grossMargin = sales !== 0 ? (gp / sales) * 100 : 0;
+    node.grossMargin = safeDivide(gp, sales) * 100;
     node.operatingProfit = op;
-    node.operatingMargin = sales !== 0 ? (op / sales) * 100 : 0;
+    node.operatingMargin = safeDivide(op, sales) * 100;
     const totalCost = rows.reduce((s, r) => s + (r.실적매출원가 ?? 0), 0);
-    node.costRatio = sales !== 0 ? (totalCost / sales) * 100 : 0;
+    node.costRatio = safeDivide(totalCost, sales) * 100;
 
     // Plan aggregation
     const sp = rows.reduce((s, r) => s + (r.salesPlan ?? 0), 0);
@@ -251,9 +252,9 @@ export function calcItemHierarchy(
 
   if (hasFullPL) {
     root.grossProfit = rows.reduce((s, r) => s + (r.grossProfit ?? 0), 0);
-    root.grossMargin = totalSales !== 0 ? (root.grossProfit / totalSales) * 100 : 0;
+    root.grossMargin = safeDivide(root.grossProfit, totalSales) * 100;
     root.operatingProfit = rows.reduce((s, r) => s + (r.operatingProfit ?? 0), 0);
-    root.operatingMargin = totalSales !== 0 ? (root.operatingProfit / totalSales) * 100 : 0;
+    root.operatingMargin = safeDivide(root.operatingProfit, totalSales) * 100;
     // Plan totals
     const totalSalesPlan = rows.reduce((s, r) => s + (r.salesPlan ?? 0), 0);
     if (totalSalesPlan) {
@@ -468,7 +469,7 @@ export function calcProfitMatrix(
       name,
       category: v.category,
       sales: v.sales,
-      grossMargin: v.sales !== 0 ? (v.gp / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.gp, v.sales) * 100,
     }));
 
   if (items.length === 0) return [];

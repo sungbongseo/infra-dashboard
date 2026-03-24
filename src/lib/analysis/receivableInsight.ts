@@ -1,4 +1,5 @@
 import type { ReceivableAgingRecord, RiskGrade } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { assessRisk, calcCreditUtilization, calcRiskAssessments } from "./aging";
 
 // ─── 담당자별 거래처 포트폴리오 ────────────────────────────────────
@@ -59,7 +60,7 @@ export function calcPersonPortfolio(records: ReceivableAgingRecord[]): PersonPor
 
     if (totalReceivable > 0) {
       for (const [, v] of Array.from(customerTotals.entries())) {
-        const share = v.amount / totalReceivable;
+        const share = safeDivide(v.amount, totalReceivable);
         hhi += share * share;
         if (v.amount > topCustomerAmount) {
           topCustomerAmount = v.amount;

@@ -17,7 +17,7 @@ import { ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { O2CPipelineResult } from "@/lib/analysis/pipeline";
 
 interface PipelineTabProps {
@@ -186,7 +186,7 @@ export function PipelineTab({
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(value: any, name: any) => {
-                  if (name === "전환율" || name === "수금율") return `${Number(value).toFixed(1)}%`;
+                  if (name === "전환율" || name === "수금율") return `${safeFixed(Number(value), 1)}%`;
                   return formatCurrency(Number(value));
                 }}
               />

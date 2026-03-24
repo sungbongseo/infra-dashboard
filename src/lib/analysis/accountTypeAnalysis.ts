@@ -1,5 +1,5 @@
 import type { SalesRecord, CustomerItemDetailRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── 인터페이스 ──────────────────────────────────────────────
 
@@ -94,8 +94,8 @@ export function calcAccountTypeBreakdown(
       amount: data.amount,
       count: data.count,
       share:
-        totalAmount !== 0 && isFinite(data.amount / totalAmount)
-          ? (data.amount / totalAmount) * 100
+        totalAmount !== 0 && isFinite(safeDivide(data.amount, totalAmount))
+          ? (safeDivide(data.amount, totalAmount)) * 100
           : 0,
     })
   );
@@ -192,16 +192,16 @@ export function calcAccountTypeByOrg(
           accountType,
           amount,
           share:
-            totalAmount !== 0 && isFinite(amount / totalAmount)
-              ? (amount / totalAmount) * 100
+            totalAmount !== 0 && isFinite(safeDivide(amount, totalAmount))
+              ? (safeDivide(amount, totalAmount)) * 100
               : 0,
         }))
         .sort((a, b) => b.amount - a.amount);
 
       const merchandiseAmount = typeMap.get("상품") || 0;
       const merchandiseDependency =
-        totalAmount !== 0 && isFinite(merchandiseAmount / totalAmount)
-          ? (merchandiseAmount / totalAmount) * 100
+        totalAmount !== 0 && isFinite(safeDivide(merchandiseAmount, totalAmount))
+          ? (safeDivide(merchandiseAmount, totalAmount)) * 100
           : 0;
 
       return {
@@ -267,13 +267,13 @@ export function calcProductGroupProfitability(
       cost: v.cost,
       grossProfit: v.grossProfit,
       grossMargin:
-        v.sales !== 0 && isFinite(v.grossProfit / v.sales)
-          ? (v.grossProfit / v.sales) * 100
+        v.sales !== 0 && isFinite(safeDivide(v.grossProfit, v.sales))
+          ? (safeDivide(v.grossProfit, v.sales)) * 100
           : 0,
       operatingProfit: v.operatingProfit,
       operatingMargin:
-        v.sales !== 0 && isFinite(v.operatingProfit / v.sales)
-          ? (v.operatingProfit / v.sales) * 100
+        v.sales !== 0 && isFinite(safeDivide(v.operatingProfit, v.sales))
+          ? (safeDivide(v.operatingProfit, v.sales)) * 100
           : 0,
       count: v.count,
     }))
@@ -330,17 +330,17 @@ export function calcFactoryPerformance(
       cost: v.cost,
       grossProfit: v.grossProfit,
       grossMargin:
-        v.sales !== 0 && isFinite(v.grossProfit / v.sales)
-          ? (v.grossProfit / v.sales) * 100
+        v.sales !== 0 && isFinite(safeDivide(v.grossProfit, v.sales))
+          ? (safeDivide(v.grossProfit, v.sales)) * 100
           : 0,
       operatingProfit: v.operatingProfit,
       operatingMargin:
-        v.sales !== 0 && isFinite(v.operatingProfit / v.sales)
-          ? (v.operatingProfit / v.sales) * 100
+        v.sales !== 0 && isFinite(safeDivide(v.operatingProfit, v.sales))
+          ? (safeDivide(v.operatingProfit, v.sales)) * 100
           : 0,
       costRate:
-        v.sales !== 0 && isFinite(v.cost / v.sales)
-          ? (v.cost / v.sales) * 100
+        v.sales !== 0 && isFinite(safeDivide(v.cost, v.sales))
+          ? (safeDivide(v.cost, v.sales)) * 100
           : 0,
       count: v.count,
     }))

@@ -1,6 +1,7 @@
 import type { DSOMetric } from "./dso";
 import type { TeamContributionRecord } from "@/types";
 import { isSameOrg } from "@/lib/orgMapping";
+import { safeDivide } from "@/lib/utils";
 
 export type CCCClassification = "excellent" | "good" | "fair" | "poor";
 
@@ -70,9 +71,9 @@ function calcCostProfileRatios(
     return { 원재료비율: 0, 상품매입비율: 0, 외주비율: 0 };
   }
   return {
-    원재료비율: (rawMaterial / totalCOGS) * 100,
-    상품매입비율: (productPurchase / totalCOGS) * 100,
-    외주비율: (outsourcing / totalCOGS) * 100,
+    원재료비율: safeDivide(rawMaterial, totalCOGS) * 100,
+    상품매입비율: safeDivide(productPurchase, totalCOGS) * 100,
+    외주비율: safeDivide(outsourcing, totalCOGS) * 100,
   };
 }
 
@@ -273,18 +274,18 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
     const wDSO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dso) ? m.dso : 0) * m.avgMonthlySales, 0);
     const wDPO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dpo) ? m.dpo : 0) * m.avgMonthlySales, 0);
     return {
-      avgCCC: Math.round(wCCC / totalWeight),
-      avgDSO: Math.round(wDSO / totalWeight),
-      avgDPO: Math.round(wDPO / totalWeight),
+      avgCCC: Math.round(safeDivide(wCCC, totalWeight)),
+      avgDSO: Math.round(safeDivide(wDSO, totalWeight)),
+      avgDPO: Math.round(safeDivide(wDPO, totalWeight)),
       metrics: cccMetrics,
     };
   }
 
   const count = cccMetrics.length;
   return {
-    avgCCC: Math.round(cccMetrics.reduce((s, m) => s + m.ccc, 0) / count),
-    avgDSO: Math.round(cccMetrics.reduce((s, m) => s + m.dso, 0) / count),
-    avgDPO: Math.round(cccMetrics.reduce((s, m) => s + m.dpo, 0) / count),
+    avgCCC: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.ccc, 0), count)),
+    avgDSO: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.dso, 0), count)),
+    avgDPO: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.dpo, 0), count)),
     metrics: cccMetrics,
   };
 }

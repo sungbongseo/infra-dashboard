@@ -5,7 +5,7 @@ import {
   Tooltip as RechartsTooltip, Legend,
 } from "recharts";
 import { ChartContainer } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { OrgRatioMetric } from "@/lib/analysis/kpi";
 
 const MAX_RADAR_ORGS = 7;
@@ -171,7 +171,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
                   const actual = rawValue !== undefined ? Number(rawValue) : Number(value);
                   if (!isFinite(actual)) return "-";
                   const suffix = actual < 0 ? " (손실)" : "";
-                  return `${actual.toFixed(1)}%${suffix}`;
+                  return `${safeFixed(actual, 1)}%${suffix}`;
                 }}
               />
             </RadarChart>
@@ -208,7 +208,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
               {row.metrics.map((m) => {
                 const rate = m.achievementRate;
                 const noplan = rate >= 9999 || !isFinite(rate);
-                const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${rate.toFixed(0)}%`;
+                const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${safeFixed(rate, 0)}%`;
                 const bg = getHeatmapBg(rate, m.isCostItem, m.actual);
                 const textColor = (bg === "#fbbf24") ? "text-gray-900" : "text-white";
                 return (

@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { AlertTriangle, Target, TrendingDown, BarChart3 } from "lucide-react";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CostVarianceSummary, TeamCostEfficiency } from "@/lib/analysis/itemCostAnalysis";
 import type { ItemVarianceEntry, CostDriverEntry } from "@/types";
@@ -301,7 +301,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
                   dataKey="x"
                   name="원가비중"
                   tick={{ fontSize: 10 }}
-                  tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+                  tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`}
                   label={{ value: "원가비중(%)", position: "insideBottom", offset: -5, fontSize: 11 }}
                 />
                 <YAxis
@@ -309,7 +309,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
                   dataKey="y"
                   name="차이율"
                   tick={{ fontSize: 10 }}
-                  tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+                  tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`}
                   label={{ value: "차이율(%)", angle: -90, position: "insideLeft", fontSize: 11 }}
                 />
                 <ZAxis type="number" dataKey="z" range={[80, 800]} name="임팩트" />
@@ -356,7 +356,7 @@ export function CostVarianceTab({ isDateFiltered, variance, teamEfficiency, item
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 labelFormatter={(label: any, payload: any) => payload?.[0]?.payload?.fullName || label}
-                formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, name]}
+                formatter={(v: any, name: any) => [`${safeFixed(Number(v), 1)}%`, name]}
               />
               <Legend verticalAlign="top" height={30} />
               <ReferenceLine y={25} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" label={{ value: "업계평균 25%", fontSize: 10, fill: "hsl(var(--muted-foreground))" }} />

@@ -1,3 +1,5 @@
+import { safeDivide } from "@/lib/utils";
+
 // ─── Interfaces ───────────────────────────────────────────────
 
 export interface DecompositionPoint {
@@ -55,7 +57,7 @@ export function decomposeTimeSeries(
     for (let j = i - halfWindow; j <= i + halfWindow; j++) {
       sum += values[j];
     }
-    trend[i] = sum / windowSize;
+    trend[i] = safeDivide(sum, windowSize);
   }
 
   // Fill edges with extrapolation
@@ -141,7 +143,7 @@ export function decomposeTimeSeries(
   const meanResidual = residuals.reduce((s, v) => s + v, 0) / n;
   const varResidual = residuals.reduce((s, v) => s + v * v, 0) / n - meanResidual * meanResidual;
   const seasonalStrength = varDetrended > 0
-    ? Math.max(0, Math.min(1, 1 - varResidual / varDetrended))
+    ? Math.max(0, Math.min(1, 1 - safeDivide(varResidual, varDetrended)))
     : 0;
 
   return { points, seasonalPattern, trendDirection, seasonalStrength, dataQuality };

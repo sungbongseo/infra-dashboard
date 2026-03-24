@@ -34,6 +34,12 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat("ko-KR").format(value);
 }
 
+export function safeDivide(numerator: number, denominator: number, fallback = 0): number {
+  if (denominator === 0 || !isFinite(numerator) || !isFinite(denominator)) return fallback;
+  const result = numerator / denominator;
+  return isFinite(result) ? result : fallback;
+}
+
 export function calcChangeRate(current: number, previous: number): number {
   if (previous === 0) return current > 0 ? 100 : current < 0 ? -100 : 0;
   return ((current - previous) / Math.abs(previous)) * 100;

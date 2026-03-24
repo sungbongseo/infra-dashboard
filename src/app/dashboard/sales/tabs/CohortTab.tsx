@@ -15,7 +15,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DataSufficiencyNotice } from "@/components/dashboard/DataSufficiencyNotice";
-import { CHART_COLORS, TOOLTIP_STYLE, extractMonth } from "@/lib/utils";
+import { CHART_COLORS, TOOLTIP_STYLE, extractMonth, safeFixed } from "@/lib/utils";
 import { calcCohortAnalysis } from "@/lib/analysis/cohortAnalysis";
 import type { SalesRecord } from "@/types";
 
@@ -220,7 +220,7 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
             />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
-              formatter={(value: any) => [`${Number(value).toFixed(1)}%`, "평균 리텐션율"]}
+              formatter={(value: any) => [`${safeFixed(Number(value), 1)}%`, "평균 리텐션율"]}
             />
             <Line
               type="monotone"

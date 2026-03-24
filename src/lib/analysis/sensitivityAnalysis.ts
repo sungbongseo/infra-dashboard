@@ -1,3 +1,5 @@
+import { safeDivide } from "@/lib/utils";
+
 // ─── Interfaces ───────────────────────────────────────────────
 
 export interface SensitivityCell {
@@ -72,9 +74,9 @@ export function calcSensitivityGrid(
         resultSales,
         resultGrossProfit: resultGP,
         resultOpProfit: resultOP,
-        salesChange: baseSales !== 0 ? ((resultSales - baseSales) / Math.abs(baseSales)) * 100 : 0,
-        gpChange: baseGrossProfit !== 0 ? ((resultGP - baseGrossProfit) / Math.abs(baseGrossProfit)) * 100 : 0,
-        opChange: baseOpProfit !== 0 ? ((resultOP - baseOpProfit) / Math.abs(baseOpProfit)) * 100 : 0,
+        salesChange: safeDivide(resultSales - baseSales, Math.abs(baseSales)) * 100,
+        gpChange: safeDivide(resultGP - baseGrossProfit, Math.abs(baseGrossProfit)) * 100,
+        opChange: safeDivide(resultOP - baseOpProfit, Math.abs(baseOpProfit)) * 100,
       });
     }
   }

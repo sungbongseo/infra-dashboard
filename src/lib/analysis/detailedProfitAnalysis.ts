@@ -1,4 +1,5 @@
 import type { CustomerItemDetailRecord, ProfitabilityAnalysisRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { detectBestClassification, type ClassificationField } from "./productGroupAnalysis";
 
 /** Union type for records that have the fields needed by calcMarginErosion */
@@ -366,7 +367,7 @@ export function calcOrgProductSummary(
         totalGrossProfit: v.totalGrossProfit,
         grossMargin:
           v.totalSales !== 0
-            ? (v.totalGrossProfit / v.totalSales) * 100
+            ? (safeDivide(v.totalGrossProfit, v.totalSales)) * 100
             : 0,
         productCount: v.products.size,
         customerCount: v.customers.size,
@@ -374,7 +375,7 @@ export function calcOrgProductSummary(
         topCustomer,
         domesticRatio:
           v.totalSales !== 0
-            ? (v.domesticSales / v.totalSales) * 100
+            ? (safeDivide(v.domesticSales, v.totalSales)) * 100
             : 0,
       };
     })

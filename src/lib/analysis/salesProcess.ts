@@ -1,4 +1,5 @@
 import type { SalesRecord, OrderRecord, CollectionRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 export interface SalesProcessKpis {
   winRate: number;
@@ -60,7 +61,7 @@ export function calcWinRate(orders: OrderRecord[]): {
   }
 
   const denom = wonAmount + lostAmount;
-  const rate = denom > 0 ? (wonAmount / denom) * 100 : 0;
+  const rate = safeDivide(wonAmount, denom) * 100;
 
   return {
     rate: isFinite(rate) ? rate : 0,

@@ -1,4 +1,5 @@
 import type { ReceivableAgingRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ─── 인터페이스 ───────────────────────────────────────────────────────
 
@@ -147,7 +148,7 @@ export function calcCurrencyExposure(records: ReceivableAgingRecord[]): Currency
       통화,
       장부금액: data.장부,
       출고금액: data.출고,
-      비중: totalBook > 0 ? (data.장부 / totalBook) * 100 : 0,
+      비중: safeDivide(data.장부, totalBook) * 100,
       거래처수: data.customers.size,
     }))
     .sort((a, b) => b.장부금액 - a.장부금액);

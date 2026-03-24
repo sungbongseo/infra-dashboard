@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateItemProfitability, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateItemProfitability, aggregateCustomerItemDetail, aggregateOrgCustomerProfit, aggregateItemCostDetail, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -84,11 +84,11 @@ export default function SalesAnalysisPage() {
     [orgProfit, effectiveOrgNames]
   );
 
-  // 품목군 분석에 필요한 customerItemDetail 필터
+  // 품목군 분석에 필요한 customerItemDetail 필터 + 월별 중복 합산
   const filteredCustomerItemDetail = useMemo(() => {
     const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
-    if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
-    return filterByDateRange(orgFiltered, dateRange, "매출연월");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateCustomerItemDetail(monthFiltered);
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
 
   // 품목별 수익성 분석 (200) 필터 + 월별 합산 — ItemTab prop으로 전달
@@ -98,16 +98,24 @@ export default function SalesAnalysisPage() {
     return aggregateItemProfitability(monthFiltered);
   }, [itemProfitability, effectiveOrgNames, dateRange]);
 
+  // 501 품목별 원가 데이터 — 월별 중복 합산
+  const filteredItemCostDetail = useMemo(() => {
+    const orgFiltered = filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateItemCostDetail(monthFiltered);
+  }, [itemCostDetail, effectiveOrgNames, dateRange]);
+
   // 재고 데이터 → 품목별 재고 매핑 (수불현황 존재 시)
   const inventoryMap = useMemo(
     () => inventoryMovement.size > 0 ? buildItemInventoryMap(inventoryMovement) : undefined,
     [inventoryMovement]
   );
 
-  // 303 거래처 손익 연계 (월별 시트 데이터 → 날짜 필터 적용)
+  // 303 거래처 손익 연계 (월별 시트 데이터 → 날짜 필터 + 월별 중복 합산)
   const filteredOrgCustProfit = useMemo(() => {
     const orgFiltered = filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
-    return filterByMonth(orgFiltered, dateRange);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateOrgCustomerProfit(monthFiltered);
   }, [orgCustomerProfit, effectiveOrgNames, dateRange]);
   const customerRanking = useMemo(
     () => calcCustomerRanking(filteredOrgCustProfit, "sales").slice(0, 20),
@@ -419,7 +427,7 @@ export default function SalesAnalysisPage() {
         <TabsContent value="margin" className="space-y-6">
           <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
-            <MarginTab filteredSales={filteredSales} itemCostDetail={itemCostDetail} />
+            <MarginTab filteredSales={filteredSales} itemCostDetail={filteredItemCostDetail} />
           </ErrorBoundary>
           </Suspense>
         </TabsContent>

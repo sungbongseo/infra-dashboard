@@ -1,4 +1,5 @@
 import type { ProfitabilityAnalysisRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 /**
  * 계획 달성 분석 (Plan Achievement Analysis)
@@ -293,8 +294,8 @@ export function calcMarginDrift(
     // C2: 계획=0 or 실적=0인 거래처 제외 (비교 근거 없음)
     .filter(([, v]) => v.salesActual !== 0 && v.salesPlan !== 0)
     .map(([customer, v]) => {
-      const plannedGPRate = (v.gpPlan / v.salesPlan) * 100;
-      const actualGPRate = (v.gpActual / v.salesActual) * 100;
+      const plannedGPRate = (safeDivide(v.gpPlan, v.salesPlan)) * 100;
+      const actualGPRate = (safeDivide(v.gpActual, v.salesActual)) * 100;
       const marginDrift = Math.max(-200, Math.min(200, actualGPRate - plannedGPRate));
       return {
         customer,

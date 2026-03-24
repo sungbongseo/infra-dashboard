@@ -3,6 +3,7 @@ import type {
   ItemVarianceEntry, PlanAchievementItem, UnitCostEntry, CostDriverEntry,
 } from "@/types";
 import { COST_CATEGORIES, COST_CATEGORIES_WITH_SUBTOTAL, COST_BUCKETS } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -191,7 +192,7 @@ export function calcCostCategoryVariance(data: ItemCostDetailRecord[]): CostVari
   // Fill contributionToTotal
   for (const c of categories) {
     c.contributionToTotal = totalVariance !== 0
-      ? (c.variance / Math.abs(totalVariance)) * 100
+      ? safeDivide(c.variance, Math.abs(totalVariance)) * 100
       : 0;
   }
 
@@ -514,7 +515,7 @@ export function calcPlanAchievementQuadrant(data: ItemCostDetailRecord[]): PlanA
   return Array.from(map.values())
     .filter((e) => e.salesPlan !== 0) // 계획이 0인 품목 제외
     .map((e) => {
-      const salesAch = (e.salesActual / e.salesPlan) * 100;
+      const salesAch = (safeDivide(e.salesActual, e.salesPlan)) * 100;
       const profitAch = e.profitPlan !== 0 ? (e.profitActual / e.profitPlan) * 100 : 0;
       const quadrant: 1 | 2 | 3 | 4 =
         salesAch >= 100 && profitAch >= 100 ? 1 :  // 스타

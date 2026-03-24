@@ -17,7 +17,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
-import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { PersonPortfolio, PersonHealthData, CustomerRepDetail } from "@/lib/analysis/receivableInsight";
 
@@ -124,7 +124,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
           if (!v || !isFinite(v)) return <span className="block text-right text-muted-foreground">-</span>;
           return (
             <span className={`block text-right tabular-nums ${v >= 100 ? "text-red-500 dark:text-red-400 font-semibold" : v >= 80 ? "text-amber-500 dark:text-amber-400" : ""}`}>
-              {v.toFixed(1)}%
+              {safeFixed(v, 1)}%
             </span>
           );
         },
@@ -197,7 +197,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
             <YAxis type="category" dataKey="person" tick={{ fontSize: 10 }} width={55} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
-              formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, name]}
+              formatter={(v: any, name: any) => [`${safeFixed(Number(v), 1)}%`, name]}
             />
             <Bar dataKey="normalPct" stackId="stack" fill="hsl(142, 71%, 45%)" name="정상 (1~2개월)" {...ANIMATION_CONFIG} />
             <Bar dataKey="cautionPct" stackId="stack" fill="hsl(45, 93%, 47%)" name="주의 (3~5개월)" {...ANIMATION_CONFIG} />
@@ -222,7 +222,7 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
             <YAxis type="category" dataKey="person" tick={{ fontSize: 10 }} width={55} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
-              formatter={(v: any) => [`${Number(v).toFixed(1)}%`, "정상비율"]}
+              formatter={(v: any) => [`${safeFixed(Number(v), 1)}%`, "정상비율"]}
             />
             <Bar dataKey="normalRatio" name="정상비율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
               {efficiencyData.map((entry, idx) => (

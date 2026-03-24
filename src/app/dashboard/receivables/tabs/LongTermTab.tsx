@@ -22,7 +22,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
-import { formatCurrency, formatPercent, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { LongTermSummary, LongTermCustomer, LongTermByOrg, BadDebtProvision } from "@/lib/analysis/longTermReceivable";
 
@@ -273,7 +273,7 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => {
-                if (name === "장기비중") return [`${Number(value).toFixed(1)}%`, name];
+                if (name === "장기비중") return [`${safeFixed(Number(value), 1)}%`, name];
                 return [formatCurrency(Number(value)), name];
               }}
             />

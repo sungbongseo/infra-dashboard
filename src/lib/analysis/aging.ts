@@ -1,4 +1,5 @@
 import type { ReceivableAgingRecord, RiskGrade, AgingRiskAssessment, CreditUtilization, CreditSummaryByOrg, CreditStatus } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // SAP FI-AR 표준: 90일(month3) 이상 = 연체
 export const RISK_THRESHOLDS = {
@@ -42,7 +43,7 @@ export function calcAgingSummary(records: ReceivableAgingRecord[]): AgingSummary
   const bucketSum = summary.month1 + summary.month2 + summary.month3 +
     summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   if (summary.total !== 0) {
-    const diff = Math.abs(bucketSum - summary.total) / Math.abs(summary.total);
+    const diff = safeDivide(Math.abs(bucketSum - summary.total), Math.abs(summary.total));
     const diffPct = diff * 100;
     if (diff > 0.01) {
       console.warn(`[Aging] 버킷 합계 불일치: 버킷합=${bucketSum.toLocaleString()}, total=${summary.total.toLocaleString()} (차이 ${diffPct.toFixed(1)}%)`);
@@ -84,7 +85,7 @@ export function assessRisk(record: ReceivableAgingRecord): RiskGrade {
   if (total === 0) return "low";
   // SAP FI-AR 표준: month3(90일) 이상을 연체로 판정
   const overdueAmt = record.month3.장부금액 + record.month4.장부금액 + record.month5.장부금액 + record.month6.장부금액 + record.overdue.장부금액;
-  const overdueRatio = overdueAmt / total;
+  const overdueRatio = safeDivide(overdueAmt, total);
   // 고위험: 연체비율 50% 초과 또는 6개월 이상(month6+overdue) 미수금 1억 초과
   const longTermAmt = record.month6.장부금액 + record.overdue.장부금액;
   if (overdueRatio > RISK_THRESHOLDS.HIGH_OVERDUE_RATIO || longTermAmt > RISK_THRESHOLDS.HIGH_OVERDUE_AMOUNT) return "high";

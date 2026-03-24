@@ -1,4 +1,5 @@
 import type { ProfitabilityAnalysisRecord, CustomerItemDetailRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 export interface ProductProfitability {
   product: string;
@@ -76,9 +77,9 @@ export function calcProductProfitability(
       sales: v.sales,
       cost: v.cost,
       grossProfit: v.grossProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
       operatingProfit: v.operatingProfit,
-      operatingMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
+      operatingMargin: safeDivide(v.operatingProfit, v.sales) * 100,
     }))
     .sort((a, b) => sortBy === "sales" ? b.sales - a.sales : b.grossProfit - a.grossProfit);
 }
@@ -124,9 +125,9 @@ export function calcCustomerProfitability(
       customer,
       sales: v.sales,
       grossProfit: v.grossProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
       operatingProfit: v.operatingProfit,
-      operatingMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
+      operatingMargin: safeDivide(v.operatingProfit, v.sales) * 100,
       productCount: v.products.size,
     }))
     .sort((a, b) => b.sales - a.sales);
@@ -169,7 +170,7 @@ export function calcProfitabilityMatrix(
       product: v.product,
       sales: v.sales,
       grossProfit: v.grossProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
     }))
     .sort((a, b) => b.sales - a.sales);
 }

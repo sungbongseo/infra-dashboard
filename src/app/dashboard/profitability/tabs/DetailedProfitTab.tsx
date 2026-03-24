@@ -17,7 +17,7 @@ import { BarChart3, Calendar, Layers, Building2 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   calcParetoAnalysis,
   calcProductGroupAnalysis,
@@ -198,13 +198,13 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
               yAxisId="right"
               orientation="right"
               tick={{ fontSize: 10 }}
-              tickFormatter={(v) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v) => `${safeFixed(Number(v), 0)}%`}
               domain={[0, 100]}
             />
             <RechartsTooltip
               formatter={(v: any, name: any) =>
                 name === "누적비중(%)"
-                  ? `${Number(v).toFixed(1)}%`
+                  ? `${safeFixed(Number(v), 1)}%`
                   : formatCurrency(Number(v))
               }
               {...TOOLTIP_STYLE}

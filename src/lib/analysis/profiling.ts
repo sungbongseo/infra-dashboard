@@ -7,7 +7,7 @@ import type {
   ReceivableAgingRecord,
   CustomerItemDetailRecord,
 } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── HHI (Herfindahl-Hirschman Index) 거래처 집중도 ────────────────────────
 
@@ -77,7 +77,7 @@ export function calcCustomerHHI(
       .map(([, c]) => ({
         name: c.name,
         amount: c.amount,
-        share: c.amount / totalAmount,
+        share: safeDivide(c.amount, totalAmount),
       }))
       .sort((a, b) => b.amount - a.amount);
 
@@ -145,7 +145,7 @@ export function calcReceivableRiskScore(
       result.set(personId, maxScore); // 미수금 없으면 만점
       continue;
     }
-    const longOverdueRatio = entry.longOverdue / entry.total;
+    const longOverdueRatio = safeDivide(entry.longOverdue, entry.total);
     const score = (1 - longOverdueRatio) * maxScore;
     result.set(personId, Math.max(0, Math.min(maxScore, score)));
   }
@@ -210,7 +210,7 @@ function normalizeWeights(
     const eq = totalMax / 5;
     return { sales: eq, profit: eq, collection: eq, growth: eq, diversity: eq };
   }
-  const factor = totalMax / sum;
+  const factor = safeDivide(totalMax, sum);
   return {
     sales: raw.sales * factor,
     profit: raw.profit * factor,
@@ -353,8 +353,8 @@ export function calcPerformanceScores(
     const collectAmt = personCollections.get(id) || 0;
     const contribRate = personContrib.get(id)?.rate || 0;
 
-    const salesScore = (salesAmt / maxSales) * w.sales;
-    const orderScore = (orderAmt / maxOrders) * w.growth;
+    const salesScore = (safeDivide(salesAmt, maxSales)) * w.sales;
+    const orderScore = (safeDivide(orderAmt, maxOrders)) * w.growth;
     const profitScore =
       maxContribRate > 0 ? (contribRate / maxContribRate) * w.profit : 0;
     const collectionRate = salesAmt > 0 ? collectAmt / salesAmt : 0;
@@ -408,7 +408,7 @@ export function calcPerformanceScores(
   profiles.forEach((p, i) => {
     p.score.rank = i + 1;
     p.score.percentile =
-      ((profiles.length - i) / profiles.length) * 100;
+      safeDivide(profiles.length - i, profiles.length) * 100;
   });
 
   return { profiles, idToName, nameToId };
@@ -585,9 +585,9 @@ export function calcRepTrend(
   if (n >= 3) {
     const last3 = monthlyData.slice(-3).map((d) => d.sales);
     const trend = last3[2] - last3[0];
-    const avgSales = totalSales / n;
+    const avgSales = safeDivide(totalSales, n);
     if (avgSales > 0) {
-      const trendRate = trend / avgSales;
+      const trendRate = safeDivide(trend, avgSales);
       if (trendRate > 0.1) momentum = "accelerating";
       else if (trendRate < -0.1) momentum = "decelerating";
     }
@@ -599,9 +599,9 @@ export function calcRepTrend(
     personId,
     name,
     monthlyData,
-    avgMonthlySales: totalSales / n,
-    avgMonthlyOrders: totalOrders / n,
-    avgMonthlyCollections: totalCollections / n,
+    avgMonthlySales: safeDivide(totalSales, n),
+    avgMonthlyOrders: safeDivide(totalOrders, n),
+    avgMonthlyCollections: safeDivide(totalCollections, n),
     salesMoM,
     momentum,
   };

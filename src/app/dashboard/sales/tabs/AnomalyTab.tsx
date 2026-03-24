@@ -16,7 +16,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { detectEnhancedSalesAnomalies } from "@/lib/analysis/anomalyDetection";
 import type { EnhancedAnomalyResult } from "@/lib/analysis/anomalyDetection";
 import type { SalesRecord } from "@/types";
@@ -291,7 +291,7 @@ function AnomalyRow({
         <td className="py-2 px-3 text-right">
           {isFinite(a.momChange) ? (
             <span className={a.momChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-              {a.momChange >= 0 ? "+" : ""}{a.momChange.toFixed(1)}%
+              {a.momChange >= 0 ? "+" : ""}{safeFixed(a.momChange, 1)}%
             </span>
           ) : (
             <span className="text-muted-foreground">-</span>
@@ -340,7 +340,7 @@ function AnomalyRow({
                           <td className="py-1 px-2 text-right">
                             {isFinite(c.changeRate) ? (
                               <span className={c.changeRate >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
-                                {c.changeRate >= 0 ? "+" : ""}{c.changeRate.toFixed(1)}%
+                                {c.changeRate >= 0 ? "+" : ""}{safeFixed(c.changeRate, 1)}%
                               </span>
                             ) : (
                               <span className="text-muted-foreground">-</span>

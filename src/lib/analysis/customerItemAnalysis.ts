@@ -1,4 +1,5 @@
 import type { HqCustomerItemProfitRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ── Cross Profitability (거래처 x 품목 수익성 매트릭스) ──
 
@@ -61,9 +62,9 @@ export function calcCrossProfitability(
     productCode: v.productCode,
     sales: v.sales,
     grossProfit: v.grossProfit,
-    grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+    grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
     operatingProfit: v.operatingProfit,
-    opMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
+    opMargin: safeDivide(v.operatingProfit, v.sales) * 100,
     quantity: v.quantity,
   }));
 
@@ -138,7 +139,7 @@ export function calcABCAnalysis(
       product: v.product, productCode: v.productCode,
       sales: v.sales, cumulativeShare, grade,
       grossProfit: v.grossProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
       customerCount: v.customers.size,
     });
   }
@@ -149,7 +150,7 @@ export function calcABCAnalysis(
       product: v.product, productCode: v.productCode,
       sales: v.sales, cumulativeShare: 100, grade: "C",
       grossProfit: v.grossProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
       customerCount: v.customers.size,
     });
   }
@@ -235,7 +236,7 @@ export function calcCustomerPortfolio(
       .map((p) => ({
         name: p.name,
         sales: p.sales,
-        margin: p.sales !== 0 ? (p.grossProfit / p.sales) * 100 : 0,
+        margin: safeDivide(p.grossProfit, p.sales) * 100,
       }));
 
     return {
@@ -244,7 +245,7 @@ export function calcCustomerPortfolio(
       totalSales: v.totalSales,
       totalGrossProfit: v.totalGrossProfit,
       avgGrossMargin:
-        v.totalSales !== 0 ? (v.totalGrossProfit / v.totalSales) * 100 : 0,
+        safeDivide(v.totalGrossProfit, v.totalSales) * 100,
       productCount: v.products.size,
       topProducts: sortedProducts,
     };
@@ -335,7 +336,7 @@ export function calcProductCustomerMatrix(
 
       const sales = cell ? cell.sales : 0;
       const grossProfit = cell ? cell.grossProfit : 0;
-      const grossMargin = sales !== 0 ? (grossProfit / sales) * 100 : 0;
+      const grossMargin = safeDivide(grossProfit, sales) * 100;
 
       cells.push({
         productIdx: pi,

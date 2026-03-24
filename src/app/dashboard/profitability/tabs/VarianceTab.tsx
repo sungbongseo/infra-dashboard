@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Target, TrendingUp, Calendar, AlertTriangle, Lightbulb, BarChart3 } from "lucide-react";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import type { PlanDataQuality, MarginDriftResult, OrgGapContribution } from "@/lib/analysis/planAchievement";
 
@@ -128,7 +128,7 @@ export function VarianceTab({
             {" — "}
             {planQuality.planQualityLevel === "none"
               ? "계획값이 전혀 존재하지 않습니다. SAP에서 계획 데이터를 포함한 보고서를 추출해주세요."
-              : `전체 ${planQuality.totalRecords.toLocaleString()}건 중 ${planQuality.recordsWithSalesPlan.toLocaleString()}건(${planQuality.salesPlanCoverage.toFixed(0)}%)에만 계획값이 존재합니다. 분석 신뢰성이 제한됩니다.`}
+              : `전체 ${planQuality.totalRecords.toLocaleString()}건 중 ${planQuality.recordsWithSalesPlan.toLocaleString()}건(${safeFixed(planQuality.salesPlanCoverage, 0)}%)에만 계획값이 존재합니다. 분석 신뢰성이 제한됩니다.`}
           </div>
         </div>
       )}
@@ -183,7 +183,7 @@ export function VarianceTab({
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium">{item.label}</span>
                   <span className={`text-lg font-bold ${item.pct === null ? "text-gray-400" : displayPct >= 100 ? "text-emerald-600 dark:text-emerald-400" : displayPct >= 80 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`}>
-                    {item.pct === null ? "계획없음" : `${displayPct.toFixed(1)}%`}
+                    {item.pct === null ? "계획없음" : `${safeFixed(displayPct, 1)}%`}
                   </span>
                 </div>
                 <Progress
@@ -325,7 +325,7 @@ export function VarianceTab({
           <BarChart data={orgAchievement}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis dataKey="org" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={50} interval={0} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`} />
             <RechartsTooltip
               content={({ payload }) => {
                 if (!payload || payload.length === 0) return null;
@@ -365,9 +365,9 @@ export function VarianceTab({
           <BarChart data={orgAchievement}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis dataKey="org" tick={{ fontSize: 10 }} angle={-25} textAnchor="end" height={50} interval={0} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} />
+            <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`} />
             <RechartsTooltip
-              formatter={(v: any) => `${Number(v).toFixed(1)}%`}
+              formatter={(v: any) => `${safeFixed(Number(v), 1)}%`}
               {...TOOLTIP_STYLE}
             />
             <Legend />

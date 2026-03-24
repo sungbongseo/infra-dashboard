@@ -1,4 +1,5 @@
 import type { ReceivableAgingRecord, RiskGrade } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { assessRisk, calcAgingSummary } from "./aging";
 
 // ─── 대손충당금 충당률 (SAP FI 간편법) ──────────────────────────────
@@ -79,7 +80,7 @@ export function calcLongTermSummary(records: ReceivableAgingRecord[]): LongTermS
 
   return {
     longTermTotal,
-    longTermRatio: summary.total > 0 ? (longTermTotal / summary.total) * 100 : 0,
+    longTermRatio: safeDivide(longTermTotal, summary.total) * 100,
     totalProvision,
     longTermCustomerCount: customerSet.size,
   };
@@ -137,7 +138,7 @@ export function calcLongTermCustomers(records: ReceivableAgingRecord[]): LongTer
       overdue금액: ov,
       장기미수합계: longTerm,
       총미수금: total,
-      장기비중: total > 0 ? (longTerm / total) * 100 : 0,
+      장기비중: safeDivide(longTerm, total) * 100,
       대손추정액,
       여신한도,
       riskGrade: worstGrade,
@@ -175,7 +176,7 @@ export function calcLongTermByOrg(records: ReceivableAgingRecord[]): LongTermByO
       overdue: d.ov,
       longTermTotal: d.m6 + d.ov,
       totalReceivable: d.total,
-      longTermRatio: d.total > 0 ? ((d.m6 + d.ov) / d.total) * 100 : 0,
+      longTermRatio: safeDivide((d.m6 + d.ov), d.total) * 100,
       대손추정액: d.provision,
       customerCount: d.customers.size,
     }))

@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, aggregateTeamContribution, aggregateProfitabilityAnalysis, aggregateItemProfitability, aggregateOrgCustomerProfit, aggregateHqCustomerItemProfit, aggregateCustomerItemDetail, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, aggregateTeamContribution, aggregateProfitabilityAnalysis, aggregateItemProfitability, aggregateOrgCustomerProfit, aggregateHqCustomerItemProfit, aggregateCustomerItemDetail, aggregateItemCostDetail, CHART_COLORS } from "@/lib/utils";
 import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
 import { calcMonthlyTrend, calcMoMGrowth, padActual } from "@/lib/analysis/monthlyTrend";
 import {
@@ -442,9 +442,9 @@ export default function ProfitabilityPage() {
   // ─── 마진 침식 분석 ──────────────────────────────
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
 
-  // ─── 품목별 매출원가 분석 (501) ──────────────────────────────
+  // ─── 품목별 매출원가 분석 (501) — 월별 중복 합산 ──────────────
   const filteredItemCostDetail = useMemo(
-    () => filterByMonth(filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀"), dateRange),
+    () => aggregateItemCostDetail(filterByMonth(filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀"), dateRange)),
     [itemCostDetail, effectiveOrgNames, dateRange]
   );
   const itemCostSummary = useMemo(() => calcItemCostSummary(filteredItemCostDetail), [filteredItemCostDetail]);

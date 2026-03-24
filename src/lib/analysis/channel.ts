@@ -1,4 +1,5 @@
 import { SalesRecord } from "@/types/sales";
+import { safeDivide } from "@/lib/utils";
 
 // 결제조건별 매출 분포
 export interface PaymentTermSales {
@@ -172,8 +173,8 @@ export function calcSalesByItemCategory(
       amount: data.amount,
       count: data.count,
       share: totalAmount !== 0 ? (data.amount / totalAmount) * 100 : 0,
-      avgUnitPrice: data.totalQty > 0 && isFinite(data.amount / data.totalQty)
-        ? data.amount / data.totalQty : 0,
+      avgUnitPrice: data.totalQty > 0 && isFinite(safeDivide(data.amount, data.totalQty))
+        ? safeDivide(data.amount, data.totalQty) : 0,
     })
   );
 

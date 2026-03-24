@@ -7,7 +7,7 @@ import {
   Tooltip as RechartsTooltip, Cell, Legend,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG, BAR_RADIUS_TOP } from "@/components/charts";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 // ─── 비용 구조 상수 (CostTab 전용) ───
@@ -253,7 +253,7 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
                     <td className={`p-2 text-right font-mono text-xs ${over ? "text-red-500 dark:text-red-400 font-semibold" : ""}`}>
                       {formatPercent(val, 1)}
                       <span className={`block text-[10px] ${over ? "text-red-400" : "text-muted-foreground"}`}>
-                        ({diff >= 0 ? "+" : ""}{diff.toFixed(1)}p)
+                        ({diff >= 0 ? "+" : ""}{safeFixed(diff, 1)}p)
                       </span>
                     </td>
                   );

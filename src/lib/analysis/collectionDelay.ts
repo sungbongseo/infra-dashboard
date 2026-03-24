@@ -5,7 +5,7 @@
  * 수금 소요일, 지연율, 조직별/거래처별 수금 성과를 분석합니다.
  */
 import type { SalesRecord, CollectionRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 /** 거래처명 정규화: trim + 법인유형 통일 */
 function normalizeCustomerName(name: string): string {
@@ -180,7 +180,7 @@ export function calcCollectionDelay(
     const coll = collectionByCustomer.get(customer);
     const collectedAmount = coll?.collectedAmount || 0;
     const collectionRate = sales.salesAmount > 0
-      ? Math.min((collectedAmount / sales.salesAmount) * 100, 100)
+      ? Math.min((safeDivide(collectedAmount, sales.salesAmount)) * 100, 100)
       : 0;
 
     // 수금 소요일: 매출일 → 수금일
@@ -257,18 +257,18 @@ export function calcOrgCollectionDelay(
       totalSalesAmount: m.totalSalesAmount,
       totalCollectedAmount: m.totalCollectedAmount,
       collectionRate: m.totalSalesAmount > 0
-        ? Math.min((m.totalCollectedAmount / m.totalSalesAmount) * 100, 100)
+        ? Math.min((safeDivide(m.totalCollectedAmount, m.totalSalesAmount)) * 100, 100)
         : 0,
       avgDaysToCollect: m.countWithDelay > 0
-        ? m.totalDaysToCollect / m.countWithDelay
+        ? safeDivide(m.totalDaysToCollect, m.countWithDelay)
         : 0,
       avgDelayDays: m.countWithDelay > 0
-        ? m.totalDelayDays / m.countWithDelay
+        ? safeDivide(m.totalDelayDays, m.countWithDelay)
         : 0,
       customerCount: m.customerCount,
       delayedCustomerCount: m.delayedCustomerCount,
       delayRate: m.customerCount > 0
-        ? (m.delayedCustomerCount / m.customerCount) * 100
+        ? (safeDivide(m.delayedCustomerCount, m.customerCount)) * 100
         : 0,
     }))
     .sort((a, b) => b.totalSalesAmount - a.totalSalesAmount);
@@ -331,7 +331,7 @@ export function calcMonthlyCollectionDelay(
     const salesMonth = shiftMonth(month, offsetMonths);
     const salesAmount = salesByMonth.get(salesMonth) || 0;
     const collectionRate = salesAmount > 0
-      ? Math.min((collectedAmount / salesAmount) * 100, 100)
+      ? Math.min((safeDivide(collectedAmount, salesAmount)) * 100, 100)
       : 0;
 
     // 평균 지연일 추정: 매출 월의 수금예정일 vs 수금 월의 실제수금일
@@ -390,7 +390,7 @@ export function calcCollectionDelaySummary(
     totalSalesAmount: totalSales,
     totalCollectedAmount: totalColl,
     overallCollectionRate: totalSales > 0
-      ? Math.min((totalColl / totalSales) * 100, 100)
+      ? Math.min((safeDivide(totalColl, totalSales)) * 100, 100)
       : 0,
     avgDaysToCollect: countWithDays > 0 ? totalDays / countWithDays : 0,
     avgDelayDays: countWithDays > 0 ? totalDelay / countWithDays : 0,

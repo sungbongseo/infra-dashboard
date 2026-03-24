@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { FileText, Database, Building2, Clock, AlertTriangle, RefreshCw, CheckCircle2, XCircle } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, safeFixed } from "@/lib/utils";
 import { filterByOrg, filterOrgProfitLeafOnly } from "@/lib/utils";
 
 /** 파일 타입별 한글 라벨 */
@@ -282,7 +282,7 @@ export default function DataManagementPage() {
               <CardContent className="p-5">
                 <p className="text-sm font-medium text-muted-foreground">전체 데이터 완전성</p>
                 <p className={`text-2xl font-bold mt-1 ${getCompletenessColor(summary.avgCompleteness)}`}>
-                  {summary.avgCompleteness.toFixed(1)}%
+                  {safeFixed(summary.avgCompleteness, 1)}%
                 </p>
                 <Progress
                   value={summary.avgCompleteness}
@@ -310,7 +310,7 @@ export default function DataManagementPage() {
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">완전성</span>
                       <span className={`font-medium ${getCompletenessColor(m.completenessRate)}`}>
-                        {m.completenessRate.toFixed(1)}%
+                        {safeFixed(m.completenessRate, 1)}%
                       </span>
                     </div>
                     <Progress
@@ -324,7 +324,7 @@ export default function DataManagementPage() {
                           <div key={field} className="flex justify-between text-xs">
                             <span className="text-muted-foreground">{field}</span>
                             <span className="text-amber-600 dark:text-amber-400">
-                              {count}건 ({(m.totalRows > 0 ? (count / m.totalRows) * 100 : 0).toFixed(0)}%)
+                              {count}건 ({safeFixed(m.totalRows > 0 ? (count / m.totalRows) * 100 : 0, 0)}%)
                             </span>
                           </div>
                         ))}

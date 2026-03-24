@@ -1,4 +1,5 @@
 import type { OrgProfitRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -67,7 +68,7 @@ export function calcWhatIfScenario(
     const baseSGA = org.판매관리비.실적;
     const baseOperatingProfit = org.영업이익.실적;
     const baseOperatingMargin = baseSales !== 0
-      ? (baseOperatingProfit / baseSales) * 100
+      ? (safeDivide(baseOperatingProfit, baseSales)) * 100
       : 0;
 
     // Scenario values
@@ -80,7 +81,7 @@ export function calcWhatIfScenario(
     const scenarioSGA = baseSGA * (1 + params.sgaChangePercent / 100);
     const scenarioOperatingProfit = scenarioGrossProfit - scenarioSGA;
     const scenarioOperatingMargin = scenarioSales !== 0
-      ? (scenarioOperatingProfit / scenarioSales) * 100
+      ? (safeDivide(scenarioOperatingProfit, scenarioSales)) * 100
       : 0;
 
     return {
@@ -126,13 +127,13 @@ export function calcScenarioSummary(results: ScenarioResult[]): ScenarioSummary 
   const baseTotalSales = results.reduce((sum, r) => sum + r.baseSales, 0);
   const baseTotalOperatingProfit = results.reduce((sum, r) => sum + r.baseOperatingProfit, 0);
   const baseAvgMargin = baseTotalSales !== 0
-    ? (baseTotalOperatingProfit / baseTotalSales) * 100
+    ? (safeDivide(baseTotalOperatingProfit, baseTotalSales)) * 100
     : 0;
 
   const scenarioTotalSales = results.reduce((sum, r) => sum + r.scenarioSales, 0);
   const scenarioTotalOperatingProfit = results.reduce((sum, r) => sum + r.scenarioOperatingProfit, 0);
   const scenarioAvgMargin = scenarioTotalSales !== 0
-    ? (scenarioTotalOperatingProfit / scenarioTotalSales) * 100
+    ? (safeDivide(scenarioTotalOperatingProfit, scenarioTotalSales)) * 100
     : 0;
 
   return {

@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -153,7 +153,7 @@ export function detectEnhancedSalesAnomalies(
     const prevMonth = idx > 0 ? monthlyData[idx - 1] : null;
     const prevValue = prevMonth?.value ?? 0;
     const momChange = prevValue !== 0 ? ((a.value - prevValue) / Math.abs(prevValue)) * 100 : 0;
-    const severity = stdDev > 0 ? Math.abs(a.value - mean) / stdDev : 0;
+    const severity = stdDev > 0 ? safeDivide(Math.abs(a.value - mean), stdDev) : 0;
     const txCount = monthCountMap.get(a.month) ?? 0;
 
     // Top 5 contributors by absolute change

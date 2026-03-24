@@ -1,5 +1,5 @@
 import type { SalesRecord, CollectionRecord, OrderRecord, OrgProfitRecord, TeamContributionRecord, ReceivableAgingRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 export interface OverviewKpis {
   totalSales: number;
@@ -333,7 +333,7 @@ export function calcForecastAccuracy(orgProfit: OrgProfitRecord[]): number {
   const totalPlan = orgProfit.reduce((s, r) => s + r.매출액.계획, 0);
   const totalActual = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
   if (totalPlan === 0) return 0;
-  const accuracy = 100 - Math.abs((totalActual - totalPlan) / totalPlan) * 100;
+  const accuracy = 100 - Math.abs(safeDivide(totalActual - totalPlan, totalPlan)) * 100;
   return Math.max(0, Math.min(accuracy, 100));
 }
 
@@ -345,7 +345,7 @@ export function calcCollectionEfficiency(
 ): number {
   const potential = totalReceivables + totalSales;
   if (potential <= 0) return 0;
-  return (totalCollections / potential) * 100;
+  return safeDivide(totalCollections, potential) * 100;
 }
 
 // Operating leverage: weighted actual margin / weighted plan margin × 100
@@ -358,7 +358,7 @@ export function calcOperatingLeverage(orgProfit: OrgProfitRecord[]): number {
   const actualMargin = totalActualSales > 0 ? (totalActualProfit / totalActualSales) * 100 : 0;
   const planMargin = totalPlanSales > 0 ? (totalPlanProfit / totalPlanSales) * 100 : 0;
   if (planMargin === 0) return 0;
-  return (actualMargin / planMargin) * 100;
+  return safeDivide(actualMargin, planMargin) * 100;
 }
 
 // Contribution margin rate
@@ -367,7 +367,7 @@ export function calcContributionMarginRate(orgProfit: OrgProfitRecord[]): number
   const totalSales = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
   const totalContrib = orgProfit.reduce((s, r) => s + r.공헌이익.실적, 0);
   if (totalSales === 0) return 0;
-  return (totalContrib / totalSales) * 100;
+  return safeDivide(totalContrib, totalSales) * 100;
 }
 
 // Gross profit margin
@@ -376,7 +376,7 @@ export function calcGrossProfitMargin(orgProfit: OrgProfitRecord[]): number {
   const totalSales = orgProfit.reduce((s, r) => s + r.매출액.실적, 0);
   const totalGross = orgProfit.reduce((s, r) => s + r.매출총이익.실적, 0);
   if (totalSales === 0) return 0;
-  return (totalGross / totalSales) * 100;
+  return safeDivide(totalGross, totalSales) * 100;
 }
 
 // ─── Monthly Cost Profiles ───────────────────────────────────
@@ -432,11 +432,11 @@ export function calcMonthlyCostProfiles(
       .filter(([, agg]) => agg.revenue > 0)
       .map(([month, agg]) => ({
         month,
-        매출원가율: Math.round((agg.cogs / agg.revenue) * 1000) / 10,
-        원재료비율: agg.cogs > 0 ? Math.round((agg.rawMat / agg.cogs) * 1000) / 10 : 0,
-        상품매입비율: agg.cogs > 0 ? Math.round((agg.purchase / agg.cogs) * 1000) / 10 : 0,
-        외주비율: agg.cogs > 0 ? Math.round((agg.outsource / agg.cogs) * 1000) / 10 : 0,
-        판관비율: Math.round((agg.sga / agg.revenue) * 1000) / 10,
+        매출원가율: Math.round(safeDivide(agg.cogs, agg.revenue) * 1000) / 10,
+        원재료비율: agg.cogs > 0 ? Math.round(safeDivide(agg.rawMat, agg.cogs) * 1000) / 10 : 0,
+        상품매입비율: agg.cogs > 0 ? Math.round(safeDivide(agg.purchase, agg.cogs) * 1000) / 10 : 0,
+        외주비율: agg.cogs > 0 ? Math.round(safeDivide(agg.outsource, agg.cogs) * 1000) / 10 : 0,
+        판관비율: Math.round(safeDivide(agg.sga, agg.revenue) * 1000) / 10,
         isSynthetic: false,
       }));
   }
@@ -460,11 +460,11 @@ export function calcMonthlyCostProfiles(
 
   if (totalRevenue <= 0) return [];
 
-  const baseCogsRatio = (totalCOGS / totalRevenue) * 100;
-  const baseRawRatio = totalCOGS > 0 ? (totalRawMaterial / totalCOGS) * 100 : 0;
-  const basePurchaseRatio = totalCOGS > 0 ? (totalProductPurchase / totalCOGS) * 100 : 0;
-  const baseOutsourcingRatio = totalCOGS > 0 ? (totalOutsourcing / totalCOGS) * 100 : 0;
-  const baseSgaRatio = (totalSGA / totalRevenue) * 100;
+  const baseCogsRatio = safeDivide(totalCOGS, totalRevenue) * 100;
+  const baseRawRatio = totalCOGS > 0 ? safeDivide(totalRawMaterial, totalCOGS) * 100 : 0;
+  const basePurchaseRatio = totalCOGS > 0 ? safeDivide(totalProductPurchase, totalCOGS) * 100 : 0;
+  const baseOutsourcingRatio = totalCOGS > 0 ? safeDivide(totalOutsourcing, totalCOGS) * 100 : 0;
+  const baseSgaRatio = safeDivide(totalSGA, totalRevenue) * 100;
 
   const salesByMonth = new Map<string, number>();
   for (const s of sales) {

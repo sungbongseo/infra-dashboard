@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { ChartContainer } from "@/components/charts";
 import { Users } from "lucide-react";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
 
 const safe = (v: number, d = 1) => isFinite(v) ? v.toFixed(d) : "0";
@@ -128,7 +128,7 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
               <PolarRadiusAxis angle={30} domain={[0, axisMax]} tick={{ fontSize: 10 }} />
               <Radar name="개인" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
               <Radar name="조직평균" dataKey="avg" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.1} strokeDasharray="5 5" />
-              <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${Number(v).toFixed(1)}점`} />
+              <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${safeFixed(Number(v), 1)}점`} />
               <Legend />
             </RadarChart>
         </ChartContainer>

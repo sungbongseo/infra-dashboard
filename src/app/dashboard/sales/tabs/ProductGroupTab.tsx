@@ -24,7 +24,7 @@ import {
   ANIMATION_CONFIG,
   getMarginColor,
 } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   detectBestClassification,
   calcGroupPortfolio,
@@ -139,7 +139,7 @@ export function ProductGroupTab({
                 : "bg-background hover:bg-muted border"
             } ${opt.uniqueCount < 3 ? "opacity-50 cursor-not-allowed" : ""}`}
           >
-            {opt.label} ({opt.uniqueCount}종, {(opt.fillRate * 100).toFixed(0)}%)
+            {opt.label} ({opt.uniqueCount}종, {safeFixed(opt.fillRate * 100, 0)}%)
           </button>
         ))}
         {currentOption.uniqueCount < 3 && (
@@ -208,7 +208,7 @@ export function ProductGroupTab({
               type="number"
               name="매출총이익률"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`}
               unit="%"
             />
             <ZAxis dataKey="customerCount" range={[60, 400]} name="거래처 수" />
@@ -216,7 +216,7 @@ export function ProductGroupTab({
               {...TOOLTIP_STYLE}
               formatter={(value: any, name: any) => {
                 const n = String(name);
-                if (n === "매출총이익률") return `${Number(value).toFixed(1)}%`;
+                if (n === "매출총이익률") return `${safeFixed(Number(value), 1)}%`;
                 if (n === "매출액") return formatCurrency(Number(value));
                 return String(value);
               }}
@@ -279,7 +279,7 @@ export function ProductGroupTab({
               ))}
               {topSalesGroup && (
                 <div className="col-span-2 md:col-span-4 text-xs text-muted-foreground mt-1">
-                  최대 매출 기여: <strong className="text-foreground">{topSalesGroup.group}</strong> ({formatCurrency(topSalesGroup.sales, true)}, 이익률 {topSalesGroup.grossMargin.toFixed(1)}%)
+                  최대 매출 기여: <strong className="text-foreground">{topSalesGroup.group}</strong> ({formatCurrency(topSalesGroup.sales, true)}, 이익률 {safeFixed(topSalesGroup.grossMargin, 1)}%)
                 </div>
               )}
             </div>
@@ -333,9 +333,9 @@ export function ProductGroupTab({
                         <td
                           key={f}
                           className={`py-1.5 px-2 text-center font-medium rounded-sm ${HEATMAP_COLOR(cell.grossMargin)}`}
-                          title={`매출: ${formatCurrency(cell.sales)}, 이익률: ${cell.grossMargin.toFixed(1)}%`}
+                          title={`매출: ${formatCurrency(cell.sales)}, 이익률: ${safeFixed(cell.grossMargin, 1)}%`}
                         >
-                          {cell.grossMargin.toFixed(1)}%
+                          {safeFixed(cell.grossMargin, 1)}%
                           <div className="text-[10px] opacity-70">
                             {formatCurrency(cell.sales, true)}
                           </div>

@@ -14,6 +14,8 @@ import {
   aggregateHqCustomerItemProfit,
   aggregateCustomerItemDetail,
   aggregateItemCostDetail,
+  aggregateProfitabilityAnalysis,
+  aggregateItemProfitability,
 } from "@/lib/utils";
 import type { ReceivableAgingRecord, InventoryMovementRecord } from "@/types";
 
@@ -244,4 +246,34 @@ export function useFilteredInventory() {
   }, [filteredInventoryMap]);
 
   return { filteredInventoryRecords, filteredInventoryMap, inventoryMovement };
+}
+
+// ─── 수익성분석 (901) ─────────────────────────────────────────────
+
+export function useFilteredProfitabilityAnalysis() {
+  const profitabilityAnalysis = useDataStore((s) => s.profitabilityAnalysis);
+  const { effectiveOrgNames, dateRange } = useFilterContext();
+
+  const filteredProfAnalysis = useMemo(() => {
+    const orgFiltered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateProfitabilityAnalysis(monthFiltered);
+  }, [profitabilityAnalysis, effectiveOrgNames, dateRange]);
+
+  return { filteredProfAnalysis, profitabilityAnalysis };
+}
+
+// ─── 품목별 수익성 (200) ──────────────────────────────────────────
+
+export function useFilteredItemProfitability() {
+  const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const { effectiveOrgNames, dateRange } = useFilterContext();
+
+  const filteredItemProfit = useMemo(() => {
+    const orgFiltered = filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateItemProfitability(monthFiltered);
+  }, [itemProfitability, effectiveOrgNames, dateRange]);
+
+  return { filteredItemProfit, itemProfitability };
 }

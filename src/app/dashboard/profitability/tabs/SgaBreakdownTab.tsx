@@ -22,7 +22,7 @@ import {
   ANIMATION_CONFIG,
   getMarginColor,
 } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   calcSgaBreakdown,
   calcOrgSgaProfile,
@@ -91,7 +91,7 @@ export function SgaBreakdownTab({
         <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
           <p className="font-medium">판관비 핵심 요약</p>
           <p className="text-muted-foreground">
-            최대 항목: {sgaInsight.topItem} (전체의 {sgaInsight.topPct.toFixed(1)}%)
+            최대 항목: {sgaInsight.topItem} (전체의 {safeFixed(sgaInsight.topPct, 1)}%)
             {sgaInsight.overBudgetCount > 0 && ` | 예산 초과 항목: ${sgaInsight.overBudgetCount}개 — 초과 원인 분석이 필요합니다.`}
           </p>
         </div>

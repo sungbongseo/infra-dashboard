@@ -1,4 +1,5 @@
 import type { OverviewKpis } from "./kpi";
+import { safeDivide } from "@/lib/utils";
 
 export type InsightSeverity = "positive" | "neutral" | "warning" | "critical";
 
@@ -187,7 +188,7 @@ const RULES: AlertRule[] = [
     metric: "orderToSalesRatio",
     getValue: (c) => {
       if (c.kpis.totalOrders <= 0 || c.kpis.totalSales <= 0) return undefined;
-      const ratio = (c.kpis.totalOrders / c.kpis.totalSales) * 100;
+      const ratio = (safeDivide(c.kpis.totalOrders, c.kpis.totalSales)) * 100;
       return isFinite(ratio) ? ratio : undefined;
     },
     conditions: [
@@ -203,7 +204,7 @@ const RULES: AlertRule[] = [
     metric: "receivablesToSalesRatio",
     getValue: (c) => {
       if (c.kpis.totalReceivables <= 0 || c.kpis.totalSales <= 0) return undefined;
-      const ratio = (c.kpis.totalReceivables / c.kpis.totalSales) * 100;
+      const ratio = (safeDivide(c.kpis.totalReceivables, c.kpis.totalSales)) * 100;
       return isFinite(ratio) ? ratio : undefined;
     },
     conditions: [

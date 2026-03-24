@@ -1,4 +1,5 @@
 import type { OrgCustomerProfitRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ── Interfaces ──────────────────────────────────────────────
 
@@ -236,7 +237,7 @@ export function calcCustomerConcentration(
   // HHI = Σ(share_i^2) * 10000
   let hhi = 0;
   for (const sales of sorted) {
-    const share = sales / totalSales;
+    const share = safeDivide(sales, totalSales);
     hhi += share * share;
   }
   hhi *= 10000;
@@ -244,8 +245,8 @@ export function calcCustomerConcentration(
   const top5Sales = sorted.slice(0, 5).reduce((sum, v) => sum + v, 0);
   const top10Sales = sorted.slice(0, 10).reduce((sum, v) => sum + v, 0);
 
-  const top5Share = (top5Sales / totalSales) * 100;
-  const top10Share = (top10Sales / totalSales) * 100;
+  const top5Share = safeDivide(top5Sales, totalSales) * 100;
+  const top10Share = safeDivide(top10Sales, totalSales) * 100;
 
   let interpretation: string;
   if (hhi > 2500) {
@@ -380,7 +381,7 @@ export function calcCustomerSegments(
         v.totalSales !== 0 ? (v.totalGrossProfit / v.totalSales) * 100 : 0,
       avgOpMargin:
         v.totalSales !== 0
-          ? (v.totalOperatingProfit / v.totalSales) * 100
+          ? (safeDivide(v.totalOperatingProfit, v.totalSales)) * 100
           : 0,
       salesShare:
         grandTotalSales !== 0 ? (v.totalSales / grandTotalSales) * 100 : 0,

@@ -7,6 +7,7 @@
  * - 거래처별 판관비 부담 분석
  */
 import type { OrgCustomerProfitRecord, PlanActualDiff } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ export function calcSgaBreakdown(data: OrgCustomerProfitRecord[]): SgaItemEntry[
       actual: t.actual,
       variance: t.actual - t.plan,
       varianceRate: t.plan !== 0 ? ((t.actual - t.plan) / Math.abs(t.plan)) * 100 : 0,
-      share: totalActual > 0 ? (Math.abs(t.actual) / totalActual) * 100 : 0,
+      share: safeDivide(Math.abs(t.actual), totalActual) * 100,
     }))
     .filter((t) => t.actual !== 0 || t.plan !== 0)
     .sort((a, b) => Math.abs(b.actual) - Math.abs(a.actual));
@@ -157,10 +158,10 @@ export function calcOrgSgaProfile(data: OrgCustomerProfitRecord[]): OrgSgaProfil
         org,
         totalSga: e.totalSga,
         sales: e.sales,
-        sgaRate: e.sales !== 0 ? (e.totalSga / e.sales) * 100 : 0,
+        sgaRate: safeDivide(e.totalSga, e.sales) * 100,
         variableSga: e.variableSga,
         fixedSga: e.fixedSga,
-        variableRatio: e.totalSga !== 0 ? (e.variableSga / e.totalSga) * 100 : 0,
+        variableRatio: safeDivide(e.variableSga, e.totalSga) * 100,
         topItem,
         topItemAmount: topAmount,
       };
@@ -217,9 +218,9 @@ export function calcCustomerSgaBurden(data: OrgCustomerProfitRecord[]): Customer
         org: e.org,
         sales: e.sales,
         sga: e.sga,
-        sgaRate: e.sales !== 0 ? (e.sga / e.sales) * 100 : 0,
+        sgaRate: safeDivide(e.sga, e.sales) * 100,
         operatingProfit: e.operatingProfit,
-        opMargin: e.sales !== 0 ? (e.operatingProfit / e.sales) * 100 : 0,
+        opMargin: safeDivide(e.operatingProfit, e.sales) * 100,
         topSgaItem: topItem,
         topSgaAmount: topAmount,
       };

@@ -26,7 +26,7 @@ import {
   ANIMATION_CONFIG,
   getMarginColor,
 } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { Clock, AlertTriangle, CheckCircle } from "lucide-react";
 import {
   calcCollectionDelay,
@@ -142,8 +142,8 @@ export function CollectionDelayTab({
               {...TOOLTIP_STYLE}
               formatter={(v: any, name: any) => {
                 const n = String(name);
-                if (n === "수금률") return `${Number(v).toFixed(1)}%`;
-                if (n === "지연일") return `${Number(v).toFixed(0)}일`;
+                if (n === "수금률") return `${safeFixed(Number(v), 1)}%`;
+                if (n === "지연일") return `${safeFixed(Number(v), 0)}일`;
                 return formatCurrency(Number(v));
               }}
             />

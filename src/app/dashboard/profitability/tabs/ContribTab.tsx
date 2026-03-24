@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Users } from "lucide-react";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 interface ContribEntry {
@@ -237,8 +237,8 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
                   innerRadius={60}
                   outerRadius={100}
                   label={orgContribPie.length <= 6
-                    ? (props: any) => `${props.name || ""} ${(((props.percent as number) || 0) * 100).toFixed(1)}%`
-                    : ({ percent }: any) => Number(percent) >= 0.1 ? `${(Number(percent) * 100).toFixed(0)}%` : ""
+                    ? (props: any) => `${props.name || ""} ${safeFixed(((props.percent as number) || 0) * 100, 1)}%`
+                    : ({ percent }: any) => Number(percent) >= 0.1 ? `${safeFixed(Number(percent) * 100, 0)}%` : ""
                   }
                 >
                   {orgContribPie.map((_, i) => (
@@ -289,7 +289,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
               <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="3 3" />
               {contribByRate.length > 0 && contribTotals.sales > 0 && isFinite(contribTotals.rate) && (
                 <ReferenceLine x={contribTotals.rate} stroke={CHART_COLORS[3]} strokeDasharray="5 3"
-                  label={{ value: `가중평균 ${contribTotals.rate.toFixed(1)}%`, fontSize: 10, position: "top" }} />
+                  label={{ value: `가중평균 ${safeFixed(contribTotals.rate, 1)}%`, fontSize: 10, position: "top" }} />
               )}
               <Bar dataKey="공헌이익율" name="공헌이익율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {contribByRate.map((entry, i) => (

@@ -2,6 +2,7 @@ import type {
   OrgCustomerProfitRecord,
   ReceivableAgingRecord,
 } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 export interface CustomerRiskEntry {
   거래처: string;
@@ -157,7 +158,7 @@ export function calcCustomerRiskMatrix(
   Array.from(profitByCustomer.entries()).forEach(([name, profit]) => {
     // profitRate: 매출액 === 0이면 null 반환하여 항목 제외
     if (profit.매출액 === 0) return;
-    const profitRate = (profit.영업이익 / profit.매출액) * 100;
+    const profitRate = safeDivide(profit.영업이익, profit.매출액) * 100;
     const safeProfitRate = isFinite(profitRate) ? profitRate : 0;
 
     const agingMatch = findAgingMatch(name, agingMap);

@@ -1,4 +1,5 @@
 import type { TeamContributionRecord, OrgProfitRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 /**
  * SAP CO standard CVP / Break-even Analysis (손익분기점 분석)
@@ -74,7 +75,7 @@ export function calcTeamBreakeven(
     if (contributionMarginRatio <= 0) {
       bepSales = 9_999_999_999; // 유한 sentinel (~100억)
     } else {
-      bepSales = fixedCosts / contributionMarginRatio;
+      bepSales = safeDivide(fixedCosts, contributionMarginRatio);
     }
 
     // Safety margin rate = (sales - BEP) / sales * 100
@@ -97,7 +98,7 @@ export function calcTeamBreakeven(
     if (operatingProfit === 0) {
       operatingLeverage = contributionMargin === 0 ? 0 : contributionMargin > 0 ? 999 : -999;
     } else {
-      operatingLeverage = contributionMargin / operatingProfit;
+      operatingLeverage = safeDivide(contributionMargin, operatingProfit);
     }
     // Cap extreme values for safe display
     const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
@@ -167,7 +168,7 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     if (contributionMarginRatio <= 0) {
       bepSales = 9_999_999_999;
     } else {
-      bepSales = fixedCosts / contributionMarginRatio;
+      bepSales = safeDivide(fixedCosts, contributionMarginRatio);
     }
 
     // Safety margin rate — BEP 센티넬이어도 실제 계산값 제공
@@ -186,7 +187,7 @@ export function calcOrgBreakeven(data: OrgProfitRecord[]): BreakevenResult[] {
     if (operatingProfit === 0) {
       operatingLeverage = r.공헌이익.실적 === 0 ? 0 : r.공헌이익.실적 > 0 ? 999 : -999;
     } else {
-      operatingLeverage = r.공헌이익.실적 / operatingProfit;
+      operatingLeverage = safeDivide(r.공헌이익.실적, operatingProfit);
     }
     // Cap extreme values for safe display
     const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
@@ -264,14 +265,14 @@ export function calcOrgBreakevenFromTeam(
   Array.from(orgMap.entries()).forEach(([org, v]) => {
     if (v.sales === 0) return;
 
-    const variableCostRatio = v.variableCosts / v.sales;
+    const variableCostRatio = safeDivide(v.variableCosts, v.sales);
     const contributionMarginRatio = 1 - variableCostRatio;
 
     let bepSales: number;
     if (contributionMarginRatio <= 0) {
       bepSales = 9_999_999_999;
     } else {
-      bepSales = v.fixedCosts / contributionMarginRatio;
+      bepSales = safeDivide(v.fixedCosts, contributionMarginRatio);
     }
 
     let safetyMarginRate: number;
@@ -285,7 +286,7 @@ export function calcOrgBreakevenFromTeam(
     if (v.operatingProfit === 0) {
       operatingLeverage = v.contributionMargin === 0 ? 0 : v.contributionMargin > 0 ? 999 : -999;
     } else {
-      operatingLeverage = v.contributionMargin / v.operatingProfit;
+      operatingLeverage = safeDivide(v.contributionMargin, v.operatingProfit);
     }
     // Cap extreme values for safe display
     const canBreakEven = bepSales < 9_999_999_999 && bepSales >= 0;
@@ -333,7 +334,7 @@ export function calcBreakevenChart(
   if (maxRevenue <= 0 || !isFinite(maxRevenue)) return points;
   if (!isFinite(fixedCosts)) return points;
 
-  const step = maxRevenue / steps;
+  const step = safeDivide(maxRevenue, steps);
 
   for (let i = 0; i <= steps; i++) {
     const revenue = step * i;
@@ -382,7 +383,7 @@ export function calcWeightedBep(orgBreakeven: BreakevenResult[]): WeightedBepRes
   }));
 
   const weightedCMR = productMix.reduce((s, p) => s + p.weight * p.contribMarginRatio, 0);
-  const weightedBep = weightedCMR > 0 ? totalFixed / weightedCMR : NaN;
+  const weightedBep = weightedCMR > 0 ? safeDivide(totalFixed, weightedCMR) : NaN;
 
   return {
     weightedContribMarginRatio: weightedCMR,

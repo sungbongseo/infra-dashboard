@@ -1,4 +1,5 @@
 import type { PlanActualDiff } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ─── 타입 ────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ function toMonthLabel(month: string): string {
 /** 안전한 비율 계산 */
 function safeRate(numerator: number, denominator: number): number {
   if (denominator === 0) return 0;
-  const rate = (numerator / denominator) * 100;
+  const rate = (safeDivide(numerator, denominator)) * 100;
   return isFinite(rate) ? rate : 0;
 }
 

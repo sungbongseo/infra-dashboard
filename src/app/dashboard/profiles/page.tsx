@@ -11,7 +11,7 @@ import { CHART_COLORS } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
+import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables, useFilteredCustomerItemDetail } from "@/lib/hooks/useFilteredData";
 
 const PerformanceTab = lazy(() => import("./tabs/PerformanceTab").then(m => ({ default: m.PerformanceTab })));
 const RankingTab = lazy(() => import("./tabs/RankingTab").then(m => ({ default: m.RankingTab })));
@@ -20,7 +20,6 @@ const TrendTab = lazy(() => import("./tabs/TrendTab").then(m => ({ default: m.Tr
 const ProductTab = lazy(() => import("./tabs/ProductTab").then(m => ({ default: m.ProductTab })));
 
 export default function ProfilesPage() {
-  const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const isLoading = useDataStore((s) => s.isLoading);
   const [selectedPerson, setSelectedPerson] = useState<string | null>(null);
 
@@ -29,11 +28,9 @@ export default function ProfilesPage() {
   const { filteredCollections } = useFilteredCollections();
   const { filteredTeamContrib: filteredTeamContribution } = useFilteredTeamContribution();
   const { filteredRecords: allAgingRecords } = useFilteredReceivables();
+  const { filteredCustomerItemDetail } = useFilteredCustomerItemDetail();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
-  // customerItemDetail: 영업조직팀 값이 DEFAULT_INFRA_ORG_NAMES와 불일치할 수 있으므로 org 필터 제거
-  // 대신 calcRepProductPortfolio에서 personId/personName으로 필터링함
-  const filteredCustomerItemDetail = customerItemDetail;
 
   const hasAgingData = allAgingRecords.length > 0;
 

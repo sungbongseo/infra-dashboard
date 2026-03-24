@@ -20,7 +20,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   calcItemHierarchy,
@@ -135,11 +135,11 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
   const tableExport = currentNodes.map(n => ({
     이름: n.name,
     매출액: n.sales,
-    "비중(%)": Number(n.share.toFixed(1)),
+    "비중(%)": Number(safeFixed(n.share, 1)),
     ...(hierarchy.hasFullPL ? {
-      "매출총이익율(%)": n.grossMargin !== undefined ? Number(n.grossMargin.toFixed(1)) : "",
-      "영업이익율(%)": n.operatingMargin !== undefined ? Number(n.operatingMargin.toFixed(1)) : "",
-      "원가율(%)": n.costRatio !== undefined ? Number(n.costRatio.toFixed(1)) : "",
+      "매출총이익율(%)": n.grossMargin !== undefined ? Number(safeFixed(n.grossMargin, 1)) : "",
+      "영업이익율(%)": n.operatingMargin !== undefined ? Number(safeFixed(n.operatingMargin, 1)) : "",
+      "원가율(%)": n.costRatio !== undefined ? Number(safeFixed(n.costRatio, 1)) : "",
     } : {}),
   }));
 
@@ -381,13 +381,13 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                     {hierarchy.hasFullPL && viewMode !== "plan" && (
                       <>
                         <td className={`text-right py-2 px-3 ${marginColor(node.grossMargin)}`}>
-                          {node.grossMargin !== undefined ? `${node.grossMargin.toFixed(1)}%` : "-"}
+                          {node.grossMargin !== undefined ? `${safeFixed(node.grossMargin, 1)}%` : "-"}
                         </td>
                         <td className={`text-right py-2 px-3 ${marginColor(node.operatingMargin)}`}>
-                          {node.operatingMargin !== undefined ? `${node.operatingMargin.toFixed(1)}%` : "-"}
+                          {node.operatingMargin !== undefined ? `${safeFixed(node.operatingMargin, 1)}%` : "-"}
                         </td>
                         <td className="text-right py-2 px-3">
-                          {node.costRatio !== undefined ? `${node.costRatio.toFixed(1)}%` : "-"}
+                          {node.costRatio !== undefined ? `${safeFixed(node.costRatio, 1)}%` : "-"}
                         </td>
                       </>
                     )}
@@ -403,7 +403,7 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                               : inv.turnover >= 3 ? "text-amber-600 dark:text-amber-400"
                               : "text-red-600 dark:text-red-400") : ""
                           }`}>
-                            {inv ? `${inv.turnover.toFixed(1)}x` : "-"}
+                            {inv ? `${safeFixed(inv.turnover, 1)}x` : "-"}
                           </td>
                         </>
                       );
@@ -485,7 +485,7 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                 {...TOOLTIP_STYLE}
                 formatter={(value: any, name: any) => {
                   if (name === "매출액") return formatCurrency(Number(value));
-                  if (name === "매출총이익율") return `${Number(value).toFixed(1)}%`;
+                  if (name === "매출총이익율") return `${safeFixed(Number(value), 1)}%`;
                   return value;
                 }}
               />

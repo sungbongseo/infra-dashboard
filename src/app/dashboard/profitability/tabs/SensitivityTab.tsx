@@ -15,7 +15,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { calcSensitivityGrid, generateSensitivityInsight } from "@/lib/analysis/sensitivityAnalysis";
 import type { SensitivityCell, CrossAnalysisItem } from "@/lib/analysis/sensitivityAnalysis";
 import { Card, CardContent } from "@/components/ui/card";
@@ -203,11 +203,11 @@ export function SensitivityTab({
                 <span className="text-muted-foreground">
                   가격 10% 인상 시{" "}
                   <span className={insight.priceImpact10 >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                    {insight.priceImpact10 > 0 ? "+" : ""}{insight.priceImpact10.toFixed(1)}%
+                    {insight.priceImpact10 > 0 ? "+" : ""}{safeFixed(insight.priceImpact10, 1)}%
                   </span>
                   , 물량 10% 증가 시{" "}
                   <span className={insight.volumeImpact10 >= 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                    {insight.volumeImpact10 > 0 ? "+" : ""}{insight.volumeImpact10.toFixed(1)}%
+                    {insight.volumeImpact10 > 0 ? "+" : ""}{safeFixed(insight.volumeImpact10, 1)}%
                   </span>
                   {" → "}
                   <span className="font-medium text-foreground">
@@ -268,7 +268,7 @@ export function SensitivityTab({
                   <span className="text-muted-foreground">
                     {" → "}가격 최대{" "}
                     <span className={item.maxPriceReduction > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : "text-red-600 dark:text-red-400 font-medium"}>
-                      -{item.maxPriceReduction.toFixed(1)}%
+                      -{safeFixed(item.maxPriceReduction, 1)}%
                     </span>
                     까지 가능
                   </span>
@@ -351,14 +351,14 @@ export function SensitivityTab({
                         className={`p-2 border border-border text-center font-mono tabular-nums ${colorClass} ${borderClass}`}
                         title={
                           cell
-                            ? `만약 가격 ${Math.abs(priceStep)}% ${priceStep >= 0 ? "인상" : "인하"}, 물량 ${Math.abs(volumeStep)}% ${volumeStep >= 0 ? "증가" : "감소"} → ${metricLabel}: ${formatCurrency(getResultValue(cell, selectedMetric))} (현재 대비 ${change > 0 ? "+" : ""}${change.toFixed(1)}%)`
+                            ? `만약 가격 ${Math.abs(priceStep)}% ${priceStep >= 0 ? "인상" : "인하"}, 물량 ${Math.abs(volumeStep)}% ${volumeStep >= 0 ? "증가" : "감소"} → ${metricLabel}: ${formatCurrency(getResultValue(cell, selectedMetric))} (현재 대비 ${change > 0 ? "+" : ""}${safeFixed(change, 1)}%)`
                             : ""
                         }
                       >
                         {isOrigin
                           ? "현재"
                           : isFinite(change)
-                          ? `${change > 0 ? "+" : ""}${change.toFixed(1)}%`
+                          ? `${change > 0 ? "+" : ""}${safeFixed(change, 1)}%`
                           : "-"}
                       </td>
                     );

@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -137,7 +137,7 @@ export function predictChurn(sales: SalesRecord[]): ChurnSummary {
 
       // 최근 절반 기간 평균 금액이 이전 절반 대비 20%+ 감소
       if (firstHalfAvg > 0 && secondHalfAvg < firstHalfAvg * 0.8) {
-        const declineRate = ((firstHalfAvg - secondHalfAvg) / firstHalfAvg) * 100;
+        const declineRate = safeDivide(firstHalfAvg - secondHalfAvg, firstHalfAvg) * 100;
         score += declineRate >= 50 ? 30 : 20;
         signals.push(`거래 금액 ${declineRate.toFixed(0)}% 감소`);
       }

@@ -18,7 +18,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { calcCreditUtilization, calcCreditSummaryByOrg } from "@/lib/analysis/aging";
 
 interface CreditTabProps {
@@ -107,7 +107,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
         <ChartContainer height="h-64 md:h-80">
             <BarChart data={creditByOrg} layout="vertical" margin={{ left: 80 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${v.toFixed(0)}%`} domain={[0, (max: number) => Math.max(max * 1.1, 110)]} />
+              <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => `${safeFixed(v, 0)}%`} domain={[0, (max: number) => Math.max(max * 1.1, 110)]} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 10 }} width={75} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}

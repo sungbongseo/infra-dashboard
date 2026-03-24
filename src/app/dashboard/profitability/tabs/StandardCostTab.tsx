@@ -10,7 +10,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { TrendingDown, TrendingUp, Percent } from "lucide-react";
-import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   calcStandardCostVariance,
   calcCostVarianceSummary,
@@ -189,10 +189,10 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
           <BarChart data={accountTypeData} margin={{ top: 10, right: 30, left: 20, bottom: 25 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} domain={[(dataMin: number) => Math.min(Math.floor(dataMin * 1.2), 0), (dataMax: number) => Math.max(Math.ceil(dataMax * 1.2), 0)]} />
+            <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`} domain={[(dataMin: number) => Math.min(Math.floor(dataMin * 1.2), 0), (dataMax: number) => Math.max(Math.ceil(dataMax * 1.2), 0)]} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}
-              formatter={(v: any, _name: any) => [`${Number(v).toFixed(1)}%`, "평균 차이율"]}
+              formatter={(v: any, _name: any) => [`${safeFixed(Number(v), 1)}%`, "평균 차이율"]}
             />
             <ReferenceLine y={0} stroke="hsl(var(--foreground))" strokeWidth={1} />
             <Bar dataKey="평균차이율" radius={BAR_RADIUS_TOP} barSize={60} {...ANIMATION_CONFIG}>
@@ -218,7 +218,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
         <ChartContainer minHeight={Math.max(orgData.length * 36, 350)}>
           <BarChart data={orgData} layout="vertical" margin={{ top: 10, right: 40, left: 10, bottom: 5 }}>
             <CartesianGrid {...GRID_PROPS} />
-            <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`} />
+            <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`} />
             <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} interval={0} />
             <RechartsTooltip
               {...TOOLTIP_STYLE}

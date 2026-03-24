@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -105,7 +105,7 @@ export function calcCohortAnalysis(sales: SalesRecord[]): CohortAnalysisResult {
         periodIndex,
         activeCustomers: data.active.size,
         totalCustomers,
-        retentionRate: totalCustomers > 0 ? (data.active.size / totalCustomers) * 100 : 0,
+        retentionRate: safeDivide(data.active.size, totalCustomers) * 100,
         revenue: data.revenue,
       });
     }

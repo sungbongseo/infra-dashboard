@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ function movingAverage(data: number[], window: number): (number | null)[] {
       for (let j = i - window + 1; j <= i; j++) {
         sum += data[j];
       }
-      result.push(sum / window);
+      result.push(safeDivide(sum, window));
     }
   }
   return result;
@@ -100,8 +100,8 @@ function linearRegression(values: number[]): {
     sumX2 += i * i;
   }
 
-  const meanX = sumX / n;
-  const meanY = sumY / n;
+  const meanX = safeDivide(sumX, n);
+  const meanY = safeDivide(sumY, n);
   const denominator = sumX2 - n * meanX * meanX;
 
   // All x values are the same (should not happen with sequential indices, but guard)
@@ -145,7 +145,7 @@ function calcResidualStdDev(
   }
 
   // Use n-2 degrees of freedom for linear regression
-  return Math.sqrt(sumSqResiduals / (n - 2));
+  return Math.sqrt(safeDivide(sumSqResiduals, n - 2));
 }
 
 // ─── Generate next month string ──────────────────────────────
@@ -262,7 +262,7 @@ export function calcSalesForecast(
     // Prediction interval widens with distance from data center
     const distance = xIndex - meanX;
     const predictionSE = sumXDevSq > 0
-      ? stdDev * Math.sqrt(1 + 1 / n + (distance * distance) / sumXDevSq)
+      ? stdDev * Math.sqrt(1 + safeDivide(1, n) + safeDivide(distance * distance, sumXDevSq))
       : stdDev;
 
     points.push({

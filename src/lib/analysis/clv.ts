@@ -1,5 +1,5 @@
 import type { SalesRecord, OrgProfitRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -72,7 +72,7 @@ function calcAvgProfitMargin(orgProfit: OrgProfitRecord[]): number {
 
   if (totalSales === 0) return DEFAULT_MARGIN;
 
-  const margin = totalGrossProfit / totalSales;
+  const margin = safeDivide(totalGrossProfit, totalSales);
 
   // 마진 클램핑: -50% ~ 100% 범위로 제한하여 극단적 CLV 왜곡 방지
   // 손실 거래처도 음수 CLV를 가질 수 있으며 이는 정상적인 비즈니스 의미
@@ -161,7 +161,7 @@ export function calcClv(
   const results: ClvResult[] = entries.map(([customer, data]) => {
     const avgTransactionValue =
       data.transactionCount > 0 ? data.totalSales / data.transactionCount : 0;
-    const purchaseFrequency = data.transactionCount / years;
+    const purchaseFrequency = safeDivide(data.transactionCount, years);
     const customerValue = avgTransactionValue * purchaseFrequency;
 
     // B2B recency-based lifespan estimation:
@@ -229,7 +229,7 @@ export function calcClvSummary(results: ClvResult[]): ClvSummary {
   }
 
   const totalClv = results.reduce((sum, r) => sum + r.clv, 0);
-  const avgClv = totalClv / results.length;
+  const avgClv = safeDivide(totalClv, results.length);
   // Results are sorted descending by CLV, so first element is the top
   const topCustomerClv = results[0].clv;
 

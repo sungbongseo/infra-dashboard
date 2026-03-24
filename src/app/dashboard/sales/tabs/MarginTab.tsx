@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
-import { formatCurrency, formatPercent, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
   Cell, CartesianGrid, ComposedChart, Line, ReferenceLine,
@@ -171,8 +171,8 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
     return simResults.map(r => ({
       name: r.품목.length > 15 ? r.품목.substring(0, 15) + "…" : r.품목,
       fullName: r.품목,
-      마진율: Number(r.marginRate.toFixed(1)),
-      과거평균: Number(r.histAvgMargin.toFixed(1)),
+      마진율: Number(safeFixed(r.marginRate, 1)),
+      과거평균: Number(safeFixed(r.histAvgMargin, 1)),
       판매단가: r.판매단가,
       단위원가: Math.round(r.unitCost),
     }));
@@ -501,7 +501,7 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
                                 <span className="font-mono text-right">{histRate}%</span>
                                 <span className="text-muted-foreground">차이:</span>
                                 <span className={`font-mono text-right ${diff >= 0 ? "text-green-600" : "text-red-600"}`}>
-                                  {diff >= 0 ? "+" : ""}{diff.toFixed(1)}%p
+                                  {diff >= 0 ? "+" : ""}{safeFixed(diff, 1)}%p
                                 </span>
                                 <span className="text-muted-foreground">판매단가:</span>
                                 <span className="font-mono text-right">{d.판매단가?.toLocaleString()}원</span>
@@ -511,7 +511,7 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
                               <p className="text-muted-foreground pt-1 border-t">
                                 {diff >= 0
                                   ? "과거 평균보다 유리한 조건입니다."
-                                  : `과거 평균보다 ${Math.abs(diff).toFixed(1)}%p 불리합니다. 단가 인상을 검토하세요.`
+                                  : `과거 평균보다 ${safeFixed(Math.abs(diff), 1)}%p 불리합니다. 단가 인상을 검토하세요.`
                                 }
                               </p>
                             </div>

@@ -1,3 +1,5 @@
+import { safeDivide } from "@/lib/utils";
+
 // ─── Interfaces ───────────────────────────────────────────────
 
 export interface BenchmarkMetric {
@@ -58,7 +60,7 @@ export function calcBenchmarkComparison(
     if (lowerIsBetter.has(name)) {
       // Lower is better (e.g., DSO)
       status = value < bench.value * 0.9 ? "above" : value > bench.value * 1.1 ? "below" : "at";
-      scoreContrib = value <= bench.value ? 100 : Math.max(0, 100 - (gap / Math.abs(bench.value)) * 100);
+      scoreContrib = value <= bench.value ? 100 : Math.max(0, 100 - safeDivide(gap, Math.abs(bench.value)) * 100);
     } else {
       // Higher is better
       status = value > bench.value * 1.1 ? "above" : value < bench.value * 0.9 ? "below" : "at";

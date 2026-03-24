@@ -9,7 +9,7 @@ import type {
   OrgCustomerProfitRecord,
   OrgProfitRecord,
 } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Customer 360° ──────────────────────────────────────
 
@@ -167,7 +167,7 @@ export function calcOrgScorecards(
   for (const [orgName, data] of Array.from(orgMap.entries())) {
     if (data.sales === 0) continue;
 
-    const rawProfitability = (data.opProfit / data.sales) * 100;
+    const rawProfitability = safeDivide(data.opProfit, data.sales) * 100;
     const profitability = isFinite(rawProfitability) ? rawProfitability : 0;
     const collectionEfficiency = data.sales > 0 ? (data.collections / data.sales) * 100 : 0;
 
@@ -184,7 +184,7 @@ export function calcOrgScorecards(
     let hhi = 0;
     if (totalCustSales > 0) {
       for (const v of Array.from(custSales.values())) {
-        const share = v / totalCustSales;
+        const share = safeDivide(v, totalCustSales);
         hhi += share * share;
       }
     }

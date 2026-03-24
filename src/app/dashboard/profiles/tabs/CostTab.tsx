@@ -6,7 +6,7 @@ import {
   Tooltip as RechartsTooltip, Legend,
 } from "recharts";
 import { ChartContainer } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import type { SalesRepProfile, CostEfficiency } from "@/lib/analysis/profiling";
@@ -121,7 +121,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
                 <PolarRadiusAxis tick={{ fontSize: 10 }} />
                 <Radar name="개인" dataKey="value" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.3} />
                 <Radar name="조직평균" dataKey="avg" stroke={CHART_COLORS[3]} fill={CHART_COLORS[3]} fillOpacity={0.1} strokeDasharray="5 5" />
-                <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${Number(v).toFixed(1)}%`} />
+                <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => `${safeFixed(Number(v), 1)}%`} />
                 <Legend />
               </RadarChart>
           </ChartContainer>

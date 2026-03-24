@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ function assignQuintiles(
     let rawScore: number;
     if (n >= 5) {
       // Standard quintile: 1-5 based on rank percentile
-      rawScore = Math.min(5, Math.floor((i / n) * 5) + 1);
+      rawScore = Math.min(5, Math.floor((safeDivide(i, n)) * 5) + 1);
     } else {
       // n<5: 표본 부족 → 전체를 중간값(3)으로 통일하여 극단 세그먼트 방지
       rawScore = 3;

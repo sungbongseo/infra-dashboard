@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Star, AlertTriangle, TrendingUp, XCircle } from "lucide-react";
-import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   calcCustomerRiskMatrix,
   calcCustomerRiskSummary,
@@ -89,7 +89,7 @@ export function CustomerRiskMatrixTab({
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
         if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
-        return <span className={v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{v.toFixed(1)}%</span>;
+        return <span className={v >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>{safeFixed(v, 1)}%</span>;
       },
     },
     {
@@ -101,7 +101,7 @@ export function CustomerRiskMatrixTab({
       cell: ({ getValue }: any) => {
         const v = getValue() as number;
         if (!isFinite(v)) return <span className="text-muted-foreground">-</span>;
-        return <span className={v > 30 ? "text-red-600 dark:text-red-400" : v > 15 ? "text-amber-600 dark:text-amber-400" : ""}>{v.toFixed(1)}%</span>;
+        return <span className={v > 30 ? "text-red-600 dark:text-red-400" : v > 15 ? "text-amber-600 dark:text-amber-400" : ""}>{safeFixed(v, 1)}%</span>;
       },
     },
     {
@@ -189,7 +189,7 @@ export function CustomerRiskMatrixTab({
               dataKey="x"
               name="영업이익율"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`}
               label={{ value: "← 저수익  |  영업이익율(%)  |  고수익 →", position: "bottom", offset: 0, fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
             />
             <YAxis
@@ -197,7 +197,7 @@ export function CustomerRiskMatrixTab({
               dataKey="y"
               name="장기미수율"
               tick={{ fontSize: 11 }}
-              tickFormatter={(v: any) => `${Number(v).toFixed(0)}%`}
+              tickFormatter={(v: any) => `${safeFixed(Number(v), 0)}%`}
               label={{ value: "← 저리스크  |  장기미수율(%)  |  고리스크 →", angle: -90, position: "insideLeft", offset: -20, fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
             />
             <ZAxis type="number" dataKey="z" range={[40, 400]} name="매출규모" />

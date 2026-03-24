@@ -1,5 +1,5 @@
 import type { ReceivableAgingRecord, SalesRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 export type DSOClassification = "excellent" | "good" | "fair" | "poor";
 
@@ -20,7 +20,7 @@ export const DSO_UNMEASURABLE = 999;
 
 export function calcDSO(receivablesTotal: number, avgMonthlySales: number): number {
   if (avgMonthlySales <= 0) return receivablesTotal > 0 ? DSO_UNMEASURABLE : 0;
-  return Math.round((receivablesTotal / avgMonthlySales) * 30);
+  return Math.round(safeDivide(receivablesTotal, avgMonthlySales) * 30);
 }
 
 /** DSO 값을 표시용 문자열로 변환 (999 → "측정불가") */
@@ -71,7 +71,7 @@ export function calcDSOByOrg(
 
   // 날짜 파싱 실패율 경고
   if (skippedCount > 0 && sales.length > 0) {
-    const skipRate = (skippedCount / sales.length) * 100;
+    const skipRate = safeDivide(skippedCount, sales.length) * 100;
     if (skipRate > 5) {
       console.warn(`[DSO] 매출 날짜 파싱 실패 ${skippedCount}건 (${skipRate.toFixed(1)}%) → DSO 분모 왜곡 가능`);
     }
@@ -166,7 +166,7 @@ export function calcDSOTrend(
 
   // 전체 월평균 매출
   const totalSales = Array.from(salesByMonth.values()).reduce((s, v) => s + v, 0);
-  const avgMonthlySales = totalSales / months.length;
+  const avgMonthlySales = safeDivide(totalSales, months.length);
 
   // 월별 DSO: 해당월 매출 기준 rolling DSO 추정
   // DSO_month = (totalReceivables × (monthlySales / totalSales)) / monthlySales × 30
@@ -182,15 +182,15 @@ export function calcDSOTrend(
     const month = months[i];
     const monthlySales = salesByMonth.get(month) || 0;
     const raw = avgMonthlySales > 0
-      ? totalReceivables * (monthlySales / totalSales * months.length)
-      : totalReceivables / months.length;
+      ? totalReceivables * (safeDivide(monthlySales, totalSales) * months.length)
+      : safeDivide(totalReceivables, months.length);
     rawAllocations.push({ month, raw: Math.max(raw, 0), monthlySales });
   }
 
   // 2단계: 정규화 — raw 합계가 totalReceivables를 초과하면 비례 축소
   const rawTotal = rawAllocations.reduce((sum, a) => sum + a.raw, 0);
   const normFactor = rawTotal > totalReceivables && rawTotal > 0
-    ? totalReceivables / rawTotal
+    ? safeDivide(totalReceivables, rawTotal)
     : 1;
 
   // 3단계: 정규화된 배분으로 DSO 계산
@@ -209,7 +209,7 @@ export function calcDSOTrend(
     const rollingAvg = rollingCount > 0 ? rollingSum / rollingCount : 0;
 
     const dso = rollingAvg > 0
-      ? Math.round((monthlyReceivables / rollingAvg) * 30)
+      ? Math.round((safeDivide(monthlyReceivables, rollingAvg)) * 30)
       : 0;
 
     if (isFinite(dso) && dso >= 0) {

@@ -5,6 +5,7 @@
  * 품목별/계정구분별/조직별 원가 관리 성과를 평가합니다.
  */
 import type { ItemProfitabilityRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -60,7 +61,7 @@ export function calcStandardCostVariance(data: ItemProfitabilityRecord[]): CostV
     .map((r) => {
       const variance = r.실적매출원가 - r.표준매출원가;
       const varianceRate = r.표준매출원가 !== 0
-        ? (variance / Math.abs(r.표준매출원가)) * 100
+        ? safeDivide(variance, Math.abs(r.표준매출원가)) * 100
         : 0;
       return {
         product: r.품목,
@@ -89,7 +90,7 @@ export function calcCostVarianceSummary(data: ItemProfitabilityRecord[]): CostVa
   const totalActual = items.reduce((s, i) => s + i.actualCost, 0);
   const totalVariance = totalActual - totalStandard;
   const avgVarianceRate = totalStandard !== 0
-    ? (totalVariance / Math.abs(totalStandard)) * 100
+    ? safeDivide(totalVariance, Math.abs(totalStandard)) * 100
     : 0;
 
   // 계정구분별 집계

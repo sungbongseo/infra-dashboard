@@ -5,7 +5,7 @@
  * 전환율, 취소율, 파이프라인 가치를 분석합니다.
  */
 import type { OrderRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -101,8 +101,8 @@ export function calcConversionSummary(data: OrderRecord[]): ConversionSummary {
     cancelled: buckets.삭제,
     inProgress: buckets.진행,
     other: buckets.기타,
-    conversionRate: total > 0 ? (buckets.완료.count / total) * 100 : 0,
-    cancellationRate: total > 0 ? (buckets.삭제.count / total) * 100 : 0,
+    conversionRate: safeDivide(buckets.완료.count, total) * 100,
+    cancellationRate: safeDivide(buckets.삭제.count, total) * 100,
   };
 }
 
@@ -131,8 +131,8 @@ export function calcMonthlyConversionTrend(data: OrderRecord[]): MonthlyConversi
       삭제: e.삭제,
       진행: e.진행,
       기타: e.기타,
-      전환율: e.total > 0 ? (e.완료 / e.total) * 100 : 0,
-      취소율: e.total > 0 ? (e.삭제 / e.total) * 100 : 0,
+      전환율: safeDivide(e.완료, e.total) * 100,
+      취소율: safeDivide(e.삭제, e.total) * 100,
     }));
 }
 
@@ -167,8 +167,8 @@ export function calcOrgConversion(data: OrderRecord[]): OrgConversionEntry[] {
     .map(([org, e]) => ({
       org,
       ...e,
-      conversionRate: e.totalCount > 0 ? (e.completedCount / e.totalCount) * 100 : 0,
-      cancellationRate: e.totalCount > 0 ? (e.cancelledCount / e.totalCount) * 100 : 0,
+      conversionRate: safeDivide(e.completedCount, e.totalCount) * 100,
+      cancellationRate: safeDivide(e.cancelledCount, e.totalCount) * 100,
       avgOrderAmount: e.totalCount > 0 ? e.totalAmount / e.totalCount : 0,
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
@@ -201,7 +201,7 @@ export function calcPipelineByStatus(data: OrderRecord[]): PipelineValueEntry[] 
         status,
         count: e.count,
         amount: e.amount,
-        share: totalAmount > 0 ? (e.amount / totalAmount) * 100 : 0,
+        share: safeDivide(e.amount, totalAmount) * 100,
       };
     });
 }
@@ -233,8 +233,8 @@ export function calcCurrencyConversion(data: OrderRecord[]): CurrencyConversionE
       currency,
       totalCount: e.totalCount,
       totalAmount: e.totalAmount,
-      conversionRate: e.totalCount > 0 ? (e.completedCount / e.totalCount) * 100 : 0,
-      cancellationRate: e.totalCount > 0 ? (e.cancelledCount / e.totalCount) * 100 : 0,
+      conversionRate: safeDivide(e.completedCount, e.totalCount) * 100,
+      cancellationRate: safeDivide(e.cancelledCount, e.totalCount) * 100,
     }))
     .sort((a, b) => b.totalAmount - a.totalAmount);
 }

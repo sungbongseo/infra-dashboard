@@ -1,5 +1,5 @@
 import type { SalesRecord } from "@/types/sales";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ── 인터페이스 ──────────────────────────────────────────
 
@@ -74,7 +74,7 @@ export function calcCurrencySales(sales: SalesRecord[]): FxImpactSummary {
         currency === "KRW"
           ? 1
           : data.transactionAmount !== 0
-            ? data.bookAmount / data.transactionAmount
+            ? safeDivide(data.bookAmount, data.transactionAmount)
             : 0;
 
       return {
@@ -83,7 +83,7 @@ export function calcCurrencySales(sales: SalesRecord[]): FxImpactSummary {
         bookAmount: data.bookAmount,
         avgExchangeRate,
         count: data.count,
-        share: totalBookAmount > 0 ? (data.bookAmount / totalBookAmount) * 100 : 0,
+        share: totalBookAmount > 0 ? safeDivide(data.bookAmount, totalBookAmount) * 100 : 0,
       };
     })
     .sort((a, b) => b.bookAmount - a.bookAmount);
@@ -97,7 +97,7 @@ export function calcCurrencySales(sales: SalesRecord[]): FxImpactSummary {
     domesticAmount,
     foreignAmount,
     foreignSharePercent:
-      totalBookAmount > 0 ? (foreignAmount / totalBookAmount) * 100 : 0,
+      totalBookAmount > 0 ? safeDivide(foreignAmount, totalBookAmount) * 100 : 0,
     currencyBreakdown,
   };
 }
@@ -204,7 +204,7 @@ export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
     if (!monthMap) return 0;
     const entry = monthMap.get(month);
     if (!entry || entry.txnTotal === 0) return 0;
-    return entry.bookTotal / entry.txnTotal;
+    return safeDivide(entry.bookTotal, entry.txnTotal);
   };
 
   // 거래별 FX 손익 누적: (개별 적용환율 - 해당월 가중평균환율) × 판매금액
@@ -218,7 +218,7 @@ export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
 
     if (txnAmt === 0) continue;
 
-    const txnRate = bookAmt / txnAmt; // 개별 거래의 적용환율
+    const txnRate = safeDivide(bookAmt, txnAmt); // 개별 거래의 적용환율
     const monthAvgRate = getMonthlyAvgRate(currency, month);
 
     // FX 효과 = (개별환율 - 월평균환율) × 판매금액
@@ -230,7 +230,7 @@ export function calcFxPnL(sales: SalesRecord[]): FxPnLItem[] {
   return Array.from(currencyTotals.entries())
     .map(([currency, data]) => {
       const avgRate = data.transactionAmount !== 0
-        ? data.bookAmount / data.transactionAmount
+        ? safeDivide(data.bookAmount, data.transactionAmount)
         : 0;
       const estimatedAtAvgRate = data.transactionAmount * avgRate;
       const fxGainLoss = fxGainByCurrency.get(currency) || 0;

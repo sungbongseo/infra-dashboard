@@ -1,4 +1,5 @@
 import type { Insight } from "./insightGenerator";
+import { safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ export function generateMonthlyReport(input: ReportInput, period: string, insigh
 
   // 6. Customer Risk
   if (input.atRiskCustomers > 0) {
-    const riskRate = input.totalCustomers > 0 ? (input.atRiskCustomers / input.totalCustomers) * 100 : 0;
+    const riskRate = safeDivide(input.atRiskCustomers, input.totalCustomers) * 100;
     sections.push({
       title: "거래처 이탈 위험",
       content: `전체 ${input.totalCustomers}개 거래처 중 ${input.atRiskCustomers}개(${sf(riskRate)}%)가 이탈 위험 상태입니다. 핵심 거래처 리텐션 캠페인을 검토하십시오.`,

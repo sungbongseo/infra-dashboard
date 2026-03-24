@@ -1,5 +1,5 @@
 import type { OrderRecord, SalesRecord, CollectionRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 export interface O2CStage {
   stage: "수주" | "매출전환" | "수금완료" | "미수잔액";
@@ -60,19 +60,19 @@ export function calcO2CPipeline(
     {
       stage: "매출전환",
       amount: totalSales,
-      percentage: totalOrders > 0 ? (totalSales / totalOrders) * 100 : 0,
+      percentage: safeDivide(totalSales, totalOrders) * 100,
       count: sales.length,
     },
     {
       stage: "수금완료",
       amount: netCollections,
-      percentage: totalOrders > 0 ? (netCollections / totalOrders) * 100 : 0,
+      percentage: safeDivide(netCollections, totalOrders) * 100,
       count: collections.length,
     },
     {
       stage: "미수잔액",
       amount: outstanding,
-      percentage: totalOrders > 0 ? (outstanding / totalOrders) * 100 : 0,
+      percentage: safeDivide(outstanding, totalOrders) * 100,
       count: 0,
     },
   ];

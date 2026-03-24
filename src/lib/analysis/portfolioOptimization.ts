@@ -9,6 +9,7 @@
  *  - calcMarginErosion() → 마진 침식 품목 경고
  */
 import type { ItemProfitabilityRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { calcProfitMatrix, type ProfitMatrixItem } from "./itemHierarchy";
 import { calcMarginErosion } from "./detailedProfitAnalysis";
 
@@ -85,12 +86,7 @@ function percentileRank(values: number[], target: number): number {
   return ((below + 0.5 * equal) / sorted.length) * 100;
 }
 
-/** 안전한 나눗셈 — NaN/Infinity 방지 */
-function safeDivide(numerator: number, denominator: number, fallback = 0): number {
-  if (denominator === 0 || !isFinite(numerator) || !isFinite(denominator)) return fallback;
-  const result = numerator / denominator;
-  return isFinite(result) ? result : fallback;
-}
+// safeDivide imported from @/lib/utils
 
 /** 품목별 월별 매출을 집계하여 성장률 산출 */
 function calcGrowthByItem(

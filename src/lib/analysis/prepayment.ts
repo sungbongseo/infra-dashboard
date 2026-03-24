@@ -1,5 +1,5 @@
 import { CollectionRecord } from "@/types/sales";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // 선수금 총괄
 export interface PrepaymentSummary {
@@ -30,7 +30,7 @@ export function calcPrepaymentSummary(
     totalPrepayment,
     totalBookPrepayment,
     prepaymentToSalesRatio:
-      totalSales !== 0 ? (totalPrepayment / totalSales) * 100 : 0,
+      safeDivide(totalPrepayment, totalSales) * 100,
     orgCount: orgs.size,
   };
 }

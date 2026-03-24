@@ -3,6 +3,7 @@ import type {
   ReceivableAgingRecord,
   SalesRecord,
 } from "@/types";
+import { safeDivide } from "@/lib/utils";
 import { isSameOrg } from "@/lib/orgMapping";
 
 export interface ProfitRiskData {
@@ -92,7 +93,7 @@ function calcOrgRiskScores(
 
   const result = new Map<string, { riskScore: number; receivables: number; longTermRatio: number }>();
   Array.from(orgMap.entries()).forEach(([org, v]) => {
-    const riskScore = v.total > 0 ? (v.longTerm / v.total) * 100 : 0;
+    const riskScore = safeDivide(v.longTerm, v.total) * 100;
     result.set(org, {
       riskScore: Math.min(Math.max(riskScore, 0), 100),
       receivables: v.total,

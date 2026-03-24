@@ -35,7 +35,7 @@ import {
 } from "recharts";
 import { TrendingUp, ShoppingCart, Wallet, CreditCard, Target, Package, Percent, Gauge, PieChart, BarChart3, AlertCircle, CheckCircle2, ChevronDown, ChevronUp, Zap, Clock, Timer } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE, formatPercent } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, CHART_COLORS, TOOLTIP_STYLE, formatPercent, safeFixed } from "@/lib/utils";
 import { PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterContext, useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredOrgProfit, useFilteredTeamContribution, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
@@ -654,7 +654,7 @@ export default function OverviewPage() {
                 format="number"
                 icon={<Clock className="h-5 w-5" />}
                 formula="수주일 -> 매출일 평균 소요일수 (수주번호/거래처 매칭)"
-                description={`수주에서 매출까지 평균 ${salesProcessKpis.avgSalesCycle.toFixed(0)}일이 소요됩니다.`}
+                description={`수주에서 매출까지 평균 ${safeFixed(salesProcessKpis.avgSalesCycle, 0)}일이 소요됩니다.`}
                 benchmark="30일 이내 신속, 90일 초과 시 병목 분석 필요"
                 reason="영업 사이클 길이를 모니터링하여 현금 회수 속도와 영업 효율을 관리합니다."
                 trendPositive={false}
@@ -675,7 +675,7 @@ export default function OverviewPage() {
                 format="number"
                 icon={<Timer className="h-5 w-5" />}
                 formula="매출일 -> 수금일 평균 소요일수 (거래처명 매칭)"
-                description={`매출 후 수금까지 평균 ${salesProcessKpis.avgCollectionLeadTime.toFixed(0)}일이 소요됩니다.`}
+                description={`매출 후 수금까지 평균 ${safeFixed(salesProcessKpis.avgCollectionLeadTime, 0)}일이 소요됩니다.`}
                 benchmark="30일 이내 양호, 60일 초과 시 결제조건 검토 필요"
                 reason="매출 발생 후 실제 현금 회수까지의 시간을 측정하여 현금흐름 관리에 활용합니다."
                 trendPositive={false}
@@ -708,7 +708,7 @@ export default function OverviewPage() {
           {forecast && forecast.points.length > 3 && forecast.stats.confidence !== "insufficient" && forecast.stats.confidence !== "unusable" && (
             <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
               title="매출 추이 및 예측"
-              formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${(forecast.stats.r2 * 100).toFixed(0)}%)`}
+              formula={`매월 ${formatCurrency(forecast.stats.slope, true)}씩 변동하는 추세선 (설명력 ${safeFixed(forecast.stats.r2 * 100, 0)}%)`}
               description={`현재 추세: ${forecast.stats.trend === "up" ? "상승" : forecast.stats.trend === "down" ? "하락" : "횡보"}, 월평균 ${isFinite(forecast.stats.avgGrowthRate) ? forecast.stats.avgGrowthRate.toFixed(1) : "-"}% 성장률${forecast.stats.confidence === "low" ? " — 데이터 부족으로 이동평균만 표시" : forecast.stats.r2 < 0.5 ? " — 회귀선 신뢰도 낮음, 이동평균 기준으로 추세를 판단하세요" : ""}`}
               benchmark={forecast.stats.confidence === "low" ? "데이터 부족으로 이동평균만 표시 (최소 12개월 권장)" : forecast.stats.r2 < 0.5 ? "회귀선 신뢰도 낮음 (R² < 50%) — 이동평균 참고" : "설명력(R²)이 70% 이상이면 예측 신뢰도 높음"}
               reason="과거 실적 기반 매출 예측으로 향후 매출 규모를 전망하고, 자원 배분과 목표 설정에 활용합니다."
@@ -728,7 +728,7 @@ export default function OverviewPage() {
                   <Bar dataKey="actual" name="실적" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
                   <Line type="monotone" dataKey="movingAvg3" name="3개월 이동평균" stroke={CHART_COLORS[3]} strokeWidth={1.5} dot={false} connectNulls activeDot={{ r: 5, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
                   {forecast.stats.confidence === "normal" && (
-                    <Line type="monotone" dataKey="forecast" name={`예측 (R²=${(forecast.stats.r2 * 100).toFixed(0)}%)`} stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls {...ANIMATION_CONFIG} />
+                    <Line type="monotone" dataKey="forecast" name={`예측 (R²=${safeFixed(forecast.stats.r2 * 100, 0)}%)`} stroke={CHART_COLORS[4]} strokeWidth={2} strokeDasharray="5 5" dot={false} connectNulls {...ANIMATION_CONFIG} />
                   )}
                   {forecast.stats.confidence === "normal" && (
                     <Area type="monotone" dataKey="upperBound" name="상한" stroke="none" fill={CHART_COLORS[4]} fillOpacity={0.1} connectNulls />
@@ -836,8 +836,8 @@ export default function OverviewPage() {
               >
                 <div className="divide-y">
                   {[
-                    { label: "DSO (매출채권 회수기간)", value: overallDso, format: (v: number) => `${v.toFixed(0)}일`, good: 30, warning: 60, inverted: true },
-                    { label: "CCC (현금순환주기)", value: overallCcc, format: (v: number) => `${v.toFixed(0)}일`, good: 0, warning: 60, inverted: true },
+                    { label: "DSO (매출채권 회수기간)", value: overallDso, format: (v: number) => `${safeFixed(v, 0)}일`, good: 30, warning: 60, inverted: true },
+                    { label: "CCC (현금순환주기)", value: overallCcc, format: (v: number) => `${safeFixed(v, 0)}일`, good: 0, warning: 60, inverted: true },
                     { label: "순수 수금율", value: collectionRateDetail.netCollectionRate, format: (v: number) => formatPercent(v), good: 85, warning: 70 },
                     { label: "영업이익율", value: kpis.operatingProfitRate, format: (v: number) => formatPercent(v), good: 10, warning: 5 },
                     { label: "매출총이익율", value: grossProfitMargin, format: (v: number) => formatPercent(v), good: 20, warning: 15 },

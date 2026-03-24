@@ -1,4 +1,5 @@
 import type { InventoryMovementRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 export interface ItemInventoryAnalysis {
   품목: string;
@@ -67,9 +68,9 @@ export function calcItemInventory(
 
   return Array.from(map.entries()).map(([품목, v]) => {
     const avg = (v.기초 + v.기말) / 2;
-    const 회전율 = avg > 0 ? v.출고 / avg : 0;
-    const 보유일수 = 회전율 > 0 ? 365 / 회전율 : (v.기말 > 0 ? 999 : 0);
-    const 입출비율 = v.출고 > 0 ? v.입고 / v.출고 : (v.입고 > 0 ? 999 : 0);
+    const 회전율 = safeDivide(v.출고, avg);
+    const 보유일수 = 회전율 > 0 ? safeDivide(365, 회전율) : (v.기말 > 0 ? 999 : 0);
+    const 입출비율 = v.출고 > 0 ? safeDivide(v.입고, v.출고) : (v.입고 > 0 ? 999 : 0);
 
     return {
       품목,

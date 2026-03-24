@@ -24,7 +24,7 @@ import {
   ACTIVE_BAR,
   ANIMATION_CONFIG,
 } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import { CheckCircle, XCircle, Clock, TrendingUp } from "lucide-react";
 import {
   calcConversionSummary,
@@ -190,7 +190,7 @@ export function ConversionTab({ filteredOrders, isDateFiltered }: ConversionTabP
               {...TOOLTIP_STYLE}
               formatter={(v: any, name: any) => {
                 const n = String(name);
-                if (n === "수주완료율" || n === "취소율") return `${Number(v).toFixed(1)}%`;
+                if (n === "수주완료율" || n === "취소율") return `${safeFixed(Number(v), 1)}%`;
                 return `${Number(v).toLocaleString()}건`;
               }}
             />

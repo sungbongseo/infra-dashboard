@@ -12,7 +12,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, PieOuterLabel, truncateLabel } from "@/components/charts";
 import { Package, TrendingUp, Percent, Target } from "lucide-react";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type {
   ItemCostSummary,
@@ -388,7 +388,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
                 {...TOOLTIP_STYLE}
                 labelFormatter={(_l: any, p: any) => p?.[0]?.payload?.fullName || ""}
                 formatter={(v: any, name: any) => {
-                  if (name === "누적비중") return [`${Number(v).toFixed(1)}%`, name];
+                  if (name === "누적비중") return [`${safeFixed(Number(v), 1)}%`, name];
                   return [formatCurrency(Number(v)), name];
                 }}
               />
@@ -423,7 +423,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v: any) => `${v}%`} domain={[0, 100]} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(v: any, name: any) => [`${Number(v).toFixed(1)}%`, name]}
+                formatter={(v: any, name: any) => [`${safeFixed(Number(v), 1)}%`, name]}
               />
               {(["재료비", "상품매입비", "인건비", "설비비", "외주비", "물류비", "일반경비"] as const).map((key, idx) => (
                 <Bar

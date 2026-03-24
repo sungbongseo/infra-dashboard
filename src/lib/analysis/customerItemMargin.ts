@@ -5,6 +5,7 @@
  */
 
 import type { SalesRecord } from "@/types";
+import { safeDivide } from "@/lib/utils";
 
 export interface ItemUnitCost {
   품목: string;
@@ -86,8 +87,8 @@ export function buildItemCostMap(
   const result = new Map<string, ItemUnitCost>();
   for (const [item, v] of Array.from(accum.entries())) {
     if (v.qty <= 0) continue;
-    const unitCost = v.cogs / v.qty;
-    const avgUnitPrice = v.sales / v.qty;
+    const unitCost = safeDivide(v.cogs, v.qty);
+    const avgUnitPrice = safeDivide(v.sales, v.qty);
     const avgMarginRate = v.sales > 0 ? ((v.sales - v.cogs) / v.sales) * 100 : 0;
     result.set(item, {
       품목: item,
@@ -157,7 +158,7 @@ export function calcCustomerItemMargin(
   const result: CustomerItemMarginRow[] = [];
   for (const v of Array.from(accum.values())) {
     if (v.totalQty <= 0 || v.prices.length === 0) continue;
-    const avgSellingPrice = v.totalAmount / v.totalQty;
+    const avgSellingPrice = safeDivide(v.totalAmount, v.totalQty);
     const unitMargin = avgSellingPrice - v.unitCost;
     const marginRate = avgSellingPrice > 0 ? (unitMargin / avgSellingPrice) * 100 : 0;
     const totalMargin = v.totalAmount - (v.unitCost * v.totalQty);

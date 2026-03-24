@@ -3,7 +3,7 @@
  * ProductGroupTab 전용. customerItemDetail(100) 데이터 기반.
  */
 import type { CustomerItemDetailRecord } from "@/types";
-import { extractMonth } from "@/lib/utils";
+import { extractMonth, safeDivide } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────
 
@@ -256,7 +256,7 @@ export function calcGroupConcentration(
   // HHI: 각 그룹 매출 비중의 제곱합 (× 10000)
   let hhi = 0;
   for (const p of portfolio) {
-    const share = p.sales / totalSales;
+    const share = safeDivide(p.sales, totalSales);
     hhi += share * share * 10000;
   }
 
@@ -341,6 +341,6 @@ export function calcGroupTrend(
 // ─── Helpers ─────────────────────────────────────────────────
 
 function safePct(numerator: number, denominator: number): number {
-  if (denominator === 0 || !isFinite(numerator / denominator)) return 0;
-  return (numerator / denominator) * 100;
+  if (denominator === 0 || !isFinite(safeDivide(numerator, denominator))) return 0;
+  return (safeDivide(numerator, denominator)) * 100;
 }
