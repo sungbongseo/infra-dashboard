@@ -10,6 +10,10 @@ import {
   filterOrgProfitLeafOnly,
   aggregateOrgProfit,
   aggregateTeamContribution,
+  aggregateOrgCustomerProfit,
+  aggregateHqCustomerItemProfit,
+  aggregateCustomerItemDetail,
+  aggregateItemCostDetail,
 } from "@/lib/utils";
 import type { ReceivableAgingRecord, InventoryMovementRecord } from "@/types";
 
@@ -160,7 +164,8 @@ export function useFilteredOrgCustomerProfit() {
   const filteredOrgCustomerProfit = useMemo(() => {
     const orgFiltered = filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀");
     const monthFiltered = filterByMonth(orgFiltered, dateRange);
-    return filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+    const custFiltered = filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+    return aggregateOrgCustomerProfit(custFiltered);
   }, [orgCustomerProfit, effectiveOrgNames, selectedCustomers, dateRange]);
 
   return { filteredOrgCustomerProfit, orgCustomerProfit };
@@ -175,8 +180,10 @@ export function useFilteredCustomerItemDetail() {
   const filteredCustomerItemDetail = useMemo(() => {
     const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
     const custFiltered = filterByCustomer(orgFiltered, selectedCustomers, "매출거래처명");
-    if (!dateRange || !dateRange.from || !dateRange.to) return custFiltered;
-    return filterByDateRange(custFiltered, dateRange, "매출연월");
+    const dateFiltered = (!dateRange || !dateRange.from || !dateRange.to)
+      ? custFiltered
+      : filterByDateRange(custFiltered, dateRange, "매출연월");
+    return aggregateCustomerItemDetail(dateFiltered);
   }, [customerItemDetail, effectiveOrgNames, selectedCustomers, dateRange]);
 
   return { filteredCustomerItemDetail, customerItemDetail };
@@ -190,7 +197,8 @@ export function useFilteredItemCostDetail() {
 
   const filteredItemCostDetail = useMemo(() => {
     const orgFiltered = filterByOrg(itemCostDetail, effectiveOrgNames, "영업조직팀");
-    return filterByMonth(orgFiltered, dateRange);
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateItemCostDetail(monthFiltered);
   }, [itemCostDetail, effectiveOrgNames, dateRange]);
 
   return { filteredItemCostDetail, itemCostDetail };
@@ -205,7 +213,8 @@ export function useFilteredHqCustomerItemProfit() {
   const filteredHqProfit = useMemo(() => {
     const orgFiltered = filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀");
     const monthFiltered = filterByMonth(orgFiltered, dateRange);
-    return filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+    const custFiltered = filterByCustomer(monthFiltered, selectedCustomers, "매출거래처명");
+    return aggregateHqCustomerItemProfit(custFiltered);
   }, [hqCustomerItemProfit, effectiveOrgNames, selectedCustomers, dateRange]);
 
   return { filteredHqProfit, hqCustomerItemProfit };

@@ -1,6 +1,7 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { OrgProfitRecord, PlanActualDiff, CustomerItemDetailRecord, OrgCustomerProfitRecord, TeamContributionRecord } from "@/types";
+import type { OrgProfitRecord, PlanActualDiff, CustomerItemDetailRecord, OrgCustomerProfitRecord, TeamContributionRecord, ProfitabilityAnalysisRecord, HqCustomerItemProfitRecord } from "@/types";
+import type { ItemProfitabilityRecord, ItemCostDetailRecord } from "@/types/itemCost";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -209,7 +210,7 @@ export function filterByMonth<T extends Record<string, any>>(
 // ─── OrgProfit 동일 조직 합산 ──────────────────────────────────────
 
 /** PlanActualDiff 두 값 합산 */
-function addPAD(a: PlanActualDiff, b: PlanActualDiff): PlanActualDiff {
+export function addPAD(a: PlanActualDiff, b: PlanActualDiff): PlanActualDiff {
   return {
     계획: a.계획 + b.계획,
     실적: a.실적 + b.실적,
@@ -418,4 +419,160 @@ export function aggregateTeamContribution(data: TeamContributionRecord[]): TeamC
     r.공헌이익율 = calcRatioPAD(r.공헌이익, r.매출액);
   }
   return results;
+}
+
+// ─── 월별 시트 Concat 파일 타입별 합산 함수 ───────────────────────────
+
+const PAD_ZERO: PlanActualDiff = { 계획: 0, 실적: 0, 차이: 0 };
+function safeAddPAD(a: PlanActualDiff | undefined, b: PlanActualDiff | undefined): PlanActualDiff {
+  return addPAD(a ?? PAD_ZERO, b ?? PAD_ZERO);
+}
+
+/** 901 수익성분석: 동일 (조직, 사번, 거래처, 품목) 키로 합산 */
+export function aggregateProfitabilityAnalysis(data: ProfitabilityAnalysisRecord[]): ProfitabilityAnalysisRecord[] {
+  const map = new Map<string, ProfitabilityAnalysisRecord>();
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.영업담당사번}||${r.매출거래처}||${r.품목}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    e.제품내수매출 = addPAD(e.제품내수매출, r.제품내수매출);
+    e.제품수출매출 = addPAD(e.제품수출매출, r.제품수출매출);
+    e.매출수량 = addPAD(e.매출수량, r.매출수량);
+    e.환산수량 = addPAD(e.환산수량, r.환산수량);
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.차이매출원가 = safeAddPAD(e.차이매출원가, r.차이매출원가);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.판매관리비 = addPAD(e.판매관리비, r.판매관리비);
+    e.판관변동_직접판매운반비 = addPAD(e.판관변동_직접판매운반비, r.판관변동_직접판매운반비);
+    e.영업이익 = addPAD(e.영업이익, r.영업이익);
+  }
+  return Array.from(map.values());
+}
+
+/** 200 품목별 수익성: 동일 (조직, 품목) 키로 number 필드 합산, 비율 재계산 */
+export function aggregateItemProfitability(data: ItemProfitabilityRecord[]): ItemProfitabilityRecord[] {
+  const map = new Map<string, ItemProfitabilityRecord>();
+  const numFields = [
+    "매출수량", "매출액", "표준매출원가", "실적매출원가", "매출총이익", "영업이익",
+    "직접판매운반비", "판매관리비",
+    "원재료비", "부재료비", "상품매입", "노무비", "복리후생비", "소모품비",
+    "수도광열비", "수선비", "연료비", "외주가공비", "운반비", "전력비",
+    "지급수수료", "견본비", "제조고정노무비", "감가상각비", "기타경비",
+  ] as const;
+  const planFields = ["매출수량_계획", "매출액_계획", "실적매출원가_계획", "매출총이익_계획", "영업이익_계획"] as const;
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.품목}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    for (const f of numFields) (e as any)[f] += (r as any)[f] || 0;
+    for (const f of planFields) (e as any)[f] = ((e as any)[f] || 0) + ((r as any)[f] || 0);
+  }
+  // 비율 재계산
+  for (const e of Array.from(map.values())) {
+    const sales = e.매출액 || 1;
+    e.매출단가 = e.매출수량 > 0 ? e.매출액 / e.매출수량 : 0;
+    e.매출원가율 = Math.abs(sales) > 0 ? (e.실적매출원가 / Math.abs(sales)) * 100 : 0;
+    e.매출총이익율 = Math.abs(sales) > 0 ? (e.매출총이익 / Math.abs(sales)) * 100 : 0;
+    e.영업이익율 = Math.abs(sales) > 0 ? (e.영업이익 / Math.abs(sales)) * 100 : 0;
+  }
+  return Array.from(map.values());
+}
+
+/** 303 조직별 거래처별 손익: 동일 (조직, 거래처) 키로 합산, 비율 재계산 */
+export function aggregateOrgCustomerProfit(data: OrgCustomerProfitRecord[]): OrgCustomerProfitRecord[] {
+  const map = new Map<string, OrgCustomerProfitRecord>();
+  const sgaFields = [
+    "판관변동_노무비", "판관변동_복리후생비", "판관변동_소모품비", "판관변동_수도광열비",
+    "판관변동_수선비", "판관변동_외주가공비", "판관변동_운반비", "판관변동_직접판매운반비",
+    "판관변동_지급수수료", "판관변동_견본비", "판관고정_노무비", "판관고정_감가상각비", "판관고정_기타경비",
+  ] as const;
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.매출거래처}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.판매관리비 = addPAD(e.판매관리비, r.판매관리비);
+    e.영업이익 = addPAD(e.영업이익, r.영업이익);
+    for (const f of sgaFields) (e as any)[f] = safeAddPAD((e as any)[f], (r as any)[f]);
+  }
+  for (const e of Array.from(map.values())) {
+    e.매출총이익율 = calcRatioPAD(e.매출총이익, e.매출액);
+    e.영업이익율 = calcRatioPAD(e.영업이익, e.매출액);
+  }
+  return Array.from(map.values());
+}
+
+/** 304 거래처 품목 손익: 동일 (조직, 거래처, 품목) 키로 합산, 비율 재계산 */
+export function aggregateHqCustomerItemProfit(data: HqCustomerItemProfitRecord[]): HqCustomerItemProfitRecord[] {
+  const map = new Map<string, HqCustomerItemProfitRecord>();
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.매출거래처}||${r.품목}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    e.매출수량 = addPAD(e.매출수량, r.매출수량);
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.판매관리비 = addPAD(e.판매관리비, r.판매관리비);
+    e.영업이익 = addPAD(e.영업이익, r.영업이익);
+  }
+  for (const e of Array.from(map.values())) {
+    e.매출총이익율 = calcRatioPAD(e.매출총이익, e.매출액);
+    e.영업이익율 = calcRatioPAD(e.영업이익, e.매출액);
+  }
+  return Array.from(map.values());
+}
+
+/** 501 품목별 매출원가 상세: 동일 (조직, 품목) 키로 합산, 비율 재계산 */
+export function aggregateItemCostDetail(data: ItemCostDetailRecord[]): ItemCostDetailRecord[] {
+  const map = new Map<string, ItemCostDetailRecord>();
+  const costFields = [
+    "원재료비", "부재료비", "상품매입", "노무비", "복리후생비", "소모품비",
+    "수도광열비", "수선비", "연료비", "외주가공비", "운반비", "전력비",
+    "지급수수료", "견본비", "제조변동비소계", "제조고정노무비", "감가상각비",
+    "기타경비", "제조고정비소계",
+  ] as const;
+
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.품목}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    e.매출수량 = addPAD(e.매출수량, r.매출수량);
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.공헌이익 = addPAD(e.공헌이익, r.공헌이익);
+    for (const f of costFields) (e as any)[f] = addPAD((e as any)[f], (r as any)[f]);
+  }
+  for (const e of Array.from(map.values())) {
+    e.공헌이익율 = calcRatioPAD(e.공헌이익, e.매출액);
+  }
+  return Array.from(map.values());
+}
+
+/** 100 거래처별 품목별 손익: 동일 (조직, 사번, 거래처, 품목) 키로 합산 */
+export function aggregateCustomerItemDetail(data: CustomerItemDetailRecord[]): CustomerItemDetailRecord[] {
+  const map = new Map<string, CustomerItemDetailRecord>();
+  for (const r of data) {
+    const key = `${r.영업조직팀}||${r.영업담당사번}||${r.매출거래처}||${r.품목}`;
+    const e = map.get(key);
+    if (!e) { map.set(key, { ...r, month: undefined }); continue; }
+    e.제품내수매출 = addPAD(e.제품내수매출, r.제품내수매출);
+    e.제품수출매출 = addPAD(e.제품수출매출, r.제품수출매출);
+    e.매출수량 = addPAD(e.매출수량, r.매출수량);
+    e.환산수량 = addPAD(e.환산수량, r.환산수량);
+    e.매출액 = addPAD(e.매출액, r.매출액);
+    e.실적매출원가 = addPAD(e.실적매출원가, r.실적매출원가);
+    e.상품매입 = addPAD(e.상품매입, r.상품매입);
+    e.매출총이익 = addPAD(e.매출총이익, r.매출총이익);
+    e.판매관리비 = addPAD(e.판매관리비, r.판매관리비);
+    e.판관변동_직접판매운반비 = addPAD(e.판관변동_직접판매운반비, r.판관변동_직접판매운반비);
+    e.영업이익 = addPAD(e.영업이익, r.영업이익);
+  }
+  return Array.from(map.values());
 }

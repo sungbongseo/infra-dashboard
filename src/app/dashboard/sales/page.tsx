@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateItemProfitability, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -91,11 +91,12 @@ export default function SalesAnalysisPage() {
     return filterByDateRange(orgFiltered, dateRange, "매출연월");
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
 
-  // 품목별 수익성 분석 (200) 필터 — ItemTab prop으로 전달
-  const filteredItemProfit = useMemo(
-    () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
-    [itemProfitability, effectiveOrgNames]
-  );
+  // 품목별 수익성 분석 (200) 필터 + 월별 합산 — ItemTab prop으로 전달
+  const filteredItemProfit = useMemo(() => {
+    const orgFiltered = filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateItemProfitability(monthFiltered);
+  }, [itemProfitability, effectiveOrgNames, dateRange]);
 
   // 재고 데이터 → 품목별 재고 매핑 (수불현황 존재 시)
   const inventoryMap = useMemo(

@@ -10,7 +10,7 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, aggregateTeamContribution, CHART_COLORS } from "@/lib/utils";
+import { filterByOrg, filterByDateRange, filterByMonth, aggregateToCustomerLevel, filterOrgProfitLeafOnly, aggregateTeamContribution, aggregateProfitabilityAnalysis, aggregateItemProfitability, aggregateOrgCustomerProfit, aggregateHqCustomerItemProfit, aggregateCustomerItemDetail, CHART_COLORS } from "@/lib/utils";
 import { useFilterContext, useFilteredOrgProfit } from "@/lib/hooks/useFilteredData";
 import { calcMonthlyTrend, calcMoMGrowth, padActual } from "@/lib/analysis/monthlyTrend";
 import {
@@ -127,31 +127,38 @@ export default function ProfitabilityPage() {
   // 폴백 로직 제거: 필터링 결과가 매출 0이어도 전체 데이터로 대체하지 않음
   // 대신 hasNoSales 플래그로 UI 경고 표시
   const { filteredProfAnalysis, profAnalysisHasNoSales, profAnalysisIsFallback } = useMemo(() => {
-    const filtered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
-    const hasSales = filtered.some((r) => r.매출액?.실적 !== 0);
-    // 필터링된 데이터가 있지만 매출이 없는 경우 경고 표시용 플래그
-    const hasNoSales = filtered.length > 0 && !hasSales;
+    const orgFiltered = filterByOrg(profitabilityAnalysis, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    const aggregated = aggregateProfitabilityAnalysis(monthFiltered);
+    const hasSales = aggregated.some((r) => r.매출액?.실적 !== 0);
+    const hasNoSales = aggregated.length > 0 && !hasSales;
     return {
-      filteredProfAnalysis: filtered,  // 항상 필터링된 데이터 사용 (폴백 없음)
+      filteredProfAnalysis: aggregated,
       profAnalysisHasNoSales: hasNoSales,
-      profAnalysisIsFallback: false,  // 더 이상 폴백 사용 안 함
+      profAnalysisIsFallback: false,
     };
-  }, [profitabilityAnalysis, effectiveOrgNames]);
+  }, [profitabilityAnalysis, effectiveOrgNames, dateRange]);
   const filteredSales = useMemo(() => filterByDateRange(filterByOrg(salesList, effectiveOrgNames), dateRange, "매출일"), [salesList, effectiveOrgNames, dateRange]);
   const allReceivableRecords = useMemo(() => {
     const allRecords = Array.from(receivableAging.values()).flat();
     return filterByOrg(allRecords, effectiveOrgNames, "영업조직");
   }, [receivableAging, effectiveOrgNames]);
 
-  // ─── 신규 데이터 타입 필터링 ──────────────────────────────
-  const filteredOrgCustProfit = useMemo(() => filterByMonth(filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), dateRange), [orgCustomerProfit, effectiveOrgNames, dateRange]);
-  const filteredHqCustItemProfit = useMemo(() => filterByMonth(filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), dateRange), [hqCustomerItemProfit, effectiveOrgNames, dateRange]);
+  // ─── 신규 데이터 타입 필터링 + 월별 중복 합산 ──────────────────────────────
+  const filteredOrgCustProfit = useMemo(() => {
+    const monthFiltered = filterByMonth(filterByOrg(orgCustomerProfit, effectiveOrgNames, "영업조직팀"), dateRange);
+    return aggregateOrgCustomerProfit(monthFiltered);
+  }, [orgCustomerProfit, effectiveOrgNames, dateRange]);
+  const filteredHqCustItemProfit = useMemo(() => {
+    const monthFiltered = filterByMonth(filterByOrg(hqCustomerItemProfit, effectiveOrgNames, "영업조직팀"), dateRange);
+    return aggregateHqCustomerItemProfit(monthFiltered);
+  }, [hqCustomerItemProfit, effectiveOrgNames, dateRange]);
 
-  // ─── customerItemDetail 기간 필터 (스마트 데이터소스) ──────────────────
+  // ─── customerItemDetail 기간 필터 + 합산 (스마트 데이터소스) ──────────────────
   const filteredCustItemDetail = useMemo(() => {
     const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
-    if (!dateRange || !dateRange.from || !dateRange.to) return orgFiltered;
-    return filterByDateRange(orgFiltered, dateRange, "매출연월");
+    const dateFiltered = (!dateRange || !dateRange.from || !dateRange.to) ? orgFiltered : filterByDateRange(orgFiltered, dateRange, "매출연월");
+    return aggregateCustomerItemDetail(dateFiltered);
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
 
   const isDateFilterActive = !!(dateRange?.from && dateRange?.to);
@@ -451,11 +458,12 @@ export default function ProfitabilityPage() {
   const unitCostAnalysis = useMemo(() => calcUnitCostAnalysis(filteredItemCostDetail, 30), [filteredItemCostDetail]);
   const costDriverAnalysis = useMemo(() => calcCostDriverAnalysis(filteredItemCostDetail), [filteredItemCostDetail]);
 
-  // ─── 품목별 수익성 분석 (200) ──────────────────────────────
-  const filteredItemProfitability = useMemo(
-    () => filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀"),
-    [itemProfitability, effectiveOrgNames]
-  );
+  // ─── 품목별 수익성 분석 (200) + 월별 합산 ──────────────────────────────
+  const filteredItemProfitability = useMemo(() => {
+    const orgFiltered = filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀");
+    const monthFiltered = filterByMonth(orgFiltered, dateRange);
+    return aggregateItemProfitability(monthFiltered);
+  }, [itemProfitability, effectiveOrgNames, dateRange]);
 
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
