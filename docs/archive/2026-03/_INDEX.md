@@ -10,6 +10,7 @@
 | dashboard-enhancement | Completed | 90% | 2026-03-23 |
 | data-accuracy-audit | Completed | 100% | 2026-03-23 |
 | orders-accuracy-fix | Completed | 100% | 2026-03-23 |
+| dashboard-comprehensive-audit | Completed | 100% | 2026-03-24 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -62,3 +63,11 @@
 - **Files**: 수정 5파일, ~35줄 (page.tsx, OrgTab.tsx, ConversionTab.tsx, PipelineTab.tsx, utils.ts)
 - **Match Rate**: 100% (4/4, False Positive 9건 제외)
 - **Documents**: orders-accuracy-fix.report.md
+
+## dashboard-comprehensive-audit
+- **Description**: 대시보드 종합 감사 — 54탭 전수 isFinite 감사 + 8개 파일타입 월별 중복 aggregate 근본 수정
+- **Phases**: P1(54탭 전수감사 27건), P2(teamContribution 합산), P3(6파일타입 aggregate 도입), P4(자기검증+비율수정), P5(문서화)
+- **Files**: 수정 27파일, +705/-127줄
+- **Key Deliverable**: 8개 aggregate 함수 (utils.ts), CLAUDE.md 월별 처리 패턴 문서화
+- **Match Rate**: 100%
+- **Documents**: [report](dashboard-comprehensive-audit/report.md)
