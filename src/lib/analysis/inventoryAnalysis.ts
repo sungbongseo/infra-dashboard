@@ -424,3 +424,130 @@ export function calcDIO(
     };
   });
 }
+
+// ─── ABC 재고 분류 ─────────────────────────────────────────────
+
+export interface InventoryABCItem extends ItemInventoryAnalysis {
+  abc: "A" | "B" | "C";
+  출고비중: number;
+  누적비중: number;
+}
+
+/** ABC 재고 분류 (파레토 80/20): A=누적80%, B=80~95%, C=95%+ */
+export function calcInventoryABC(items: ItemInventoryAnalysis[]): InventoryABCItem[] {
+  const sorted = [...items].filter(i => i.출고 > 0).sort((a, b) => b.출고 - a.출고);
+  const total = sorted.reduce((s, i) => s + i.출고, 0);
+  if (total === 0) return [];
+
+  let cumulative = 0;
+  return sorted.map(item => {
+    const share = safeDivide(item.출고, total) * 100;
+    cumulative += share;
+    const abc = cumulative <= 80 ? "A" as const : cumulative <= 95 ? "B" as const : "C" as const;
+    return { ...item, abc, 출고비중: Math.round(share * 10) / 10, 누적비중: Math.round(cumulative * 10) / 10 };
+  });
+}
+
+// ─── 카테고리별 재고 분석 ──────────────────────────────────────
+
+export interface CategoryInventorySummary {
+  category: string;
+  itemCount: number;
+  totalClosing: number;
+  totalOutgoing: number;
+  avgTurnover: number;
+  deadStockCount: number;
+  deadStockRate: number;
+}
+
+/** 카테고리(대분류/중분류/소분류/품목계정그룹) 기준 재고 집계 */
+export function calcCategoryInventory(
+  items: ItemInventoryAnalysis[],
+  level: "대분류" | "중분류" | "소분류" | "품목계정그룹" = "대분류"
+): CategoryInventorySummary[] {
+  const map = new Map<string, ItemInventoryAnalysis[]>();
+  for (const item of items) {
+    const key = (item as any)[level] || "미분류";
+    const arr = map.get(key) || [];
+    arr.push(item);
+    map.set(key, arr);
+  }
+
+  return Array.from(map.entries())
+    .map(([category, catItems]) => {
+      const totalClosing = catItems.reduce((s, i) => s + i.기말, 0);
+      const totalOutgoing = catItems.reduce((s, i) => s + i.출고, 0);
+      const validTurnover = catItems.filter(i => i.회전율 > 0);
+      const avgTurnover = validTurnover.length > 0
+        ? validTurnover.reduce((s, i) => s + i.회전율, 0) / validTurnover.length : 0;
+      const deadStockCount = catItems.filter(i => i.기말 > 0 && i.출고 === 0).length;
+      return {
+        category, itemCount: catItems.length, totalClosing, totalOutgoing,
+        avgTurnover: Math.round(avgTurnover * 10) / 10, deadStockCount,
+        deadStockRate: Math.round(safeDivide(deadStockCount, catItems.length) * 1000) / 10,
+      };
+    })
+    .sort((a, b) => b.totalClosing - a.totalClosing);
+}
+
+// ─── 주거래처별 재고 분포 ──────────────────────────────────────
+
+export interface CustomerInventorySummary {
+  customer: string;
+  itemCount: number;
+  totalClosing: number;
+  totalOutgoing: number;
+  avgTurnover: number;
+}
+
+/** 주거래처 필드 기반 재고 분포 분석 */
+export function calcCustomerInventory(data: InventoryMovementRecord[]): CustomerInventorySummary[] {
+  const map = new Map<string, { closing: number; outgoing: number; items: Set<string> }>();
+  for (const r of data) {
+    const customer = (r.주거래처 || "").trim() || "미지정";
+    const entry = map.get(customer) || { closing: 0, outgoing: 0, items: new Set() };
+    entry.closing += (r.기말 ?? 0);
+    entry.outgoing += (r.출고 ?? 0);
+    entry.items.add(r.품목);
+    map.set(customer, entry);
+  }
+  return Array.from(map.entries())
+    .map(([customer, v]) => ({
+      customer, itemCount: v.items.size, totalClosing: v.closing, totalOutgoing: v.outgoing,
+      avgTurnover: v.closing > 0 ? Math.round(safeDivide(v.outgoing, v.closing) * 10) / 10 : 0,
+    }))
+    .filter(c => c.totalClosing > 0)
+    .sort((a, b) => b.totalClosing - a.totalClosing);
+}
+
+// ─── 예상 소진일 계산 ──────────────────────────────────────────
+
+export interface StockoutEstimate {
+  품목: string;
+  품목명: string;
+  품목계정그룹: string;
+  대분류: string;
+  factory: string;
+  기말: number;
+  월평균출고: number;
+  예상소진일: number;
+  risk: "danger" | "warning" | "safe";
+}
+
+/** 기말재고 기준 예상 소진일: danger(<30일), warning(30~60일), safe(60일+) */
+export function calcStockoutEstimate(items: ItemInventoryAnalysis[]): StockoutEstimate[] {
+  return items
+    .filter(item => item.기말 > 0 && item.출고 > 0)
+    .map(item => {
+      const dailyOut = safeDivide(item.출고, 365);
+      const days = safeDivide(item.기말, dailyOut);
+      const risk = days < 30 ? "danger" as const : days < 60 ? "warning" as const : "safe" as const;
+      return {
+        품목: item.품목, 품목명: item.품목명, 품목계정그룹: item.품목계정그룹,
+        대분류: item.대분류, factory: item.factory, 기말: item.기말,
+        월평균출고: Math.round(safeDivide(item.출고, 12)),
+        예상소진일: Math.round(days), risk,
+      };
+    })
+    .sort((a, b) => a.예상소진일 - b.예상소진일);
+}
