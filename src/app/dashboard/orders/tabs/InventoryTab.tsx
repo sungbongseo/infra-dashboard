@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
@@ -13,9 +13,8 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG } from "@/components/charts";
 import { Package, RefreshCw, AlertTriangle, Clock, PackageX, TrendingDown } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { formatNumber, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatNumber, safeFixed, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
-  calcInventoryTurnover,
   calcMonthlyMovement,
   calcSlowMoving,
   calcDIO,
@@ -44,15 +43,29 @@ function zeroMonthColor(months: number): string {
   return "text-yellow-600 dark:text-yellow-400";
 }
 
+const ACCOUNT_GROUPS = ["제품", "상품", "원재료", "부재료", "재공품", "저장품"] as const;
+const DEFAULT_GROUPS = new Set(["제품", "상품"]);
+
 export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
   const hasMonthData = data.some((r) => r.month);
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(DEFAULT_GROUPS);
 
-  const turnover = useMemo(() => calcInventoryTurnover(data), [data]);
+  const toggleGroup = useCallback((group: string) => {
+    setSelectedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(group)) next.delete(group);
+      else next.add(group);
+      return next;
+    });
+  }, []);
+  const selectAll = useCallback(() => setSelectedGroups(new Set(ACCOUNT_GROUPS)), []);
+  const selectNone = useCallback(() => setSelectedGroups(new Set()), []);
+
   const monthlyMovement = useMemo(() => calcMonthlyMovement(data), [data]);
   const slowMoving = useMemo(() => calcSlowMoving(data), [data]);
   const dioResults = useMemo(() => calcDIO(data), [data]);
 
-  // 품목별 분석 (기존 미사용 함수 활성화)
+  // 품목별 분석 (전 품목)
   const inventoryMap = useMemo(() => {
     const m = new Map<string, InventoryMovementRecord[]>();
     for (const r of data) {
@@ -64,25 +77,36 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
   }, [data]);
   const itemAnalysis = useMemo(() => calcItemInventory(inventoryMap), [inventoryMap]);
   const groupSummary = useMemo(() => calcGroupSummary(itemAnalysis), [itemAnalysis]);
-  const inventoryKPI = useMemo(() => calcInventoryKPI(itemAnalysis), [itemAnalysis]);
 
-  // KPI 계산
+  // 품목계정그룹 필터 적용
+  const filteredItems = useMemo(
+    () => selectedGroups.size === 0
+      ? itemAnalysis
+      : itemAnalysis.filter(item => selectedGroups.has(item.품목계정그룹)),
+    [itemAnalysis, selectedGroups]
+  );
+  const inventoryKPI = useMemo(() => calcInventoryKPI(filteredItems), [filteredItems]);
+
+  // KPI 계산 (필터된 품목 기준)
   const totalClosing = useMemo(
-    () => data.reduce((s, r) => s + r.기말, 0),
-    [data]
+    () => filteredItems.reduce((s, item) => s + item.기말, 0),
+    [filteredItems]
   );
   const avgTurnover = useMemo(() => {
-    const valid = turnover.filter((t) => t.turnoverRate > 0);
+    const valid = filteredItems.filter((item) => item.회전율 > 0);
     return valid.length > 0
-      ? valid.reduce((s, t) => s + t.turnoverRate, 0) / valid.length
+      ? valid.reduce((s, item) => s + item.회전율, 0) / valid.length
       : 0;
-  }, [turnover]);
+  }, [filteredItems]);
   const avgDIO = useMemo(() => {
     const valid = dioResults.filter((d) => d.dio > 0);
     return valid.length > 0
       ? Math.round(valid.reduce((s, d) => s + d.dio, 0) / valid.length)
       : 0;
   }, [dioResults]);
+  const filterLabel = selectedGroups.size === 0 || selectedGroups.size === ACCOUNT_GROUPS.length
+    ? "전체"
+    : Array.from(selectedGroups).join(", ");
 
   // 월별 입출고 차트 데이터 (공장 합산)
   const monthlyChartData = useMemo(() => {
@@ -112,15 +136,20 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
       }));
   }, [monthlyMovement]);
 
-  // Top/Bottom 회전율 테이블
-  const topTurnover = useMemo(() => turnover.slice(0, 10), [turnover]);
-  const bottomTurnover = useMemo(
-    () =>
-      [...turnover]
-        .filter((t) => t.avgInventory > 0 && t.turnoverRate > 0)
-        .sort((a, b) => a.turnoverRate - b.turnoverRate)
-        .slice(0, 10),
-    [turnover]
+  // Top/Bottom 회전율 테이블 (필터된 품목 기준)
+  const topItems = useMemo(
+    () => [...filteredItems]
+      .filter(item => item.회전율 > 0)
+      .sort((a, b) => b.회전율 - a.회전율)
+      .slice(0, 10),
+    [filteredItems]
+  );
+  const bottomItems = useMemo(
+    () => [...filteredItems]
+      .filter(item => item.기말 > 0 && item.회전율 > 0)
+      .sort((a, b) => a.회전율 - b.회전율)
+      .slice(0, 10),
+    [filteredItems]
   );
 
   // 품목계정그룹별 파이차트
@@ -142,6 +171,30 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
 
   return (
     <>
+      {/* 품목계정그룹 필터 */}
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-sm font-medium text-muted-foreground mr-1">품목계정그룹:</span>
+        {ACCOUNT_GROUPS.map(group => (
+          <button
+            key={group}
+            onClick={() => toggleGroup(group)}
+            className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+              selectedGroups.has(group)
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-background text-muted-foreground border-border hover:border-primary/50"
+            }`}
+          >
+            {group}
+          </button>
+        ))}
+        <span className="text-muted-foreground mx-1">|</span>
+        <button onClick={selectAll} className="text-xs text-muted-foreground hover:text-foreground underline">전체</button>
+        <button onClick={selectNone} className="text-xs text-muted-foreground hover:text-foreground underline">해제</button>
+        {selectedGroups.size > 0 && selectedGroups.size < ACCOUNT_GROUPS.length && (
+          <span className="text-xs text-muted-foreground ml-2">({filterLabel} 기준 {filteredItems.length}종)</span>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <KpiCard
           title="총 기말재고"
@@ -257,7 +310,7 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartCard
-          title="재고회전율 Top 10"
+          title={`재고회전율 Top 10 (${filterLabel})`}
           formula="회전율 = 총 출고 ÷ 평균재고"
           description="회전율이 높은 품목일수록 빠르게 소진되어 재고 효율이 좋습니다."
         >
@@ -265,37 +318,41 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
             columns={[
               { header: "공장", accessorKey: "factory" },
               { header: "품목명", accessorKey: "품목명" },
+              { header: "그룹", accessorKey: "품목계정그룹" },
+              { header: "대분류", accessorKey: "대분류" },
               { header: "단위", accessorKey: "단위" },
-              { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round(info.getValue())) },
-              { header: "총출고", accessorKey: "totalOut", cell: (info: any) => formatNumber(info.getValue()) },
-              { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => { const v = Number(info.getValue()); return isFinite(v) ? v.toFixed(1) : "0.0"; } },
+              { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round((info.row.original.기초 + info.row.original.기말) / 2)) },
+              { header: "총출고", accessorKey: "출고", cell: (info: any) => formatNumber(info.getValue()) },
+              { header: "회전율", accessorKey: "회전율", cell: (info: any) => safeFixed(Number(info.getValue()), 1) },
             ]}
-            data={topTurnover}
+            data={topItems}
             defaultPageSize={10}
           />
         </ChartCard>
 
         <ChartCard
-          title="재고회전율 Bottom 10"
+          title={`재고회전율 Bottom 10 (${filterLabel})`}
           formula="회전율이 낮은 품목은 재고 체류 기간이 길어 자금이 묶입니다"
           description="회전율이 낮은 품목입니다. 회전율 0(출고 없음)은 장기재고 경고에서 별도 관리합니다."
         >
-          {bottomTurnover.length > 0 ? (
+          {bottomItems.length > 0 ? (
             <DataTable
               columns={[
                 { header: "공장", accessorKey: "factory" },
                 { header: "품목명", accessorKey: "품목명" },
+                { header: "그룹", accessorKey: "품목계정그룹" },
+                { header: "대분류", accessorKey: "대분류" },
                 { header: "단위", accessorKey: "단위" },
-                { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round(info.getValue())) },
-                { header: "총출고", accessorKey: "totalOut", cell: (info: any) => formatNumber(info.getValue()) },
-                { header: "회전율", accessorKey: "turnoverRate", cell: (info: any) => { const v = Number(info.getValue()); return isFinite(v) ? v.toFixed(1) : "0.0"; } },
+                { header: "평균재고", accessorKey: "avgInventory", cell: (info: any) => formatNumber(Math.round((info.row.original.기초 + info.row.original.기말) / 2)) },
+                { header: "총출고", accessorKey: "출고", cell: (info: any) => formatNumber(info.getValue()) },
+                { header: "회전율", accessorKey: "회전율", cell: (info: any) => safeFixed(Number(info.getValue()), 1) },
               ]}
-              data={bottomTurnover}
+              data={bottomItems}
               defaultPageSize={10}
             />
           ) : (
             <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">
-              회전율 0 초과 품목이 없습니다. 장기재고 경고를 확인하세요.
+              선택된 그룹에서 회전율 0 초과 품목이 없습니다.
             </div>
           )}
         </ChartCard>

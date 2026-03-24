@@ -5,7 +5,11 @@ export interface ItemInventoryAnalysis {
   품목: string;
   품목명: string;
   품목계정그룹: string;
+  대분류: string;
+  중분류: string;
+  소분류: string;
   단위: string;
+  factory: string;
   기초: number;
   입고: number;
   출고: number;
@@ -41,6 +45,10 @@ export function calcItemInventory(
   const map = new Map<string, {
     품목명: string;
     품목계정그룹: string;
+    대분류: string;
+    중분류: string;
+    소분류: string;
+    factory: string;
     단위: string;
     기초: number;
     입고: number;
@@ -48,13 +56,17 @@ export function calcItemInventory(
     기말: number;
   }>();
 
-  for (const records of Array.from(data.values())) {
+  for (const [factory, records] of Array.from(data.entries())) {
     for (const r of records) {
       const key = r.품목.trim();
       if (!key) continue;
       const entry = map.get(key) || {
         품목명: r.품목명,
         품목계정그룹: r.품목계정그룹,
+        대분류: r.대분류 || "",
+        중분류: r.중분류 || "",
+        소분류: r.소분류 || "",
+        factory,
         단위: r.단위,
         기초: 0, 입고: 0, 출고: 0, 기말: 0,
       };
@@ -76,6 +88,10 @@ export function calcItemInventory(
       품목,
       품목명: v.품목명,
       품목계정그룹: v.품목계정그룹,
+      대분류: v.대분류,
+      중분류: v.중분류,
+      소분류: v.소분류,
+      factory: v.factory,
       단위: v.단위,
       기초: v.기초,
       입고: v.입고,
