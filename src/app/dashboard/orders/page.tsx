@@ -10,7 +10,7 @@ import { calcO2CPipeline, calcMonthlyConversion } from "@/lib/analysis/pipeline"
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredOrders, useFilteredSales, useFilteredCollections, useFilteredInventory, useFilteredReceivables } from "@/lib/hooks/useFilteredData";
+import { useFilteredOrders, useFilteredSales, useFilteredCollections, useFilteredInventory, useFilteredReceivables, useFilteredItemCostDetail } from "@/lib/hooks/useFilteredData";
 
 const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
 const AnalysisTab = lazy(() => import("./tabs/AnalysisTab").then(m => ({ default: m.AnalysisTab })));
@@ -27,6 +27,7 @@ export default function OrdersAnalysisPage() {
   const { filteredCollections } = useFilteredCollections();
   const { filteredInventoryRecords } = useFilteredInventory();
   const { filteredRecords: filteredAgingRecords } = useFilteredReceivables();
+  const { filteredItemCostDetail } = useFilteredItemCostDetail();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
@@ -265,7 +266,7 @@ export default function OrdersAnalysisPage() {
           <TabsContent value="inventory" className="space-y-6">
             <Suspense fallback={<KpiSkeleton />}>
             <ErrorBoundary>
-              <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} />
+              <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} salesData={filteredSales} costData={filteredItemCostDetail} />
             </ErrorBoundary>
             </Suspense>
           </TabsContent>

@@ -1,4 +1,5 @@
-import type { InventoryMovementRecord } from "@/types";
+import type { InventoryMovementRecord, SalesRecord } from "@/types";
+import type { ItemCostDetailRecord } from "@/types/itemCost";
 import { safeDivide } from "@/lib/utils";
 
 export interface ItemInventoryAnalysis {
@@ -550,4 +551,140 @@ export function calcStockoutEstimate(items: ItemInventoryAnalysis[]): StockoutEs
       };
     })
     .sort((a, b) => a.예상소진일 - b.예상소진일);
+}
+
+// ─── 매출×재고 사분면 매트릭스 ──────────────────────────────────
+
+export interface SalesInventoryQuadrant {
+  품목: string;
+  품목명: string;
+  품목계정그룹: string;
+  대분류: string;
+  매출금액: number;
+  매출비중: number;      // %
+  기말재고: number;
+  회전율: number;
+  quadrant: "star" | "overstock" | "fast" | "review";
+  // star: 높매출+높회전 (핵심 품목)
+  // overstock: 낮매출+낮회전 (과잉 재고, 정리 필요)
+  // fast: 높매출+낮재고 (빠른 소진, 재고 부족 위험)
+  // review: 낮매출+높회전 (소량 빈번, 검토 필요)
+}
+
+/**
+ * 매출×재고 사분면 매트릭스
+ * salesData의 품목별 매출과 inventoryItems의 회전율을 교차 분석
+ */
+export function calcSalesInventoryMatrix(
+  inventoryItems: ItemInventoryAnalysis[],
+  salesData: SalesRecord[]
+): SalesInventoryQuadrant[] {
+  // 매출 품목별 집계 (품목명 기준)
+  const salesMap = new Map<string, number>();
+  for (const s of salesData) {
+    const name = (s.품목명 || s.품목 || "").trim();
+    if (!name) continue;
+    salesMap.set(name, (salesMap.get(name) || 0) + Math.abs(s.장부금액));
+  }
+  const totalSales = Array.from(salesMap.values()).reduce((s, v) => s + v, 0);
+
+  // 재고 품목과 매출 교차
+  const results: SalesInventoryQuadrant[] = [];
+  const medianTurnover = getMedian(inventoryItems.filter(i => i.회전율 > 0).map(i => i.회전율));
+
+  for (const item of inventoryItems) {
+    if (item.기말 <= 0 && item.출고 <= 0) continue;
+    // 품목명으로 매출 매칭 (재고 데이터는 코드, 매출은 이름일 수 있으므로 양방향 시도)
+    const sales = salesMap.get(item.품목명) || salesMap.get(item.품목) || 0;
+    const salesShare = safeDivide(sales, totalSales) * 100;
+    const medianSalesShare = totalSales > 0 ? safeDivide(100, salesMap.size) : 0;
+
+    const highSales = salesShare > medianSalesShare;
+    const highTurnover = item.회전율 > medianTurnover;
+
+    let quadrant: SalesInventoryQuadrant["quadrant"];
+    if (highSales && highTurnover) quadrant = "star";
+    else if (!highSales && !highTurnover) quadrant = "overstock";
+    else if (highSales && !highTurnover) quadrant = "fast";
+    else quadrant = "review";
+
+    results.push({
+      품목: item.품목, 품목명: item.품목명, 품목계정그룹: item.품목계정그룹,
+      대분류: item.대분류, 매출금액: sales, 매출비중: Math.round(salesShare * 10) / 10,
+      기말재고: item.기말, 회전율: item.회전율, quadrant,
+    });
+  }
+
+  return results.sort((a, b) => b.매출금액 - a.매출금액);
+}
+
+function getMedian(arr: number[]): number {
+  if (arr.length === 0) return 0;
+  const sorted = [...arr].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
+// ─── 원가 연계 재고 금액 ───────────────────────────────────────
+
+export interface InventoryValueItem {
+  품목: string;
+  품목명: string;
+  품목계정그룹: string;
+  대분류: string;
+  기말수량: number;
+  단가: number;
+  재고금액: number;       // 기말수량 × 단가
+  금액비중: number;       // % of total
+  abc금액: "A" | "B" | "C";
+}
+
+/**
+ * itemCostDetail에서 품목별 단가를 추출하여 재고 금액 계산
+ * 단가 = 실적매출원가.실적 ÷ 매출수량.실적
+ */
+export function calcInventoryValue(
+  items: ItemInventoryAnalysis[],
+  costData: ItemCostDetailRecord[]
+): InventoryValueItem[] {
+  // 원가 데이터에서 품목별 단가 추출
+  const costMap = new Map<string, number>();
+  for (const c of costData) {
+    const key = (c.품목 || "").trim();
+    if (!key) continue;
+    const qty = c.매출수량?.실적 ?? 0;
+    const cost = c.실적매출원가?.실적 ?? 0;
+    if (qty > 0 && cost > 0) {
+      costMap.set(key, safeDivide(cost, qty));
+    }
+  }
+
+  // 재고 × 단가 = 금액
+  const valued = items
+    .filter(item => item.기말 > 0)
+    .map(item => {
+      const unitCost = costMap.get(item.품목) || 0;
+      const value = item.기말 * unitCost;
+      return { ...item, unitCost, value };
+    })
+    .filter(item => item.value > 0)
+    .sort((a, b) => b.value - a.value);
+
+  const totalValue = valued.reduce((s, v) => s + v.value, 0);
+
+  // 금액 기준 ABC
+  let cumulative = 0;
+  return valued.map(item => {
+    const share = safeDivide(item.value, totalValue) * 100;
+    cumulative += share;
+    const abc = cumulative <= 80 ? "A" as const : cumulative <= 95 ? "B" as const : "C" as const;
+    return {
+      품목: item.품목, 품목명: item.품목명, 품목계정그룹: item.품목계정그룹,
+      대분류: item.대분류, 기말수량: item.기말,
+      단가: Math.round(item.unitCost),
+      재고금액: Math.round(item.value),
+      금액비중: Math.round(share * 10) / 10,
+      abc금액: abc,
+    };
+  });
 }

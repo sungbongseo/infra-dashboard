@@ -10,11 +10,12 @@ import {
   Tooltip as RechartsTooltip, Legend,
   PieChart, Pie, Cell,
   ComposedChart, Line, ReferenceLine,
+  ScatterChart, Scatter, ZAxis,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG } from "@/components/charts";
 import { Package, RefreshCw, AlertTriangle, Clock, PackageX, TrendingDown } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { formatNumber, safeFixed, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatNumber, safeFixed, formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcMonthlyMovement,
   calcSlowMoving,
@@ -26,12 +27,17 @@ import {
   calcCategoryInventory,
   calcCustomerInventory,
   calcStockoutEstimate,
+  calcSalesInventoryMatrix,
+  calcInventoryValue,
 } from "@/lib/analysis/inventoryAnalysis";
-import type { InventoryMovementRecord } from "@/types";
+import type { InventoryMovementRecord, SalesRecord } from "@/types";
+import type { ItemCostDetailRecord } from "@/types/itemCost";
 
 interface InventoryTabProps {
   data: InventoryMovementRecord[];
   isDateFiltered?: boolean;
+  salesData?: SalesRecord[];
+  costData?: ItemCostDetailRecord[];
 }
 
 /** YYYYMM → "YY.MM" or "없음" */
@@ -71,7 +77,21 @@ const ABC_COLORS = {
 const ACCOUNT_GROUPS = ["제품", "상품", "원재료", "부재료", "재공품", "저장품"] as const;
 const DEFAULT_GROUPS = new Set(["제품", "상품"]);
 
-export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
+const QUADRANT_COLORS: Record<string, string> = {
+  star: CHART_COLORS[0],
+  overstock: CHART_COLORS[3],
+  fast: CHART_COLORS[1],
+  review: CHART_COLORS[2],
+};
+
+const QUADRANT_LABELS: Record<string, { label: string; desc: string; style: string }> = {
+  star: { label: "Star", desc: "높매출+높회전 — 핵심 품목, 유지", style: "border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30" },
+  fast: { label: "Fast", desc: "높매출+낮회전 — 재고 부족 위험, 안전재고 확보", style: "border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-950/30" },
+  review: { label: "Review", desc: "낮매출+높회전 — 소량 빈번, 효율 검토", style: "border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/30" },
+  overstock: { label: "Overstock", desc: "낮매출+낮회전 — 정리 대상", style: "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30" },
+};
+
+export function InventoryTab({ data, isDateFiltered, salesData, costData }: InventoryTabProps) {
   const hasMonthData = data.some((r) => r.month);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(DEFAULT_GROUPS);
 
@@ -232,6 +252,38 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
 
   // 예상 소진일 경고
   const stockoutData = useMemo(() => calcStockoutEstimate(filteredItems), [filteredItems]);
+
+  // 매출×재고 사분면 매트릭스
+  const salesInventoryMatrix = useMemo(
+    () => salesData && salesData.length > 0 ? calcSalesInventoryMatrix(filteredItems, salesData) : [],
+    [filteredItems, salesData]
+  );
+
+  // 원가 연계 재고 금액
+  const inventoryValue = useMemo(
+    () => costData && costData.length > 0 ? calcInventoryValue(filteredItems, costData) : [],
+    [filteredItems, costData]
+  );
+
+  // 사분면 요약 카운트
+  const quadrantSummary = useMemo(() => {
+    const summary = { star: 0, fast: 0, review: 0, overstock: 0 };
+    for (const item of salesInventoryMatrix) {
+      summary[item.quadrant]++;
+    }
+    return summary;
+  }, [salesInventoryMatrix]);
+
+  // 재고금액 ABC 요약
+  const valueAbcSummary = useMemo(() => {
+    const summary = { A: { count: 0, total: 0 }, B: { count: 0, total: 0 }, C: { count: 0, total: 0 } };
+    const grandTotal = inventoryValue.reduce((s, v) => s + v.재고금액, 0);
+    for (const item of inventoryValue) {
+      summary[item.abc금액].count++;
+      summary[item.abc금액].total += item.재고금액;
+    }
+    return { ...summary, grandTotal };
+  }, [inventoryValue]);
 
   if (data.length === 0) return <EmptyState message="수불현황 데이터를 업로드해 주세요." />;
 
@@ -697,6 +749,205 @@ export function InventoryTab({ data, isDateFiltered }: InventoryTabProps) {
               data={stockoutData}
               defaultPageSize={10}
             />
+          </ErrorBoundary>
+        </ChartCard>
+      )}
+
+      {/* ─── E. 매출×재고 사분면 매트릭스 ─── */}
+      {salesInventoryMatrix.length > 0 && (
+        <ChartCard
+          title={`매출×재고 사분면 매트릭스 (${filterLabel})`}
+          formula="X축=매출금액, Y축=회전율. 중앙값 기준으로 4분면 분류"
+          description="매출 기여도와 재고 회전율을 교차 분석하여 품목별 전략적 위치를 파악합니다."
+          benchmark="Star 비중 30%+ 권장, Overstock 비중 20% 이하 권장"
+        >
+          <ErrorBoundary>
+            {/* 사분면 요약 카운트 */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4 px-2">
+              {(["star", "fast", "review", "overstock"] as const).map(q => (
+                <div
+                  key={q}
+                  className={`rounded-lg border px-3 py-2 text-center ${QUADRANT_LABELS[q].style}`}
+                >
+                  <div className="text-sm font-bold">{QUADRANT_LABELS[q].label}</div>
+                  <div className="text-lg font-bold">{quadrantSummary[q]}개</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">{QUADRANT_LABELS[q].desc}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* ScatterChart */}
+            <ChartContainer height="h-72 md:h-96">
+              <ScatterChart margin={{ top: 10, right: 20, bottom: 10, left: 10 }}>
+                <CartesianGrid {...GRID_PROPS} />
+                <XAxis
+                  type="number"
+                  dataKey="매출금액"
+                  name="매출금액"
+                  tick={{ fontSize: 11 }}
+                  tickFormatter={(v: any) => formatCurrency(v)}
+                  label={{ value: "매출금액", position: "insideBottom", offset: -5, fontSize: 11 }}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="회전율"
+                  name="회전율"
+                  tick={{ fontSize: 11 }}
+                  label={{ value: "회전율", angle: -90, position: "insideLeft", fontSize: 11 }}
+                />
+                <ZAxis type="number" dataKey="기말재고" range={[40, 400]} name="기말재고" />
+                <RechartsTooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: any, name: any) => {
+                    if (name === "매출금액") return [formatCurrency(Number(v)), name];
+                    if (name === "기말재고") return [formatNumber(Number(v)), name];
+                    return [safeFixed(Number(v), 1), name];
+                  }}
+                  labelFormatter={() => ""}
+                  content={({ active, payload }: any) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0]?.payload;
+                    if (!d) return null;
+                    return (
+                      <div className="rounded-lg border bg-background p-2 shadow-md text-xs space-y-1">
+                        <div className="font-semibold">{d.품목명 || d.품목}</div>
+                        <div>매출: {formatCurrency(d.매출금액)} ({safeFixed(d.매출비중, 1)}%)</div>
+                        <div>회전율: {safeFixed(d.회전율, 1)}</div>
+                        <div>기말재고: {formatNumber(d.기말재고)}</div>
+                        <div>
+                          사분면:{" "}
+                          <span className="font-semibold" style={{ color: QUADRANT_COLORS[d.quadrant] }}>
+                            {QUADRANT_LABELS[d.quadrant].label}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+                {(["star", "overstock", "fast", "review"] as const).map(q => (
+                  <Scatter
+                    key={q}
+                    name={QUADRANT_LABELS[q].label}
+                    data={salesInventoryMatrix.filter(item => item.quadrant === q)}
+                    fill={QUADRANT_COLORS[q]}
+                    {...ANIMATION_CONFIG}
+                  />
+                ))}
+                <Legend wrapperStyle={{ fontSize: 12 }} />
+              </ScatterChart>
+            </ChartContainer>
+
+            {/* DataTable */}
+            <div className="mt-4">
+              <DataTable
+                columns={[
+                  { header: "품목명", accessorKey: "품목명" },
+                  { header: "대분류", accessorKey: "대분류" },
+                  { header: "매출금액", accessorKey: "매출금액", cell: (info: any) => formatCurrency(info.getValue()) },
+                  { header: "매출비중(%)", accessorKey: "매출비중", cell: (info: any) => `${safeFixed(Number(info.getValue()), 1)}%` },
+                  { header: "기말재고", accessorKey: "기말재고", cell: (info: any) => formatNumber(info.getValue()) },
+                  { header: "회전율", accessorKey: "회전율", cell: (info: any) => safeFixed(Number(info.getValue()), 1) },
+                  {
+                    header: "사분면",
+                    accessorKey: "quadrant",
+                    cell: (info: any) => {
+                      const q = info.getValue() as string;
+                      return (
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold"
+                          style={{ color: QUADRANT_COLORS[q], backgroundColor: `${QUADRANT_COLORS[q]}15` }}
+                        >
+                          {QUADRANT_LABELS[q].label}
+                        </span>
+                      );
+                    },
+                  },
+                ]}
+                data={salesInventoryMatrix}
+                defaultPageSize={10}
+              />
+            </div>
+          </ErrorBoundary>
+        </ChartCard>
+      )}
+
+      {/* ─── F. 재고 금액 분석 ─── */}
+      {inventoryValue.length > 0 && (
+        <ChartCard
+          title={`재고 금액 분석 (${filterLabel})`}
+          formula="재고금액 = 기말수량 × 단가 (단가 = 실적매출원가 ÷ 매출수량)"
+          description="원가 데이터를 연계하여 수량 기반 재고를 금액으로 환산합니다. 금액 기준 ABC 등급으로 자금 집중도를 파악하세요."
+          benchmark="A등급(~80%) 품목의 재고 금액 관리가 가장 중요"
+        >
+          <ErrorBoundary>
+            {/* ABC 금액 요약 */}
+            <div className="grid grid-cols-3 gap-3 mb-4 px-2">
+              {(["A", "B", "C"] as const).map(grade => (
+                <div
+                  key={grade}
+                  className={`rounded-lg border px-3 py-2 text-center ${abcBadgeColor(grade)}`}
+                >
+                  <div className="text-lg font-bold">{grade}</div>
+                  <div className="text-xs">{valueAbcSummary[grade].count}종</div>
+                  <div className="text-sm font-semibold">{formatCurrency(valueAbcSummary[grade].total)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {valueAbcSummary.grandTotal > 0
+                      ? `${safeFixed(valueAbcSummary[grade].total / valueAbcSummary.grandTotal * 100, 1)}%`
+                      : "0%"}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* 상위 20개 품목 가로 BarChart */}
+              <ChartContainer height="h-80 md:h-96">
+                <BarChart
+                  data={inventoryValue.slice(0, 20)}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, bottom: 5, left: 80 }}
+                >
+                  <CartesianGrid {...GRID_PROPS} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: any) => formatCurrency(v)} />
+                  <YAxis type="category" dataKey="품목명" tick={{ fontSize: 9 }} width={75} />
+                  <RechartsTooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
+                  />
+                  <Bar dataKey="재고금액" name="재고금액" radius={[0, 4, 4, 0]} {...ANIMATION_CONFIG}>
+                    {inventoryValue.slice(0, 20).map((item, i) => (
+                      <Cell key={i} fill={ABC_COLORS[item.abc금액]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ChartContainer>
+
+              {/* DataTable */}
+              <DataTable
+                columns={[
+                  { header: "품목명", accessorKey: "품목명" },
+                  { header: "대분류", accessorKey: "대분류" },
+                  { header: "기말수량", accessorKey: "기말수량", cell: (info: any) => formatNumber(info.getValue()) },
+                  { header: "단가", accessorKey: "단가", cell: (info: any) => formatCurrency(info.getValue()) },
+                  { header: "재고금액", accessorKey: "재고금액", cell: (info: any) => formatCurrency(info.getValue()) },
+                  { header: "비중(%)", accessorKey: "금액비중", cell: (info: any) => `${safeFixed(Number(info.getValue()), 1)}%` },
+                  {
+                    header: "ABC",
+                    accessorKey: "abc금액",
+                    cell: (info: any) => {
+                      const abc = info.getValue() as "A" | "B" | "C";
+                      return (
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold border ${abcBadgeColor(abc)}`}>
+                          {abc}
+                        </span>
+                      );
+                    },
+                  },
+                ]}
+                data={inventoryValue}
+                defaultPageSize={10}
+              />
+            </div>
           </ErrorBoundary>
         </ChartCard>
       )}
