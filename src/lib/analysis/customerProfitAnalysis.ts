@@ -318,9 +318,9 @@ export function calcCustomerRanking(
       sales: v.sales,
       grossProfit: v.grossProfit,
       operatingProfit: v.operatingProfit,
-      grossMargin: v.sales !== 0 ? (v.grossProfit / v.sales) * 100 : 0,
-      opMargin: v.sales !== 0 ? (v.operatingProfit / v.sales) * 100 : 0,
-      planAchievement: v.planSales !== 0 ? (v.sales / v.planSales) * 100 : 0,
+      grossMargin: safeDivide(v.grossProfit, v.sales) * 100,
+      opMargin: safeDivide(v.operatingProfit, v.sales) * 100,
+      planAchievement: safeDivide(v.sales, v.planSales) * 100,
     })
   );
 
