@@ -13,7 +13,7 @@ import {
   Legend,
   Cell,
 } from "recharts";
-import { ArrowRightLeft, Wallet, AlertCircle } from "lucide-react";
+import { ArrowRightLeft, Wallet, AlertCircle, DollarSign } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
@@ -93,6 +93,16 @@ export function PipelineTab({
           description={`매출이 발생했지만 아직 거래처로부터 돈을 받지 못한 금액입니다. 선수금을 제외한 순수 수금 기준으로 계산하여 실제 미수 규모를 정확히 보여줍니다.${isAgingBased ? " (채권연령 데이터 기준)" : isDateFiltered ? " ⚠️ 기간 필터 적용 시 매출대비 추정치이며, 채권연령 데이터 업로드 시 정확한 값으로 대체됩니다." : ""}`}
           benchmark="매출 대비 20% 이하이면 양호한 수준입니다"
           reason="미수잔액 규모를 모니터링하여 유동성 리스크를 관리하고, 수금 활동 강화 시점을 판단합니다."
+        />
+        <KpiCard
+          title="실제 자금 필요"
+          value={Math.max(0, outstandingAmount - pipelineResult.prepaymentAmount)}
+          format="currency"
+          icon={<DollarSign className="h-5 w-5" />}
+          formula="실제 자금 필요 = 미수잔액 − 선수금 (이미 입금된 선수금을 차감한 순자금갭)"
+          description={`미수잔액 ${formatCurrency(outstandingAmount, true)}에서 선수금 ${formatCurrency(pipelineResult.prepaymentAmount, true)}을 차감한 실질적 자금 부족액입니다.`}
+          benchmark="이 금액이 0에 가까울수록 현금흐름이 건전합니다"
+          reason="선수금을 감안한 진정한 자금갭을 파악하여 유동성 관리의 정확도를 높입니다."
         />
       </div>
 

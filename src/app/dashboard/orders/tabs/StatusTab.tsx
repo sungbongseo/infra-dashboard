@@ -11,7 +11,7 @@ import {
   Tooltip as RechartsTooltip,
   Legend,
 } from "recharts";
-import { ShoppingCart, TrendingUp, Clock, Package } from "lucide-react";
+import { ShoppingCart, TrendingUp, Clock, Package, AlertTriangle } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
@@ -66,6 +66,16 @@ export function StatusTab({
 
   return (
     <>
+      {/* 수주 감소 추세 경고 */}
+      {pipelineInsight && pipelineInsight.newOrderGrowth !== null && isFinite(pipelineInsight.newOrderGrowth) && pipelineInsight.newOrderGrowth <= -20 && (
+        <div className="rounded-md bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 p-3 text-sm text-red-700 dark:text-red-400 flex items-center gap-2 mb-4">
+          <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+          <span>
+            <span className="font-medium">수주 감소 경고:</span> 전월 대비 {Math.abs(pipelineInsight.newOrderGrowth).toFixed(0)}% 감소 — 신규 수주 확보 활동이 시급합니다.
+          </span>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="총 수주액"
