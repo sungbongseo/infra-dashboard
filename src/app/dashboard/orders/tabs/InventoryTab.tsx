@@ -29,6 +29,8 @@ import {
   calcStockoutEstimate,
   calcSalesInventoryMatrix,
   calcInventoryValue,
+  calcInventoryForecast,
+  calcItemGroupInventory,
 } from "@/lib/analysis/inventoryAnalysis";
 import type { InventoryMovementRecord, SalesRecord } from "@/types";
 import type { ItemCostDetailRecord } from "@/types/itemCost";
@@ -264,6 +266,11 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
     () => costData && costData.length > 0 ? calcInventoryValue(filteredItems, costData) : [],
     [filteredItems, costData]
   );
+
+  // 수요 예측 (raw data 기반, 월별 데이터 전체)
+  const forecastItems = useMemo(() => calcInventoryForecast(data), [data]);
+  // 품목그룹별 재고 분석 (raw data 기반)
+  const itemGroupSummary = useMemo(() => calcItemGroupInventory(data), [data]);
 
   // 사분면 요약 카운트
   const quadrantSummary = useMemo(() => {
@@ -945,6 +952,124 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
                   },
                 ]}
                 data={inventoryValue}
+                defaultPageSize={10}
+              />
+            </div>
+          </ErrorBoundary>
+        </ChartCard>
+      )}
+
+      {/* ─── G. 수요 예측 (이동평균) ─── */}
+      {forecastItems.length > 0 && (
+        <ChartCard
+          title="재고 수요 예측 (이동평균)"
+          formula="최근 3개월 평균 출고량 기반 예측. 커버리지 = 기말재고 ÷ 월평균 출고"
+          description="커버리지가 1개월 미만이면 긴급 보충이 필요합니다."
+        >
+          <ErrorBoundary>
+            {/* 커버리지 위험 요약 */}
+            <div className="grid grid-cols-3 gap-3 mb-4 px-2">
+              <div className="rounded-lg border px-3 py-2 text-center border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
+                <div className="text-xs text-muted-foreground">위험 (&lt;1개월)</div>
+                <div className="text-xl font-bold text-red-600 dark:text-red-400">
+                  {forecastItems.filter(f => f.coverageMonths < 1).length}
+                </div>
+              </div>
+              <div className="rounded-lg border px-3 py-2 text-center border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+                <div className="text-xs text-muted-foreground">주의 (1~3개월)</div>
+                <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                  {forecastItems.filter(f => f.coverageMonths >= 1 && f.coverageMonths < 3).length}
+                </div>
+              </div>
+              <div className="rounded-lg border px-3 py-2 text-center border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/30">
+                <div className="text-xs text-muted-foreground">안전 (3개월+)</div>
+                <div className="text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {forecastItems.filter(f => f.coverageMonths >= 3).length}
+                </div>
+              </div>
+            </div>
+
+            <DataTable
+              columns={[
+                { header: "품목명", accessorKey: "품목명" },
+                { header: "품목계정그룹", accessorKey: "품목계정그룹" },
+                { header: "대분류", accessorKey: "대분류" },
+                { header: "기말재고", accessorKey: "기말재고", cell: (info: any) => formatNumber(info.getValue()) },
+                { header: "월평균출고", accessorKey: "avgMonthlyOut", cell: (info: any) => formatNumber(info.getValue()) },
+                { header: "예측출고", accessorKey: "forecastNextMonth", cell: (info: any) => formatNumber(info.getValue()) },
+                {
+                  header: "커버리지(월)",
+                  accessorKey: "coverageMonths",
+                  cell: (info: any) => {
+                    const months = Number(info.getValue());
+                    const color = months < 1
+                      ? "text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/30"
+                      : months < 3
+                        ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                        : "text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30";
+                    return (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${color}`}>
+                        {months >= 999 ? "∞" : safeFixed(months, 1)}개월
+                      </span>
+                    );
+                  },
+                },
+                {
+                  header: "추세",
+                  accessorKey: "trend",
+                  cell: (info: any) => {
+                    const trend = info.getValue() as string;
+                    if (trend === "increasing") return <span className="text-emerald-600 dark:text-emerald-400 text-xs font-medium">증가 ▲</span>;
+                    if (trend === "decreasing") return <span className="text-red-600 dark:text-red-400 text-xs font-medium">감소 ▼</span>;
+                    return <span className="text-gray-500 dark:text-gray-400 text-xs font-medium">안정 ─</span>;
+                  },
+                },
+              ]}
+              data={forecastItems}
+              defaultPageSize={10}
+            />
+          </ErrorBoundary>
+        </ChartCard>
+      )}
+
+      {/* ─── H. 품목그룹별 재고 분석 ─── */}
+      {itemGroupSummary.length > 0 && (
+        <ChartCard
+          title="품목그룹별 재고 현황"
+          formula="품목그룹별 기말재고·출고량·회전율·사장재고 비교"
+        >
+          <ErrorBoundary>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* 가로 BarChart: 상위 15개 */}
+              <ChartContainer height="h-64 md:h-80">
+                <BarChart
+                  data={itemGroupSummary.slice(0, 15)}
+                  layout="vertical"
+                  margin={{ top: 5, right: 20, bottom: 5, left: 80 }}
+                >
+                  <CartesianGrid {...GRID_PROPS} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v: any) => formatNumber(v)} />
+                  <YAxis type="category" dataKey="group" tick={{ fontSize: 10 }} width={75} />
+                  <RechartsTooltip
+                    {...TOOLTIP_STYLE}
+                    formatter={(v: any, name: any) => [formatNumber(Number(v)), name]}
+                  />
+                  <Bar dataKey="totalClosing" name="기말재고" fill={CHART_COLORS[0]} radius={[0, 4, 4, 0]} {...ANIMATION_CONFIG} />
+                </BarChart>
+              </ChartContainer>
+
+              {/* DataTable */}
+              <DataTable
+                columns={[
+                  { header: "그룹", accessorKey: "group" },
+                  { header: "품목수", accessorKey: "itemCount" },
+                  { header: "기말재고", accessorKey: "totalClosing", cell: (info: any) => formatNumber(info.getValue()) },
+                  { header: "총출고", accessorKey: "totalOutgoing", cell: (info: any) => formatNumber(info.getValue()) },
+                  { header: "평균회전율", accessorKey: "avgTurnover", cell: (info: any) => safeFixed(Number(info.getValue()), 1) },
+                  { header: "사장재고수", accessorKey: "deadStockCount" },
+                  { header: "과잉재고수", accessorKey: "overstockCount" },
+                ]}
+                data={itemGroupSummary}
                 defaultPageSize={10}
               />
             </div>

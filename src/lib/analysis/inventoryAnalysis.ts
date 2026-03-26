@@ -688,3 +688,153 @@ export function calcInventoryValue(
     };
   });
 }
+
+// ─── 재고 수요 예측 (월별 이동평균) ────────────────────────────
+
+export interface InventoryForecastItem {
+  품목: string;
+  품목명: string;
+  품목계정그룹: string;
+  대분류: string;
+  기말재고: number;
+  monthlyOutgoing: { month: string; qty: number }[];  // 월별 출고 이력
+  avgMonthlyOut: number;    // 최근 3개월 평균 월 출고
+  forecastNextMonth: number; // 다음 달 예측 출고 (이동평균)
+  coverageMonths: number;   // 현재 재고 ÷ 예측 출고 = 커버리지 월수
+  trend: "increasing" | "stable" | "decreasing"; // 출고 추세
+}
+
+/**
+ * 월별 데이터 기반 품목별 수요 예측
+ * 최근 3개월 이동평균으로 다음 달 출고 예측, 커버리지 월수 계산
+ */
+export function calcInventoryForecast(
+  data: InventoryMovementRecord[]
+): InventoryForecastItem[] {
+  if (!data.some(r => r.month)) return []; // 월별 데이터 없으면 빈 배열
+
+  // 품목별 월별 출고 집계
+  const itemMonthly = new Map<string, {
+    품목명: string; 품목계정그룹: string; 대분류: string; 기말: number;
+    months: Map<string, number>;
+  }>();
+
+  for (const r of data) {
+    const key = (r.품목 || "").trim();
+    if (!key || !r.month) continue;
+    const entry = itemMonthly.get(key) || {
+      품목명: r.품목명, 품목계정그룹: r.품목계정그룹, 대분류: r.대분류 || "",
+      기말: 0, months: new Map(),
+    };
+    entry.기말 = Math.max(entry.기말, r.기말 ?? 0); // 가장 최근 기말
+    entry.months.set(r.month, (entry.months.get(r.month) || 0) + (r.출고 ?? 0));
+    itemMonthly.set(key, entry);
+  }
+
+  const results: InventoryForecastItem[] = [];
+
+  for (const [품목, v] of Array.from(itemMonthly.entries())) {
+    if (v.months.size < 2) continue; // 2개월 미만 데이터 스킵
+
+    const sorted = Array.from(v.months.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, qty]) => ({ month, qty }));
+
+    // 최근 3개월 (또는 가용 데이터) 이동평균
+    const recent = sorted.slice(-3);
+    const avgOut = recent.reduce((s, m) => s + m.qty, 0) / recent.length;
+
+    // 추세 판단: 최근 3개월 중 마지막 vs 첫째
+    let trend: InventoryForecastItem["trend"] = "stable";
+    if (recent.length >= 2) {
+      const first = recent[0].qty;
+      const last = recent[recent.length - 1].qty;
+      const change = first > 0 ? safeDivide(last - first, first) : 0;
+      if (change > 0.15) trend = "increasing";
+      else if (change < -0.15) trend = "decreasing";
+    }
+
+    const coverageMonths = avgOut > 0 ? safeDivide(v.기말, avgOut) : (v.기말 > 0 ? 999 : 0);
+
+    results.push({
+      품목, 품목명: v.품목명, 품목계정그룹: v.품목계정그룹, 대분류: v.대분류,
+      기말재고: v.기말,
+      monthlyOutgoing: sorted,
+      avgMonthlyOut: Math.round(avgOut),
+      forecastNextMonth: Math.round(avgOut), // 단순 이동평균 = 예측
+      coverageMonths: Math.round(coverageMonths * 10) / 10,
+      trend,
+    });
+  }
+
+  return results.sort((a, b) => a.coverageMonths - b.coverageMonths); // 위험한 순
+}
+
+// ─── 품목그룹별 재고 분석 ──────────────────────────────────────
+
+export interface ItemGroupInventorySummary {
+  group: string;
+  itemCount: number;
+  totalClosing: number;
+  totalOutgoing: number;
+  avgTurnover: number;
+  deadStockCount: number;
+  overstockCount: number;
+}
+
+/** 품목그룹 필드 기반 재고 집계 (품목계정그룹과 다른 분류 체계) */
+export function calcItemGroupInventory(
+  data: InventoryMovementRecord[]
+): ItemGroupInventorySummary[] {
+  const map = new Map<string, {
+    items: Set<string>; closing: number; outgoing: number;
+    turnovers: number[]; deadCount: number; overstockCount: number;
+  }>();
+
+  // 품목별 먼저 집계
+  const itemMap = new Map<string, { group: string; 기초: number; 입고: number; 출고: number; 기말: number }>();
+  for (const r of data) {
+    const key = (r.품목 || "").trim();
+    if (!key) continue;
+    const entry = itemMap.get(key) || {
+      group: r.품목그룹 || "미분류", 기초: 0, 입고: 0, 출고: 0, 기말: 0,
+    };
+    entry.기초 += r.기초 ?? 0;
+    entry.입고 += r.입고 ?? 0;
+    entry.출고 += r.출고 ?? 0;
+    entry.기말 += r.기말 ?? 0;
+    itemMap.set(key, entry);
+  }
+
+  // 그룹별 집계
+  for (const [품목, item] of Array.from(itemMap.entries())) {
+    const group = item.group;
+    const entry = map.get(group) || {
+      items: new Set(), closing: 0, outgoing: 0,
+      turnovers: [], deadCount: 0, overstockCount: 0,
+    };
+    entry.items.add(품목);
+    entry.closing += item.기말;
+    entry.outgoing += item.출고;
+    const avg = (item.기초 + item.기말) / 2;
+    const turnover = avg > 0 ? safeDivide(item.출고, avg) : 0;
+    if (turnover > 0) entry.turnovers.push(turnover);
+    if (item.기말 > 0 && item.출고 === 0) entry.deadCount++;
+    if (item.출고 > 0 && safeDivide(item.입고, item.출고) > 1.5) entry.overstockCount++;
+    map.set(group, entry);
+  }
+
+  return Array.from(map.entries())
+    .map(([group, v]) => ({
+      group,
+      itemCount: v.items.size,
+      totalClosing: v.closing,
+      totalOutgoing: v.outgoing,
+      avgTurnover: v.turnovers.length > 0
+        ? Math.round((v.turnovers.reduce((s, t) => s + t, 0) / v.turnovers.length) * 10) / 10
+        : 0,
+      deadStockCount: v.deadCount,
+      overstockCount: v.overstockCount,
+    }))
+    .sort((a, b) => b.totalClosing - a.totalClosing);
+}
