@@ -56,7 +56,8 @@ export function MigrationTab({ filteredSales, isDateFiltered }: MigrationTabProp
       const severity = isMinorDrop ? "warning" as const : "danger" as const;
       const priorityLabel = isMinorDrop ? "관계 점검" : "즉시 영업 접촉";
       for (const c of flow.customers.slice(0, 10)) {
-        downgradedCustomers.push({ name: c, from: flow.fromGrade, to: flow.toGrade, severity, priorityLabel });
+        const displayName = migration.nameMap[c] || c;
+        downgradedCustomers.push({ name: displayName, from: flow.fromGrade, to: flow.toGrade, severity, priorityLabel });
       }
     }
     // 등급 하락 폭 큰 순서, 상위 10개만

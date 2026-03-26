@@ -105,11 +105,13 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
   matrices: MigrationMatrix[];
   summaries: MigrationSummary[];
   gradeThresholds: { A: number; B: number; C: number };
+  nameMap: Record<string, string>;
 } {
   const emptyResult = {
     matrices: [],
     summaries: [],
     gradeThresholds: { A: 0, B: 0, C: 0 },
+    nameMap: {} as Record<string, string>,
   };
 
   if (!sales || sales.length === 0) return emptyResult;
@@ -118,6 +120,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
   // 음수 매출(반품)은 등급 산정에서 제외하고 별도 집계하지 않음
   // monthCustomerSales: Map<month, Map<customer, totalSales>>
   const monthCustomerSales = new Map<string, Map<string, number>>();
+  const customerNameMap = new Map<string, string>(); // 코드→이름 매핑
 
   for (const record of sales) {
     const month = extractMonth(record.매출일);
@@ -125,6 +128,11 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
 
     const customer = record.매출처 || "";
     if (!customer) continue;
+
+    // 거래처 코드→이름 매핑 수집
+    if (record.매출처명 && !customerNameMap.has(customer)) {
+      customerNameMap.set(customer, record.매출처명);
+    }
 
     // 음수 매출(반품) 행은 등급 산정에서 제외
     const amount = record.장부금액 || 0;
@@ -308,6 +316,7 @@ export function calcCustomerMigration(sales: SalesRecord[]): {
       B: thresholdB,
       C: thresholdC,
     },
+    nameMap: Object.fromEntries(customerNameMap),
   };
 }
 
