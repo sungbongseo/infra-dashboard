@@ -8,7 +8,7 @@ import {
   Tooltip as RechartsTooltip, Legend,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeDivide } from "@/lib/utils";
 import type { RepTrend } from "@/lib/analysis/profiling";
 
 interface TrendTabProps {
@@ -48,6 +48,18 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
     return { recent3Avg, totalAvg, trendLabel, trendColor, cv };
   }, [repTrend]);
 
+  // 2-4: 동월 YoY 성장률
+  const yoyGrowth = useMemo(() => {
+    if (!repTrend || repTrend.monthlyData.length < 13) return null;
+    const last = repTrend.monthlyData[repTrend.monthlyData.length - 1];
+    const lastMonth = last.month.slice(-2); // MM part
+    const sameMonthLastYear = repTrend.monthlyData.find(d =>
+      d.month.slice(-2) === lastMonth && d.month < last.month
+    );
+    if (!sameMonthLastYear || sameMonthLastYear.sales === 0) return null;
+    return safeDivide((last.sales - sameMonthLastYear.sales), sameMonthLastYear.sales) * 100;
+  }, [repTrend]);
+
   if (!repTrend) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -59,7 +71,7 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
 
   return (
     <>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${yoyGrowth !== null ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
         <KpiCard
           title="월평균 매출"
           value={repTrend.avgMonthlySales}
@@ -96,6 +108,18 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
             <p className="text-[10px] text-muted-foreground mt-2">최근 매출 추세의 방향성(가속/안정/감속)</p>
           </CardContent>
         </Card>
+        {/* 2-4: 동월 YoY 성장률 */}
+        {yoyGrowth !== null && (
+          <KpiCard
+            title="동월 YoY 성장률"
+            value={yoyGrowth}
+            format="percent"
+            formula="YoY 성장률 = (당월 매출 - 전년 동월 매출) ÷ |전년 동월 매출| × 100"
+            description="전년 동월과 비교한 매출 성장률입니다. 양수면 작년보다 성장, 음수면 역성장입니다."
+            benchmark="YoY +10% 이상이면 고성장, 0~10%이면 안정적, 마이너스이면 역성장"
+            reason="전년 동월 대비 성장률로 계절성을 제거한 순수 성장을 측정합니다."
+          />
+        )}
       </div>
 
       {trendInsight && (

@@ -44,6 +44,22 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
     return { highMarginPct, lowMarginPct };
   }, [productPortfolio]);
 
+  // 2-5: 마진 분포 인사이트 (고마진/적자 품목 분포)
+  const marginDistribution = useMemo(() => {
+    if (!productPortfolio || productPortfolio.productMix.length === 0) return null;
+    const mix = productPortfolio.productMix;
+    const totalSales = mix.reduce((s, p) => s + p.salesAmount, 0);
+    if (totalSales <= 0) return null;
+
+    const highMarginCount = mix.filter(p => isFinite(p.grossMarginRate) && p.grossMarginRate > 20).length;
+    const negativeMarginProducts = mix.filter(p => isFinite(p.grossMarginRate) && p.grossMarginRate < 0);
+    const negativeMarginCount = negativeMarginProducts.length;
+    const negativeMarginSales = negativeMarginProducts.reduce((s, p) => s + p.salesAmount, 0);
+    const negativeMarginSalesPct = (negativeMarginSales / totalSales) * 100;
+
+    return { highMarginCount, negativeMarginCount, negativeMarginSalesPct, total: mix.length };
+  }, [productPortfolio]);
+
   if (!hasCustomerItemDetail || !productPortfolio) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -69,9 +85,9 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
           title="품목 집중도 (HHI)"
           value={productPortfolio.productConcentrationHHI}
           format="number"
-          formula="HHI = Σ(품목별 매출 비중²)\n0에 가까울수록 분산, 1에 가까울수록 집중"
-          description={`HHI(허핀달-허쉬만 지수)로 품목 매출 집중도를 측정합니다. 현재 ${safe(productPortfolio.productConcentrationHHI, 3)} → ${productPortfolio.productConcentrationHHI > 0.25 ? "집중" : productPortfolio.productConcentrationHHI > 0.15 ? "적정" : "분산"} 상태입니다.`}
-          benchmark="0.25 초과 = 고집중(위험), 0.15~0.25 = 적정, 0.15 미만 = 분산(안정)"
+          formula="HHI = Σ(품목별 매출 비중²) × 10000\n0에 가까울수록 분산, 10000에 가까울수록 집중"
+          description={`HHI(허핀달-허쉬만 지수)로 품목 매출 집중도를 측정합니다. 현재 ${safe(productPortfolio.productConcentrationHHI, 0)} → ${productPortfolio.productConcentrationHHI > 2500 ? "집중" : productPortfolio.productConcentrationHHI > 1500 ? "적정" : "분산"} 상태입니다.`}
+          benchmark="2500 초과 = 고집중(위험), 1500~2500 = 적정, 1500 미만 = 분산(안정)"
           reason="품목 집중도를 측정하여 특정 제품 매출 급감 시 리스크를 사전에 관리합니다."
         />
         <KpiCard
@@ -96,7 +112,7 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
 
       {marginInsight && (
         <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">📊 마진 분석</h4>
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">마진 분석</h4>
           <ul className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
             <li>• 고마진 품목 비중: {formatPercent(marginInsight.highMarginPct)} (평균 마진율의 1.2배 초과 품목)</li>
             <li>• 저마진 품목 비중: {formatPercent(marginInsight.lowMarginPct)} (평균 마진율의 0.8배 미만 품목)
@@ -107,6 +123,29 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
               )}
             </li>
           </ul>
+        </div>
+      )}
+
+      {/* 2-5: 마진 분포 인사이트 */}
+      {marginDistribution && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3 text-sm">
+            <p className="text-xs text-muted-foreground mb-1">고마진 품목 (20% 초과)</p>
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{marginDistribution.highMarginCount}건</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">전체 {marginDistribution.total}건 중</p>
+          </div>
+          <div className={`rounded-lg p-3 text-sm border ${marginDistribution.negativeMarginCount > 0 ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-muted/30 border-muted"}`}>
+            <p className="text-xs text-muted-foreground mb-1">적자 품목 (마진 0% 미만)</p>
+            <p className={`text-lg font-bold ${marginDistribution.negativeMarginCount > 0 ? "text-red-700 dark:text-red-300" : ""}`}>{marginDistribution.negativeMarginCount}건</p>
+            <p className="text-xs text-muted-foreground">전체 {marginDistribution.total}건 중</p>
+          </div>
+          <div className={`rounded-lg p-3 text-sm border ${marginDistribution.negativeMarginSalesPct > 30 ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-muted/30 border-muted"}`}>
+            <p className="text-xs text-muted-foreground mb-1">적자 품목 매출 비중</p>
+            <p className={`text-lg font-bold ${marginDistribution.negativeMarginSalesPct > 30 ? "text-red-700 dark:text-red-300" : ""}`}>{formatPercent(marginDistribution.negativeMarginSalesPct)}</p>
+            {marginDistribution.negativeMarginSalesPct > 30 && (
+              <p className="text-xs text-red-600 dark:text-red-400 font-medium">매출의 30% 이상이 적자 — 긴급 점검 필요</p>
+            )}
+          </div>
         </div>
       )}
 

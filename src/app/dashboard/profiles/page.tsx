@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CHART_COLORS } from "@/lib/utils";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { AlertTriangle } from "lucide-react";
 import { useFilterStore } from "@/stores/filterStore";
 import { useFilteredSales, useFilteredOrders, useFilteredCollections, useFilteredTeamContribution, useFilteredReceivables, useFilteredCustomerItemDetail } from "@/lib/hooks/useFilteredData";
 
@@ -47,6 +48,9 @@ export default function ProfilesPage() {
 
   const hasData = profiles.length > 0;
   const selected = selectedPerson ? profiles.find((p) => p.id === selectedPerson) : profiles[0];
+
+  // 동명이인 감지: 여러 사번이 같은 이름에 매핑되면 nameToId 크기 < idToName 크기
+  const hasHomonyms = nameToId.size < idToName.size;
 
   // 축별 만점 (5축이면 20, 4축이면 25)
   const axisMax = hasAgingData ? 20 : 25;
@@ -227,6 +231,13 @@ export default function ProfilesPage() {
           </Select>
         </div>
       </div>
+
+      {hasHomonyms && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-3 flex items-start gap-2 text-sm">
+          <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+          <span className="text-amber-800 dark:text-amber-300">동명이인이 감지되었습니다. 동일 이름의 영업사원이 있을 경우 점수가 합산될 수 있습니다.</span>
+        </div>
+      )}
 
       <Tabs defaultValue="performance" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex-wrap h-auto gap-1">

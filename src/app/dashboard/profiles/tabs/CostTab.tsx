@@ -54,6 +54,20 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
     return sortDir === "desc" ? <ArrowDown className="h-3 w-3" /> : <ArrowUp className="h-3 w-3" />;
   };
 
+  const costInsights = useMemo(() => {
+    if (!selectedCostData || !orgAverage) return [];
+    const items = [
+      { name: "원재료비율", person: selectedCostData.rawMaterialRate, org: orgAverage.rawMaterialRate },
+      { name: "외주가공비율", person: selectedCostData.outsourcingRate, org: orgAverage.outsourcingRate },
+      { name: "판관변동비율", person: selectedCostData.variableCostRate, org: orgAverage.variableCostRate },
+      { name: "판관고정비율", person: selectedCostData.fixedCostRate, org: orgAverage.fixedCostRate },
+    ];
+    return items
+      .map(i => ({ ...i, diff: i.person - i.org }))
+      .filter(i => Math.abs(i.diff) > 2)
+      .sort((a, b) => Math.abs(b.diff) - Math.abs(a.diff));
+  }, [selectedCostData, orgAverage]);
+
   if (!hasTeamContribution) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -103,6 +117,31 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
             benchmark="1인당 급여가 업계 중위수 대비 ±10% 이내이면 적정"
             reason="고정비 비율로 매출 규모 대비 인건비·경비 부담을 평가하여, 인력 구조 최적화 방향을 도출합니다."
           />
+        </div>
+      )}
+
+      {/* 2-3: 조직 평균 대비 비용 비교 인사이트 */}
+      {costInsights.length > 0 && (
+        <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">비용 구조 비교 (조직 평균 대비)</h4>
+          <div className="space-y-1.5">
+            {costInsights.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm">
+                <span className={`inline-block w-2 h-2 rounded-full ${item.diff > 0 ? "bg-red-500" : "bg-emerald-500"}`} />
+                <span className="text-blue-800 dark:text-blue-200">
+                  {item.name}: {safe(item.person)}%
+                  <span className={`ml-1 font-medium ${item.diff > 0 ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    ({item.diff > 0 ? "+" : ""}{safe(item.diff)}%p {item.diff > 0 ? "높음" : "낮음"})
+                  </span>
+                </span>
+              </div>
+            ))}
+            {costInsights.some(i => i.diff > 5) && (
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 font-medium">
+                조직 평균 대비 5%p 이상 높은 항목은 비용 절감 검토가 필요합니다.
+              </p>
+            )}
+          </div>
         </div>
       )}
 

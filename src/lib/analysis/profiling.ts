@@ -344,6 +344,11 @@ export function calcPerformanceScores(
   const maxOrders = Array.from(personOrders.values()).reduce((max, v) => Math.max(max, v), 1);
   const maxContribRate = Array.from(personContrib.values()).reduce((max, v) => Math.max(max, v.rate), 1);
 
+  // 조직 전체 매출·수금 합계 (수금 데이터 없는 담당자의 평균 대체용)
+  const totalOrgSales = Array.from(personSales.values()).reduce((sum, v) => sum + v.amount, 0);
+  const totalOrgCollections = Array.from(personCollections.values()).reduce((sum, v) => sum + v, 0);
+  const orgAvgCollectionRate = totalOrgSales > 0 ? safeDivide(totalOrgCollections, totalOrgSales) : 0;
+
   const profiles: SalesRepProfile[] = [];
 
   for (const id of Array.from(allPersons)) {
@@ -355,9 +360,18 @@ export function calcPerformanceScores(
 
     const salesScore = (safeDivide(salesAmt, maxSales)) * w.sales;
     const orderScore = (safeDivide(orderAmt, maxOrders)) * w.growth;
+    // 공헌이익율이 음수인 경우 점수를 0으로 클램프 (음수 점수가 totalScore를 왜곡하는 것 방지)
     const profitScore =
-      maxContribRate > 0 ? (contribRate / maxContribRate) * w.profit : 0;
-    const collectionRate = salesAmt > 0 ? collectAmt / salesAmt : 0;
+      maxContribRate > 0 ? Math.max(0, safeDivide(contribRate, maxContribRate)) * w.profit : 0;
+
+    // 수금 점수: 매출은 있으나 매칭된 수금 데이터가 없는 경우 조직 평균 수금율을 대체값으로 사용
+    // (데이터 부재로 인한 0점 패널티를 방지 — 미수금 건전성의 만점 처리와 대칭 유지)
+    let collectionRate: number;
+    if (salesAmt > 0 && collectAmt === 0) {
+      collectionRate = orgAvgCollectionRate;
+    } else {
+      collectionRate = salesAmt > 0 ? collectAmt / salesAmt : 0;
+    }
     // 수금율 >100%(선수금 등) 가능하나 scoring 정규화 목적으로 1.0에서 클램프
     const collectionScore = Math.min(collectionRate, 1) * w.collection;
 
@@ -680,11 +694,11 @@ export function calcRepProductPortfolio(
     }))
     .sort((a, b) => b.salesAmount - a.salesAmount);
 
-  // HHI (품목 집중도)
+  // HHI (품목 집중도) — 0~10000 스케일 (거래처 HHI와 동일)
   const productHHI = productMix.reduce((sum, p) => {
     const share = totalSales > 0 ? p.salesAmount / totalSales : 0;
     return sum + share * share;
-  }, 0);
+  }, 0) * 10000;
 
   // 가중평균 마진
   const totalGP = productMix.reduce((s, p) => s + p.grossProfit, 0);

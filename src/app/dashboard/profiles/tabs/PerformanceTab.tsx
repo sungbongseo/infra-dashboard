@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,7 +7,7 @@ import {
   Tooltip as RechartsTooltip, Legend,
 } from "recharts";
 import { ChartContainer } from "@/components/charts";
-import { Users } from "lucide-react";
+import { Users, TrendingUp, TrendingDown } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { SalesRepProfile } from "@/lib/analysis/profiling";
 
@@ -24,6 +25,24 @@ interface PerformanceTabProps {
 }
 
 export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, profilesLength, formulaText, descText, isDateFiltered }: PerformanceTabProps) {
+  const strengthWeakness = useMemo(() => {
+    if (!selected) return null;
+    const axes = [
+      { name: "매출", score: selected.score.salesScore },
+      { name: "수주", score: selected.score.orderScore },
+      { name: "수익성", score: selected.score.profitScore },
+      { name: "수금", score: selected.score.collectionScore },
+    ];
+    if (hasAgingData) {
+      axes.push({ name: "미수금건전성", score: selected.score.receivableScore });
+    }
+    const sorted = [...axes].sort((a, b) => b.score - a.score);
+    return {
+      strength: sorted[0],
+      weakness: sorted[sorted.length - 1],
+    };
+  }, [selected, hasAgingData]);
+
   if (profilesLength === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -35,6 +54,16 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
 
   return (
     <>
+      {/* 3-1: 평가 모드 배지 */}
+      <div className="flex items-center gap-2">
+        <Badge variant={hasAgingData ? "default" : "secondary"}>
+          {hasAgingData ? "5축 평가 (전 항목 반영)" : "4축 평가 (미수금 데이터 없음)"}
+        </Badge>
+        <span className="text-xs text-muted-foreground">
+          각 항목 {axisMax}점 만점, 총 100점
+        </span>
+      </div>
+
       {selected && (
         <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 ${hasAgingData ? "lg:grid-cols-7" : "lg:grid-cols-6"}`}>
           <Card className="lg:col-span-2">
@@ -133,6 +162,26 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
             </RadarChart>
         </ChartContainer>
       </ChartCard>
+
+      {/* 2-1: 강점/약점 자동 인사이트 */}
+      {strengthWeakness && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3 text-sm flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <div>
+              <span className="font-medium text-emerald-800 dark:text-emerald-300">강점: {strengthWeakness.strength.name}</span>
+              <span className="text-emerald-700 dark:text-emerald-400"> ({safe(strengthWeakness.strength.score, 1)}/{axisMax}점)</span>
+            </div>
+          </div>
+          <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-sm flex items-center gap-2">
+            <TrendingDown className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+            <div>
+              <span className="font-medium text-red-800 dark:text-red-300">개선 필요: {strengthWeakness.weakness.name}</span>
+              <span className="text-red-700 dark:text-red-400"> ({safe(strengthWeakness.weakness.score, 1)}/{axisMax}점)</span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

@@ -171,6 +171,20 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                     <span className="flex-1 text-right">과점</span>
                   </div>
                 </div>
+                {/* 2-2: HHI 리스크별 액션 아이템 */}
+                <div className="rounded-lg border border-muted bg-muted/30 p-3 mt-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">권장 액션</p>
+                  {selected.hhiRiskLevel === "high" && (
+                    <p className="text-xs">Top 거래처 의존도가 매우 높습니다. <strong>신규 거래처 개발</strong>과 <strong>매출 분산</strong>이 시급합니다. 2~3위 거래처 매출 확대를 우선 추진하세요.</p>
+                  )}
+                  {selected.hhiRiskLevel === "medium" && (
+                    <p className="text-xs">적정 수준이나 <strong>Top1 거래처 비중을 지속 모니터링</strong>하세요. 신규 거래처를 점진적으로 확보하면 더욱 안정적입니다.</p>
+                  )}
+                  {selected.hhiRiskLevel === "low" && (
+                    <p className="text-xs">거래처 포트폴리오가 <strong>안정적으로 분산</strong>되어 있습니다. 현재 전략을 유지하면서 주요 거래처 관계 강화에 집중하세요.</p>
+                  )}
+                </div>
+
                 {selected.topCustomers.length > 0 && (
                   <div className="space-y-2 mt-2">
                     <p className="text-sm font-medium">상위 거래처 매출 비중</p>
