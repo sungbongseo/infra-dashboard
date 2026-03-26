@@ -154,7 +154,7 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
       {/* Main chart: monthly sales with anomaly highlighting and reference lines */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         title="월별 매출 이상치 탐지"
-        formula="월 매출이 정상 범위의 상한/하한 기준선을 크게 벗어나면 이상치로 판정"
+        formula="IQR × 1.5 기준 (Q1 - 1.5×IQR ~ Q3 + 1.5×IQR 범위 초과 시 이상치 판정)"
         description="각 월의 매출액을 막대로 표시합니다. 점선은 정상 매출 범위의 상한/하한 기준선이며, 빨간색 막대는 기준선을 벗어난 비정상 매출 월입니다."
         benchmark="이상치가 연속 2개월 이상 나타나면 구조적 문제 점검 필요"
         reason="통계적 기법으로 정상 매출 범위를 시각화하여 비정상적 월을 즉시 식별하고, 원인 규명을 통해 반복 방지 또는 성공 요인 확산에 활용합니다."
@@ -222,8 +222,8 @@ export function AnomalyTab({ filteredSales, isDateFiltered }: AnomalyTabProps) {
                   <th className="py-2 px-3 font-medium">월</th>
                   <th className="py-2 px-3 font-medium text-right">매출액</th>
                   <th className="py-2 px-3 font-medium text-center">유형</th>
+                  <th className="py-2 px-3 font-medium text-left">주요 기여 거래처</th>
                   <th className="py-2 px-3 font-medium text-right">기준선 초과/미달액</th>
-                  <th className="py-2 px-3 font-medium text-right">건수</th>
                   <th className="py-2 px-3 font-medium text-right">전월비</th>
                   <th className="py-2 px-3 font-medium text-center">심각도</th>
                 </tr>
@@ -286,8 +286,23 @@ function AnomalyRow({
             {a.type === "upper" ? "상한 초과" : "하한 미달"}
           </span>
         </td>
+        <td className="py-2 px-3 text-left">
+          {a.topContributors.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {a.topContributors.slice(0, 3).map((c) => (
+                <span key={c.customerName} className="inline-block rounded bg-muted px-1.5 py-0.5 text-xs">
+                  {c.customerName}
+                  <span className={`ml-1 ${c.change >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+                    {c.change >= 0 ? "+" : ""}{formatCurrency(c.change, true)}
+                  </span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-muted-foreground text-xs">-</span>
+          )}
+        </td>
         <td className="py-2 px-3 text-right">{formatCurrency(a.deviation)}</td>
-        <td className="py-2 px-3 text-right">{a.transactionCount.toLocaleString()}</td>
         <td className="py-2 px-3 text-right">
           {isFinite(a.momChange) ? (
             <span className={a.momChange >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>

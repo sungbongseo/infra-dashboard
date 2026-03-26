@@ -95,7 +95,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
         isEmpty={paymentTermSales.length === 0}
         title="결제조건별 매출 분포"
         formula="결제조건별로 판매금액을 합산하여 비교"
-        description="현금, 30일, 60일 등 결제조건별 매출 분포를 보여줍니다."
+        description="현금, 30일, 60일 등 결제조건별 매출 분포를 보여줍니다. 3% 미만 항목은 '기타'로 통합됩니다. 결제조건별 실제 수금 소요일은 '미수금 관리 > 수금지연' 탭에서 확인 가능합니다."
         benchmark="현금 및 30일 이내 결제 비중이 50% 이상이면 현금흐름 양호"
         reason="결제조건별 매출 분포를 분석하여 현금흐름 영향을 파악하고, 장기 결제조건의 비중 증가를 조기 감지하여 운전자본 관리에 반영합니다."
       >

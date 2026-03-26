@@ -17,12 +17,13 @@ import {
   ReferenceLine,
   Bar,
 } from "recharts";
-import { DollarSign, Users, BarChart3, Target } from "lucide-react";
+import { DollarSign, Users, BarChart3, Target, Percent, Hash } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { TabGroup, type TabGroupDef } from "@/components/dashboard/TabGroup";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { formatCurrency, filterByOrg, filterByDateRange, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateItemProfitability, aggregateCustomerItemDetail, aggregateOrgCustomerProfit, aggregateItemCostDetail, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, extractMonth, filterByOrg, filterByMonth, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateItemProfitability, aggregateCustomerItemDetail, aggregateOrgCustomerProfit, aggregateItemCostDetail, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import type { SalesRecord } from "@/types";
 import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR, getMarginColor } from "@/components/charts";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -47,6 +48,61 @@ const ProductGroupTab = lazy(() => import("./tabs/ProductGroupTab").then(m => ({
 const Customer360Tab = lazy(() => import("./tabs/Customer360Tab").then(m => ({ default: m.Customer360Tab })));
 const OrgScorecardTab = lazy(() => import("./tabs/OrgScorecardTab").then(m => ({ default: m.OrgScorecardTab })));
 const MarginTab = lazy(() => import("./tabs/MarginTab").then(m => ({ default: m.MarginTab })));
+
+function generateSalesInsights(
+  filteredSales: SalesRecord[],
+  topCustomers: Array<{ code: string; name: string; amount: number }>,
+  totalSalesAmount: number
+): Array<{ type: "positive" | "warning" | "info"; message: string }> {
+  const insights: Array<{ type: "positive" | "warning" | "info"; message: string }> = [];
+
+  // 1. Top1 concentration warning
+  if (topCustomers.length > 0 && totalSalesAmount > 0) {
+    const top1Share = (topCustomers[0].amount / totalSalesAmount) * 100;
+    if (top1Share > 30) {
+      insights.push({
+        type: "warning",
+        message: `Top1 거래처(${topCustomers[0].name || topCustomers[0].code}) 비중이 ${top1Share.toFixed(1)}%로 높습니다. 거래처 다변화를 검토하세요.`,
+      });
+    }
+  }
+
+  // 2. Monthly trend (if enough months)
+  const monthlyMap = new Map<string, number>();
+  for (const s of filteredSales) {
+    const m = extractMonth(s.매출일);
+    if (!m) continue;
+    monthlyMap.set(m, (monthlyMap.get(m) || 0) + s.장부금액);
+  }
+  const months = Array.from(monthlyMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+  if (months.length >= 3) {
+    const last3 = months.slice(-3);
+    const isGrowing = last3[2][1] > last3[1][1] && last3[1][1] > last3[0][1];
+    const isDecreasing = last3[2][1] < last3[1][1] && last3[1][1] < last3[0][1];
+    if (isGrowing) {
+      insights.push({ type: "positive", message: "최근 3개월 매출이 연속 증가 추세입니다." });
+    } else if (isDecreasing) {
+      insights.push({ type: "warning", message: "최근 3개월 매출이 연속 감소 추세입니다. 원인 분석이 필요합니다." });
+    }
+  }
+
+  // 3. ABC analysis summary
+  if (topCustomers.length > 0 && totalSalesAmount > 0) {
+    let cum = 0;
+    let aCount = 0;
+    for (const c of topCustomers) {
+      cum += c.amount;
+      aCount++;
+      if (cum / totalSalesAmount >= 0.8) break;
+    }
+    insights.push({
+      type: "info",
+      message: `ABC 분석: A등급 거래처 ${aCount}개가 전체 매출의 80%를 차지합니다.`,
+    });
+  }
+
+  return insights.slice(0, 3);
+}
 
 const SALES_TAB_GROUPS: TabGroupDef[] = [
   { id: "sales", label: "매출 분석", tabs: ["customer", "item", "type", "channel", "productGroup"] },
@@ -137,7 +193,7 @@ export default function SalesAnalysisPage() {
   const paretoData = useMemo(() => {
     const total = topCustomers.reduce((s, c) => s + c.amount, 0);
     let cum = 0;
-    return topCustomers.map((c) => {
+    const result = topCustomers.map((c) => {
       cum += c.amount;
       return {
         name: c.name || c.code,
@@ -145,6 +201,11 @@ export default function SalesAnalysisPage() {
         cumPercent: total > 0 ? (cum / total) * 100 : 0,
       };
     });
+    // 마지막 항목의 누적 비율을 정확히 100%로 보정 (부동소수점 오차 방지)
+    if (result.length > 0) {
+      result[result.length - 1].cumPercent = 100;
+    }
+    return result;
   }, [topCustomers]);
 
   // KPI 데이터
@@ -156,6 +217,26 @@ export default function SalesAnalysisPage() {
     return (topCustomers[0].amount / totalSalesAmount) * 100;
   }, [topCustomers, totalSalesAmount]);
 
+  // Top5 비중 및 HHI 지수
+  const top5Share = useMemo(() => {
+    if (topCustomers.length === 0 || totalSalesAmount === 0) return 0;
+    const top5Sum = topCustomers.slice(0, 5).reduce((s, c) => s + c.amount, 0);
+    return (top5Sum / totalSalesAmount) * 100;
+  }, [topCustomers, totalSalesAmount]);
+
+  const hhiIndex = useMemo(() => {
+    if (topCustomers.length === 0 || totalSalesAmount === 0) return 0;
+    return topCustomers.reduce((sum, c) => {
+      const share = (c.amount / totalSalesAmount) * 100;
+      return sum + share * share;
+    }, 0);
+  }, [topCustomers, totalSalesAmount]);
+
+  const salesInsights = useMemo(
+    () => generateSalesInsights(filteredSales, topCustomers, totalSalesAmount),
+    [filteredSales, topCustomers, totalSalesAmount]
+  );
+
   if (isLoading) return <PageSkeleton />;
   if (filteredSales.length === 0) return <EmptyState requiredFiles={["매출리스트"]} />;
 
@@ -166,7 +247,7 @@ export default function SalesAnalysisPage() {
         <p className="text-muted-foreground">거래처/품목별 매출 상세 분석</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard
           title="총 매출액"
           value={totalSalesAmount}
@@ -207,7 +288,47 @@ export default function SalesAnalysisPage() {
           benchmark="20% 이내이면 안정적 분산, 30% 초과 시 집중 리스크 경고"
           reason="핵심 거래처 집중도를 모니터링하여 1위 거래처 이탈 시 매출 급감 리스크를 사전에 인지하고, 거래처 다각화 전략의 시급성을 판단합니다."
         />
+        <KpiCard
+          title="Top5 비중"
+          value={top5Share}
+          format="percent"
+          icon={<Percent className="h-5 w-5" />}
+          formula="Top5 비중(%) = 상위 5개 거래처 매출 합계 ÷ 총매출 × 100"
+          description="매출 상위 5개 거래처가 전체 매출에서 차지하는 비율입니다. 소수 거래처 의존도가 높으면 이탈 리스크가 커집니다."
+          benchmark="50% 이내이면 분산 양호, 70% 초과 시 소수 거래처 의존도 과다"
+          reason="핵심 거래처 상위 5곳의 매출 집중도를 파악하여 고객 포트폴리오의 안정성을 평가합니다."
+        />
+        <KpiCard
+          title="HHI 지수"
+          value={Math.round(hhiIndex)}
+          format="number"
+          icon={<Hash className="h-5 w-5" />}
+          formula="HHI = Σ(거래처 매출 비중²) (비중은 % 단위)"
+          description="허핀달-허쉬만 지수(HHI)는 시장 집중도를 측정하는 지표입니다. 값이 클수록 소수 거래처에 매출이 집중되어 있다는 의미입니다."
+          benchmark="1,500 미만: 분산, 1,500~2,500: 중간 집중, 2,500 초과: 고집중"
+          reason="거래처 매출 집중도를 표준 지표(HHI)로 정량화하여 경쟁도와 의존 리스크를 객관적으로 평가합니다."
+        />
       </div>
+
+      {salesInsights.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {salesInsights.map((insight, i) => (
+            <div
+              key={i}
+              className={`rounded-lg px-3 py-2 text-sm flex items-center gap-1.5 ${
+                insight.type === "positive"
+                  ? "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-300"
+                  : insight.type === "warning"
+                    ? "bg-amber-50 text-amber-800 dark:bg-amber-950/30 dark:text-amber-300"
+                    : "bg-blue-50 text-blue-800 dark:bg-blue-950/30 dark:text-blue-300"
+              }`}
+            >
+              <span>{insight.type === "positive" ? "📈" : insight.type === "warning" ? "⚠️" : "ℹ️"}</span>
+              {insight.message}
+            </div>
+          ))}
+        </div>
+      )}
 
       <Tabs value={activeTab} onValueChange={(v) => { setActiveTab(v); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="space-y-4">
         <TabGroup groups={SALES_TAB_GROUPS} activeTab={activeTab} onGroupChange={(gid) => {

@@ -16,7 +16,7 @@ import {
   Scatter,
   ZAxis,
 } from "recharts";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, AlertTriangle } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT } from "@/components/charts";
@@ -107,8 +107,11 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
     <>
       {/* 소규모 데이터 경고 */}
       {rfmResult.isSmallSample && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-4 text-sm text-amber-800 dark:text-amber-200">
-          거래처 수가 {rfmResult.sampleSize}개로 적어 RFM 분석 결과의 통계적 신뢰도가 낮을 수 있습니다. 5개 이상의 거래처 데이터가 있을 때 최적의 분석이 가능합니다.
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            거래처 수가 {rfmResult.sampleSize}개 미만으로 RFM 세분화 신뢰도가 낮습니다. 더 많은 거래 데이터가 필요합니다.
+          </p>
         </div>
       )}
       {/* RFM 세그먼트별 실행 가이드 */}

@@ -70,10 +70,34 @@ export function MigrationTab({ filteredSales, isDateFiltered }: MigrationTabProp
     return { totalDowngraded, totalDownAll, top10, month: lastMatrix.month };
   }, [migration]);
 
+  // 전체 기간 등급 변동 요약 (상향 vs 하향)
+  const gradeSummary = useMemo(() => {
+    if (migration.summaries.length === 0) return null;
+    const totalUpgraded = migration.summaries.reduce((s, m) => s + m.upgraded, 0);
+    const totalDowngraded = migration.summaries.reduce((s, m) => s + m.downgraded, 0);
+    const net = totalUpgraded - totalDowngraded;
+    return { totalUpgraded, totalDowngraded, net };
+  }, [migration]);
+
   if (migration.summaries.length === 0 && gradeDistribution.length === 0) return <EmptyState />;
 
   return (
     <>
+      {/* 등급 변동 요약 인사이트 */}
+      {gradeSummary && (gradeSummary.totalUpgraded > 0 || gradeSummary.totalDowngraded > 0) && (
+        <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
+          <p className="font-medium">등급 변동 요약 (전체 기간)</p>
+          <p className="text-muted-foreground">
+            상향 이동: <span className="font-medium text-emerald-600 dark:text-emerald-400">{gradeSummary.totalUpgraded}건</span>
+            {" | "}
+            하향 이동: <span className="font-medium text-red-600 dark:text-red-400">{gradeSummary.totalDowngraded}건</span>
+          </p>
+          <p className={gradeSummary.net > 0 ? "text-emerald-600 dark:text-emerald-400 font-medium" : gradeSummary.net < 0 ? "text-red-600 dark:text-red-400 font-medium" : "text-muted-foreground font-medium"}>
+            전체 방향: {gradeSummary.net > 0 ? `개선 추세 (순 +${gradeSummary.net}건)` : gradeSummary.net < 0 ? `악화 추세 (순 ${gradeSummary.net}건)` : "균형 상태"}
+          </p>
+        </div>
+      )}
+
       {/* 하락 거래처 KPI + 인사이트 */}
       {downgradeInsight && downgradeInsight.totalDowngraded > 0 && (
         <>

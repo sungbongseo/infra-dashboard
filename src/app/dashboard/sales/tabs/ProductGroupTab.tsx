@@ -244,6 +244,15 @@ export function ProductGroupTab({
                 <Cell key={i} fill={QUADRANT_COLORS[entry.quadrant]} />
               ))}
             </Scatter>
+            {/* BCG 사분면 라벨 */}
+            {bubbleData.data.length >= 2 && (
+              <g>
+                <text x="95%" y="8%" textAnchor="end" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.star} opacity={0.7}>Star: 성장+고이익</text>
+                <text x="5%" y="8%" textAnchor="start" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.question} opacity={0.7}>Question Mark: 성장+저이익</text>
+                <text x="95%" y="95%" textAnchor="end" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.cashcow} opacity={0.7}>Cash Cow: 안정+고이익</text>
+                <text x="5%" y="95%" textAnchor="start" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.dog} opacity={0.7}>Dog: 저성장+저이익</text>
+              </g>
+            )}
           </ScatterChart>
         </ChartContainer>
         {/* 사분면 범례 */}

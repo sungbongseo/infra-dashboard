@@ -71,6 +71,18 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
     }));
   }, [decomposition]);
 
+  // 계절성 변동계수 (CV): 계절 성분의 표준편차/평균
+  const seasonalCV = useMemo(() => {
+    if (!decomposition.points || decomposition.points.length === 0) return 0;
+    const values = decomposition.points
+      .map((p) => p.seasonal)
+      .filter((v): v is number => v !== undefined && v !== null && isFinite(v));
+    if (values.length === 0) return 0;
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    const stdDev = Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length);
+    return mean !== 0 ? (stdDev / Math.abs(mean)) * 100 : 0;
+  }, [decomposition]);
+
   // KPI: trend direction as number for display (1=up, -1=down, 0=flat)
   const trendValue = decomposition.trendDirection === "up" ? 1 : decomposition.trendDirection === "down" ? -1 : 0;
 
@@ -100,7 +112,7 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
       )}
 
       {/* KPI row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="추세 방향"
           value={trendValue}
@@ -132,6 +144,20 @@ export function DecompositionTab({ filteredSales, isDateFiltered }: Decompositio
           reason="시계열 분해의 통계적 신뢰도를 판단하여 분석 결과의 활용 범위를 결정하고, 데이터 축적 기간의 충분성을 점검합니다."
         />
       </div>
+
+      {/* 계절성 변동계수 인사이트 */}
+      {!isLimited && seasonalCV > 0 && (
+        <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-1">
+          <p className="font-medium">
+            계절성 변동계수 (CV): <span className={seasonalCV >= 20 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}>{isFinite(seasonalCV) ? seasonalCV.toFixed(1) : "0.0"}%</span>
+          </p>
+          <p className="text-muted-foreground">
+            {seasonalCV >= 20
+              ? "20% 이상으로 계절 영향이 유의미합니다. 성수기/비수기 자원 배분 차별화를 권장합니다."
+              : "20% 미만으로 계절 변동이 상대적으로 안정적입니다."}
+          </p>
+        </div>
+      )}
 
       {/* Original + Trend overlay */}
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}

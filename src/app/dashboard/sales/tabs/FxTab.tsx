@@ -80,6 +80,33 @@ export function FxTab({ filteredSales, isDateFiltered }: FxTabProps) {
         </div>
       )}
 
+      {/* 환율 변동 시나리오 */}
+      {fxImpact.foreignAmount > 0 && (
+        <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-2">
+          <p className="font-medium">환율 변동 시 매출 영향 추정 (외화 매출 {formatCurrency(fxImpact.foreignAmount)} 기준)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-3">
+              <p className="text-emerald-700 dark:text-emerald-400 font-medium">
+                환율 +5% (원화 약세) 시
+              </p>
+              <p className="text-emerald-800 dark:text-emerald-300 text-lg font-semibold">
+                +{formatCurrency(Math.round(fxImpact.foreignAmount * 0.05))}
+              </p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-500">원화 환산 매출 증가</p>
+            </div>
+            <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3">
+              <p className="text-red-700 dark:text-red-400 font-medium">
+                환율 -5% (원화 강세) 시
+              </p>
+              <p className="text-red-800 dark:text-red-300 text-lg font-semibold">
+                {formatCurrency(Math.round(fxImpact.foreignAmount * -0.05))}
+              </p>
+              <p className="text-xs text-red-600 dark:text-red-500">원화 환산 매출 감소</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* FX KPI 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard

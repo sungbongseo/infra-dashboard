@@ -11,7 +11,8 @@ import {
   ScatterChart,
   Scatter,
 } from "recharts";
-import { TrendingUp, Users, BarChart3, Crown } from "lucide-react";
+import { TrendingUp, Users, BarChart3, Crown, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
@@ -43,6 +44,22 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
   const clvResults = useMemo(() => calcClv(filteredSales, filteredOrgProfit), [filteredSales, filteredOrgProfit]);
   const clvSummary = useMemo(() => calcClvSummary(clvResults), [clvResults]);
 
+  // CLV 기반 고객 등급 분류
+  const clvTiers = useMemo(() => {
+    if (clvResults.length === 0) return { Platinum: 0, Gold: 0, Silver: 0, Bronze: 0 };
+    const maxClv = Math.max(...clvResults.map((c) => c.clv));
+    const tiers = { Platinum: 0, Gold: 0, Silver: 0, Bronze: 0 };
+    for (const c of clvResults) {
+      if (maxClv <= 0) { tiers.Bronze++; continue; }
+      const ratio = c.clv / maxClv;
+      if (ratio >= 0.75) tiers.Platinum++;
+      else if (ratio >= 0.5) tiers.Gold++;
+      else if (ratio >= 0.25) tiers.Silver++;
+      else tiers.Bronze++;
+    }
+    return tiers;
+  }, [clvResults]);
+
   if (clvResults.length === 0) return <EmptyState message="매출목록과 조직손익 데이터를 업로드해 주세요." />;
 
   // confidence check from CLV model
@@ -62,12 +79,62 @@ export function ClvTab({ filteredSales, filteredOrgProfit, isDateFiltered, onNav
 
   return (
     <>
-      {/* confidence warning */}
-      {overallConfidence === "low" && (
-        <div className="rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
-          12개월 미만 데이터 — CLV 추정치 정확도 낮음. 거래 이력이 쌓이면 정확도가 개선됩니다.
+      {/* confidence badge + warning */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm font-medium text-muted-foreground">데이터 신뢰도:</span>
+          {overallConfidence === "insufficient" && (
+            <Badge variant="destructive">데이터 부족</Badge>
+          )}
+          {overallConfidence === "low" && (
+            <Badge className="bg-amber-500 hover:bg-amber-600 text-white">신뢰도 낮음</Badge>
+          )}
+          {overallConfidence === "normal" && (
+            <Badge className="bg-green-600 hover:bg-green-700 text-white">신뢰도 양호</Badge>
+          )}
         </div>
-      )}
+        {overallConfidence === "low" && (
+          <span className="text-xs text-amber-700 dark:text-amber-400">
+            12개월 미만 데이터 — CLV 추정치 정확도 낮음. 거래 이력이 쌓이면 정확도가 개선됩니다.
+          </span>
+        )}
+        {overallConfidence === "insufficient" && (
+          <span className="text-xs text-red-700 dark:text-red-400">
+            데이터가 부족하여 CLV를 산출할 수 없습니다. 더 많은 거래 데이터가 필요합니다.
+          </span>
+        )}
+      </div>
+
+      {/* CLV 고객 등급 분포 */}
+      <div className="rounded-lg bg-muted/50 p-4 text-sm space-y-2">
+        <p className="font-medium">고객 가치 등급 분포 (CLV 기준)</p>
+        <div className="flex flex-wrap gap-3">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-purple-500" />
+            <span className="font-medium">Platinum</span>
+            <span className="text-muted-foreground">{clvTiers.Platinum}건 (CLV 상위 25%)</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-amber-400" />
+            <span className="font-medium">Gold</span>
+            <span className="text-muted-foreground">{clvTiers.Gold}건</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-slate-400" />
+            <span className="font-medium">Silver</span>
+            <span className="text-muted-foreground">{clvTiers.Silver}건</span>
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-3 h-3 rounded-full bg-orange-700" />
+            <span className="font-medium">Bronze</span>
+            <span className="text-muted-foreground">{clvTiers.Bronze}건</span>
+          </span>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Platinum 고객에 영업 자원을 집중 배분하고, Bronze 고객은 비용 효율적 관리 방안을 검토하세요.
+        </p>
+      </div>
 
       {/* CLV KPI 카드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -159,6 +159,33 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
     [filteredSales, itemCostMap]
   );
 
+  // 마진 하락 경고: 거래처별 가중평균 마진율을 계산하여 전체 평균 대비 5%p 이상 낮은 거래처 식별
+  const declinedCustomers = useMemo(() => {
+    if (marginData.length === 0) return [];
+    // 거래처별 가중평균 마진율 집계
+    const custMap = new Map<string, { totalAmount: number; totalMargin: number }>();
+    for (const r of marginData) {
+      const prev = custMap.get(r.거래처명) || { totalAmount: 0, totalMargin: 0 };
+      prev.totalAmount += r.totalAmount;
+      prev.totalMargin += r.totalMargin;
+      custMap.set(r.거래처명, prev);
+    }
+    // 전체 가중평균 마진율
+    const grandAmount = marginData.reduce((s, r) => s + r.totalAmount, 0);
+    const grandMargin = marginData.reduce((s, r) => s + r.totalMargin, 0);
+    const overallRate = grandAmount > 0 ? (grandMargin / grandAmount) * 100 : 0;
+    // 전체 평균 대비 5%p 이상 낮은 거래처
+    return Array.from(custMap.entries())
+      .map(([name, d]) => ({
+        name,
+        marginRate: d.totalAmount > 0 ? (d.totalMargin / d.totalAmount) * 100 : 0,
+        totalAmount: d.totalAmount,
+      }))
+      .filter(c => c.totalAmount > 0 && (overallRate - c.marginRate) >= 5)
+      .sort((a, b) => a.marginRate - b.marginRate)
+      .slice(0, 10);
+  }, [marginData]);
+
   const customerHistory = useMemo(() => {
     if (!simCustomer) return [];
     return marginData
@@ -197,6 +224,25 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
 
   return (
     <TooltipProvider delayDuration={200}>
+      {/* 마진 하락 경고 배너 */}
+      {declinedCustomers.length > 0 && (
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30 p-3 space-y-2">
+          <p className="text-sm font-medium text-red-800 dark:text-red-300">
+            마진 하락 경고: {declinedCustomers.length}개 거래처의 마진이 전체 평균 대비 5%p 이상 낮음
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {declinedCustomers.slice(0, 5).map((c) => (
+              <span key={c.name} className="inline-flex items-center gap-1 rounded-md bg-red-100 dark:bg-red-900/40 px-2 py-0.5 text-xs text-red-700 dark:text-red-300">
+                {c.name} <span className="font-mono">{safeFixed(c.marginRate, 1)}%</span>
+              </span>
+            ))}
+            {declinedCustomers.length > 5 && (
+              <span className="text-xs text-red-600 dark:text-red-400">외 {declinedCustomers.length - 5}개</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
            섹션 1: 마진 시뮬레이터
            용도: 영업사원이 견적 전 거래처에 제안할 단가의 마진을 사전 시뮬레이션

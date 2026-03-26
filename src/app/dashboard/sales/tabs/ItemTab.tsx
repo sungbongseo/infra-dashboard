@@ -496,6 +496,15 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
                   <Cell key={i} fill={QUADRANT_COLORS[item.quadrant] || CHART_COLORS[5]} />
                 ))}
               </Scatter>
+              {/* 4사분면 라벨 */}
+              {profitMatrix.length >= 2 && (
+                <g>
+                  <text x="95%" y="8%" textAnchor="end" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.star} opacity={0.7}>스타 품목</text>
+                  <text x="5%" y="8%" textAnchor="start" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.question} opacity={0.7}>니치 품목</text>
+                  <text x="95%" y="95%" textAnchor="end" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.cashcow} opacity={0.7}>볼륨 품목</text>
+                  <text x="5%" y="95%" textAnchor="start" fontSize={11} fontWeight={600} fill={QUADRANT_COLORS.dog} opacity={0.7}>정리 검토</text>
+                </g>
+              )}
             </ScatterChart>
           </ChartContainer>
           {/* Quadrant legend */}

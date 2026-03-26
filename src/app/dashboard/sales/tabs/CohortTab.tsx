@@ -8,6 +8,7 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip as RechartsTooltip,
+  ReferenceLine,
 } from "recharts";
 import { Users, Repeat, Crown, Info } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
@@ -199,6 +200,9 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
             </tbody>
           </table>
         </div>
+        <div className="mt-3 text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2">
+          건자재/인프라 업종 평균 재거래율: 60~70%. 이 범위 이상이면 고객 충성도가 양호한 수준입니다.
+        </div>
       </ChartCard>
 
       {/* Average retention by period line chart */}
@@ -221,6 +225,13 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
             <RechartsTooltip
               {...TOOLTIP_STYLE}
               formatter={(value: any) => [`${safeFixed(Number(value), 1)}%`, "평균 리텐션율"]}
+            />
+            <ReferenceLine
+              y={65}
+              stroke="#f59e0b"
+              strokeDasharray="4 4"
+              strokeWidth={1.5}
+              label={{ value: "업종 평균 65%", position: "insideTopRight", fontSize: 11, fill: "#f59e0b" }}
             />
             <Line
               type="monotone"

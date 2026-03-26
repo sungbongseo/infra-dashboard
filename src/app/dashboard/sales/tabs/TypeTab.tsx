@@ -28,7 +28,7 @@ import {
   YAXIS_CATEGORY,
   truncateLabel,
 } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, extractMonth, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import {
   calcAccountTypeBreakdown,
   calcAccountTypeTrend,
@@ -111,6 +111,22 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
     ],
     [salesByType]
   );
+
+  // 월별 내수/수출 추세
+  const typeTrend = useMemo(() => {
+    const monthMap = new Map<string, { 내수: number; 수출: number }>();
+    for (const s of filteredSales) {
+      const month = extractMonth(s.매출일);
+      if (!month) continue;
+      const entry = monthMap.get(month) || { 내수: 0, 수출: 0 };
+      const type = (s.매출유형 || "").includes("수출") ? "수출" : "내수";
+      entry[type] += s.장부금액;
+      monthMap.set(month, entry);
+    }
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({ month, ...data }));
+  }, [filteredSales]);
 
   // 신규 1: 계정구분별 비중
   const accountBreakdown = useMemo(
@@ -196,6 +212,35 @@ export function TypeTab({ filteredSales, isDateFiltered }: TypeTabProps) {
           </PieChart>
         </ChartContainer>
       </ChartCard>
+
+      {/* 월별 내수/수출 추세 */}
+      {typeTrend.length >= 2 && (
+        <ChartCard
+          title="월별 내수/수출 추세"
+          dataSourceType="period"
+          isDateFiltered={isDateFiltered}
+          isEmpty={typeTrend.length < 2}
+          formula="매출일 기준 월별로 내수/수출 유형별 매출 합산"
+          description="월별 내수와 수출 매출의 변동 추이를 누적 영역 차트로 보여줍니다. 수출 비중이 급격히 변화하면 환율 리스크 관리나 시장 전략 변경이 필요할 수 있습니다."
+          benchmark="내수/수출 비율이 월별로 안정적이면 양호, 급격한 변동은 시장 변화 신호"
+          reason="내수와 수출의 월별 추이를 추적하여 계절성, 환율 영향, 시장 전환 시점을 파악합니다."
+        >
+          <ChartContainer height="h-64 md:h-80">
+            <AreaChart data={typeTrend}>
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => formatCurrency(v, true)} />
+              <RechartsTooltip
+                {...TOOLTIP_STYLE}
+                formatter={(value: any, name: any) => [formatCurrency(Number(value)), String(name)]}
+              />
+              <Legend />
+              <Area type="monotone" dataKey="내수" stackId="1" stroke={CHART_COLORS[0]} fill={CHART_COLORS[0]} fillOpacity={0.7} {...ANIMATION_CONFIG} />
+              <Area type="monotone" dataKey="수출" stackId="1" stroke={CHART_COLORS[1]} fill={CHART_COLORS[1]} fillOpacity={0.7} {...ANIMATION_CONFIG} />
+            </AreaChart>
+          </ChartContainer>
+        </ChartCard>
+      )}
 
       {/* 신규 1: 계정구분별 매출 비중 */}
       <ChartCard
