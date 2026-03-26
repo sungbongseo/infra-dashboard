@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -16,13 +17,18 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
-import type { PrepaymentSummary, OrgPrepayment, MonthlyPrepayment } from "@/lib/analysis/prepayment";
+import { formatCurrency, formatPercent, TOOLTIP_STYLE } from "@/lib/utils";
+import { DataTable } from "@/components/dashboard/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { PrepaymentSummary, OrgPrepayment, MonthlyPrepayment, PrepaymentCustomer } from "@/lib/analysis/prepayment";
+import { calcPrepaymentCustomers } from "@/lib/analysis/prepayment";
+import type { CollectionRecord } from "@/types";
 
 interface PrepaymentTabProps {
   prepaymentSummary: PrepaymentSummary;
   orgPrepayments: OrgPrepayment[];
   monthlyPrepayments: MonthlyPrepayment[];
+  filteredCollections: CollectionRecord[];
   hasCollections: boolean;
   isDateFiltered?: boolean;
 }
@@ -31,9 +37,55 @@ export function PrepaymentTab({
   prepaymentSummary,
   orgPrepayments,
   monthlyPrepayments,
+  filteredCollections,
   hasCollections,
   isDateFiltered,
 }: PrepaymentTabProps) {
+  const topCustomers = useMemo(
+    () => calcPrepaymentCustomers(filteredCollections),
+    [filteredCollections]
+  );
+
+  const customerColumns = useMemo<ColumnDef<PrepaymentCustomer, any>[]>(
+    () => [
+      {
+        accessorKey: "customer",
+        header: "거래처",
+        cell: ({ getValue }) => (
+          <span className="truncate max-w-[180px] block" title={getValue<string>()}>
+            {getValue<string>()}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "org",
+        header: "조직",
+        cell: ({ getValue }) => (
+          <span className="truncate max-w-[80px] block">{getValue<string>()}</span>
+        ),
+      },
+      {
+        accessorKey: "amount",
+        header: () => <span className="block text-right">선수금액</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums font-medium">
+            {formatCurrency(getValue<number>(), true)}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "share",
+        header: () => <span className="block text-right">비중</span>,
+        cell: ({ getValue }) => (
+          <span className="block text-right tabular-nums">
+            {formatPercent(getValue<number>(), 1)}
+          </span>
+        ),
+      },
+    ],
+    []
+  );
+
   if (!hasCollections) return <EmptyState requiredFiles={["수금리스트"]} />;
 
   return (
@@ -151,6 +203,24 @@ export function PrepaymentTab({
             </ComposedChart>
         </ChartContainer>
       </ChartCard>
+
+      {/* 선수금 상위 거래처 Top 10 */}
+      {topCustomers.length > 0 && (
+        <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+          title="선수금 상위 거래처 Top 10"
+          formula="거래처별 선수금액을 합산하여 상위 10개 거래처"
+          description="선수금이 가장 많은 거래처 10곳입니다. 특정 거래처에 선수금이 집중되면 납품 지연 시 환불 리스크가 높아집니다."
+          benchmark="상위 1개 거래처가 전체 선수금의 50% 이상이면 과집중 경고"
+          reason="선수금 상위 거래처를 특정하여 납품 이행 우선순위를 결정하고, 거래처별 환불 리스크를 관리합니다."
+        >
+          <DataTable
+            data={topCustomers}
+            columns={customerColumns}
+            searchPlaceholder="거래처 검색..."
+            defaultPageSize={10}
+          />
+        </ChartCard>
+      )}
     </>
   );
 }

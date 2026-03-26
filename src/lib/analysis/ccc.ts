@@ -8,17 +8,22 @@ export type CCCClassification = "excellent" | "good" | "fair" | "poor";
 export interface CCCMetric {
   org: string;
   dso: number;
+  dio: number;       // Days Inventory Outstanding (0 if no inventory data)
   dpo: number;
   ccc: number;
   avgMonthlySales: number;
   classification: CCCClassification;
   recommendation: string;
+  hasDIO: boolean;    // true if DIO was calculated from actual inventory data
+  dpoMatchType: "exact" | "fuzzy" | "default";  // DPO 매칭 방식
 }
 
 export interface CCCAnalysis {
   avgCCC: number;
   avgDSO: number;
+  avgDIO: number;
   avgDPO: number;
+  hasDIO: boolean;
   metrics: CCCMetric[];
 }
 
@@ -211,47 +216,74 @@ function estimateDPOByOrg(teamContrib: TeamContributionRecord[]): Map<string, nu
 }
 
 /**
+ * DIO 결과를 조직별 Map으로 변환 (factory 기준 → 가중 평균)
+ */
+export interface DIOResult {
+  factory: string;
+  dio: number;
+  avgInventoryValue: number;
+  dailyCOGS: number;
+}
+
+function calcOverallDIO(dioResults: DIOResult[]): number {
+  if (dioResults.length === 0) return 0;
+  const totalWeight = dioResults.reduce((s, d) => s + d.avgInventoryValue, 0);
+  if (totalWeight <= 0) return 0;
+  const weighted = dioResults.reduce((s, d) => s + d.dio * d.avgInventoryValue, 0);
+  return Math.round(safeDivide(weighted, totalWeight));
+}
+
+/**
  * 조직별 CCC (Cash Conversion Cycle) 계산
- * CCC = DSO - DPO
+ * CCC = DSO + DIO - DPO (DIO 가용 시) 또는 DSO - DPO (간편법)
  */
 export function calcCCCByOrg(
   dsoMetrics: DSOMetric[],
   teamContrib: TeamContributionRecord[],
+  dioResults?: DIOResult[],
 ): CCCMetric[] {
   const dpoByOrg = estimateDPOByOrg(teamContrib);
   const overallDPO = estimateDPO(teamContrib);
+  const hasDIO = !!dioResults && dioResults.length > 0;
+  const overallDIO = hasDIO ? calcOverallDIO(dioResults!) : 0;
 
   const results: CCCMetric[] = [];
 
   for (const dm of dsoMetrics) {
     // DSO의 org와 TeamContribution의 영업조직팀을 매칭
     // receivableAging의 영업조직과 teamContribution의 영업조직팀은 이름이 다를 수 있음
-    // 가장 가까운 매칭 시도: 포함 관계 또는 정확 일치
     let dpo = overallDPO; // 기본값: 전체 평균 DPO
+    let dpoMatchType: "exact" | "fuzzy" | "default" = "default";
 
     // 정확 매칭 → fuzzy 매칭 (orgMapping.ts isSameOrg 통합)
     if (dpoByOrg.has(dm.org)) {
       dpo = dpoByOrg.get(dm.org)!;
+      dpoMatchType = "exact";
     } else {
       for (const [orgTeam, orgDpo] of Array.from(dpoByOrg.entries())) {
         if (isSameOrg(orgTeam, dm.org)) {
           dpo = orgDpo;
+          dpoMatchType = "fuzzy";
           break;
         }
       }
     }
 
-    const ccc = dm.dso - dpo;
+    const dio = hasDIO ? overallDIO : 0;
+    const ccc = dm.dso + dio - dpo;
     const classification = classifyCCC(ccc);
 
     results.push({
       org: dm.org,
       dso: dm.dso,
+      dio,
       dpo,
       ccc,
       avgMonthlySales: dm.avgMonthlySales,
       classification,
       recommendation: getRecommendation(classification, ccc, dm.dso, dpo),
+      hasDIO,
+      dpoMatchType,
     });
   }
 
@@ -263,8 +295,9 @@ export function calcCCCByOrg(
  * 전체 평균 CCC, DSO, DPO 및 조직별 상세 메트릭스
  */
 export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
+  const hasDIO = cccMetrics.length > 0 && cccMetrics[0]?.hasDIO;
   if (cccMetrics.length === 0) {
-    return { avgCCC: 0, avgDSO: 0, avgDPO: 0, metrics: [] };
+    return { avgCCC: 0, avgDSO: 0, avgDIO: 0, avgDPO: 0, hasDIO: false, metrics: [] };
   }
 
   const validMetrics = cccMetrics.filter(m => isFinite(m.avgMonthlySales) && isFinite(m.ccc));
@@ -272,11 +305,14 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
   if (totalWeight > 0) {
     const wCCC = validMetrics.reduce((sum, m) => sum + m.ccc * m.avgMonthlySales, 0);
     const wDSO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dso) ? m.dso : 0) * m.avgMonthlySales, 0);
+    const wDIO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dio) ? m.dio : 0) * m.avgMonthlySales, 0);
     const wDPO = validMetrics.reduce((sum, m) => sum + (isFinite(m.dpo) ? m.dpo : 0) * m.avgMonthlySales, 0);
     return {
       avgCCC: Math.round(safeDivide(wCCC, totalWeight)),
       avgDSO: Math.round(safeDivide(wDSO, totalWeight)),
+      avgDIO: Math.round(safeDivide(wDIO, totalWeight)),
       avgDPO: Math.round(safeDivide(wDPO, totalWeight)),
+      hasDIO,
       metrics: cccMetrics,
     };
   }
@@ -285,7 +321,9 @@ export function calcCCCAnalysis(cccMetrics: CCCMetric[]): CCCAnalysis {
   return {
     avgCCC: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.ccc, 0), count)),
     avgDSO: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.dso, 0), count)),
+    avgDIO: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.dio, 0), count)),
     avgDPO: Math.round(safeDivide(cccMetrics.reduce((s, m) => s + m.dpo, 0), count)),
+    hasDIO,
     metrics: cccMetrics,
   };
 }

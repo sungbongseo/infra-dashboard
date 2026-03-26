@@ -7,7 +7,7 @@
 import type { SalesRecord, CollectionRecord } from "@/types";
 import { extractMonth, safeDivide } from "@/lib/utils";
 
-/** 거래처명 정규화: trim + 법인유형 통일 */
+/** 거래처명 정규화: trim + 법인유형 통일 + 특수문자 제거 */
 function normalizeCustomerName(name: string): string {
   return (name || "")
     .trim()
@@ -16,8 +16,28 @@ function normalizeCustomerName(name: string): string {
     .replace(/\s*㈜\s*/g, "(주)")
     .replace(/\s*유한회사\s*/g, "(유)")
     .replace(/\s*\(유\)\s*/g, "(유)")
+    .replace(/\s*유한책임회사\s*/g, "(유)")
+    .replace(/\s*합자회사\s*/g, "(합)")
+    .replace(/\s*합명회사\s*/g, "(합)")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/**
+ * 수금처 코드(숫자)를 키로 사용하는 매칭 전략
+ * sales 쪽에는 수금처(코드) + 수금처명이 있고, collection 쪽에는 거래처명만 있으므로
+ * 매출에서 "수금처코드 → 정규화된이름" 맵을 만들고, 수금에서 이름으로 역매칭
+ */
+function buildCustomerCodeMap(sales: SalesRecord[]): Map<string, string> {
+  const codeToName = new Map<string, string>();
+  for (const r of sales) {
+    const code = (r.수금처 || "").trim();
+    const name = normalizeCustomerName(r.수금처명 || r.매출처명 || "");
+    if (code && name) {
+      codeToName.set(code, name);
+    }
+  }
+  return codeToName;
 }
 
 // ── Types ──────────────────────────────────────────────────
@@ -71,6 +91,7 @@ export interface PaymentMethodAnalysis {
   count: number;
   amount: number;
   share: number;
+  avgDelayDays: number;
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -174,36 +195,54 @@ export function calcCollectionDelay(
     collectionByCustomer.set(customer, entry);
   }
 
-  // 매칭 및 지연일 계산
+  // 매칭 및 지연일 계산 (1차: 정확 매칭, 2차: 코드 기반 역매칭)
+  const codeMap = buildCustomerCodeMap(sales);
+  // 수금 거래처명 → 매출 수금처명 역매칭 (코드가 같으면 이름이 달라도 매칭)
+  const nameToCode = new Map<string, string>();
+  for (const [code, name] of Array.from(codeMap.entries())) {
+    nameToCode.set(name, code);
+  }
+
   const results: CollectionDelayEntry[] = [];
-  for (const [customer, sales] of Array.from(salesByCustomer.entries())) {
-    const coll = collectionByCustomer.get(customer);
+  for (const [customer, salesData] of Array.from(salesByCustomer.entries())) {
+    // 1차: 정규화된 이름 정확 매칭
+    let coll = collectionByCustomer.get(customer);
+
+    // 2차: 매칭 실패 시, 수금 측에서 유사 이름 검색 (contains 매칭)
+    if (!coll) {
+      for (const [collName, collData] of Array.from(collectionByCustomer.entries())) {
+        if (collName.includes(customer) || customer.includes(collName)) {
+          coll = collData;
+          break;
+        }
+      }
+    }
     const collectedAmount = coll?.collectedAmount || 0;
-    const collectionRate = sales.salesAmount > 0
-      ? Math.min((safeDivide(collectedAmount, sales.salesAmount)) * 100, 100)
+    const collectionRate = salesData.salesAmount > 0
+      ? safeDivide(collectedAmount, salesData.salesAmount) * 100
       : 0;
 
     // 수금 소요일: 매출일 → 수금일
     let avgDaysToCollect = 0;
-    if (sales.salesDate && coll?.earliestCollectionDate) {
-      avgDaysToCollect = Math.max(0, daysBetween(sales.salesDate, coll.earliestCollectionDate));
+    if (salesData.salesDate && coll?.earliestCollectionDate) {
+      avgDaysToCollect = Math.max(0, daysBetween(salesData.salesDate, coll.earliestCollectionDate));
     }
 
     // 지연일: 수금예정일 → 실제수금일 (양수=지연, 음수=조기수금)
     let avgDelayDays = 0;
-    if (sales.dueDate && coll?.latestCollectionDate) {
-      avgDelayDays = daysBetween(sales.dueDate, coll.latestCollectionDate);
+    if (salesData.dueDate && coll?.latestCollectionDate) {
+      avgDelayDays = daysBetween(salesData.dueDate, coll.latestCollectionDate);
     }
 
     results.push({
       customer,
-      org: sales.org,
-      salesAmount: sales.salesAmount,
+      org: salesData.org,
+      salesAmount: salesData.salesAmount,
       collectedAmount,
       collectionRate,
       avgDaysToCollect,
       avgDelayDays,
-      salesCount: sales.salesCount,
+      salesCount: salesData.salesCount,
       isDelayed: avgDelayDays > 0,
     });
   }
@@ -257,7 +296,7 @@ export function calcOrgCollectionDelay(
       totalSalesAmount: m.totalSalesAmount,
       totalCollectedAmount: m.totalCollectedAmount,
       collectionRate: m.totalSalesAmount > 0
-        ? Math.min((safeDivide(m.totalCollectedAmount, m.totalSalesAmount)) * 100, 100)
+        ? safeDivide(m.totalCollectedAmount, m.totalSalesAmount) * 100
         : 0,
       avgDaysToCollect: m.countWithDelay > 0
         ? safeDivide(m.totalDaysToCollect, m.countWithDelay)
@@ -331,7 +370,7 @@ export function calcMonthlyCollectionDelay(
     const salesMonth = shiftMonth(month, offsetMonths);
     const salesAmount = salesByMonth.get(salesMonth) || 0;
     const collectionRate = salesAmount > 0
-      ? Math.min((safeDivide(collectedAmount, salesAmount)) * 100, 100)
+      ? safeDivide(collectedAmount, salesAmount) * 100
       : 0;
 
     // 평균 지연일 추정: 매출 월의 수금예정일 vs 수금 월의 실제수금일
@@ -390,7 +429,7 @@ export function calcCollectionDelaySummary(
     totalSalesAmount: totalSales,
     totalCollectedAmount: totalColl,
     overallCollectionRate: totalSales > 0
-      ? Math.min((safeDivide(totalColl, totalSales)) * 100, 100)
+      ? safeDivide(totalColl, totalSales) * 100
       : 0,
     avgDaysToCollect: countWithDays > 0 ? totalDays / countWithDays : 0,
     avgDelayDays: countWithDays > 0 ? totalDelay / countWithDays : 0,
@@ -411,16 +450,25 @@ export function calcPaymentMethodAnalysis(
 ): PaymentMethodAnalysis[] {
   if (collections.length === 0) return [];
 
-  const map = new Map<string, { count: number; amount: number }>();
+  const map = new Map<string, { count: number; amount: number; totalDelayDays: number; delayCount: number }>();
   let total = 0;
 
   for (const c of collections) {
     const method = (c.결재방법 || c.수금유형 || "기타").trim() || "기타";
     const amt = c.장부수금액 || c.수금액 || 0;
     total += amt;
-    const entry = map.get(method) || { count: 0, amount: 0 };
+    const entry = map.get(method) || { count: 0, amount: 0, totalDelayDays: 0, delayCount: 0 };
     entry.count += 1;
     entry.amount += amt;
+
+    // 만기일 대비 수금일 지연일수 계산
+    const collDate = parseDate(c.수금일);
+    const dueDate = parseDate(c.만기일);
+    if (collDate && dueDate) {
+      entry.totalDelayDays += daysBetween(dueDate, collDate);
+      entry.delayCount += 1;
+    }
+
     map.set(method, entry);
   }
 
@@ -430,6 +478,7 @@ export function calcPaymentMethodAnalysis(
       count: e.count,
       amount: e.amount,
       share: total > 0 ? (e.amount / total) * 100 : 0,
+      avgDelayDays: e.delayCount > 0 ? safeDivide(e.totalDelayDays, e.delayCount) : 0,
     }))
     .sort((a, b) => b.amount - a.amount);
 }

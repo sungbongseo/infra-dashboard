@@ -183,7 +183,37 @@ export function calcLongTermByOrg(records: ReceivableAgingRecord[]): LongTermByO
     .sort((a, b) => b.longTermTotal - a.longTermTotal);
 }
 
-// ─── 4. 대손충당금 추정 구성 ────────────────────────────────────────
+// ─── 4-A. 대손충당금 커스텀 충당률 추정 ──────────────────────────────
+
+export interface ProvisionRates {
+  month4: number;
+  month5: number;
+  month6: number;
+  overdue: number;
+}
+
+export function calcBadDebtProvisionCustom(
+  records: ReceivableAgingRecord[],
+  rates: ProvisionRates
+): BadDebtProvision[] {
+  let m4 = 0, m5 = 0, m6 = 0, ov = 0;
+
+  for (const r of records) {
+    m4 += r.month4.장부금액;
+    m5 += r.month5.장부금액;
+    m6 += r.month6.장부금액;
+    ov += r.overdue.장부금액;
+  }
+
+  return [
+    { bucket: "91~120일", 원금: m4, 충당률: rates.month4, 충당금: m4 * rates.month4 },
+    { bucket: "121~150일", 원금: m5, 충당률: rates.month5, 충당금: m5 * rates.month5 },
+    { bucket: "151~180일", 원금: m6, 충당률: rates.month6, 충당금: m6 * rates.month6 },
+    { bucket: "180일+", 원금: ov, 충당률: rates.overdue, 충당금: ov * rates.overdue },
+  ];
+}
+
+// ─── 4-B. 대손충당금 추정 구성 (SAP 표준) ─────────────────────────────
 
 export function calcBadDebtProvision(records: ReceivableAgingRecord[]): BadDebtProvision[] {
   let m4 = 0, m5 = 0, m6 = 0, ov = 0;

@@ -31,7 +31,7 @@ export type AgingSourceName =
   | "전략구매혁신팀"
   | "해외사업팀";
 
-export type CreditStatus = "danger" | "warning" | "normal";
+export type CreditStatus = "danger" | "warning" | "caution" | "normal";
 
 export interface CreditUtilization {
   판매처: string;
@@ -51,6 +51,7 @@ export interface CreditSummaryByOrg {
   utilizationRate: number;
   dangerCount: number;
   warningCount: number;
+  cautionCount: number;
 }
 
 export type RiskGrade = "high" | "medium" | "low";

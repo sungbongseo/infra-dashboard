@@ -25,16 +25,21 @@ import { DataTable } from "@/components/dashboard/DataTable";
 import { formatCurrency, formatPercent, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { LongTermSummary, LongTermCustomer, LongTermByOrg, BadDebtProvision } from "@/lib/analysis/longTermReceivable";
+import type { ReceivableAgingRecord } from "@/types";
+import { calcBadDebtProvisionCustom } from "@/lib/analysis/longTermReceivable";
 
 interface LongTermTabProps {
   summary: LongTermSummary;
   customers: LongTermCustomer[];
   byOrg: LongTermByOrg[];
   provision: BadDebtProvision[];
+  allRecords?: ReceivableAgingRecord[];
   isDateFiltered?: boolean;
 }
 
-export function LongTermTab({ summary, customers, byOrg, provision, isDateFiltered }: LongTermTabProps) {
+const CONSERVATIVE_RATES = { month4: 0.05, month5: 0.10, month6: 0.30, overdue: 0.80 } as const;
+
+export function LongTermTab({ summary, customers, byOrg, provision, allRecords, isDateFiltered }: LongTermTabProps) {
   // 차트 1: 장기 미수 거래처 Top 15 (Stacked Horizontal Bar)
   const topCustomers = useMemo(
     () =>
@@ -69,6 +74,14 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
       })),
     [provision]
   );
+
+  // 대손충당금 시나리오 비교: SAP 표준 vs 보수적
+  const conservativeProvision = useMemo(
+    () => allRecords ? calcBadDebtProvisionCustom(allRecords, CONSERVATIVE_RATES) : [],
+    [allRecords]
+  );
+  const sapTotal = useMemo(() => provision.reduce((s, p) => s + p.충당금, 0), [provision]);
+  const conservativeTotal = useMemo(() => conservativeProvision.reduce((s, p) => s + p.충당금, 0), [conservativeProvision]);
 
   const customerExportData = useMemo(
     () =>
@@ -312,6 +325,59 @@ export function LongTermTab({ summary, customers, byOrg, provision, isDateFilter
           </BarChart>
         </ChartContainer>
       </ChartCard>
+
+      {/* 대손충당금 시나리오 비교 */}
+      {allRecords && allRecords.length > 0 && (
+        <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+          title="대손충당금 시나리오 비교"
+          formula="SAP 표준(1%/5%/10%/50%) vs 보수적 추정(5%/10%/30%/80%)"
+          description="두 가지 충당률 시나리오를 비교하여 최악의 경우 필요 충당금 규모를 파악합니다."
+          benchmark="보수적 추정이 SAP 표준의 2배 이상이면 채권 포트폴리오 리스크 점검 필요"
+          reason="충당금 시나리오 분석을 통해 경영진에게 리스크 범위를 보고하고, 충당금 정책 적정성을 검증합니다."
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+                <h4 className="font-semibold text-sm">SAP 표준 (간편법)</h4>
+              </div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                {formatCurrency(sapTotal)}
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {provision.map((p) => (
+                  <div key={p.bucket} className="flex justify-between">
+                    <span>{p.bucket} ({isFinite(p.충당률) ? (p.충당률 * 100).toFixed(0) : "0"}%)</span>
+                    <span className="tabular-nums">{formatCurrency(p.충당금, true)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-lg border p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
+                <h4 className="font-semibold text-sm">보수적 추정</h4>
+              </div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {formatCurrency(conservativeTotal)}
+              </div>
+              <div className="space-y-1 text-xs text-muted-foreground">
+                {conservativeProvision.map((p) => (
+                  <div key={p.bucket} className="flex justify-between">
+                    <span>{p.bucket} ({isFinite(p.충당률) ? (p.충당률 * 100).toFixed(0) : "0"}%)</span>
+                    <span className="tabular-nums">{formatCurrency(p.충당금, true)}</span>
+                  </div>
+                ))}
+              </div>
+              {conservativeTotal > sapTotal && (
+                <div className="text-xs font-medium text-red-600 dark:text-red-400 pt-1 border-t">
+                  SAP 표준 대비 +{formatCurrency(conservativeTotal - sapTotal)} ({sapTotal > 0 ? safeFixed(((conservativeTotal - sapTotal) / sapTotal) * 100, 0) : "0"}% 증가)
+                </div>
+              )}
+            </div>
+          </div>
+        </ChartCard>
+      )}
 
       {/* 테이블: 장기 미수 거래처 목록 */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}

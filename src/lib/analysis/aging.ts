@@ -1,7 +1,7 @@
 import type { ReceivableAgingRecord, RiskGrade, AgingRiskAssessment, CreditUtilization, CreditSummaryByOrg, CreditStatus } from "@/types";
 import { safeDivide } from "@/lib/utils";
 
-// SAP FI-AR 표준: 90일(month3) 이상 = 연체
+// SAP FI-AR 표준: month3(61~90일) 버킷부터 연체 판정 (즉, 61일 이상 = 연체)
 export const RISK_THRESHOLDS = {
   HIGH_OVERDUE_RATIO: 0.5,
   MEDIUM_OVERDUE_RATIO: 0.2,
@@ -134,6 +134,7 @@ export function calcCreditUtilization(records: ReceivableAgingRecord[]): CreditU
     let 상태: CreditStatus = "normal";
     if (사용률 >= 100) 상태 = "danger";
     else if (사용률 >= 80) 상태 = "warning";
+    else if (사용률 >= 60) 상태 = "caution";
 
     results.push({
       판매처,
@@ -154,15 +155,16 @@ export function calcCreditUtilization(records: ReceivableAgingRecord[]): CreditU
 export function calcCreditSummaryByOrg(records: ReceivableAgingRecord[]): CreditSummaryByOrg[] {
   const utilizations = calcCreditUtilization(records);
 
-  const orgMap = new Map<string, { totalLimit: number; totalUsed: number; dangerCount: number; warningCount: number }>();
+  const orgMap = new Map<string, { totalLimit: number; totalUsed: number; dangerCount: number; warningCount: number; cautionCount: number }>();
   for (const u of utilizations) {
     const org = u.영업조직;
     if (!org) continue;
-    const entry = orgMap.get(org) || { totalLimit: 0, totalUsed: 0, dangerCount: 0, warningCount: 0 };
+    const entry = orgMap.get(org) || { totalLimit: 0, totalUsed: 0, dangerCount: 0, warningCount: 0, cautionCount: 0 };
     entry.totalLimit += u.여신한도;
     entry.totalUsed += u.총미수금;
     if (u.상태 === "danger") entry.dangerCount++;
     if (u.상태 === "warning") entry.warningCount++;
+    if (u.상태 === "caution") entry.cautionCount++;
     orgMap.set(org, entry);
   }
 
@@ -173,6 +175,7 @@ export function calcCreditSummaryByOrg(records: ReceivableAgingRecord[]): Credit
     utilizationRate: data.totalLimit > 0 ? (data.totalUsed / data.totalLimit) * 100 : 0,
     dangerCount: data.dangerCount,
     warningCount: data.warningCount,
+    cautionCount: data.cautionCount,
   })).sort((a, b) => b.utilizationRate - a.utilizationRate);
 }
 

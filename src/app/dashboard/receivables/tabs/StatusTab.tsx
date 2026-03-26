@@ -22,15 +22,25 @@ type AgingByOrg = { org: string } & AgingSummary;
 
 interface StatusTabProps {
   summary: AgingSummary;
+  comparisonSummary?: AgingSummary;
+  comparisonHighRiskCount?: number;
   byOrg: AgingByOrg[];
   highRiskCount: number;
   isDateFiltered?: boolean;
 }
 
-export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: StatusTabProps) {
+export function StatusTab({ summary, comparisonSummary, comparisonHighRiskCount, byOrg, highRiskCount, isDateFiltered }: StatusTabProps) {
   // SAP FI-AR 표준: 61일+(month3~overdue)을 연체로 판정 (aging.ts assessRisk와 동일 기준)
   const overdueTotal = summary.month3 + summary.month4 + summary.month5 + summary.month6 + summary.overdue;
   const overdueRate = summary.total > 0 ? (overdueTotal / summary.total) * 100 : 0;
+
+  // 비교 기간 연체 계산
+  const prevOverdueTotal = comparisonSummary
+    ? comparisonSummary.month3 + comparisonSummary.month4 + comparisonSummary.month5 + comparisonSummary.month6 + comparisonSummary.overdue
+    : undefined;
+  const prevOverdueRate = comparisonSummary && comparisonSummary.total > 0
+    ? ((comparisonSummary.month3 + comparisonSummary.month4 + comparisonSummary.month5 + comparisonSummary.month6 + comparisonSummary.overdue) / comparisonSummary.total) * 100
+    : undefined;
 
   const agingStackedData = useMemo(() =>
     byOrg.map((o) => ({
@@ -50,15 +60,20 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
 
   return (
     <>
-      {(summary.bucketDiscrepancy ?? 0) > 0 && (
-        <div className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
-          <AlertTriangle className="h-3 w-3" /> Aging 버킷 합계 {isFinite(summary.bucketDiscrepancy!) ? summary.bucketDiscrepancy!.toFixed(1) : "0.0"}% 불일치
+      {(summary.bucketDiscrepancy ?? 0) > 1 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <div className="text-sm text-amber-800 dark:text-amber-300">
+            <span className="font-medium">데이터 품질 경고:</span> Aging 버킷 합산액과 합계 필드 사이에 {isFinite(summary.bucketDiscrepancy!) ? summary.bucketDiscrepancy!.toFixed(1) : "0.0"}% 차이가 발견되었습니다. SAP 원본 데이터를 확인해 주세요.
+          </div>
         </div>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           title="총 미수금"
           value={summary.total}
+          previousValue={comparisonSummary?.total}
+          trendPositive={false}
           format="currency"
           icon={<CreditCard className="h-5 w-5" />}
           formula="모든 미수채권연령 파일의 미수금을 합산"
@@ -69,6 +84,8 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
         <KpiCard
           title="61일 이상 연체 미수"
           value={overdueTotal}
+          previousValue={prevOverdueTotal}
+          trendPositive={false}
           format="currency"
           icon={<AlertTriangle className="h-5 w-5" />}
           formula="연체 미수(원) = 3개월차(61~90일) + 4개월차(91~120일) + 5개월차(121~150일) + 6개월차(151~180일) + 6개월 초과(181일+)"
@@ -79,6 +96,8 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
         <KpiCard
           title="연체비율"
           value={overdueRate}
+          previousValue={prevOverdueRate}
+          trendPositive={false}
           format="percent"
           formula="연체비율(%) = 61일 이상 미수금(3개월차~6개월 초과) ÷ 총 미수금 × 100"
           description="전체 미수금 중에서 61일(3개월차) 이상 체류한 채권이 차지하는 비율입니다. SAP FI-AR 표준 연체 기준이며, 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다."
@@ -88,6 +107,8 @@ export function StatusTab({ summary, byOrg, highRiskCount, isDateFiltered }: Sta
         <KpiCard
           title="고위험 거래처"
           value={highRiskCount}
+          previousValue={comparisonHighRiskCount}
+          trendPositive={false}
           format="number"
           icon={<Shield className="h-5 w-5" />}
           formula="연체비율 50% 초과 또는 6개월 이상 미수금 1억원 초과인 거래처 수"

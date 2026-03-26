@@ -198,39 +198,70 @@ export function CollectionDelayTab({
 
         {/* 결제방법별 수금 분석 */}
         <ChartCard
-          title="결제방법별 수금 비중"
+          title="결제방법별 수금 비중 및 지연 패턴"
           isEmpty={paymentMethods.length === 0}
           dataSourceType="period"
           isDateFiltered={isDateFiltered}
-          formula="결재방법별 수금액 합산 및 비중 계산"
-          description="현금, 어음, 기타 등 결제수단별 수금 비중입니다. 어음 비중이 높으면 현금화 지연 리스크가 큽니다."
+          formula="결재방법별 수금액 합산, 비중 계산, 만기일 대비 평균 수금 지연일"
+          description="현금, 어음, 기타 등 결제수단별 수금 비중과 평균 지연일입니다. 어음 비중이 높으면 현금화 지연 리스크가 큽니다."
           benchmark="현금/계좌이체 비중 70% 이상이면 양호한 수금 구조"
-          reason="결제수단별 수금 구성을 분석하여 현금흐름 예측 정확도를 높이고 어음 의존도를 관리합니다"
+          reason="결제수단별 수금 구성과 지연 패턴을 분석하여 현금흐름 예측 정확도를 높이고 어음 의존도를 관리합니다"
         >
-          <ChartContainer height="h-72 md:h-80">
-            <PieChart>
-              <Pie
-                data={paymentMethods}
-                cx="50%"
-                cy="50%"
-                innerRadius="35%"
-                outerRadius="65%"
-                dataKey="amount"
-                nameKey="method"
-                label={(props: any) => `${props.method} ${isFinite(props.share) ? props.share.toFixed(1) : "0"}%`}
-                {...ANIMATION_CONFIG}
-              >
-                {paymentMethods.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <RechartsTooltip
-                {...TOOLTIP_STYLE}
-                formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
-              />
-              <Legend />
-            </PieChart>
-          </ChartContainer>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ChartContainer height="h-72 md:h-80">
+              <PieChart>
+                <Pie
+                  data={paymentMethods}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius="35%"
+                  outerRadius="65%"
+                  dataKey="amount"
+                  nameKey="method"
+                  label={(props: any) => `${props.method} ${isFinite(props.share) ? props.share.toFixed(1) : "0"}%`}
+                  {...ANIMATION_CONFIG}
+                >
+                  {paymentMethods.map((_, i) => (
+                    <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  {...TOOLTIP_STYLE}
+                  formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
+                />
+                <Legend />
+              </PieChart>
+            </ChartContainer>
+            <div className="overflow-auto max-h-80">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-background">
+                  <tr className="border-b text-left">
+                    <th className="py-2 px-2 font-medium">결제방법</th>
+                    <th className="py-2 px-2 font-medium text-right">건수</th>
+                    <th className="py-2 px-2 font-medium text-right">금액</th>
+                    <th className="py-2 px-2 font-medium text-right">비중</th>
+                    <th className="py-2 px-2 font-medium text-right">평균 지연일</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentMethods.map((pm, i) => (
+                    <tr key={pm.method} className="border-b border-border/50 hover:bg-muted/50">
+                      <td className="py-1.5 px-2 flex items-center gap-2">
+                        <span className="inline-block w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                        {pm.method}
+                      </td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{pm.count.toLocaleString()}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{formatCurrency(pm.amount, true)}</td>
+                      <td className="py-1.5 px-2 text-right tabular-nums">{safeFixed(pm.share, 1)}%</td>
+                      <td className={`py-1.5 px-2 text-right tabular-nums font-medium ${pm.avgDelayDays > 15 ? "text-red-600 dark:text-red-400" : pm.avgDelayDays > 0 ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                        {pm.avgDelayDays === 0 ? "-" : `${pm.avgDelayDays > 0 ? "+" : ""}${safeFixed(pm.avgDelayDays, 0)}일`}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </ChartCard>
       </div>
 

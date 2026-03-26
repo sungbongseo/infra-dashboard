@@ -44,7 +44,7 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
         여신한도: c.여신한도,
         미수금: c.총미수금,
         사용률: `${isFinite(c.사용률) ? c.사용률.toFixed(1) : "0"}%`,
-        상태: c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "주의" : "양호",
+        상태: c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "위험접근" : c.상태 === "caution" ? "주의" : "양호",
       })),
     [creditUtilizations]
   );
@@ -124,6 +124,8 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
                         ? "hsl(0, 84%, 50%)"
                         : entry.utilizationRate >= 80
                         ? "hsl(45, 93%, 47%)"
+                        : entry.utilizationRate >= 60
+                        ? "hsl(217, 91%, 60%)"
                         : CHART_COLORS[2]
                     }
                   />
@@ -166,9 +168,10 @@ export function CreditTab({ allRecords, isDateFiltered }: CreditTabProps) {
                   <td className="py-1.5 px-2 text-right tabular-nums font-medium">{formatPercent(c.사용률, 1)}</td>
                   <td className="py-1.5 px-2">
                     <Badge
-                      variant={c.상태 === "danger" ? "destructive" : c.상태 === "warning" ? "warning" : "success"}
+                      variant={c.상태 === "danger" ? "destructive" : c.상태 === "warning" ? "warning" : c.상태 === "caution" ? "secondary" : "success"}
+                      className={c.상태 === "caution" ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 border-transparent" : undefined}
                     >
-                      {c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "주의" : "양호"}
+                      {c.상태 === "danger" ? "한도초과" : c.상태 === "warning" ? "위험접근" : c.상태 === "caution" ? "주의" : "양호"}
                     </Badge>
                   </td>
                 </tr>

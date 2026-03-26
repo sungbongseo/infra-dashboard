@@ -9,6 +9,12 @@ import {
   CartesianGrid,
   Tooltip as RechartsTooltip,
   Cell,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
 } from "recharts";
 import { Users, AlertTriangle, Target, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +23,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { DataTable } from "@/components/dashboard/DataTable";
-import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { PersonPortfolio, PersonHealthData, CustomerRepDetail } from "@/lib/analysis/receivableInsight";
 
@@ -59,6 +65,32 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
         .reverse(),
     [portfolio]
   );
+
+  // 레이더 차트: 상위 5명 비교 (미수금 기준)
+  const radarTop5 = useMemo(() => {
+    const top5 = [...portfolio]
+      .sort((a, b) => b.totalReceivable - a.totalReceivable)
+      .slice(0, 5);
+    if (top5.length === 0) return { axes: [] as { axis: string; [key: string]: string | number }[], persons: [] as string[] };
+    const maxCustomerCount = Math.max(...top5.map((p) => p.customerCount), 1);
+    const axes = [
+      "수금효율", "연체관리", "분산도", "거래처규모", "리스크관리",
+    ].map((axis) => {
+      const row: { axis: string; [key: string]: string | number } = { axis };
+      for (const p of top5) {
+        const values: Record<string, number> = {
+          수금효율: Math.min(p.normalRatio, 100),
+          연체관리: Math.max(0, 100 - p.overdueRatio),
+          분산도: Math.min(Math.max(0, (10000 - p.hhi) / 100), 100),
+          거래처규모: Math.min((p.customerCount / maxCustomerCount) * 100, 100),
+          리스크관리: Math.max(0, 100 - p.highRiskCount * 25),
+        };
+        row[p.person] = Math.round(values[axis] ?? 0);
+      }
+      return row;
+    });
+    return { axes, persons: top5.map((p) => p.person) };
+  }, [portfolio]);
 
   // 건전성 차트 (상위 15명)
   const healthTop15 = useMemo(() => healthData.slice(0, 15).reverse(), [healthData]);
@@ -180,6 +212,40 @@ export function PersonInsightTab({ portfolio, healthData, customerRepDetail, isD
           reason="미수금 집중도가 높은 담당자를 식별하여 특정 거래처 부도 시 연쇄 손실 위험을 사전에 차단합니다."
         />
       </div>
+
+      {/* 레이더 차트: 담당자 역량 비교 (Top 5) */}
+      {radarTop5.axes.length > 0 && radarTop5.persons.length >= 2 && (
+        <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}
+          title="주요 담당자 역량 비교 (Top 5)"
+          formula="수금효율(정상비율) / 연체관리(100-연체비율) / 분산도(HHI 역수) / 거래처규모(거래처 수 정규화) / 리스크관리(100-고위험건수×25)"
+          description="미수금 상위 5명 담당자의 수금 역량을 5가지 축으로 비교합니다. 면적이 넓을수록 종합 역량이 우수합니다."
+          benchmark="모든 축이 60 이상이면 양호, 특정 축이 30 미만이면 해당 역량 강화 필요"
+          reason="담당자별 강점과 약점을 다차원으로 분석하여 맞춤형 역량 개발과 업무 재배분에 활용합니다."
+        >
+          <ChartContainer height="h-80 md:h-96">
+            <RadarChart cx="50%" cy="50%" outerRadius="70%" data={radarTop5.axes}>
+              <PolarGrid />
+              <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
+              {radarTop5.persons.map((person, i) => (
+                <Radar
+                  key={person}
+                  name={person}
+                  dataKey={person}
+                  stroke={CHART_COLORS[i % CHART_COLORS.length]}
+                  fill={CHART_COLORS[i % CHART_COLORS.length]}
+                  fillOpacity={0.15}
+                />
+              ))}
+              <Legend />
+              <RechartsTooltip
+                {...TOOLTIP_STYLE}
+                formatter={(v: any, name: any) => [`${v}점`, name]}
+              />
+            </RadarChart>
+          </ChartContainer>
+        </ChartCard>
+      )}
 
       {/* Chart 1: 담당자별 미수금 건전성 (100% Stacked Horizontal Bar) */}
       <ChartCard dataSourceType="snapshot" isDateFiltered={isDateFiltered}

@@ -53,7 +53,9 @@ export function calcPersonPortfolio(records: ReceivableAgingRecord[]): PersonPor
       });
     }
 
-    // HHI (Herfindahl-Hirschman Index)
+    // HHI (Herfindahl-Hirschman Index, 0~10000 스케일)
+    // 표준 HHI: Σ(시장점유율%)² → 0~10000 범위
+    // <1500: 비집중, 1500~2500: 중간집중, >2500: 고집중
     let hhi = 0;
     let topCustomer = "";
     let topCustomerAmount = 0;
@@ -61,7 +63,7 @@ export function calcPersonPortfolio(records: ReceivableAgingRecord[]): PersonPor
     if (totalReceivable > 0) {
       for (const [, v] of Array.from(customerTotals.entries())) {
         const share = safeDivide(v.amount, totalReceivable);
-        hhi += share * share;
+        hhi += share * share * 10000;
         if (v.amount > topCustomerAmount) {
           topCustomerAmount = v.amount;
           topCustomer = v.name;

@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/dashboard/EmptyState";
 import { CHART_COLORS, TOOLTIP_STYLE, DSO_COLORS, formatCurrency, extractMonth } from "@/lib/utils";
 import { calcDSOByOrg, calcOverallDSO, calcDSOTrend, formatDSO } from "@/lib/analysis/dso";
 import { calcCCCByOrg, calcCCCAnalysis } from "@/lib/analysis/ccc";
-import { calcItemInventory, calcGroupSummary, calcInventoryKPI } from "@/lib/analysis/inventoryAnalysis";
+import { calcItemInventory, calcGroupSummary, calcInventoryKPI, calcDIO } from "@/lib/analysis/inventoryAnalysis";
 import type { ColumnDef } from "@tanstack/react-table";
 import type { CCCMetric } from "@/lib/analysis/ccc";
 import type { CollectionRecord, SalesRecord, InventoryMovementRecord } from "@/types";
@@ -100,9 +100,26 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
     () => calcOverallDSO(allRecords, filteredSales),
     [allRecords, filteredSales]
   );
+
+  // Inventory analysis — must be declared before DIO/CCC calculations
+  const hasInventory = inventoryData !== undefined && inventoryData.size > 0;
+
+  // DIO calculation from inventory data (for full CCC = DSO + DIO - DPO)
+  const dioResults = useMemo(
+    () => {
+      if (!hasInventory || !inventoryData) return undefined;
+      const allInv: InventoryMovementRecord[] = [];
+      for (const records of Array.from(inventoryData.values())) {
+        allInv.push(...records);
+      }
+      return allInv.length > 0 ? calcDIO(allInv) : undefined;
+    },
+    [inventoryData, hasInventory]
+  );
+
   const cccMetrics = useMemo(
-    () => calcCCCByOrg(dsoMetrics, filteredTeamContrib),
-    [dsoMetrics, filteredTeamContrib]
+    () => calcCCCByOrg(dsoMetrics, filteredTeamContrib, dioResults),
+    [dsoMetrics, filteredTeamContrib, dioResults]
   );
   const cccAnalysis = useMemo(
     () => calcCCCAnalysis(cccMetrics),
@@ -130,9 +147,6 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
     () => calcMonthlyCollectionRate(filteredSales, filteredCollections),
     [filteredSales, filteredCollections]
   );
-
-  // Inventory analysis
-  const hasInventory = inventoryData !== undefined && inventoryData.size > 0;
   const inventoryItems = useMemo(
     () => hasInventory ? calcItemInventory(inventoryData!) : [],
     [inventoryData, hasInventory]
@@ -151,6 +165,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       cccMetrics.map((m) => ({
         조직: m.org,
         "DSO(일)": m.dso,
+        ...(m.hasDIO ? { "DIO(일)": m.dio } : {}),
         "DPO(일)": m.dpo,
         "CCC(일)": m.ccc,
         등급: DSO_LABELS[m.classification] || m.classification,
@@ -177,14 +192,28 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           </span>
         ),
       },
+      ...(cccAnalysis.hasDIO ? [{
+        accessorKey: "dio" as const,
+        header: () => <span className="block text-right">DIO (일)</span>,
+        cell: ({ row }: any) => (
+          <span className="block text-right tabular-nums">
+            {row.original.dio}
+          </span>
+        ),
+      }] : []),
       {
         accessorKey: "dpo",
         header: () => <span className="block text-right">DPO (일)</span>,
-        cell: ({ getValue }) => (
-          <span className="block text-right tabular-nums">
-            {getValue<number>()}
-          </span>
-        ),
+        cell: ({ row }) => {
+          const dpo = row.original.dpo;
+          const matchType = row.original.dpoMatchType;
+          const suffix = matchType === "fuzzy" ? " (≈)" : matchType === "default" ? " (avg)" : "";
+          return (
+            <span className="block text-right tabular-nums" title={matchType === "fuzzy" ? "유사 조직명 매칭" : matchType === "default" ? "전체 평균 DPO 사용" : "정확 매칭"}>
+              {dpo}{suffix}
+            </span>
+          );
+        },
       },
       {
         accessorKey: "ccc",
@@ -262,7 +291,9 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
           value={cccAnalysis.avgCCC}
           format="number"
           icon={<RefreshCw className="h-5 w-5" />}
-          formula={`CCC = DSO - DPO (예: ${cccAnalysis.avgDSO}일 - ${cccAnalysis.avgDPO}일 = ${cccAnalysis.avgCCC}일)\nDSO: 매출 후 현금 회수까지 걸리는 일수\nDPO: 구매 후 대금 지급까지 걸리는 일수`}
+          formula={cccAnalysis.hasDIO
+            ? `CCC = DSO + DIO - DPO (예: ${cccAnalysis.avgDSO}일 + ${cccAnalysis.avgDIO}일 - ${cccAnalysis.avgDPO}일 = ${cccAnalysis.avgCCC}일)\nDSO: 매출채권 회수일 / DIO: 재고 보유일 / DPO: 매입채무 지급일`
+            : `CCC = DSO - DPO (예: ${cccAnalysis.avgDSO}일 - ${cccAnalysis.avgDPO}일 = ${cccAnalysis.avgCCC}일, 재고데이터 없어 DIO 미포함)\nDSO: 매출 후 현금 회수까지 걸리는 일수\nDPO: 구매 후 대금 지급까지 걸리는 일수`}
           description="돈을 지출한 시점부터 다시 회수하기까지 걸리는 기간입니다. 작거나 음수일수록 현금 회전이 빨라 유리합니다."
           benchmark="0일 미만이면 우수, 0~30일이면 양호, 60일 초과이면 주의"
           reason="CCC는 운전자본 효율성의 종합 지표로, DSO와 DPO의 균형을 통해 자금 전략을 수립합니다."
@@ -296,10 +327,10 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-muted-foreground">
           <div className="space-y-1.5">
             <p className="font-medium text-foreground">DSO (매출채권 회수기간)</p>
-            <p>DSO &lt; 45일: <span className="text-emerald-600 dark:text-emerald-400 font-medium">우수</span> — 수금 관리 양호</p>
-            <p>DSO 45~60일: <span className="text-amber-500 dark:text-amber-400 font-medium">보통</span> — 업종 평균 수준</p>
-            <p>DSO 60~90일: <span className="text-orange-500 dark:text-orange-400 font-medium">주의</span> — 수금 관리 점검 필요</p>
-            <p>DSO &gt; 90일: <span className="text-red-500 dark:text-red-400 font-medium">위험</span> — 즉시 수금 대책 수립</p>
+            <p>DSO &lt; 30일: <span className="text-emerald-600 dark:text-emerald-400 font-medium">우수</span> — 수금 관리 최상위</p>
+            <p>DSO 30~45일: <span className="text-blue-500 dark:text-blue-400 font-medium">양호</span> — 업종 평균 이하 수준</p>
+            <p>DSO 45~60일: <span className="text-amber-500 dark:text-amber-400 font-medium">보통</span> — 수금 관리 점검 권장</p>
+            <p>DSO &gt; 60일: <span className="text-red-500 dark:text-red-400 font-medium">주의</span> — 즉시 수금 대책 수립</p>
           </div>
           <div className="space-y-1.5">
             <p className="font-medium text-foreground">CCC (현금순환주기)</p>
@@ -373,7 +404,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       {/* DSO Trend */}
       {dsoTrend.length > 1 && (
         <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-          title="월별 DSO 추세"
+          title="월별 DSO 추세 (추정치)"
           formula="DSO = 해당월 추정 미수금 / 3개월 이동평균 매출 x 30"
           description="⚠️ 추정치: 미수금 에이징은 스냅샷 데이터로 월별 미수금은 매출 비례 배분한 추정치입니다. 실제 월별 미수금과 차이가 있을 수 있습니다."
           benchmark="3개월 연속 DSO 증가면 수금 전략 점검"
@@ -397,13 +428,13 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
                 <RechartsTooltip
                   {...TOOLTIP_STYLE}
                   formatter={(value: any, name: any) =>
-                    name === "DSO" ? [formatDSO(Number(value)), name] : [formatCurrency(Number(value)), name]
+                    String(name).startsWith("DSO") ? [formatDSO(Number(value)), name] : [formatCurrency(Number(value)), name]
                   }
                 />
                 <Legend />
                 <ReferenceLine yAxisId="dso" y={45} stroke="hsl(45, 93%, 47%)" strokeDasharray="3 3" strokeWidth={1.5} label={{ value: "업종평균 45일", position: "right", fontSize: 10 }} />
                 <Bar yAxisId="amount" dataKey="monthlySales" name="월매출" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} opacity={0.4} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
-                <Line yAxisId="dso" type="monotone" dataKey="dso" name="DSO" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
+                <Line yAxisId="dso" type="monotone" dataKey="dso" name="DSO (추정)" stroke={CHART_COLORS[4]} strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
               </ComposedChart>
           </ChartContainer>
         </ChartCard>
@@ -453,7 +484,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
       <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
         isEmpty={cccMetrics.length === 0}
         title="조직별 CCC(현금순환주기) 상세 분석"
-        formula="CCC = DSO - DPO (예: 100일 - 40일 = 60일, 짧을수록 현금 회수 빠름)"
+        formula={cccAnalysis.hasDIO ? "CCC = DSO + DIO - DPO (재고회전일 반영, 짧을수록 현금 회수 빠름)" : "CCC = DSO - DPO (재고 데이터 미업로드, DIO 미반영)"}
         description="조직별 현금순환주기를 보여줍니다. CCC가 음수이면 매출 대금을 먼저 회수하는 우수한 상태입니다."
         benchmark="CCC 0일 미만이면 우수, 30일 이내이면 양호"
         reason="조직별 CCC를 비교하여 운전자본 효율성 격차를 진단합니다."

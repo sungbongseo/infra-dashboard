@@ -116,7 +116,7 @@ export function calcCustomerAgingProfile(records: ReceivableAgingRecord[]): Cust
   let mismatchCount = 0;
   for (const r of sorted) {
     const bucketSum = r.month1 + r.month2 + r.month3 + r.month4 + r.month5 + r.month6 + r.overdue;
-    if (Math.abs(bucketSum - r.합계) > 1) { // 1원 이내 허용 (반올림 오차)
+    if (Math.abs(bucketSum - r.합계) > Math.max(10, Math.abs(r.합계) * 0.001)) { // 0.1% 또는 10원 허용 (SAP 반올림 오차)
       mismatchCount++;
     }
   }

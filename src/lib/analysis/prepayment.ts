@@ -123,3 +123,42 @@ export function calcMonthlyPrepayments(
 
   return results;
 }
+
+// 선수금 상위 거래처
+export interface PrepaymentCustomer {
+  customer: string;
+  org: string;
+  amount: number;
+  share: number;
+}
+
+export function calcPrepaymentCustomers(
+  collections: CollectionRecord[]
+): PrepaymentCustomer[] {
+  const map = new Map<string, { org: string; amount: number }>();
+  let total = 0;
+
+  for (const row of collections) {
+    const amt = row.선수금액 || 0;
+    if (amt <= 0) continue;
+    total += amt;
+    const customer = (row.거래처명 || "").trim() || "미분류";
+    const org = (row.영업조직 || "").trim() || "미분류";
+    const entry = map.get(customer);
+    if (entry) {
+      entry.amount += amt;
+    } else {
+      map.set(customer, { org, amount: amt });
+    }
+  }
+
+  return Array.from(map.entries())
+    .map(([customer, data]) => ({
+      customer,
+      org: data.org,
+      amount: data.amount,
+      share: total > 0 ? safeDivide(data.amount, total) * 100 : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 10);
+}

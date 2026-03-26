@@ -175,6 +175,7 @@ export default function ReceivablesPage() {
               customers={longTermCustomers}
               byOrg={longTermByOrg}
               provision={badDebtProvision}
+              allRecords={allRecords}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
@@ -188,6 +189,7 @@ export default function ReceivablesPage() {
               prepaymentSummary={prepaymentSummary}
               orgPrepayments={orgPrepayments}
               monthlyPrepayments={monthlyPrepayments}
+              filteredCollections={filteredCollections}
               hasCollections={filteredCollections.length > 0}
               isDateFiltered={isDateFiltered}
             />

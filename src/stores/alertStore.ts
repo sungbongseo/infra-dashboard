@@ -48,7 +48,7 @@ interface AlertState {
   alerts: Alert[];
   alertHistory: AlertHistoryEntry[];
   skippedMetrics: SkippedMetric[];
-  evaluate: (kpis: KpiInput, dso?: number, creditUsageRate?: number) => void;
+  evaluate: (kpis: KpiInput, dso?: number, creditUsageRate?: number, receivableExtras?: { overdueRatio?: number; longTermRatio?: number; weightedAgingDays?: number }) => void;
   dismissAlert: (id: string) => void;
   dismissAll: () => void;
   activeAlertCount: () => number;
@@ -102,6 +102,42 @@ const DEFAULT_RULES: AlertRule[] = [
     severity: "warning",
     enabled: true,
   },
+  {
+    id: "rule-overdue-ratio-warning",
+    name: "연체비율 경고",
+    metric: "overdueRatio",
+    condition: "gt",
+    threshold: 30,
+    severity: "warning",
+    enabled: true,
+  },
+  {
+    id: "rule-overdue-ratio-critical",
+    name: "연체비율 위험",
+    metric: "overdueRatio",
+    condition: "gt",
+    threshold: 50,
+    severity: "critical",
+    enabled: true,
+  },
+  {
+    id: "rule-long-term-ratio",
+    name: "장기미수 비율 경고",
+    metric: "longTermRatio",
+    condition: "gt",
+    threshold: 20,
+    severity: "warning",
+    enabled: true,
+  },
+  {
+    id: "rule-aging-deterioration",
+    name: "가중평균 채권연령 경고",
+    metric: "weightedAgingDays",
+    condition: "gt",
+    threshold: 90,
+    severity: "warning",
+    enabled: true,
+  },
 ];
 
 const METRIC_LABELS: Record<string, string> = {
@@ -110,6 +146,9 @@ const METRIC_LABELS: Record<string, string> = {
   dso: "DSO",
   creditUsageRate: "여신사용률",
   salesPlanAchievement: "매출계획달성률",
+  overdueRatio: "연체비율",
+  longTermRatio: "장기미수 비율",
+  weightedAgingDays: "가중평균 채권연령",
 };
 
 const METRIC_UNITS: Record<string, string> = {
@@ -118,13 +157,17 @@ const METRIC_UNITS: Record<string, string> = {
   dso: "일",
   creditUsageRate: "%",
   salesPlanAchievement: "%",
+  overdueRatio: "%",
+  longTermRatio: "%",
+  weightedAgingDays: "일",
 };
 
 function getMetricValue(
   metric: string,
   kpis: KpiInput,
   dso?: number,
-  creditUsageRate?: number
+  creditUsageRate?: number,
+  receivableExtras?: { overdueRatio?: number; longTermRatio?: number; weightedAgingDays?: number },
 ): number | undefined {
   switch (metric) {
     case "collectionRate":
@@ -137,6 +180,12 @@ function getMetricValue(
       return dso;
     case "creditUsageRate":
       return creditUsageRate;
+    case "overdueRatio":
+      return receivableExtras?.overdueRatio;
+    case "longTermRatio":
+      return receivableExtras?.longTermRatio;
+    case "weightedAgingDays":
+      return receivableExtras?.weightedAgingDays;
     default:
       return undefined;
   }
@@ -170,7 +219,7 @@ export const useAlertStore = create<AlertState>((set, get) => ({
   alertHistory: [],
   skippedMetrics: [],
 
-  evaluate: (kpis, dso, creditUsageRate) => {
+  evaluate: (kpis, dso, creditUsageRate, receivableExtras) => {
     const { rules, alerts: existingAlerts } = get();
     const dismissed = existingAlerts.filter((a) => a.dismissed);
     const dismissedRuleIds = new Set(dismissed.map((a) => a.ruleId));
@@ -181,14 +230,13 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     for (const rule of rules) {
       if (!rule.enabled) continue;
 
-      const value = getMetricValue(rule.metric, kpis, dso, creditUsageRate);
+      const value = getMetricValue(rule.metric, kpis, dso, creditUsageRate, receivableExtras);
       if (value === undefined) {
+        const receivableMetrics = ["dso", "creditUsageRate", "overdueRatio", "longTermRatio", "weightedAgingDays"];
         skipped.push({
           metric: rule.metric,
           label: METRIC_LABELS[rule.metric] || rule.metric,
-          reason: rule.metric === "dso"
-            ? "미수금 에이징 데이터 미업로드"
-            : rule.metric === "creditUsageRate"
+          reason: receivableMetrics.includes(rule.metric)
             ? "미수금 에이징 데이터 미업로드"
             : "관련 데이터 미업로드",
         });
