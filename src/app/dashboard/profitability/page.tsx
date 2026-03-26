@@ -32,7 +32,7 @@ import {
   calcOrgGapContribution,
   generatePlanInsight,
 } from "@/lib/analysis/planAchievement";
-import { calcOrgBreakeven, calcOrgBreakevenFromTeam, calcBreakevenChart } from "@/lib/analysis/breakeven";
+import { calcOrgBreakeven, calcOrgBreakevenFromTeam, calcBreakevenChart, calcWeightedBep } from "@/lib/analysis/breakeven";
 import { calcMarginErosion } from "@/lib/analysis/detailedProfitAnalysis";
 import {
   calcItemCostSummary,
@@ -436,8 +436,11 @@ export default function ProfitabilityPage() {
     const finiteSafety = orgBreakeven.filter(r => isFinite(r.safetyMarginRate));
     const avgSafetyMargin = finiteSafety.length > 0 ? finiteSafety.reduce((s, r) => s + r.safetyMarginRate, 0) / finiteSafety.length : 0;
     const avgContribMarginRatio = orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0;
-    return { totalBep, avgSafetyMargin, avgContribMarginRatio };
+    const unachievableCount = orgBreakeven.filter(r => !r.canBreakEven).length;
+    return { totalBep, avgSafetyMargin, avgContribMarginRatio, unachievableCount };
   }, [orgBreakeven]);
+
+  const weightedBep = useMemo(() => calcWeightedBep(orgBreakeven), [orgBreakeven]);
 
   // ─── 마진 침식 분석 ──────────────────────────────
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
@@ -664,7 +667,7 @@ export default function ProfitabilityPage() {
         <TabsContent value="breakeven" className="space-y-6">
           <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
-            <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} isDateFiltered={isDateFilterActive} />
+            <BreakevenTab orgBreakeven={orgBreakeven} bepChartData={bepChartData} bepKpiSummary={bepKpiSummary} bepFromTeam={bepFromTeam} isDateFiltered={isDateFilterActive} weightedBep={weightedBep} />
           </ErrorBoundary>
           </Suspense>
         </TabsContent>
