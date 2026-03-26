@@ -50,7 +50,7 @@ Excel files (drag-and-drop) → FileUploader.tsx
 - `src/components/charts/` — ChartContainer wrapper with shared grid/bar/animation config constants (GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR)
 - `src/lib/excel/` — Excel parsing: `schemas.ts` defines 14 file types with regex patterns; `parser.ts` handles XLSX reading with `safeParseRows()` for row-level error isolation
 - `src/lib/analysis/` — Pure computation functions (see Analysis Modules below)
-- `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (`useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, etc.) that encapsulate the common filter pattern
+- `src/lib/hooks/useFilteredData.ts` — Shared filtering hooks (13 hooks: `useFilterContext`, `useFilteredSales`, `useFilteredCollections`, `useFilteredOrders`, `useFilteredReceivables`, `useFilteredOrgProfit`, `useFilteredTeamContribution`, `useFilteredOrgCustomerProfit`, `useFilteredCustomerItemDetail`, `useFilteredItemCostDetail`, `useFilteredHqCustomerItemProfit`, `useFilteredProfitabilityAnalysis`, `useFilteredItemProfitability`, `useFilteredInventory`) that encapsulate the common filter+aggregate pattern
 - `src/lib/db.ts` — Dexie IndexedDB persistence for all parsed data and filter state
 - `src/lib/orgMapping.ts` — Centralized fuzzy matching for 영업조직 ↔ 영업조직팀 name resolution
 - `src/lib/utils.ts` — formatCurrency (억/만원), formatPercent, extractMonth, filterByOrg, filterByDateRange, filterOrgProfitLeafOnly, aggregateOrgProfit, aggregateToCustomerLevel, CHART_COLORS, TOOLTIP_STYLE
@@ -103,7 +103,7 @@ Advanced analytics:
 - `productGroupAnalysis.ts` — 제품군별 분석
 - `salesProcess.ts` — 영업 프로세스 분석
 - `monthlyTrend.ts` — 월별 트렌드 분석
-- `inventoryAnalysis.ts` — 재고 수불 분석
+- `inventoryAnalysis.ts` — 재고 수불 분석: ABC 분류, 카테고리별/주거래처별/품목그룹별 분석, 매출×재고 사분면 매트릭스, 원가 연계 금액, 수요 예측(이동평균), 소진일 경고 (15 functions)
 - `crossAnalysis.ts` — 교차 분석
 - `portfolioOptimization.ts` — 포트폴리오 최적화
 - `customerItemMargin.ts` — 거래처×품목 마진 분석
@@ -148,11 +148,11 @@ All pages extract tab content into separate components under `tabs/` subdirector
 
 | Page | Tabs |
 |------|------|
-| Overview (`/dashboard`) | 핵심 지표, 조직 분석, 재무 건전성, 벤치마크/보고서 (4 tabs) |
-| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, 품목군, RFM, CLV, 거래처 이동, FX, 이상치, 코호트, 이탈 예측, 시계열 (13 tabs) |
-| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 3-way차이, 손익분기, 시나리오, 민감도, 거래처 손익, 거래처×품목, 상세 수익, 품목원가, 원가차이, 표준원가, 거래처리스크, 판관비세부 (18 tabs) |
+| Overview (`/dashboard`) | 핵심 지표, 조직 분석, 재무 건전성, 벤치마크/보고서, 경영진 보고 (5 tabs) |
+| Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, 품목군, 거래처 마진, 거래처 360°, RFM, 거래처 이동, FX, 이상치, 조직스코어카드, CLV, 신규거래처 재거래율, 시계열 (15 tabs) |
+| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 3-way차이, 손익분기, 시나리오, 민감도, 거래처 손익, 거래처×품목, 상세 수익, 거래처리스크, 판관비세부, 품목원가, 원가차이, 표준원가, 포트폴리오 (20 tabs) |
 | Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 채권 상세, 장기 미수, 선수금, 담당자 인사이트, 수금지연 (9 tabs) |
-| Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우, 전환율 (6 tabs) |
+| Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우, 전환율, 재고 분석 (7 tabs) |
 | Profiles (`/dashboard/profiles`) | 종합 성과, 순위/거래처, 비용 효율, 실적 트렌드, 제품 포트폴리오 (5 tabs) |
 
 ### Smart Data Source (Profitability)
@@ -171,7 +171,7 @@ When dateRange filter is active and `customerItemDetail` data exists, profitabil
 - `extractMonth()` in `lib/utils.ts` handles: YYYY-MM-DD, YYYY/MM/DD, YYYYMMDD, Excel serial numbers
 - `TOOLTIP_STYLE` constant for consistent Recharts tooltip styling
 - `KpiCard` accepts `formula` (calculation explanation) and `benchmark` (industry reference) string props for tooltip context
-- `NaN`/`Infinity` safety: always guard `.toFixed()` calls with `isFinite()` check; use `formatCurrency()`/`formatPercent()` which handle this automatically
+- `NaN`/`Infinity` safety: use `safeDivide(a, b)` in analysis functions (0 나눗셈 방어); use `safeFixed(value, decimals)` in UI layer; `formatCurrency()`/`formatPercent()` also handle NaN automatically
 - Recharts tooltip formatter: always type params as `(v: any, name: any)` to avoid string|undefined error
 
 ### Charting Patterns
