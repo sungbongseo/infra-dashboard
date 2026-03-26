@@ -12,6 +12,7 @@
 | orders-accuracy-fix | Completed | 100% | 2026-03-23 |
 | dashboard-comprehensive-audit | Completed | 100% | 2026-03-24 |
 | dashboard-final-audit | Completed | 99.6% | 2026-03-24 |
+| inventory-renewal | Completed | 99% | 2026-03-26 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -79,3 +80,10 @@
 - **Files**: 79 files, +1,522/-336 lines
 - **Match Rate**: 99.6%
 - **Documents**: [analysis](dashboard-final-audit/dashboard-final-audit.analysis.md), [report](dashboard-final-audit/dashboard-final-audit.report.md)
+
+## inventory-renewal
+- **Description**: 재고 분석 전면 리뉴얼 — ABC 분류, 매출×재고 매트릭스, 카테고리 드릴다운, 수요 예측, 원가 연계
+- **Phases**: S1(ABC+카테고리+주거래처+소진일), S2(매출×재고+원가 연계), S3(수요 예측+품목그룹)
+- **Files**: 3 files, +1,118/-54 lines, 8 new functions, 8 new UI sections
+- **Match Rate**: 99%
+- **Documents**: [analysis](inventory-renewal/inventory-renewal.analysis.md), [report](inventory-renewal/inventory-renewal.report.md)
