@@ -7,8 +7,9 @@ import {
   PieChart, Pie, Legend, ReferenceLine,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { Package, TrendingUp, Calendar } from "lucide-react";
+import { Package, TrendingUp, Calendar, AlertTriangle } from "lucide-react";
 import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { useMemo } from "react";
 interface ProductEntry {
   product: string;
   sales: number;
@@ -57,6 +58,27 @@ export function ProductTab({
   isUsingDateFiltered, profAnalysisIsFallback, dateRange, hasData,
   isDateFiltered,
 }: ProductTabProps) {
+  // 마진 침식 - 계획 데이터 존재 여부
+  const hasPlanData = marginErosion.length > 0 && marginErosion.some(m => m.plannedMargin !== 0);
+
+  // Top 15 인사이트: 상위 5개 품목의 매출총이익 비중
+  const top5GrossProfitShare = useMemo(() => {
+    const totalGP = productProfitability.reduce((s, p) => s + p.grossProfit, 0);
+    if (totalGP === 0 || productProfitability.length === 0) return null;
+    const top5GP = productProfitability.slice(0, 5).reduce((s, p) => s + p.grossProfit, 0);
+    const pct = (top5GP / totalGP) * 100;
+    return isFinite(pct) ? pct : null;
+  }, [productProfitability]);
+
+  // 거래처 인사이트: 상위 20건의 매출 비중
+  const customerSalesInsight = useMemo(() => {
+    const totalSales = customerProfitability.reduce((s, c) => s + c.sales, 0);
+    if (totalSales === 0 || customerProfitability.length === 0) return null;
+    const top20Sales = customerProfitability.slice(0, 20).reduce((s, c) => s + c.sales, 0);
+    const pct = (top20Sales / totalSales) * 100;
+    return isFinite(pct) ? { total: customerProfitability.length, pct } : null;
+  }, [customerProfitability]);
+
   if (!hasData) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
@@ -127,7 +149,9 @@ export function ProductTab({
                   name: truncateLabel(p.product, 10),
                   fullName: p.product,
                   매출총이익: p.grossProfit,
+                  영업이익: p.operatingProfit ?? 0,
                   매출총이익율: p.grossMargin,
+                  영업이익율: p.operatingMargin ?? 0,
                   매출액: p.sales,
                 }))}
                 layout="vertical"
@@ -145,19 +169,22 @@ export function ProductTab({
                       <div className="bg-popover border rounded-lg p-3 text-sm shadow-md">
                         <p className="font-semibold mb-1">{d.fullName}</p>
                         <p>매출액: {formatCurrency(d.매출액)}</p>
-                        <p>매출총이익: {formatCurrency(d.매출총이익)}</p>
-                        <p>매출총이익율: {formatPercent(d.매출총이익율)}</p>
+                        <p>매출총이익: {formatCurrency(d.매출총이익)} ({isFinite(d.매출총이익율) ? formatPercent(d.매출총이익율) : "-"})</p>
+                        <p>영업이익: {formatCurrency(d.영업이익)} ({isFinite(d.영업이익율) ? formatPercent(d.영업이익율) : "-"})</p>
                       </div>
                     );
                   }}
                 />
-                <Bar dataKey="매출총이익" name="매출총이익" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
-                  {productProfitability.slice(0, 15).map((p, i) => (
-                    <Cell key={i} fill={p.grossProfit >= 0 ? CHART_COLORS[1] : CHART_COLORS[4]} />
-                  ))}
-                </Bar>
+                <Legend wrapperStyle={{ fontSize: "11px" }} />
+                <Bar dataKey="매출총이익" name="매출총이익" fill={CHART_COLORS[1]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar dataKey="영업이익" name="영업이익" fill={CHART_COLORS[0]} radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
               </BarChart>
           </ChartContainer>
+          {top5GrossProfitShare !== null && (
+            <p className="text-xs text-muted-foreground mt-2 px-1">
+              상위 5개 품목이 전체 매출총이익의 {top5GrossProfitShare.toFixed(1)}%를 차지합니다
+            </p>
+          )}
         </ErrorBoundary>
       </ChartCard>
 
@@ -266,6 +293,11 @@ export function ProductTab({
         benchmark="매출총이익율 30% 이상 양호, 영업이익율 10% 이상 양호. 음수 이익율은 거래 손실 발생 중"
         reason="거래처별 수익성 차이를 파악하여 고마진 거래처와의 관계를 강화하고, 저마진 거래처에 대한 가격 재협상이나 거래 조건 개선의 근거를 마련합니다"
       >
+        {customerSalesInsight && (
+          <p className="text-xs text-muted-foreground mb-2 px-1">
+            총 {customerSalesInsight.total}개 거래처 중 상위 20건의 매출 비중은 {customerSalesInsight.pct.toFixed(1)}%입니다
+          </p>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -299,6 +331,11 @@ export function ProductTab({
               ))}
             </tbody>
           </table>
+          {customerProfitability.length > 20 && (
+            <div className="text-xs text-muted-foreground mt-2 text-right">
+              상위 20건 / 전체 {customerProfitability.length}건
+            </div>
+          )}
         </div>
       </ChartCard>
 
@@ -314,38 +351,48 @@ export function ProductTab({
           reason="마진 침식 트렌드를 조기에 감지하여 원가 상승이나 가격 하락에 의한 수익성 훼손을 방어하고, 긴급 대응이 필요한 품목의 우선순위를 결정합니다"
         >
           <ErrorBoundary>
-            <ChartContainer height="h-80 md:h-[500px]">
-                <BarChart data={marginErosion.slice(0, 20)} layout="vertical" margin={{ left: 90 }}>
-                  <CartesianGrid {...GRID_PROPS} />
-                  <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
-                  <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 9 }} tickFormatter={(v) => truncateLabel(String(v), 12)} />
-                  <RechartsTooltip
-                    content={({ active, payload, label }: any) => {
-                      if (!active || !payload?.length) return null;
-                      const item = payload[0]?.payload;
-                      if (!item) return null;
-                      return (
-                        <div style={{ ...TOOLTIP_STYLE.contentStyle, padding: 8 }}>
-                          <p className="font-semibold text-xs mb-1">{label}</p>
-                          <p className="text-xs">계획 이익율: {isFinite(item.plannedMargin) ? item.plannedMargin.toFixed(1) : "-"}%</p>
-                          <p className="text-xs">실적 이익율: {isFinite(item.actualMargin) ? item.actualMargin.toFixed(1) : "-"}%</p>
-                          <p className={`text-xs ${item.erosion < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                            침식: {item.erosion > 0 ? "+" : ""}{isFinite(item.erosion) ? item.erosion.toFixed(1) : "-"}%p
-                          </p>
-                          <p className="text-xs">매출액: {formatCurrency(item.sales)}</p>
-                          <p className="text-xs font-medium">영향액: {formatCurrency(item.impactAmount)}</p>
-                        </div>
-                      );
-                    }}
-                  />
-                  <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" />
-                  <Bar dataKey="impactAmount" name="영향액" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
-                    {marginErosion.slice(0, 20).map((item, idx) => (
-                      <Cell key={idx} fill={item.impactAmount < 0 ? "#ef4444" : "#059669"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-            </ChartContainer>
+            {!hasPlanData ? (
+              <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-4 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                <p>
+                  기간 필터 적용 시 거래처별품목별 손익(100) 데이터에는 계획 정보가 없어
+                  마진 침식 분석이 불가능합니다. 전체 기간(901 수익성분석)으로 전환하면 확인 가능합니다.
+                </p>
+              </div>
+            ) : (
+              <ChartContainer height="h-80 md:h-[500px]">
+                  <BarChart data={marginErosion.slice(0, 20)} layout="vertical" margin={{ left: 90 }}>
+                    <CartesianGrid {...GRID_PROPS} />
+                    <XAxis type="number" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+                    <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 9 }} tickFormatter={(v) => truncateLabel(String(v), 12)} />
+                    <RechartsTooltip
+                      content={({ active, payload, label }: any) => {
+                        if (!active || !payload?.length) return null;
+                        const item = payload[0]?.payload;
+                        if (!item) return null;
+                        return (
+                          <div style={{ ...TOOLTIP_STYLE.contentStyle, padding: 8 }}>
+                            <p className="font-semibold text-xs mb-1">{label}</p>
+                            <p className="text-xs">계획 이익율: {isFinite(item.plannedMargin) ? item.plannedMargin.toFixed(1) : "-"}%</p>
+                            <p className="text-xs">실적 이익율: {isFinite(item.actualMargin) ? item.actualMargin.toFixed(1) : "-"}%</p>
+                            <p className={`text-xs ${item.erosion < 0 ? "text-red-500 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                              침식: {item.erosion > 0 ? "+" : ""}{isFinite(item.erosion) ? item.erosion.toFixed(1) : "-"}%p
+                            </p>
+                            <p className="text-xs">매출액: {formatCurrency(item.sales)}</p>
+                            <p className="text-xs font-medium">영향액: {formatCurrency(item.impactAmount)}</p>
+                          </div>
+                        );
+                      }}
+                    />
+                    <ReferenceLine x={0} stroke="hsl(0, 0%, 50%)" />
+                    <Bar dataKey="impactAmount" name="영향액" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
+                      {marginErosion.slice(0, 20).map((item, idx) => (
+                        <Cell key={idx} fill={item.impactAmount < 0 ? "#ef4444" : "#059669"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+              </ChartContainer>
+            )}
           </ErrorBoundary>
         </ChartCard>
       )}
