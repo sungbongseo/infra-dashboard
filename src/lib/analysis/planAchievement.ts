@@ -67,10 +67,10 @@ export function calcPlanAchievementSummary(
     opAchievement: opPlan !== 0 ? (opActual / opPlan) * 100 : null,
     plannedGPRate,
     actualGPRate,
-    marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
+    marginDrift: Math.max(-999, Math.min(999, actualGPRate - plannedGPRate)),
     plannedOPRate,
     actualOPRate,
-    opMarginDrift: Math.max(-200, Math.min(200, actualOPRate - plannedOPRate)),
+    opMarginDrift: Math.max(-999, Math.min(999, actualOPRate - plannedOPRate)),
   };
 }
 
@@ -146,7 +146,7 @@ export function calcOrgAchievement(
           v.gpPlan !== 0 ? (v.gpActual / v.gpPlan) * 100 : null,
         plannedGPRate,
         actualGPRate,
-        marginDrift: Math.max(-200, Math.min(200, actualGPRate - plannedGPRate)),
+        marginDrift: Math.max(-999, Math.min(999, actualGPRate - plannedGPRate)),
         opPlan: v.opPlan,
         opActual: v.opActual,
         opAchievement:
@@ -253,12 +253,20 @@ export interface MarginDriftItem {
  * C2 fix: 계획=0인 거래처는 비교 근거가 없으므로 제외.
  * C3 fix: 악화/개선을 분리하여 반환.
  */
+export interface UnplannedCustomer {
+  customer: string;
+  salesActual: number;
+  gpActual: number;
+  gpRate: number;
+}
+
 export interface MarginDriftResult {
   worsened: MarginDriftItem[];     // drift < 0, driftImpact 오름차순 (가장 악화 먼저)
   improved: MarginDriftItem[];     // drift > 0, driftImpact 내림차순 (가장 개선 먼저)
   totalWorsenedImpact: number;
   totalImprovedImpact: number;
   netImpact: number;
+  unplannedCustomers: UnplannedCustomer[];  // 계획=0이지만 실적>0인 거래처
 }
 
 export function calcMarginDrift(
@@ -296,7 +304,7 @@ export function calcMarginDrift(
     .map(([customer, v]) => {
       const plannedGPRate = (safeDivide(v.gpPlan, v.salesPlan)) * 100;
       const actualGPRate = (safeDivide(v.gpActual, v.salesActual)) * 100;
-      const marginDrift = Math.max(-200, Math.min(200, actualGPRate - plannedGPRate));
+      const marginDrift = Math.max(-999, Math.min(999, actualGPRate - plannedGPRate));
       return {
         customer,
         salesActual: v.salesActual,
@@ -321,12 +329,24 @@ export function calcMarginDrift(
   const totalWorsenedImpact = worsened.reduce((s, it) => s + it.driftImpact, 0);
   const totalImprovedImpact = improved.reduce((s, it) => s + it.driftImpact, 0);
 
+  // 미계획 매출 거래처 (계획=0, 실적>0)
+  const unplannedCustomers: UnplannedCustomer[] = Array.from(map.entries())
+    .filter(([, v]) => v.salesPlan === 0 && v.salesActual > 0)
+    .map(([customer, v]) => ({
+      customer,
+      salesActual: v.salesActual,
+      gpActual: v.gpActual,
+      gpRate: safeDivide(v.gpActual, v.salesActual) * 100,
+    }))
+    .sort((a, b) => b.salesActual - a.salesActual);
+
   return {
     worsened,
     improved,
     totalWorsenedImpact,
     totalImprovedImpact,
     netImpact: totalWorsenedImpact + totalImprovedImpact,
+    unplannedCustomers,
   };
 }
 

@@ -548,7 +548,7 @@ export default function ProfitabilityPage() {
           </TabsTrigger>}
           {visibleTabs.has("risk") && <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>}
           {visibleTabs.has("variance") && <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
-            3-way차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
+            계획달성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
           </TabsTrigger>}
           {visibleTabs.has("breakeven") && <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>}
           {visibleTabs.has("whatif") && <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>}

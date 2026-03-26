@@ -578,6 +578,42 @@ export function VarianceTab({
           </span>
         </div>
       )}
+
+      {/* 미계획 매출 거래처 (계획=0, 실적>0) */}
+      {marginDriftResult.unplannedCustomers && marginDriftResult.unplannedCustomers.length > 0 && (
+        <ChartCard
+          title={`미계획 매출 거래처 (${marginDriftResult.unplannedCustomers.length}건)`}
+          formula="계획이 없으나 실적이 발생한 거래처 = 신규 거래 또는 예산 미편성 거래"
+          description="이 거래처들은 마진 드리프트 분석에서 제외되어 있습니다. 향후 예산에 반영을 검토하세요."
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-muted-foreground">
+                  <th className="text-left p-2">거래처</th>
+                  <th className="text-right p-2">실적 매출</th>
+                  <th className="text-right p-2">실적 총이익</th>
+                  <th className="text-right p-2">이익율</th>
+                </tr>
+              </thead>
+              <tbody>
+                {marginDriftResult.unplannedCustomers.slice(0, 15).map((c) => (
+                  <tr key={c.customer} className="border-b last:border-0 hover:bg-muted/50">
+                    <td className="p-2">{c.customer}</td>
+                    <td className="p-2 text-right">{formatCurrency(c.salesActual, true)}</td>
+                    <td className="p-2 text-right">{formatCurrency(c.gpActual, true)}</td>
+                    <td className="p-2 text-right">
+                      <span className={isFinite(c.gpRate) && c.gpRate >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}>
+                        {safeFixed(c.gpRate, 1)}%
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </ChartCard>
+      )}
     </>
   );
 }
