@@ -74,11 +74,11 @@ export function calcWhatIfScenario(
     // Scenario values
     const scenarioSales = baseSales * (1 + params.salesChangePercent / 100);
     const scenarioCostRate = baseCostRate + params.costRateChangePoints;
-    // Clamp cost rate to [0, 100] to avoid nonsensical negative costs
-    const clampedCostRate = Math.max(0, Math.min(scenarioCostRate, 200));
+    // Clamp cost rate to [0, 300] to allow extreme scenarios while preventing nonsensical values
+    const clampedCostRate = Math.max(0, Math.min(scenarioCostRate, 300));
     const scenarioCost = scenarioSales * clampedCostRate / 100;
     const scenarioGrossProfit = scenarioSales - scenarioCost;
-    const scenarioSGA = baseSGA * (1 + params.sgaChangePercent / 100);
+    const scenarioSGA = Math.max(0, baseSGA * (1 + params.sgaChangePercent / 100));
     const scenarioOperatingProfit = scenarioGrossProfit - scenarioSGA;
     const scenarioOperatingMargin = scenarioSales !== 0
       ? (safeDivide(scenarioOperatingProfit, scenarioSales)) * 100

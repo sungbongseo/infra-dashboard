@@ -26,6 +26,13 @@ interface WhatIfTabProps {
   filteredOrgProfit: any[];
 }
 
+const SCENARIO_PRESETS = [
+  { name: "신규 프로젝트 수주", icon: "📈", sales: 15, costRate: 0, sga: 0, color: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400" },
+  { name: "주요 거래처 이탈", icon: "📉", sales: -10, costRate: 0, sga: 0, color: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400" },
+  { name: "원재료 인상", icon: "🏭", sales: 0, costRate: 3, sga: 0, color: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400" },
+  { name: "비용 절감", icon: "✂️", sales: 0, costRate: -1, sga: -5, color: "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400" },
+] as const;
+
 export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps) {
   const [scenarioParams, setScenarioParams] = useState<ScenarioParams>({
     salesChangePercent: 0,
@@ -49,10 +56,30 @@ export function WhatIfTab({ filteredOrgProfit, isDateFiltered }: WhatIfTabProps)
 
   return (
     <>
-      {/* Scenario Sliders */}
+      {/* Scenario Presets + Sliders */}
       <Card>
         <CardContent className="pt-6 space-y-4">
-          <p className="text-sm font-medium text-muted-foreground mb-2">시나리오 파라미터 조정</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-muted-foreground">시나리오 파라미터 조정</p>
+            <button
+              onClick={() => setScenarioParams({ salesChangePercent: 0, costRateChangePoints: 0, sgaChangePercent: 0 })}
+              className="px-3 py-1.5 text-xs font-medium rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              🔄 기준값 리셋
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SCENARIO_PRESETS.map((preset) => (
+              <button
+                key={preset.name}
+                onClick={() => setScenarioParams({ salesChangePercent: preset.sales, costRateChangePoints: preset.costRate, sgaChangePercent: preset.sga })}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border border-transparent hover:ring-1 hover:ring-ring transition-all ${preset.color}`}
+              >
+                <span>{preset.icon}</span>
+                <span>{preset.name}</span>
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="text-xs font-medium">매출 변동: {scenarioParams.salesChangePercent > 0 ? "+" : ""}{scenarioParams.salesChangePercent}%</label>

@@ -39,7 +39,7 @@ export interface SensitivityResult {
  *   new_sales = base_sales * (1 + priceChange%) * (1 + volumeChange%)
  *   new_COGS  = base_COGS  * (1 + volumeChange%)   -- variable cost scales with volume only
  *   new_GP    = new_sales - new_COGS
- *   new_SGA   = baseSGA * 0.7 + baseSGA * 0.3 * volumeFactor  -- SGA 변동비 30%
+ *   new_SGA   = baseSGA * (1-sgaVarRatio) + baseSGA * sgaVarRatio * volumeFactor  -- SGA 변동비 (default 30%)
  *   new_OP    = new_GP - new_SGA
  */
 export function calcSensitivityGrid(
@@ -47,7 +47,8 @@ export function calcSensitivityGrid(
   baseGrossProfit: number,
   baseOpProfit: number,
   priceSteps: number[] = [-30, -20, -15, -10, -5, 0, 5, 10, 15, 20, 30],
-  volumeSteps: number[] = [-40, -30, -20, -10, -5, 0, 5, 10, 20, 30, 40]
+  volumeSteps: number[] = [-40, -30, -20, -10, -5, 0, 5, 10, 20, 30, 40],
+  sgaVarRatio: number = 0.3
 ): SensitivityResult {
   const grid: SensitivityCell[] = [];
 
@@ -64,8 +65,8 @@ export function calcSensitivityGrid(
       const resultSales = baseSales * priceFactor * volumeFactor;
       const resultCOGS = baseCOGS * volumeFactor; // COGS scales with volume only
       const resultGP = resultSales - resultCOGS;
-      // SGA 변동비 30% 적용: 고정 70% + 변동 30% * volumeFactor
-      const resultSGA = baseSGA * 0.7 + baseSGA * 0.3 * volumeFactor;
+      // SGA 변동비 적용: 고정 (1-sgaVarRatio) + 변동 sgaVarRatio * volumeFactor
+      const resultSGA = baseSGA * (1 - sgaVarRatio) + baseSGA * sgaVarRatio * volumeFactor;
       const resultOP = resultGP - resultSGA;
 
       grid.push({
@@ -82,7 +83,7 @@ export function calcSensitivityGrid(
   }
 
   // 2-way cross analysis: 물량 +X%일 때, 가격 최대 -Y%까지 가능 (영업이익 >= 0)
-  const crossAnalysis = calcCrossAnalysis(baseSales, baseCOGS, baseSGA);
+  const crossAnalysis = calcCrossAnalysis(baseSales, baseCOGS, baseSGA, sgaVarRatio);
 
   return {
     baseSales,
@@ -105,7 +106,8 @@ export function calcSensitivityGrid(
 function calcCrossAnalysis(
   baseSales: number,
   baseCOGS: number,
-  baseSGA: number
+  baseSGA: number,
+  sgaVarRatio: number = 0.3
 ): CrossAnalysisItem[] {
   const volumeSteps = [5, 10, 15, 20, 30, 40];
   const results: CrossAnalysisItem[] = [];
@@ -121,7 +123,7 @@ function calcCrossAnalysis(
       const sales = baseSales * pFactor * volFactor;
       const cogs = baseCOGS * volFactor;
       const gp = sales - cogs;
-      const sga = baseSGA * 0.7 + baseSGA * 0.3 * volFactor;
+      const sga = baseSGA * (1 - sgaVarRatio) + baseSGA * sgaVarRatio * volFactor;
       const op = gp - sga;
 
       if (op >= 0) {

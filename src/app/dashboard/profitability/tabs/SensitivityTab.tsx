@@ -90,11 +90,12 @@ export function SensitivityTab({
   baseOpProfit,
 }: SensitivityTabProps) {
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("op");
+  const [sgaVariableRatio, setSgaVariableRatio] = useState(0.3);
 
   // Compute sensitivity grid
   const result = useMemo(
-    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, STEPS_PRICE, STEPS_VOLUME),
-    [baseSales, baseGrossProfit, baseOpProfit]
+    () => calcSensitivityGrid(baseSales, baseGrossProfit, baseOpProfit, STEPS_PRICE, STEPS_VOLUME, sgaVariableRatio),
+    [baseSales, baseGrossProfit, baseOpProfit, sgaVariableRatio]
   );
 
   // Build lookup map for heatmap: key = "price_volume"
@@ -276,7 +277,7 @@ export function SensitivityTab({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              영업이익 0원 이상(손익분기) 유지 조건. 판관비 변동비율 30% 반영.
+              영업이익 0원 이상(손익분기) 유지 조건. 판관비 변동비율 {Math.round(sgaVariableRatio * 100)}% 반영.
             </p>
           </CardContent>
         </Card>
@@ -289,6 +290,24 @@ export function SensitivityTab({
           거래처에 가격 변경을 제안하기 전에, 아래 시나리오 표에서 해당 조건의 칸을 찾아 이익 변화를 미리 확인하세요.
           예) 가격 5% 인하를 검토 중이라면 → 가격 열에서 -5%를 찾고, 예상되는 물량 변화 행과 만나는 칸의 숫자를 확인합니다.
         </p>
+      </div>
+
+      {/* SGA 변동비 비율 슬라이더 */}
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+        <span className="text-sm font-medium whitespace-nowrap">판관비 변동비 비율:</span>
+        <input
+          type="range"
+          min={10}
+          max={50}
+          step={5}
+          value={sgaVariableRatio * 100}
+          onChange={(e) => setSgaVariableRatio(Number(e.target.value) / 100)}
+          className="w-40 accent-primary"
+        />
+        <span className="text-sm font-semibold tabular-nums">{Math.round(sgaVariableRatio * 100)}%</span>
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          (고정 {Math.round((1 - sgaVariableRatio) * 100)}% : 변동 {Math.round(sgaVariableRatio * 100)}%)
+        </span>
       </div>
 
       {/* Heatmap grid */}
