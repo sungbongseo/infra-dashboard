@@ -13,6 +13,9 @@
 | dashboard-comprehensive-audit | Completed | 100% | 2026-03-24 |
 | dashboard-final-audit | Completed | 99.6% | 2026-03-24 |
 | inventory-renewal | Completed | 99% | 2026-03-26 |
+| 미수금관리개선 | Completed | 100% | 2026-03-26 |
+| 매출분석개선 | Completed | 100% | 2026-03-26 |
+| 영업사원성과개선 | Completed | 100% | 2026-03-26 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -87,3 +90,27 @@
 - **Files**: 3 files, +1,118/-54 lines, 8 new functions, 8 new UI sections
 - **Match Rate**: 99%
 - **Documents**: [analysis](inventory-renewal/inventory-renewal.analysis.md), [report](inventory-renewal/inventory-renewal.report.md)
+
+## 미수금관리개선
+- **Description**: 미수금 관리 9개 서브탭 계산 검증 + 인사이트 강화
+- **Items**: 21건 (계산 정확성 6 + 투명성 4 + 인사이트 7 + 교차분석 4)
+- **Key Fixes**: HHI 0~10000 버그, CCC=DSO+DIO-DPO, DSO 벤치마크 통일, 여신 4단계
+- **Files**: 20파일 (17 수정 + 3 신규), +1760/-96줄
+- **Match Rate**: 100%
+- **Documents**: [report](미수금관리개선/미수금관리개선.report.md)
+
+## 매출분석개선
+- **Description**: 매출 분석 16개 서브탭 수치 검증 + 인사이트 강화
+- **Items**: 21건 (표시수정 5 + 매출인사이트 6 + 고객인사이트 7 + 교차분석 3)
+- **Key Adds**: Pareto 100% 보정, CLV 4등급, RFM 액션, 4사분면 라벨, BCG, 자동 인사이트 카드
+- **Files**: 14파일, +422/-19줄
+- **Match Rate**: 100%
+- **Documents**: [report](매출분석개선/매출분석개선.report.md)
+
+## 영업사원성과개선
+- **Description**: 영업사원 성과 5개 탭 스코어링 검증 + 인사이트 강화
+- **Items**: 13건 (정확성 4 + 인사이트 6 + UX 3)
+- **Key Fixes**: 제품 HHI 스케일, 음수 수익성 클램핑, 수금 조직평균 대체, 강점/약점 자동식별
+- **Files**: 8파일, +570/-11줄
+- **Match Rate**: 100%
+- **Documents**: [report](영업사원성과개선/영업사원성과개선.report.md)
