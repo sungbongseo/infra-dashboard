@@ -4,10 +4,10 @@ import { useMemo, useState } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, cn, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcCustomer360 } from "@/lib/analysis/crossAnalysis";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DollarSign, Percent, ShoppingCart, AlertTriangle } from "lucide-react";
+import * as Popover from "@radix-ui/react-popover";
+import { DollarSign, Percent, ShoppingCart, AlertTriangle, ChevronsUpDown, Search, Check } from "lucide-react";
 import {
   XAxis,
   YAxis,
@@ -44,14 +44,32 @@ export function Customer360Tab({
   isDateFiltered,
 }: Customer360TabProps) {
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [selectorOpen, setSelectorOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  const customerNames = useMemo(() => {
-    const names = new Set<string>();
+  // 매출 금액순 거래처 리스트 (검색용)
+  const customerList = useMemo(() => {
+    const map = new Map<string, { amount: number; count: number }>();
     for (const s of salesList) {
-      if (s.매출처명) names.add(s.매출처명);
+      if (!s.매출처명) continue;
+      const e = map.get(s.매출처명) || { amount: 0, count: 0 };
+      e.amount += Math.abs(s.장부금액);
+      e.count++;
+      map.set(s.매출처명, e);
     }
-    return Array.from(names).sort();
+    return Array.from(map.entries())
+      .map(([name, v]) => ({ name, amount: v.amount, count: v.count }))
+      .sort((a, b) => b.amount - a.amount);
   }, [salesList]);
+
+  const customerNames = useMemo(() => customerList.map(c => c.name), [customerList]);
+
+  // 검색 필터링
+  const filteredCustomers = useMemo(() => {
+    if (!searchQuery.trim()) return customerList;
+    const q = searchQuery.trim().toLowerCase();
+    return customerList.filter(c => c.name.toLowerCase().includes(q));
+  }, [customerList, searchQuery]);
 
   const customer360 = useMemo(() => {
     if (!selectedCustomer) return null;
@@ -76,21 +94,83 @@ export function Customer360Tab({
 
   return (
     <div className="space-y-6">
-      {/* Customer Selector */}
+      {/* Customer Selector — 검색 가능한 Popover */}
       <div className="flex items-center gap-3">
         <span className="text-sm font-medium">거래처 선택:</span>
-        <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-          <SelectTrigger className="w-[300px]">
-            <SelectValue placeholder="거래처를 선택하세요" />
-          </SelectTrigger>
-          <SelectContent className="max-h-60">
-            {customerNames.map((name) => (
-              <SelectItem key={name} value={name}>
-                {name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Popover.Root open={selectorOpen} onOpenChange={setSelectorOpen}>
+          <Popover.Trigger asChild>
+            <button className="inline-flex items-center justify-between w-[340px] rounded-md border border-input bg-background px-3 py-2 text-sm hover:bg-accent">
+              <span className={selectedCustomer ? "" : "text-muted-foreground"}>
+                {selectedCustomer || "거래처를 선택하세요"}
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content
+              className="z-50 w-[380px] rounded-md border bg-popover p-0 shadow-md"
+              align="start"
+              sideOffset={4}
+            >
+              {/* 검색 입력 */}
+              <div className="flex items-center border-b px-3 py-2">
+                <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
+                <input
+                  placeholder="거래처명 검색..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex h-8 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                  autoFocus
+                />
+              </div>
+              {/* 거래처 리스트 (매출순) */}
+              <div className="max-h-[300px] overflow-y-auto p-1">
+                {filteredCustomers.length === 0 ? (
+                  <div className="py-6 text-center text-sm text-muted-foreground">
+                    검색 결과가 없습니다
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => (
+                    <button
+                      key={c.name}
+                      onClick={() => {
+                        setSelectedCustomer(c.name);
+                        setSelectorOpen(false);
+                        setSearchQuery("");
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-sm cursor-pointer hover:bg-accent",
+                        c.name === selectedCustomer && "bg-accent"
+                      )}
+                    >
+                      <div className="flex items-center gap-2">
+                        {c.name === selectedCustomer && <Check className="h-3.5 w-3.5 text-primary" />}
+                        <span className={c.name === selectedCustomer ? "font-medium" : ""}>{c.name}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {formatCurrency(c.amount, true)} · {c.count}건
+                      </span>
+                    </button>
+                  ))
+                )}
+              </div>
+              {/* 하단 거래처 수 표시 */}
+              <div className="border-t px-3 py-1.5 text-xs text-muted-foreground">
+                {filteredCustomers.length === customerList.length
+                  ? `전체 ${customerList.length}개 거래처`
+                  : `${filteredCustomers.length} / ${customerList.length}개 거래처`}
+              </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+        {selectedCustomer && (
+          <button
+            onClick={() => setSelectedCustomer("")}
+            className="text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            선택 해제
+          </button>
+        )}
       </div>
 
       {!customer360 ? (
