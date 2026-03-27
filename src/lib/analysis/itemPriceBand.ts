@@ -80,12 +80,12 @@ export function calcItemPriceBand(
 
     const qty = r.수량 ?? 0;
     const amount = r.장부금액 ?? 0;
-    const rawPrice = r.판매단가 ?? 0;
     const customer = (r.매출처명 ?? r.수금처명 ?? "").trim();
-    if (qty <= 0) continue;
+    if (qty <= 0 || amount <= 0) continue;
 
-    // 판매단가가 0이지만 장부금액이 있는 경우 → 단가 역산 (장부금액/수량)
-    const price = rawPrice > 0 ? rawPrice : (amount > 0 && qty > 0 ? safeDivide(amount, qty) : 0);
+    // 장부단가 기준 통일 (원화 환산): 외화 거래도 원화 기준으로 비교 가능
+    // 장부금액 = 판매단가 × 수량 × 환율 이므로, 장부금액/수량 = 원화 단위당 단가
+    const price = safeDivide(amount, qty);
     if (price <= 0) continue;
 
     const key = itemCode || itemName;
