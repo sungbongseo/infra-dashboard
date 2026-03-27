@@ -101,11 +101,13 @@ export function calcItemPriceBand(
     const price = safeDivide(amount, qty);
     if (price <= 0) continue;
 
-    const key = itemCode || itemName;
+    const unit = (r.단위 ?? "").trim();
+    // 동일 품목이라도 단위가 다르면 별도 행으로 분리 (EA vs LOT → 단가 50배 차이 방지)
+    const key = `${itemCode || itemName}|${unit}`;
     const entry = itemMap.get(key) || {
       품목: itemCode,
       품목명: itemName,
-      단위: (r.단위 ?? "").trim(),
+      단위: unit,
       대분류: (r.대분류 ?? "").trim(),
       중분류: (r.중분류 ?? "").trim(),
       소분류: (r.소분류 ?? "").trim(),
@@ -120,7 +122,6 @@ export function calcItemPriceBand(
     entry.totalQty += qty;
     entry.totalAmount += amount;
     entry.품목명 = entry.품목명 || itemName;
-    entry.단위 = entry.단위 || (r.단위 ?? "").trim();
     entry.제품군 = entry.제품군 || (r.제품군 ?? r.대분류 ?? "");
 
     if (customer) {
@@ -234,7 +235,10 @@ export function calcItemPriceBandByLevel(
 
   // 2단계: 현재 level 기준으로 그룹핑 키 결정
   const getKey = (r: SalesRecord): string => {
-    if (level === "품목") return (r.품목 ?? r.품목명 ?? "").trim();
+    if (level === "품목") {
+      const unit = (r.단위 ?? "").trim();
+      return `${(r.품목 ?? r.품목명 ?? "").trim()}|${unit}`;
+    }
     return (String((r as any)[level] ?? "")).trim();
   };
 
@@ -316,7 +320,7 @@ export function calcItemPriceBandByLevel(
       .slice(0, 10);
 
     items.push({
-      품목: key,
+      품목: key.split("|")[0],
       품목명: data.name,
       단위: data.단위 || "-",
       대분류: data.대분류,
