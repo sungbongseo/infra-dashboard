@@ -297,6 +297,11 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
                   ),
                 },
                 {
+                  accessorKey: "단위",
+                  header: "단위",
+                  cell: ({ row }: any) => <span className="text-muted-foreground">{row.original.단위}</span>,
+                },
+                {
                   accessorKey: "거래처수",
                   header: () => <span className="block text-right">거래처</span>,
                   cell: ({ row }: any) => <span className="block text-right tabular-nums">{row.original.거래처수}</span>,

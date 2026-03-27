@@ -14,6 +14,7 @@ import { safeDivide } from "@/lib/utils";
 export interface ItemPriceBand {
   품목: string;
   품목명: string;
+  단위: string;             // EA, KG, M, SET 등
   제품군: string;
   거래처수: number;
   총수량: number;
@@ -64,6 +65,7 @@ export function calcItemPriceBand(
   const itemMap = new Map<string, {
     품목: string;
     품목명: string;
+    단위: string;
     제품군: string;
     prices: number[];           // 거래건별 판매단가 목록
     totalQty: number;
@@ -86,6 +88,7 @@ export function calcItemPriceBand(
     const entry = itemMap.get(key) || {
       품목: itemCode,
       품목명: itemName,
+      단위: (r.단위 ?? "").trim(),
       제품군: r.제품군 ?? r.대분류 ?? "",
       prices: [] as number[],
       totalQty: 0,
@@ -97,6 +100,7 @@ export function calcItemPriceBand(
     entry.totalQty += qty;
     entry.totalAmount += amount;
     entry.품목명 = entry.품목명 || itemName;
+    entry.단위 = entry.단위 || (r.단위 ?? "").trim();
     entry.제품군 = entry.제품군 || (r.제품군 ?? r.대분류 ?? "");
 
     if (customer) {
@@ -143,6 +147,7 @@ export function calcItemPriceBand(
     items.push({
       품목: data.품목,
       품목명: data.품목명,
+      단위: data.단위 || "-",
       제품군: data.제품군,
       거래처수: data.customers.size,
       총수량: data.totalQty,
