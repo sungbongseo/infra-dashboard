@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useCallback } from "react";
 import {
   Bar,
   BarChart,
@@ -15,7 +15,7 @@ import {
   ReferenceLine,
   Treemap,
 } from "recharts";
-import { ChevronRight, Home } from "lucide-react";
+import { ChevronRight, Home, AlertTriangle, DollarSign, TrendingDown, BarChart3 } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ExportButton } from "@/components/dashboard/ExportButton";
@@ -29,6 +29,11 @@ import {
   calcProfitMatrix,
   type DrillDownStep,
 } from "@/lib/analysis/itemHierarchy";
+import { calcItemPriceBandByLevel } from "@/lib/analysis/itemPriceBand";
+import type { PriceBandLevel, PriceBandDrillStep, ItemPriceBand } from "@/lib/analysis/itemPriceBand";
+import { KpiCard } from "@/components/dashboard/KpiCard";
+import { DataTable } from "@/components/dashboard/DataTable";
+import type { ColumnDef } from "@tanstack/react-table";
 import type { SalesRecord, ItemProfitabilityRecord } from "@/types";
 import type { ItemInventoryInfo } from "@/lib/analysis/itemHierarchy";
 
@@ -521,7 +526,100 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDat
           </div>
         </ChartCard>
       )}
+      {/* ── 품목별 단가 밴드 분석 (드릴다운) ─────────────── */}
+      <PriceBandSection filteredSales={filteredSales} isDateFiltered={isDateFiltered} />
     </div>
+  );
+}
+
+// ─── 단가 밴드 서브 컴포넌트 ──────────────────────────────────────
+
+function PriceBandSection({ filteredSales, isDateFiltered }: { filteredSales: SalesRecord[]; isDateFiltered?: boolean }) {
+  const [drillPath, setDrillPath] = useState<PriceBandDrillStep[]>([]);
+  const currentLevel: PriceBandLevel = (["대분류", "중분류", "소분류", "품목"] as const)[Math.min(drillPath.length, 3)];
+
+  const priceBand = useMemo(
+    () => calcItemPriceBandByLevel(filteredSales, currentLevel, drillPath),
+    [filteredSales, currentLevel, drillPath]
+  );
+
+  const handleDrillDown = useCallback((item: ItemPriceBand) => {
+    if (currentLevel === "품목") return;
+    setDrillPath(prev => [...prev, { level: currentLevel, value: item.품목명 || item.품목 }]);
+  }, [currentLevel]);
+
+  const handleBreadcrumb = useCallback((index: number) => {
+    setDrillPath(prev => prev.slice(0, index));
+  }, []);
+
+  if (priceBand.totalItems === 0) return null;
+
+  return (
+    <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <KpiCard title="분석 품목 수" value={priceBand.totalItems} format="number" icon={<BarChart3 className="h-5 w-5" />}
+          formula="장부금액 > 0, 수량 > 0 인 거래의 고유 품목×단위 수"
+          description="단가 분석이 가능한 품목의 수입니다."
+        />
+        <KpiCard title="평균 단가편차율" value={priceBand.avgVariationRate} format="percent" icon={<TrendingDown className="h-5 w-5" />}
+          formula="각 품목의 (Q3단가 - Q1단가) / 중앙값단가 × 100 의 평균"
+          description="거래처별로 동일 품목의 단가가 얼마나 차이나는지를 보여줍니다."
+          benchmark="10% 미만이면 균일 가격, 20% 초과이면 가격정책 점검 필요"
+        />
+        <KpiCard title="단가편차 20%+ 품목" value={priceBand.highVariationCount} format="number" icon={<DollarSign className="h-5 w-5" />}
+          formula="단가편차율이 20%를 초과하는 품목 수"
+          description="거래처마다 단가 차이가 큰 품목입니다."
+        />
+      </div>
+
+      {priceBand.highVariationCount > 0 && (
+        <div className="rounded-lg border border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-950/30 p-3 flex items-start gap-2">
+          <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">
+            <strong>단가편차 점검 필요:</strong> {priceBand.highVariationCount}개 품목에서 거래처간 단가 편차가 20%를 초과합니다.
+          </p>
+        </div>
+      )}
+
+      <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
+        title={`단가 밴드 분석 — ${currentLevel} (${priceBand.totalItems}건)`}
+        formula="가중평균 = Σ장부금액 / Σ수량 (원화), 중앙값 = 거래건별 단가 정렬 중간값, 편차율 = (Q3-Q1)/중앙값 × 100"
+        description="대분류→중분류→소분류→품목 순으로 클릭하여 드릴다운. 동일 품목도 단위(EA/LOT)가 다르면 별도 행으로 표시."
+        benchmark="편차율 10% 미만: 균일, 10~20%: 정상, 20%+: 점검"
+      >
+        <div className="flex items-center gap-1 text-sm mb-3 flex-wrap">
+          <button onClick={() => handleBreadcrumb(0)} className={`px-2 py-0.5 rounded hover:bg-muted transition-colors ${drillPath.length === 0 ? "font-bold text-foreground" : "text-blue-600 dark:text-blue-400 cursor-pointer"}`}>전체</button>
+          {drillPath.map((step, i) => (
+            <span key={i} className="flex items-center gap-1">
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <button onClick={() => handleBreadcrumb(i + 1)} className={`px-2 py-0.5 rounded hover:bg-muted transition-colors ${i === drillPath.length - 1 ? "font-bold text-foreground" : "text-blue-600 dark:text-blue-400 cursor-pointer"}`}>{step.level}: {step.value}</button>
+            </span>
+          ))}
+          {currentLevel !== "품목" && <span className="text-xs text-muted-foreground ml-2">(행 클릭으로 드릴다운)</span>}
+        </div>
+        <DataTable
+          columns={[
+            { accessorKey: "품목명", header: currentLevel, cell: ({ row }: any) => (
+              <button onClick={() => currentLevel !== "품목" && handleDrillDown(row.original)} className={`font-medium max-w-[200px] truncate block text-left ${currentLevel !== "품목" ? "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" : ""}`} title={row.original.품목명}>
+                {row.original.품목명}{currentLevel !== "품목" && <ChevronRight className="h-3 w-3 inline ml-1 opacity-50" />}
+              </button>
+            )},
+            ...(currentLevel === "품목" ? [{ accessorKey: "단위" as const, header: "단위", cell: ({ row }: any) => <span className="text-muted-foreground">{row.original.단위}</span> }] : []),
+            { accessorKey: "거래처수", header: () => <span className="block text-right">거래처</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums">{row.original.거래처수}</span> },
+            { accessorKey: "가중평균단가", header: () => <span className="block text-right">가중평균</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums font-medium">{row.original.가중평균단가.toLocaleString()}</span> },
+            { accessorKey: "중앙값단가", header: () => <span className="block text-right">중앙값</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums">{row.original.중앙값단가.toLocaleString()}</span> },
+            { accessorKey: "최저단가", header: () => <span className="block text-right">최저</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums text-muted-foreground">{row.original.최저단가.toLocaleString()}</span> },
+            { accessorKey: "최고단가", header: () => <span className="block text-right">최고</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums text-muted-foreground">{row.original.최고단가.toLocaleString()}</span> },
+            { accessorKey: "단가편차율", header: () => <span className="block text-right">편차율</span>, cell: ({ row }: any) => {
+              const v = row.original.단가편차율;
+              return <span className={`block text-right tabular-nums font-medium ${v > 20 ? "text-red-600 dark:text-red-400" : v > 10 ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>{v}%</span>;
+            }},
+            { accessorKey: "총매출액", header: () => <span className="block text-right">매출액</span>, cell: ({ row }: any) => <span className="block text-right tabular-nums">{formatCurrency(row.original.총매출액, true)}</span> },
+          ] as ColumnDef<ItemPriceBand, any>[]}
+          data={priceBand.items}
+        />
+      </ChartCard>
+    </>
   );
 }
 
