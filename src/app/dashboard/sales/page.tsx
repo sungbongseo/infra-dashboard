@@ -62,7 +62,7 @@ function generateSalesInsights(
     if (top1Share > 30) {
       insights.push({
         type: "warning",
-        message: `Top1 거래처(${topCustomers[0].name || topCustomers[0].code}) 비중이 ${top1Share.toFixed(1)}%로 높습니다. 거래처 다변화를 검토하세요.`,
+        message: `Top1 거래처(${topCustomers[0].name || topCustomers[0].code}) 비중이 ${isFinite(top1Share) ? top1Share.toFixed(1) : "0.0"}%로 높습니다. 거래처 다변화를 검토하세요.`,
       });
     }
   }

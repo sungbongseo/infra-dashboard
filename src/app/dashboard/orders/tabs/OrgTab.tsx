@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { useMemo } from "react";
 import {
   BarChart,
@@ -44,12 +45,7 @@ export function OrgTab({ orgOrders, monthlyGap, isDateFiltered }: OrgTabProps) {
   }, [orgOrders]);
 
   if (orgOrders.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">수주 데이터를 업로드해 주세요</p>
-      </div>
-    );
+    return <EmptyState message="수주 데이터를 업로드해 주세요" />;
   }
 
   return (

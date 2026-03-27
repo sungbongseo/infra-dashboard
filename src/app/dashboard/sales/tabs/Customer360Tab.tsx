@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { formatCurrency, cn, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
@@ -85,10 +86,7 @@ export function Customer360Tab({
 
   if (customerNames.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">거래처 데이터가 없습니다. 매출/손익 데이터를 업로드해 주세요.</p>
-      </div>
+      <EmptyState message="거래처 데이터가 없습니다. 매출/손익 데이터를 업로드해 주세요." />
     );
   }
 

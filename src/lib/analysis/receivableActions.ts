@@ -1,7 +1,7 @@
 import type { AgingSummary } from "@/lib/analysis/aging";
 import type { AgingRiskAssessment, CreditUtilization } from "@/types";
 import type { CCCAnalysis } from "@/lib/analysis/ccc";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, safeDivide } from "@/lib/utils";
 
 export type ActionSeverity = "critical" | "warning" | "info";
 
@@ -73,7 +73,7 @@ export function generateReceivableActions(params: {
       params.summary.month5 +
       params.summary.month6 +
       params.summary.overdue;
-    const overdueRatio = (overdueTotal / params.summary.total) * 100;
+    const overdueRatio = safeDivide(overdueTotal * 100, params.summary.total);
 
     if (overdueRatio > 50) {
       actions.push({

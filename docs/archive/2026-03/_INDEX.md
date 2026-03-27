@@ -16,6 +16,7 @@
 | 미수금관리개선 | Completed | 100% | 2026-03-26 |
 | 매출분석개선 | Completed | 100% | 2026-03-26 |
 | 영업사원성과개선 | Completed | 100% | 2026-03-26 |
+| dashboard-improvement-phase5 | Completed | 93% | 2026-03-27 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
@@ -114,3 +115,11 @@
 - **Files**: 8파일, +570/-11줄
 - **Match Rate**: 100%
 - **Documents**: [report](영업사원성과개선/영업사원성과개선.report.md)
+
+## dashboard-improvement-phase5
+- **Description**: 인프라 대시보드 종합 개선 (Phase 5+) — 분석 로직 + UI 색상 + 빌드 경고 체계적 감사 및 수정
+- **Approach**: Plan Plus + 3개 병렬 에이전트 감사 → 우선순위 분류 → Critical/High 수정
+- **Key Fixes**: safeDivide 적용(receivableActions), isFinite 가드(sales/page), useMemo 의존성(DsoTab), hex→RISK_COLORS 교체(7탭), TC_PAD_ZERO 제거
+- **Files**: 11파일 수정, 빌드 경고 2→0
+- **Match Rate**: 93% (Critical+High 13/14, A-C2 concat 집계 별도 Phase)
+- **Documents**: [plan](dashboard-improvement-phase5/dashboard-improvement-phase5.plan.md), [design](dashboard-improvement-phase5/dashboard-improvement-phase5.design.md), [analysis](dashboard-improvement-phase5/dashboard-improvement-phase5.analysis.md), [report](dashboard-improvement-phase5/dashboard-improvement-phase5.report.md)

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { useMemo } from "react";
 import {
   ComposedChart,
@@ -56,12 +57,7 @@ export function StatusTab({
   }, [monthlyOrders, outstandingOrders]);
 
   if (totalOrders === 0 && orderCount === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">수주 데이터를 업로드해 주세요 (수주 현황 파일)</p>
-      </div>
-    );
+    return <EmptyState message="수주 데이터를 업로드해 주세요 (수주 현황 파일)" />;
   }
 
   return (

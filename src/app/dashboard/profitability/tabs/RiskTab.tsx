@@ -15,6 +15,7 @@ import {
 } from "recharts";
 import { Star, Shield, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ChartContainer, GRID_PROPS } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
@@ -57,10 +58,7 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
 
   if (profitRiskData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">손익 데이터를 업로드해 주세요 (수익성 리스크 분석)</p>
-      </div>
+      <EmptyState message="손익 데이터를 업로드해 주세요 (수익성 리스크 분석)" />
     );
   }
 

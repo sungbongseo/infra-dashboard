@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { MonthlyTrendChart } from "@/components/dashboard/MonthlyTrendChart";
@@ -86,10 +87,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
 
   if (contribRanking.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">팀별 공헌이익 데이터를 업로드해 주세요</p>
-      </div>
+      <EmptyState message="팀별 공헌이익 데이터를 업로드해 주세요" />
     );
   }
 

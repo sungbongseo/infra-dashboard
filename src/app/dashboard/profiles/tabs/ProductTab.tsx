@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   PieChart, Pie,
@@ -62,10 +63,7 @@ export function ProductTab({ hasCustomerItemDetail, productPortfolio, isDateFilt
 
   if (!hasCustomerItemDetail || !productPortfolio) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">제품 포트폴리오 데이터가 없습니다</p>
-      </div>
+      <EmptyState message="제품 포트폴리오 데이터가 없습니다" />
     );
   }
 

@@ -362,7 +362,6 @@ export function aggregateToCustomerLevel(
   return results;
 }
 
-const TC_PAD_ZERO: PlanActualDiff = { 계획: 0, 실적: 0, 차이: 0 };
 
 /** 동일 (사번, 조직) 키의 TeamContributionRecord를 합산. 월별 시트 concat 중복 해소. */
 export function aggregateTeamContribution(data: TeamContributionRecord[]): TeamContributionRecord[] {

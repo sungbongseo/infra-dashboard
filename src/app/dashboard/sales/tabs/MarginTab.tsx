@@ -3,7 +3,7 @@
 import { useMemo, useState, useCallback, useRef } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
-import { formatCurrency, formatPercent, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
+import { formatCurrency, formatPercent, TOOLTIP_STYLE, safeFixed, RISK_COLORS, CHART_COLORS } from "@/lib/utils";
 import {
   Bar, XAxis, YAxis, Tooltip as RechartsTooltip,
   Cell, CartesianGrid, ComposedChart, Line, ReferenceLine,
@@ -564,13 +564,13 @@ export function MarginTab({ filteredSales, itemCostDetail }: MarginTabProps) {
                           );
                         }}
                       />
-                      <ReferenceLine x={0} stroke="#ef4444" strokeDasharray="3 3" label={{ value: "손익분기", position: "top", fontSize: 10 }} />
+                      <ReferenceLine x={0} stroke={RISK_COLORS.high} strokeDasharray="3 3" label={{ value: "손익분기", position: "top", fontSize: 10 }} />
                       <Bar dataKey="마진율" name="시뮬레이션" radius={BAR_RADIUS_TOP} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                         {simChartData.map((entry, i) => (
                           <Cell key={i} fill={getMarginColor(entry.마진율)} />
                         ))}
                       </Bar>
-                      <Line type="monotone" dataKey="과거평균" name="과거 평균 마진율" stroke="#94a3b8" strokeWidth={2} dot={{ r: 5, fill: "#94a3b8" }} />
+                      <Line type="monotone" dataKey="과거평균" name="과거 평균 마진율" stroke={CHART_COLORS[5]} strokeWidth={2} dot={{ r: 5, fill: CHART_COLORS[5] }} />
                     </ComposedChart>
                   </ChartContainer>
                 </ChartCard>

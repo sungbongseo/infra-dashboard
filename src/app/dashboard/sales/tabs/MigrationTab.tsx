@@ -18,7 +18,7 @@ import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG } from "@/comp
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { AlertTriangle, TrendingDown } from "lucide-react";
-import { CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { CHART_COLORS, TOOLTIP_STYLE, RISK_COLORS } from "@/lib/utils";
 import { calcCustomerMigration, calcGradeDistribution } from "@/lib/analysis/migration";
 import type { SalesRecord } from "@/types";
 
@@ -178,10 +178,10 @@ export function MigrationTab({ filteredSales, isDateFiltered }: MigrationTabProp
                   formatter={(value: any, name: any) => [`${Number(value).toLocaleString()}개사`, name]}
                 />
                 <Legend />
-                <Bar dataKey="upgraded" name="등급 상승" fill="#059669" stackId="a" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
-                <Bar dataKey="downgraded" name="등급 하락" fill="#ef4444" stackId="a" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
-                <Line type="monotone" dataKey="churned" name="이탈" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
-                <Line type="monotone" dataKey="newCustomers" name="신규" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
+                <Bar dataKey="upgraded" name="등급 상승" fill={RISK_COLORS.low} stackId="a" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Bar dataKey="downgraded" name="등급 하락" fill={RISK_COLORS.high} stackId="a" activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG} />
+                <Line type="monotone" dataKey="churned" name="이탈" stroke={RISK_COLORS.medium} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
+                <Line type="monotone" dataKey="newCustomers" name="신규" stroke={CHART_COLORS[0]} strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
               </ComposedChart>
           </ChartContainer>
         </ChartCard>

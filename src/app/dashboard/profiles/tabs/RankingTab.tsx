@@ -1,4 +1,5 @@
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -35,10 +36,7 @@ export function RankingTab({ selected: rawSelected, rankingData, customerPieData
 
   if (rankingData.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">영업사원 순위 데이터가 없습니다</p>
-      </div>
+      <EmptyState message="영업사원 순위 데이터가 없습니다" />
     );
   }
 

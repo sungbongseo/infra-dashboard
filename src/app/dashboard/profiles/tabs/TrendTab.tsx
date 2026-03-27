@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -62,10 +63,7 @@ export function TrendTab({ repTrend, isDateFiltered }: TrendTabProps) {
 
   if (!repTrend) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">실적 트렌드 데이터가 없습니다</p>
-      </div>
+      <EmptyState message="실적 트렌드 데이터가 없습니다" />
     );
   }
 

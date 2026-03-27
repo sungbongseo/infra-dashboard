@@ -267,7 +267,7 @@ export function DsoTab({ allRecords, filteredSales, filteredTeamContrib, filtere
         ),
       },
     ],
-    []
+    [cccAnalysis.hasDIO]
   );
 
   if (allRecords.length === 0) return <EmptyState requiredFiles={["미수채권연령", "매출리스트"]} />;

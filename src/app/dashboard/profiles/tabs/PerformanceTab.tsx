@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -45,10 +46,7 @@ export function PerformanceTab({ selected, hasAgingData, axisMax, radarData, pro
 
   if (profilesLength === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">영업사원 프로필 데이터가 없습니다. 매출/수주/수금 데이터를 업로드해 주세요.</p>
-      </div>
+      <EmptyState message="영업사원 프로필 데이터가 없습니다. 매출/수주/수금 데이터를 업로드해 주세요." />
     );
   }
 

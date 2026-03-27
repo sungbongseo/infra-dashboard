@@ -18,7 +18,7 @@ import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, RISK_COLORS } from "@/lib/utils";
 import { calcABCAnalysis, calcCustomerPortfolio, calcCrossProfitability } from "@/lib/analysis/customerItemAnalysis";
 
 interface CustItemTabProps {
@@ -106,8 +106,8 @@ export function CustItemTab({ effectiveHqCustItemProfit, isUsingDateFiltered, is
                 ))}
               </Bar>
               <Line type="monotone" dataKey="cumulativeShare" name="누적비중(%)" stroke={CHART_COLORS[4]} strokeWidth={2} yAxisId="right" dot={false} activeDot={{ r: 6, strokeWidth: 2 }} {...ANIMATION_CONFIG} />
-              <ReferenceLine y={80} yAxisId="right" stroke="#f97316" strokeDasharray="5 5" label={{ value: "80%", position: "right", fontSize: 10 }} />
-              <ReferenceLine y={95} yAxisId="right" stroke="#ef4444" strokeDasharray="5 5" label={{ value: "95%", position: "right", fontSize: 10 }} />
+              <ReferenceLine y={80} yAxisId="right" stroke={RISK_COLORS.medium} strokeDasharray="5 5" label={{ value: "80%", position: "right", fontSize: 10 }} />
+              <ReferenceLine y={95} yAxisId="right" stroke={RISK_COLORS.high} strokeDasharray="5 5" label={{ value: "95%", position: "right", fontSize: 10 }} />
             </ComposedChart>
         </ChartContainer>
       </ChartCard>

@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -70,10 +71,7 @@ export function CostTab({ hasTeamContribution, selected, selectedCostData, costR
 
   if (!hasTeamContribution) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">영업사원을 선택해 주세요</p>
-      </div>
+      <EmptyState message="영업사원을 선택해 주세요" />
     );
   }
 

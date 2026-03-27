@@ -1,5 +1,6 @@
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -81,10 +82,7 @@ export function ProductTab({
 
   if (!hasData) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">수익성 분석 데이터를 업로드해 주세요</p>
-      </div>
+      <EmptyState message="수익성 분석 데이터를 업로드해 주세요" />
     );
   }
 

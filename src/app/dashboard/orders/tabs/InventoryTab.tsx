@@ -15,7 +15,7 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG } from "@/components/charts";
 import { Package, RefreshCw, AlertTriangle, Clock, PackageX, TrendingDown } from "lucide-react";
 import { EmptyState } from "@/components/dashboard/EmptyState";
-import { formatNumber, safeFixed, formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatNumber, safeFixed, formatCurrency, CHART_COLORS, TOOLTIP_STYLE, RISK_COLORS } from "@/lib/utils";
 import {
   calcMonthlyMovement,
   calcSlowMoving,
@@ -578,8 +578,8 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
                   formatter={(v: any, name: any) => [`${safeFixed(Number(v), 1)}%`, name]}
                 />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <ReferenceLine yAxisId="right" y={80} stroke="#ef4444" strokeDasharray="4 4" label={{ value: "80%", position: "right", fontSize: 10, fill: "#ef4444" }} />
-                <ReferenceLine yAxisId="right" y={95} stroke="#f59e0b" strokeDasharray="4 4" label={{ value: "95%", position: "right", fontSize: 10, fill: "#f59e0b" }} />
+                <ReferenceLine yAxisId="right" y={80} stroke={RISK_COLORS.high} strokeDasharray="4 4" label={{ value: "80%", position: "right", fontSize: 10, fill: RISK_COLORS.high }} />
+                <ReferenceLine yAxisId="right" y={95} stroke={RISK_COLORS.medium} strokeDasharray="4 4" label={{ value: "95%", position: "right", fontSize: 10, fill: RISK_COLORS.medium }} />
                 <Bar
                   yAxisId="left"
                   dataKey="출고비중"
@@ -596,7 +596,7 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
                   type="monotone"
                   dataKey="누적비중"
                   name="누적 비중"
-                  stroke="#6366f1"
+                  stroke={CHART_COLORS[2]}
                   strokeWidth={2}
                   dot={{ r: 2 }}
                   {...ANIMATION_CONFIG}

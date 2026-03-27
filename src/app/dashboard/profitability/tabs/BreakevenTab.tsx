@@ -9,7 +9,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT, ACTIVE_BAR, ANIMATION_CONFIG } from "@/components/charts";
 import { Info, Target } from "lucide-react";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
 import type { WeightedBepResult } from "@/lib/analysis/breakeven";
 
 interface OrgBreakevenEntry {
@@ -181,9 +181,9 @@ export function BreakevenTab({ orgBreakeven, bepChartData, bepKpiSummary, bepFro
                 {totalBep > 0 && bepChartData.length > 0 && totalBep <= bepChartData[bepChartData.length - 1].revenue && (
                   <ReferenceLine
                     x={totalBep}
-                    stroke="#ef4444"
+                    stroke={RISK_COLORS.high}
                     strokeDasharray="5 5"
-                    label={{ value: `BEP: ${formatCurrency(totalBep, true)}`, position: "top", fill: "#ef4444", fontSize: 11 }}
+                    label={{ value: `BEP: ${formatCurrency(totalBep, true)}`, position: "top", fill: RISK_COLORS.high, fontSize: 11 }}
                   />
                 )}
               </ComposedChart>
@@ -203,8 +203,8 @@ export function BreakevenTab({ orgBreakeven, bepChartData, bepKpiSummary, bepFro
               <XAxis type="number" tick={{ fontSize: 11 }} tickFormatter={(v) => isFinite(v) ? `${v.toFixed(0)}%` : "-"} />
               <YAxis type="category" dataKey="org" tick={{ fontSize: 11 }} width={75} />
               <RechartsTooltip formatter={(v: any) => { const n = Number(v); return isFinite(n) ? `${n.toFixed(1)}%` : "-"; }} {...TOOLTIP_STYLE} />
-              <ReferenceLine x={0} stroke="#ef4444" strokeDasharray="3 3" />
-              <ReferenceLine x={20} stroke="#22c55e" strokeDasharray="3 3" label={{ value: "안전선", fontSize: 10 }} />
+              <ReferenceLine x={0} stroke={RISK_COLORS.high} strokeDasharray="3 3" />
+              <ReferenceLine x={20} stroke={RISK_COLORS.low} strokeDasharray="3 3" label={{ value: "안전선", fontSize: 10 }} />
               <Bar dataKey="safetyMarginRate" name="안전한계율" radius={BAR_RADIUS_RIGHT} activeBar={ACTIVE_BAR} {...ANIMATION_CONFIG}>
                 {orgBreakeven.filter(r => isFinite(r.safetyMarginRate)).slice(0, 10).map((r, i) => (
                   <Cell key={i} fill={r.safetyMarginRate >= 20 ? CHART_COLORS[0] : r.safetyMarginRate >= 0 ? CHART_COLORS[3] : CHART_COLORS[6]} />

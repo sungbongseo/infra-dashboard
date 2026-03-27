@@ -16,8 +16,9 @@ import {
 import { BarChart3, Calendar, Layers, Building2 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ACTIVE_BAR, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
 import {
   calcParetoAnalysis,
   calcProductGroupAnalysis,
@@ -69,10 +70,7 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
 
   if (data.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">거래처별 품목별 손익 데이터를 업로드해 주세요 (100 파일)</p>
-      </div>
+      <EmptyState message="거래처별 품목별 손익 데이터를 업로드해 주세요 (100 파일)" />
     );
   }
 
@@ -244,14 +242,14 @@ export default function DetailedProfitTab({ data, isDateFiltered, dateRange }: D
             <ReferenceLine
               y={80}
               yAxisId="right"
-              stroke="#f97316"
+              stroke={RISK_COLORS.medium}
               strokeDasharray="5 5"
               label={{ value: "80%", position: "right", fontSize: 10 }}
             />
             <ReferenceLine
               y={95}
               yAxisId="right"
-              stroke="#ef4444"
+              stroke={RISK_COLORS.high}
               strokeDasharray="5 5"
               label={{ value: "95%", position: "right", fontSize: 10 }}
             />

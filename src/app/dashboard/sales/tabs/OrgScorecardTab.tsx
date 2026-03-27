@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
+import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, ACTIVE_BAR } from "@/components/charts";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcOrgScorecards } from "@/lib/analysis/crossAnalysis";
@@ -59,10 +60,7 @@ export function OrgScorecardTab({ orgProfit, salesList, collectionList, isDateFi
 
   if (scorecards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
-        <p className="text-lg font-medium">데이터가 없습니다</p>
-        <p className="text-sm mt-1">조직별 손익 데이터를 업로드해 주세요</p>
-      </div>
+      <EmptyState message="조직별 손익 데이터를 업로드해 주세요" />
     );
   }
 

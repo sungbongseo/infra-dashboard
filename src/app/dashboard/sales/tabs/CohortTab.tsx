@@ -16,7 +16,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { DataSufficiencyNotice } from "@/components/dashboard/DataSufficiencyNotice";
-import { CHART_COLORS, TOOLTIP_STYLE, extractMonth, safeFixed } from "@/lib/utils";
+import { CHART_COLORS, TOOLTIP_STYLE, extractMonth, safeFixed, RISK_COLORS } from "@/lib/utils";
 import { calcCohortAnalysis } from "@/lib/analysis/cohortAnalysis";
 import type { SalesRecord } from "@/types";
 
@@ -228,10 +228,10 @@ export function CohortTab({ filteredSales, isDateFiltered }: CohortTabProps) {
             />
             <ReferenceLine
               y={65}
-              stroke="#f59e0b"
+              stroke={RISK_COLORS.medium}
               strokeDasharray="4 4"
               strokeWidth={1.5}
-              label={{ value: "업종 평균 65%", position: "insideTopRight", fontSize: 11, fill: "#f59e0b" }}
+              label={{ value: "업종 평균 65%", position: "insideTopRight", fontSize: 11, fill: RISK_COLORS.medium }}
             />
             <Line
               type="monotone"
