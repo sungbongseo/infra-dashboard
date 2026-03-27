@@ -80,9 +80,13 @@ export function calcItemPriceBand(
 
     const qty = r.수량 ?? 0;
     const amount = r.장부금액 ?? 0;
-    const price = r.판매단가 ?? 0;
+    const rawPrice = r.판매단가 ?? 0;
     const customer = (r.매출처명 ?? r.수금처명 ?? "").trim();
-    if (qty <= 0 || price <= 0) continue;
+    if (qty <= 0) continue;
+
+    // 판매단가가 0이지만 장부금액이 있는 경우 → 단가 역산 (장부금액/수량)
+    const price = rawPrice > 0 ? rawPrice : (amount > 0 && qty > 0 ? safeDivide(amount, qty) : 0);
+    if (price <= 0) continue;
 
     const key = itemCode || itemName;
     const entry = itemMap.get(key) || {
