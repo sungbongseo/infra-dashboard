@@ -89,7 +89,7 @@ export default function ProfilesPage() {
 
   // 선택된 사원의 상위 거래처 비중 파이차트 데이터
   const customerPieData = useMemo(() => {
-    if (!selected || selected.topCustomers.length === 0) return [];
+    if (!selected || !selected.topCustomers || selected.topCustomers.length === 0) return [];
     const top5 = selected.topCustomers.slice(0, 5);
     const normalizeShare = (s: number) => (s > 1 ? s / 100 : s);
     const topShare = top5.reduce((sum, c) => sum + normalizeShare(c.share), 0);
