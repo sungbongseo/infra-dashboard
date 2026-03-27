@@ -21,7 +21,18 @@ interface RankingTabProps {
   rankFormulaText: string;
 }
 
-export function RankingTab({ selected, rankingData, customerPieData, rankFormulaText, isDateFiltered }: RankingTabProps) {
+export function RankingTab({ selected: rawSelected, rankingData, customerPieData, rankFormulaText, isDateFiltered }: RankingTabProps) {
+  // HHI 관련 필드 안전 기본값 보장 (undefined/null 방어)
+  const selected = rawSelected ? {
+    ...rawSelected,
+    hhi: rawSelected.hhi ?? 0,
+    hhiRiskLevel: rawSelected.hhiRiskLevel ?? "low" as const,
+    topCustomerShare: rawSelected.topCustomerShare ?? 0,
+    topCustomers: rawSelected.topCustomers ?? [],
+    customerCount: rawSelected.customerCount ?? 0,
+    itemCount: rawSelected.itemCount ?? 0,
+  } : undefined;
+
   if (rankingData.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
