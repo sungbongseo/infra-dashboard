@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useCallback } from "react";
 import {
   Bar,
   BarChart,
@@ -29,12 +29,12 @@ import {
   groupSmallCategories,
   groupSmallItemCategories,
 } from "@/lib/analysis/channel";
-import { calcItemPriceBand } from "@/lib/analysis/itemPriceBand";
+import { calcItemPriceBand, calcItemPriceBandByLevel, getNextPriceBandLevel } from "@/lib/analysis/itemPriceBand";
+import type { PriceBandLevel, PriceBandDrillStep, ItemPriceBand } from "@/lib/analysis/itemPriceBand";
 import { DataTable } from "@/components/dashboard/DataTable";
 import { KpiCard } from "@/components/dashboard/KpiCard";
-import { DollarSign, TrendingDown, BarChart3 } from "lucide-react";
+import { DollarSign, TrendingDown, BarChart3, ChevronRight } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { ItemPriceBand } from "@/lib/analysis/itemPriceBand";
 import type { SalesRecord } from "@/types";
 
 interface ChannelTabProps {
@@ -43,7 +43,26 @@ interface ChannelTabProps {
 }
 
 export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
-  const priceBand = useMemo(() => calcItemPriceBand(filteredSales), [filteredSales]);
+  // 단가 밴드 드릴다운 상태
+  const [drillPath, setDrillPath] = useState<PriceBandDrillStep[]>([]);
+  const currentLevel: PriceBandLevel = drillPath.length === 0 ? "대분류"
+    : drillPath.length === 1 ? "중분류"
+    : drillPath.length === 2 ? "소분류"
+    : "품목";
+
+  const priceBand = useMemo(
+    () => calcItemPriceBandByLevel(filteredSales, currentLevel, drillPath),
+    [filteredSales, currentLevel, drillPath]
+  );
+
+  const handleDrillDown = useCallback((item: ItemPriceBand) => {
+    if (currentLevel === "품목") return; // 최하위
+    setDrillPath(prev => [...prev, { level: currentLevel, value: item.품목명 || item.품목 }]);
+  }, [currentLevel]);
+
+  const handleBreadcrumb = useCallback((index: number) => {
+    setDrillPath(prev => prev.slice(0, index));
+  }, []);
   const paymentTermSales = useMemo(() => calcSalesByPaymentTerm(filteredSales), [filteredSales]);
   const customerCategorySales = useMemo(
     () => groupSmallCategories(calcSalesByCustomerCategory(filteredSales), 3),
@@ -280,27 +299,56 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
           )}
 
           <ChartCard dataSourceType="period" isDateFiltered={isDateFiltered}
-            title="품목별 단가 밴드 분석"
+            title={`단가 밴드 분석 — ${currentLevel} (${priceBand.totalItems}건)`}
             formula="가중평균 = Σ매출금액 / Σ수량, 중앙값 = 거래건별 단가 정렬 중간값, 편차율 = (Q3-Q1)/중앙값 × 100"
-            description="동일 품목이 거래처마다 다른 가격으로 판매되므로, 표준판매단가 대신 가중평균·중앙값·사분위수를 산출하여 '대표 단가'와 '가격 편차'를 파악합니다. 편차율이 높은 품목은 가격정책을 점검하세요."
+            description="대분류→중분류→소분류→품목 순으로 클릭하여 드릴다운할 수 있습니다. 편차율이 높은 항목은 가격정책을 점검하세요."
             benchmark="편차율 10% 미만: 균일 가격, 10~20%: 정상 범위, 20% 초과: 가격정책 점검"
           >
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-1 text-sm mb-3 flex-wrap">
+              <button
+                onClick={() => handleBreadcrumb(0)}
+                className={`px-2 py-0.5 rounded hover:bg-muted transition-colors ${drillPath.length === 0 ? "font-bold text-foreground" : "text-blue-600 dark:text-blue-400 cursor-pointer"}`}
+              >
+                전체
+              </button>
+              {drillPath.map((step, i) => (
+                <span key={i} className="flex items-center gap-1">
+                  <ChevronRight className="h-3 w-3 text-muted-foreground" />
+                  <button
+                    onClick={() => handleBreadcrumb(i + 1)}
+                    className={`px-2 py-0.5 rounded hover:bg-muted transition-colors ${i === drillPath.length - 1 ? "font-bold text-foreground" : "text-blue-600 dark:text-blue-400 cursor-pointer"}`}
+                  >
+                    {step.level}: {step.value}
+                  </button>
+                </span>
+              ))}
+              {currentLevel !== "품목" && (
+                <span className="text-xs text-muted-foreground ml-2">(행 클릭으로 드릴다운)</span>
+              )}
+            </div>
+
             <DataTable
               columns={[
                 {
                   accessorKey: "품목명",
-                  header: "품목",
+                  header: currentLevel,
                   cell: ({ row }: any) => (
-                    <span className="font-medium max-w-[160px] truncate block" title={row.original.품목명}>
+                    <button
+                      onClick={() => currentLevel !== "품목" && handleDrillDown(row.original)}
+                      className={`font-medium max-w-[200px] truncate block text-left ${currentLevel !== "품목" ? "text-blue-600 dark:text-blue-400 hover:underline cursor-pointer" : ""}`}
+                      title={row.original.품목명}
+                    >
                       {row.original.품목명}
-                    </span>
+                      {currentLevel !== "품목" && <ChevronRight className="h-3 w-3 inline ml-1 opacity-50" />}
+                    </button>
                   ),
                 },
-                {
-                  accessorKey: "단위",
+                ...(currentLevel === "품목" ? [{
+                  accessorKey: "단위" as const,
                   header: "단위",
                   cell: ({ row }: any) => <span className="text-muted-foreground">{row.original.단위}</span>,
-                },
+                }] : []),
                 {
                   accessorKey: "거래처수",
                   header: () => <span className="block text-right">거래처</span>,
