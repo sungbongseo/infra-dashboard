@@ -112,7 +112,7 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                 </div>
 
                 {/* HHI 자연어 해석 인사이트 */}
-                {selected.hhiRiskLevel === "high" && selected.topCustomers.length > 0 && (
+                {selected.hhiRiskLevel === "high" && (selected.topCustomers?.length ?? 0) > 0 && (
                   <div className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/30 p-3 space-y-1.5">
                     <p className="text-sm font-medium text-red-700 dark:text-red-400 flex items-center gap-1.5">
                       <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -185,10 +185,10 @@ export function RankingTab({ selected, rankingData, customerPieData, rankFormula
                   )}
                 </div>
 
-                {selected.topCustomers.length > 0 && (
+                {(selected.topCustomers?.length ?? 0) > 0 && (
                   <div className="space-y-2 mt-2">
                     <p className="text-sm font-medium">상위 거래처 매출 비중</p>
-                    {selected.topCustomers.slice(0, 5).map((c, i) => (
+                    {(selected.topCustomers ?? []).slice(0, 5).map((c, i) => (
                       <div key={i} className="space-y-1">
                         <div className="flex justify-between text-xs">
                           <span className="truncate max-w-[180px]">{c.name}</span>

@@ -408,12 +408,12 @@ export function calcPerformanceScores(
       orderAmount: orderAmt,
       collectionAmount: collectAmt,
       contributionMarginRate: contribRate,
-      customerCount: sData?.customers.size || 0,
-      itemCount: sData?.items.size || 0,
-      hhi: hhiData?.hhi || 0,
-      hhiRiskLevel: hhiData?.riskLevel || "low",
-      topCustomerShare: hhiData?.topCustomerShare || 0,
-      topCustomers: hhiData?.customers.slice(0, 5) || [],
+      customerCount: sData?.customers?.size ?? 0,
+      itemCount: sData?.items?.size ?? 0,
+      hhi: hhiData?.hhi ?? 0,
+      hhiRiskLevel: hhiData?.riskLevel ?? "low",
+      topCustomerShare: hhiData?.topCustomerShare ?? 0,
+      topCustomers: hhiData?.customers?.slice(0, 5) ?? [],
     });
   }
 
