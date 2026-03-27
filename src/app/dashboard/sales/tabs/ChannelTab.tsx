@@ -344,7 +344,7 @@ export function ChannelTab({ filteredSales, isDateFiltered }: ChannelTabProps) {
                   cell: ({ row }: any) => <span className="block text-right tabular-nums">{formatCurrency(row.original.총매출액, true)}</span>,
                 },
               ] as ColumnDef<ItemPriceBand, any>[]}
-              data={priceBand.items.slice(0, 30)}
+              data={priceBand.items}
             />
           </ChartCard>
         </>
