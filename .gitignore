@@ -50,3 +50,9 @@ nul
 
 # Playwright MCP logs
 .playwright-mcp/
+
+# Nested repos
+/claude-code-harness/
+
+# Screenshots
+*.png
