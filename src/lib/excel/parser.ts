@@ -68,6 +68,19 @@ function isTotalRow(value: string): boolean {
   return TOTAL_PATTERN.test(normalized);
 }
 
+/**
+ * 소계행에서 카테고리명 추출: "시트 합계" → "시트", "도막재 합계" → "도막재"
+ * 순수 "합계"/"소계" 등은 null 반환 (카테고리명 없음).
+ * itemProfitability의 대분류/중분류/소분류 fill-down에서만 사용.
+ */
+function extractCategoryFromTotal(value: string): string | null {
+  const v = value.trim();
+  if (!v) return null;
+  const m = v.match(/^(.+?)[\s]*(합계|소계|총합계|총계)$/);
+  if (m && m[1].trim()) return m[1].trim();
+  return null;
+}
+
 /** 구분자/헤더 행 판별 (fill-down 시 전파 차단) */
 function isSeparatorRow(value: string): boolean {
   const v = value.trim();
@@ -803,6 +816,8 @@ function parseSheetData(
       const origItemValues = ipRows.map(r => String(r.품목 || "").trim());
 
       const ipLevels = ["판매사업부", "영업조직팀", "대분류", "중분류", "소분류", "품목계정그룹", "품목"];
+      // 대분류/중분류/소분류: 소계행("시트 합계" 등)에서 카테고리명 추출 대상
+      const ipCategoryFields = new Set(["대분류", "중분류", "소분류"]);
       const ipCurrent: Record<string, string> = {};
       for (const rec of ipRows) {
         for (let i = 0; i < ipLevels.length; i++) {
@@ -814,6 +829,18 @@ function parseSheetData(
               for (let j = i + 1; j < ipLevels.length; j++) {
                 ipCurrent[ipLevels[j]] = "";
               }
+            }
+          } else if (val !== "" && isTotalRow(val) && ipCategoryFields.has(field)) {
+            // "시트 합계" → "시트" 추출하여 캐시 업데이트 + 레코드 교체
+            const extracted = extractCategoryFromTotal(val);
+            if (extracted) {
+              if (ipCurrent[field] !== extracted) {
+                ipCurrent[field] = extracted;
+                for (let j = i + 1; j < ipLevels.length; j++) {
+                  ipCurrent[ipLevels[j]] = "";
+                }
+              }
+              (rec as Record<string, any>)[field] = extracted;
             }
           } else if (val === "" && ipCurrent[field]) {
             (rec as Record<string, any>)[field] = ipCurrent[field];
@@ -833,7 +860,14 @@ function parseSheetData(
         if (curItem === "" || isTotalRow(curItem)) continue;
         let isTotal = false;
         for (const f of ipLevels) {
-          if (isTotalRow(String((cur as Record<string, any>)[f] || "").trim())) { isTotal = true; break; }
+          const fVal = String((cur as Record<string, any>)[f] || "").trim();
+          if (ipCategoryFields.has(f)) {
+            // 대분류/중분류/소분류: fill-down에서 이미 "시트 합계"→"시트" 교체됨
+            // 순수 합계 키워드만 소계행으로 판정
+            if (/^(합계|소계|총합계|총계|전체합계|구간합계)$/i.test(fVal)) { isTotal = true; break; }
+          } else {
+            if (isTotalRow(fVal)) { isTotal = true; break; }
+          }
         }
         if (isTotal) continue;
 

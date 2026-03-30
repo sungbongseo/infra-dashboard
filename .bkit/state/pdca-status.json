@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-03-30T09:03:24.723Z",
+  "lastUpdated": "2026-03-30T23:12:13.871Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -112,9 +112,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:37:14.025Z",
-        "lastUpdated": "2026-03-23T04:09:32.326Z"
+        "lastUpdated": "2026-03-30T23:12:13.870Z"
       },
-      "lastFile": "D:\\분석\\인프라 대시보드\\src\\lib\\excel\\parser.ts"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\excel\\parser.ts"
     },
     "dashboard": {
       "phase": "do",
@@ -278,7 +278,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-03-30T09:03:24.723Z"
+    "lastActivity": "2026-03-30T23:12:13.871Z"
   },
   "history": [
     {
@@ -8726,6 +8726,24 @@
     {
       "timestamp": "2026-03-30T09:03:24.722Z",
       "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-30T23:11:11.713Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-30T23:11:41.638Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-03-30T23:12:13.870Z",
+      "feature": "excel",
       "phase": "do",
       "action": "updated"
     }
