@@ -27,6 +27,7 @@ import {
   getNodesAtPath,
   calcCostWaterfall,
   calcProfitMatrix,
+  buildItemInventoryMap,
   type DrillDownStep,
 } from "@/lib/analysis/itemHierarchy";
 import { calcItemPriceBandByLevel } from "@/lib/analysis/itemPriceBand";
@@ -34,13 +35,12 @@ import type { PriceBandLevel, PriceBandDrillStep, ItemPriceBand } from "@/lib/an
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { DataTable } from "@/components/dashboard/DataTable";
 import type { ColumnDef } from "@tanstack/react-table";
-import type { SalesRecord, ItemProfitabilityRecord } from "@/types";
-import type { ItemInventoryInfo } from "@/lib/analysis/itemHierarchy";
+import type { SalesRecord, ItemProfitabilityRecord, InventoryMovementRecord } from "@/types";
 
 interface ItemTabProps {
   filteredSales: SalesRecord[];
   filteredItemProfit: ItemProfitabilityRecord[];
-  inventoryMap?: Map<string, ItemInventoryInfo>;
+  inventoryMovement: Map<string, InventoryMovementRecord[]>;
   isDateFiltered?: boolean;
 }
 
@@ -62,7 +62,11 @@ type ViewMode = "actual" | "plan" | "comparison";
 
 const DRILL_PATH_KEY = "itemTab_drillPath";
 
-export function ItemTab({ filteredSales, filteredItemProfit, inventoryMap, isDateFiltered }: ItemTabProps) {
+export function ItemTab({ filteredSales, filteredItemProfit, inventoryMovement, isDateFiltered }: ItemTabProps) {
+  const inventoryMap = useMemo(
+    () => inventoryMovement.size > 0 ? buildItemInventoryMap(inventoryMovement) : undefined,
+    [inventoryMovement]
+  );
   const [drillPath, setDrillPath] = useState<DrillDownStep[]>(() => {
     if (typeof window === "undefined") return [];
     try {
