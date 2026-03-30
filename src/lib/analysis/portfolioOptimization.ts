@@ -156,7 +156,7 @@ export function calcPortfolioOptimization(
     erosionMap.set(e.name, e.erosion);
   }
 
-  // 1) 품목+조직 단위로 집계
+  // 1) 품목+조직+대분류 단위로 집계 (대분류별 분리로 카테고리 누락 방지)
   const agg = new Map<
     string,
     {
@@ -172,7 +172,7 @@ export function calcPortfolioOptimization(
   >();
 
   for (const r of data) {
-    const key = `${r.품목}||${r.영업조직팀}`;
+    const key = `${r.품목}||${r.영업조직팀}||${r.대분류 || "미분류"}`;
     const prev = agg.get(key) || {
       품목: r.품목,
       대분류: r.대분류 || "미분류",
