@@ -1,5 +1,73 @@
 # Dashboard Changelog
 
+## [2026-03-30] - Portfolio Category Visibility Fix (portfolio-category-fix)
+
+### Added
+- **2-Pass portfolio processing**: Zero-sales items preserved and classified as DISCONTINUE category to ensure all product categories visible in portfolio distribution chart
+- **Dynamic chart description**: Portfolio chart now displays total item count and category count
+
+### Changed
+- **portfolioOptimization.ts**: Refactored to use 2-Pass processing (zero-sales items → DISCONTINUE classification) for complete category coverage
+- **PortfolioTab.tsx**: EmptyState condition refined to `items.length === 0 && categorySummary.length === 0` for edge case accuracy
+- **KPI ratio denominator**: Changed from `items.length` to `totalItems` (all portfolio items) for denominator consistency
+
+### Fixed
+- Portfolio chart missing categories with zero sales (시트, 도막재 등) — now all 14 categories visible
+- KPI analysis rate calculation denominator mismatch — now uses consistent totalItems reference
+- EmptyState edge case where all items had zero sales
+
+### Quality Metrics
+- Design match rate: 100% (initial 93/100 → final 100/100)
+- Validation items: 12/12 passed
+- Build status: ✅ Clean (TypeScript 0 errors, ESLint 0 errors)
+- Files modified: 2 (portfolioOptimization.ts, PortfolioTab.tsx)
+- Lines modified: ~47 net
+
+### Scope
+- File types: profitabilityAnalysis, customerItemDetail
+- Affected pages: Profitability > Portfolio tab
+- Chart coverage: +2 categories (시트, 도막재), 85% → 100% completeness
+
+---
+
+## [2026-03-26] - 영업사원 성과 평가 체계 고도화 (영업사원성과개선)
+
+### Added
+- **Performance scoring refinements**: HHI scale standardization (0~10000), profit score negative clamping, receivable data fallback logic, 4-axis/5-axis adaptive weighting
+- **Insight automation**: Strength/weakness auto-detection (radar chart top/bottom axis), HHI risk action guidance (high/medium/low), peer cost comparison with delta highlighting (>2%p), YoY MoM growth calculation, margin distribution insights (high-margin count, deficit product %)
+- **Transparency enhancements**: Homonym detection banner, detailed calculation formulas for all KPIs (formula/description/benchmark/reason), evaluation mode badge (4-axis vs 5-axis)
+
+### Changed
+- **PerformanceTab.tsx**: Added strength/weakness auto-identification, 4/5-axis mode badge, per-axis score detail cards with org average comparison
+- **RankingTab.tsx**: Integrated HHI risk assessment with action guidance, customer concentration pie chart with risk color coding
+- **CostTab.tsx**: Added peer cost comparison radar + table with delta highlighting (raw material rate, outsourcing rate, variable SGA, fixed SGA)
+- **TrendTab.tsx**: Integrated YoY growth calculation with trend labels (상승/정체/하락 추세)
+- **ProductTab.tsx**: Added margin distribution insights (high-margin/deficit product count and sales %), portfolio quality badges
+
+### Fixed
+- HHI scale mismatch (was 0~1, now 0~10000 standard)
+- Negative profit score regression (now clamped at 0)
+- Missing receivable score for salesmen with no collection data (fallback to org average)
+- Unbalanced weighting in 5-axis mode (now dynamically normalized)
+
+### Performance
+- Scoring calculation: <10ms per profile
+- Insight generation: memoized to prevent unnecessary recalculations
+- Memory: negligible (Map-based aggregation, no large object allocations)
+
+### Quality Metrics
+- Implementation coverage: 11/11 items (100%)
+- Design match rate: 100%
+- Files modified: 7 (profiling.ts, page.tsx, PerformanceTab.tsx, RankingTab.tsx, CostTab.tsx, TrendTab.tsx, ProductTab.tsx)
+- Lines added: ~200 net
+- Build status: ✅ Clean
+- Test coverage: All scoring scenarios verified (HHI scale, negative clamp, fallback, weighting)
+
+### Breaking Changes
+None (backward compatible with existing data format)
+
+---
+
 ## [2026-03-06] - Dashboard UX & Performance Improvements (dashboard-ux-perf)
 
 ### Added

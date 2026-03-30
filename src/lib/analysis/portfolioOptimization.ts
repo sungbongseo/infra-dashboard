@@ -191,9 +191,11 @@ export function calcPortfolioOptimization(
     agg.set(key, prev);
   }
 
-  // 매출 0인 품목 제외
-  const items = Array.from(agg.values()).filter((it) => it.sales !== 0);
-  if (items.length === 0) return emptyResult;
+  // 매출 0인 품목은 별도 보존 (대분류 누락 방지)
+  const allAggItems = Array.from(agg.values());
+  const items = allAggItems.filter((it) => it.sales !== 0);
+  const zeroSalesItems = allAggItems.filter((it) => it.sales === 0);
+  if (items.length === 0 && zeroSalesItems.length === 0) return emptyResult;
 
   // 2) 성장률 계산
   const growthMap = calcGrowthByItem(data);
@@ -272,21 +274,41 @@ export function calcPortfolioOptimization(
     };
   });
 
-  // 5) Summary
-  const focusItems = portfolioItems.filter((it) => it.action === "FOCUS");
-  const discItems = portfolioItems.filter((it) => it.action === "DISCONTINUE");
-  const erosionWarnings = portfolioItems.filter(
+  // 5) 매출 0 품목 → DISCONTINUE 분류 (대분류 누락 방지)
+  const zeroSalesPortfolioItems: PortfolioItem[] = zeroSalesItems.map((it) => ({
+    품목: it.품목,
+    대분류: it.대분류,
+    조직: it.조직,
+    sales: 0,
+    operatingMargin: 0,
+    growthRate: 0,
+    costEfficiency: 0,
+    planAchievement: 0,
+    compositeScore: 0,
+    action: "DISCONTINUE" as PortfolioAction,
+    scores: { sales: 0, profit: 0, growth: 0, cost: 0, plan: 0 },
+    quadrant: quadrantMap.get(it.품목),
+    marginErosion: erosionMap.get(it.품목),
+  }));
+
+  // 스코어링 품목 + 매출 0 품목 합산 (summary/categorySummary용)
+  const allPortfolioItems = [...portfolioItems, ...zeroSalesPortfolioItems];
+
+  // 6) Summary (전체 품목 기준)
+  const focusItems = allPortfolioItems.filter((it) => it.action === "FOCUS");
+  const discItems = allPortfolioItems.filter((it) => it.action === "DISCONTINUE");
+  const erosionWarnings = allPortfolioItems.filter(
     (it) => it.marginErosion !== undefined && it.marginErosion < -5
   );
 
   const summary = {
     focus: focusItems.length,
-    maintain: portfolioItems.filter((it) => it.action === "MAINTAIN").length,
-    optimize: portfolioItems.filter((it) => it.action === "OPTIMIZE").length,
+    maintain: allPortfolioItems.filter((it) => it.action === "MAINTAIN").length,
+    optimize: allPortfolioItems.filter((it) => it.action === "OPTIMIZE").length,
     discontinue: discItems.length,
     focusCount: focusItems.reduce((s, it) => s + it.sales, 0),
     discontinueSavings: discItems.reduce((s, it) => {
-      const orig = items.find(
+      const orig = allAggItems.find(
         (o) => o.품목 === it.품목 && o.조직 === it.조직
       );
       return s + (orig ? Math.abs(orig.cost) : 0);
@@ -294,19 +316,19 @@ export function calcPortfolioOptimization(
     erosionWarningCount: erosionWarnings.length,
   };
 
-  // 6) Top lists
+  // 7) Top lists (scatter용 scored items + 전체 discontinue)
   const sorted = [...portfolioItems].sort(
     (a, b) => b.compositeScore - a.compositeScore
   );
   const topFocus = sorted.filter((it) => it.action === "FOCUS").slice(0, 50);
-  const topDiscontinue = [...portfolioItems]
+  const topDiscontinue = [...allPortfolioItems]
     .sort((a, b) => a.compositeScore - b.compositeScore)
     .filter((it) => it.action === "DISCONTINUE")
     .slice(0, 50);
 
-  // 7) 대분류별 요약
+  // 8) 대분류별 요약 (전체 품목 기준 — 매출 0 대분류도 포함)
   const catMap = new Map<string, { total: number; focus: number; maintain: number; optimize: number; discontinue: number }>();
-  for (const it of portfolioItems) {
+  for (const it of allPortfolioItems) {
     const cat = it.대분류 || "미분류";
     const prev = catMap.get(cat) || { total: 0, focus: 0, maintain: 0, optimize: 0, discontinue: 0 };
     prev.total++;

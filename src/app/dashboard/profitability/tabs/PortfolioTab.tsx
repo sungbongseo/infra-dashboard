@@ -125,7 +125,9 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
     else { setSortField(field); setSortDir("desc"); }
   };
 
-  if (items.length === 0) return <EmptyState requiredFiles={["200.품목별수익성분석(회계)"]} />;
+  if (items.length === 0 && categorySummary.length === 0) return <EmptyState requiredFiles={["200.품목별수익성분석(회계)"]} />;
+
+  const totalItems = summary.focus + summary.maintain + summary.optimize + summary.discontinue;
 
   const renderTable = (
     data: PortfolioItem[],
@@ -222,7 +224,7 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
           format="number"
           icon={<Target className="h-4 w-4" />}
           formula="복합점수 ≥ 70"
-          benchmark={`전체 ${items.length}개 중 ${items.length > 0 ? safeFixed(summary.focus / items.length * 100, 0) : 0}% | 매출 ${formatCurrency(summary.focusCount)}`}
+          benchmark={`전체 ${totalItems}개 중 ${totalItems > 0 ? safeFixed(summary.focus / totalItems * 100, 0) : 0}% | 매출 ${formatCurrency(summary.focusCount)}`}
         />
         <KpiCard
           title="유지 (MAINTAIN)"
@@ -230,7 +232,7 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
           format="number"
           icon={<ArrowUpDown className="h-4 w-4" />}
           formula="50 ≤ 복합점수 < 70"
-          benchmark={`전체의 ${items.length > 0 ? safeFixed(summary.maintain / items.length * 100, 0) : 0}%`}
+          benchmark={`전체의 ${totalItems > 0 ? safeFixed(summary.maintain / totalItems * 100, 0) : 0}%`}
         />
         <KpiCard
           title="최적화 (OPTIMIZE)"
@@ -238,7 +240,7 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
           format="number"
           icon={<TrendingDown className="h-4 w-4" />}
           formula="30 ≤ 복합점수 < 50, 매출 ≥ 중위"
-          benchmark={`전체의 ${items.length > 0 ? safeFixed(summary.optimize / items.length * 100, 0) : 0}%`}
+          benchmark={`전체의 ${totalItems > 0 ? safeFixed(summary.optimize / totalItems * 100, 0) : 0}%`}
         />
         <KpiCard
           title="단종 검토"
@@ -335,7 +337,7 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
       <ChartCard
         isEmpty={catBarData.length === 0}
         title="대분류별 포트폴리오 분포"
-        description="대분류별 FOCUS/MAINTAIN/OPTIMIZE/DISCONTINUE 비율"
+        description={`대분류별 FOCUS/MAINTAIN/OPTIMIZE/DISCONTINUE 비율 (${categorySummary.reduce((s, c) => s + c.total, 0)}개 품목, ${categorySummary.length}개 대분류)`}
         dataSourceType="snapshot"
         isDateFiltered={isDateFiltered}
       >

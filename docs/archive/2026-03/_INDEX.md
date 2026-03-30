@@ -17,6 +17,7 @@
 | 매출분석개선 | Completed | 100% | 2026-03-26 |
 | 영업사원성과개선 | Completed | 100% | 2026-03-26 |
 | dashboard-improvement-phase5 | Completed | 93% | 2026-03-27 |
+| portfolio-category-fix | Completed | 100% | 2026-03-30 |
 
 ## analysis
 - **Description**: 인프라 대시보드 분석 기능 종합 개선 (5단계 기반 + Phase 5~7 인사이트 보강)
