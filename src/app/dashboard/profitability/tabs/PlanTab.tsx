@@ -11,27 +11,37 @@ import type { OrgRatioMetric } from "@/lib/analysis/kpi";
 const MAX_RADAR_ORGS = 7;
 const DEFAULT_RADAR_ORGS = 3;
 
+/** 히트맵 5단계 색상 (녹→노→빨) */
+const HEATMAP = {
+  excellent: "#059669",  // 녹색 진 — 수익 120%+, 비용 80% 이하
+  good:      "#34d399",  // 녹색 연 — 수익 100~120%, 비용 80~100%
+  fair:      "#fbbf24",  // 노란색  — 수익 80~100%, 비용 100~120%
+  poor:      "#f97316",  // 주황색  — 수익 50~80%, 비용 120~150%
+  critical:  "#ef4444",  // 빨간색  — 수익 50% 미만, 비용 150% 초과
+  noplan:    "#6b7280",  // 회색    — 계획없음
+} as const;
+
 /**
  * 히트맵 배경색 결정
  * isCostItem=true이면 색상 반전 (비용 초과 = 빨간색)
  */
 function getHeatmapBg(rate: number, isCostItem: boolean, actual?: number): string {
   if (rate >= 9999 || !isFinite(rate)) {
-    if (isCostItem && actual && actual > 0) return "#ef4444";
-    return "#6b7280";
+    if (isCostItem && actual && actual > 0) return HEATMAP.critical;
+    return HEATMAP.noplan;
   }
   if (isCostItem) {
-    if (rate <= 80) return "#059669";
-    if (rate <= 100) return "#34d399";
-    if (rate <= 120) return "#fbbf24";
-    if (rate <= 150) return "#f97316";
-    return "#ef4444";
+    if (rate <= 80) return HEATMAP.excellent;
+    if (rate <= 100) return HEATMAP.good;
+    if (rate <= 120) return HEATMAP.fair;
+    if (rate <= 150) return HEATMAP.poor;
+    return HEATMAP.critical;
   }
-  if (rate >= 120) return "#059669";
-  if (rate >= 100) return "#34d399";
-  if (rate >= 80) return "#fbbf24";
-  if (rate >= 50) return "#f97316";
-  return "#ef4444";
+  if (rate >= 120) return HEATMAP.excellent;
+  if (rate >= 100) return HEATMAP.good;
+  if (rate >= 80) return HEATMAP.fair;
+  if (rate >= 50) return HEATMAP.poor;
+  return HEATMAP.critical;
 }
 
 interface HeatmapRow {
@@ -210,7 +220,7 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
                 const noplan = rate >= 9999 || !isFinite(rate);
                 const displayRate = noplan ? (m.isCostItem && m.actual > 0 ? "예산외" : "계획없음") : `${safeFixed(rate, 0)}%`;
                 const bg = getHeatmapBg(rate, m.isCostItem, m.actual);
-                const textColor = (bg === "#fbbf24") ? "text-gray-900" : "text-white";
+                const textColor = (bg === HEATMAP.fair) ? "text-gray-900" : "text-white";
                 return (
                   <div
                     key={m.name}
@@ -230,56 +240,56 @@ export function PlanTab({ orgRatioMetrics, heatmapData, isDateFiltered }: PlanTa
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-medium">수익항목:</span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#059669" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.excellent }} />
                 120%+
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#34d399" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.good }} />
                 100~120%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#fbbf24" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.fair }} />
                 80~100%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#f97316" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.poor }} />
                 50~80%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.critical }} />
                 50% 미만
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="font-medium">비용항목:</span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#059669" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.excellent }} />
                 80% 이하
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#34d399" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.good }} />
                 80~100%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#fbbf24" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.fair }} />
                 100~120%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#f97316" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.poor }} />
                 120~150%
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#ef4444" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.critical }} />
                 150% 초과
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#6b7280" }} />
+                <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: HEATMAP.noplan }} />
                 계획없음
               </span>
               <span className="flex items-center gap-1">
-                <span className="inline-block w-3 h-3 rounded-sm border border-red-300" style={{ backgroundColor: "#ef4444" }} />
+                <span className="inline-block w-3 h-3 rounded-sm border border-red-300" style={{ backgroundColor: HEATMAP.critical }} />
                 예산외 비용
               </span>
             </div>
