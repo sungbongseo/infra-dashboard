@@ -70,7 +70,24 @@ export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: Port
   const [expandedDisc, setExpandedDisc] = useState(false);
 
   const result: PortfolioResult = useMemo(
-    () => calcPortfolioOptimization(filteredItemProfitability),
+    () => {
+      // ── DEBUG: 입력 데이터의 대분류 분포 확인 ──
+      const inputCategories = new Map<string, number>();
+      for (const r of filteredItemProfitability) {
+        const cat = r.대분류 || "(빈값)";
+        inputCategories.set(cat, (inputCategories.get(cat) || 0) + 1);
+      }
+      console.log("[PortfolioTab] 입력 데이터 대분류 분포:", Object.fromEntries(
+        Array.from(inputCategories.entries()).sort((a, b) => b[1] - a[1])
+      ));
+      console.log("[PortfolioTab] 입력 레코드 수:", filteredItemProfitability.length);
+
+      const res = calcPortfolioOptimization(filteredItemProfitability);
+
+      console.log("[PortfolioTab] 포트폴리오 categorySummary:", res.categorySummary.map(c => `${c.category}(${c.total})`));
+      console.log("[PortfolioTab] 포트폴리오 items 대분류:", Array.from(new Set(res.items.map(i => i.대분류))).sort());
+      return res;
+    },
     [filteredItemProfitability]
   );
 
