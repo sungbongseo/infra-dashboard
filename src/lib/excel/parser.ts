@@ -854,20 +854,20 @@ function parseSheetData(
         for (let idx = ipRows.length - 1; idx >= 0; idx--) {
           const origVal = origVals[idx];
           if (isTotalRow(origVal)) {
+            // "도막 합계" → sectionCat="도막"
             const extracted = extractCategoryFromTotal(origVal);
-            if (extracted) {
-              sectionCat = extracted;
-            } else {
-              // 순수 "합계" (총계) → 섹션 리셋
-              sectionCat = "";
-            }
-            // 소계행의 레코드 값도 추출된 카테고리명으로 정리
+            sectionCat = extracted || "";
             if (sectionCat) {
               (ipRows[idx] as Record<string, any>)[field] = sectionCat;
             }
             continue;
           }
-          // 비소계 행: 섹션 카테고리가 있으면 적용
+          // 원본 값이 있는 비소계 행 = 헤더 행 = 섹션 경계 → 역방향 전파 중단
+          if (origVal !== "") {
+            sectionCat = "";
+            continue;
+          }
+          // 빈 행: 섹션 카테고리 적용 (소계에서 추출한 대분류로 보정)
           if (sectionCat) {
             (ipRows[idx] as Record<string, any>)[field] = sectionCat;
           }
