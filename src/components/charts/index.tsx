@@ -112,6 +112,9 @@ export function PieOuterLabel(props: any) {
   );
 }
 
+/** NaN/Infinity 안전한 ReferenceLine — 값이 유효하지 않으면 렌더링하지 않음 */
+export { SafeReferenceLine } from "./SafeReferenceLine";
+
 /** 조건부 색상 (값 기준) */
 export function getValueColor(value: number, thresholds: { good: number; warning: number }) {
   if (value >= thresholds.good) return "text-emerald-600 dark:text-emerald-400";

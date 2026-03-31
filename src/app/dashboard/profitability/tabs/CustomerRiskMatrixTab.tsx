@@ -9,7 +9,7 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid,
   Tooltip as RechartsTooltip, Cell, ReferenceLine, LabelList,
 } from "recharts";
-import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, ANIMATION_CONFIG, truncateLabel, SafeReferenceLine } from "@/components/charts";
 import { Star, AlertTriangle, TrendingUp, XCircle } from "lucide-react";
 import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
@@ -224,13 +224,13 @@ export function CustomerRiskMatrixTab({
                 );
               }}
             />
-            <ReferenceLine
+            <SafeReferenceLine
               x={summary.medianProfitRate}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"
               label={{ value: `이익율 중앙값 ${isFinite(summary.medianProfitRate) ? summary.medianProfitRate.toFixed(1) : "0"}%`, fontSize: 9, fill: "hsl(var(--muted-foreground))" }}
             />
-            <ReferenceLine
+            <SafeReferenceLine
               y={summary.medianAgingRate}
               stroke="hsl(var(--muted-foreground))"
               strokeDasharray="4 4"

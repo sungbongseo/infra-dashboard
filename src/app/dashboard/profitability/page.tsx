@@ -95,6 +95,13 @@ export default function ProfitabilityPage() {
   const { effectiveOrgNames, dateRange } = useFilterContext();
   const { filteredOrgProfit } = useFilteredOrgProfit();
 
+  // 데이터 무결성 경고: 영업이익 > 매출총이익인 조직 감지
+  const integrityWarnings = useMemo(() => {
+    return filteredOrgProfit.filter(
+      (r) => r.영업이익.실적 > r.매출총이익.실적 && r.매출액.실적 !== 0
+    ).map((r) => r.영업조직팀);
+  }, [filteredOrgProfit]);
+
   // 월별 트렌드: orgProfit에 month 필드가 있을 때만 계산
   const monthlyTrendData = useMemo(() => {
     const orgFiltered = filterByOrg(orgProfit, effectiveOrgNames, "영업조직팀");
@@ -250,6 +257,26 @@ export default function ProfitabilityPage() {
     () => [...contribRanking].sort((a, b) => b.공헌이익율 - a.공헌이익율),
     [contribRanking]
   );
+
+  // 민감도 분석용: teamContribution에서 SGA 변동비 비율 역산
+  // 변동비합계 / 매출 = 변동비율 → SGA 중 변동비 비율 = 1 - (고정비 / 판관비)
+  const estimatedSgaVarRatio = useMemo(() => {
+    if (filteredTeamContribution.length === 0) return 0.3; // 데이터 없으면 기본값
+    let totalFixed = 0;
+    let totalSGA = 0;
+    for (const r of filteredTeamContribution) {
+      totalFixed +=
+        (r.판관고정_감가상각비?.실적 || 0) +
+        (r.판관고정_기타경비?.실적 || 0) +
+        (r.판관고정_노무비?.실적 || 0);
+      // SGA = 공헌이익 - 영업이익 (판관비 전체)
+      totalSGA += (r.공헌이익?.실적 || 0) - (r.영업이익?.실적 || 0);
+    }
+    if (totalSGA <= 0) return 0.3; // 판관비가 0 이하이면 기본값
+    const fixedRatio = totalFixed / totalSGA;
+    const varRatio = 1 - Math.min(Math.max(fixedRatio, 0), 1); // [0, 1] 클램핑
+    return Math.round(varRatio * 100) / 100; // 소수점 2자리
+  }, [filteredTeamContribution]);
 
   // ContribTab 가중평균 공헌이익율 계산
   const contribTotals = useMemo(() => {
@@ -431,16 +458,17 @@ export default function ProfitabilityPage() {
     return calcBreakevenChart(totalFixed, varRatio, totalSales * 1.3);
   }, [orgBreakeven]);
 
+  const weightedBep = useMemo(() => calcWeightedBep(orgBreakeven), [orgBreakeven]);
+
   const bepKpiSummary = useMemo(() => {
-    const totalBep = orgBreakeven.reduce((s, r) => s + (r.canBreakEven && isFinite(r.bepSales) ? r.bepSales : 0), 0);
+    // 가중평균 BEP 사용 (조직별 BEP 단순합산 대신)
+    const totalBep = weightedBep.weightedBepSales;
     const finiteSafety = orgBreakeven.filter(r => isFinite(r.safetyMarginRate));
     const avgSafetyMargin = finiteSafety.length > 0 ? finiteSafety.reduce((s, r) => s + r.safetyMarginRate, 0) / finiteSafety.length : 0;
     const avgContribMarginRatio = orgBreakeven.length > 0 ? orgBreakeven.reduce((s, r) => s + r.contributionMarginRatio, 0) / orgBreakeven.length * 100 : 0;
     const unachievableCount = orgBreakeven.filter(r => !r.canBreakEven).length;
     return { totalBep, avgSafetyMargin, avgContribMarginRatio, unachievableCount };
-  }, [orgBreakeven]);
-
-  const weightedBep = useMemo(() => calcWeightedBep(orgBreakeven), [orgBreakeven]);
+  }, [orgBreakeven, weightedBep]);
 
   // ─── 마진 침식 분석 ──────────────────────────────
   const marginErosion = useMemo(() => calcMarginErosion(effectiveProfAnalysis, "product", 20), [effectiveProfAnalysis]);
@@ -542,6 +570,11 @@ export default function ProfitabilityPage() {
           const group = PROFIT_TAB_GROUPS.find((g) => g.id === gid);
           if (group) setActiveTab(group.tabs[0]);
         }} />
+        {integrityWarnings.length > 0 && (
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 text-xs text-amber-800 dark:text-amber-300 mb-2">
+            데이터 무결성 주의: {integrityWarnings.slice(0, 3).join(", ")}{integrityWarnings.length > 3 ? ` 외 ${integrityWarnings.length - 3}개` : ""} 조직에서 영업이익이 매출총이익보다 큽니다 (판관비 음수 반제 가능성).
+          </div>
+        )}
         <TabsList className="flex flex-wrap h-auto gap-1">
           {/* 기본 분석 */}
           {visibleTabs.has("pnl") && <TabsTrigger value="pnl">손익 현황</TabsTrigger>}
@@ -716,6 +749,7 @@ export default function ProfitabilityPage() {
               baseGrossProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.매출총이익?.실적 ?? 0), 0) : totalGP}
               baseOpProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.영업이익?.실적 ?? 0), 0) : totalOp}
               isDateFiltered={isDateFilterActive}
+              estimatedSgaVarRatio={estimatedSgaVarRatio}
             />
           </ErrorBoundary>
           </Suspense>

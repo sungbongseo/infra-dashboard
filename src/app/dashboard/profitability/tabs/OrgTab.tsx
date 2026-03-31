@@ -6,7 +6,7 @@ import {
   Tooltip as RechartsTooltip, Cell,
   ReferenceLine, ReferenceArea, LabelList,
 } from "recharts";
-import { ChartContainer, GRID_PROPS } from "@/components/charts";
+import { ChartContainer, GRID_PROPS, SafeReferenceLine } from "@/components/charts";
 import { formatCurrency, formatPercent, CHART_COLORS } from "@/lib/utils";
 
 interface OrgTabProps {
@@ -95,8 +95,8 @@ export function OrgTab({ bubbleData, isDateFiltered }: OrgTabProps) {
                 <ReferenceArea x2={quadrantAnalysis.medianSales} y1={quadrantAnalysis.medianMargin} fill="hsl(221, 83%, 53%)" fillOpacity={0.04} />
                 <ReferenceArea x1={quadrantAnalysis.medianSales} y2={quadrantAnalysis.medianMargin} fill="hsl(38, 92%, 50%)" fillOpacity={0.04} />
                 <ReferenceArea x2={quadrantAnalysis.medianSales} y2={quadrantAnalysis.medianMargin} fill="hsl(0, 84%, 60%)" fillOpacity={0.04} />
-                <ReferenceLine x={quadrantAnalysis.medianSales} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
-                <ReferenceLine y={quadrantAnalysis.medianMargin} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
+                <SafeReferenceLine x={quadrantAnalysis.medianSales} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
+                <SafeReferenceLine y={quadrantAnalysis.medianMargin} stroke="hsl(var(--muted-foreground))" strokeDasharray="4 4" strokeOpacity={0.4} />
               </>
             )}
             <Scatter data={bubbleData} fill={CHART_COLORS[0]}>

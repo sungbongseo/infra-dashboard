@@ -140,10 +140,23 @@ function normalizeItemName(name: string): string {
   return name.trim().replace(/[\s_\-\/\(\)\[\],.]/g, "").toLowerCase();
 }
 
+export interface PortfolioWeights {
+  sales: number;
+  profit: number;
+  growth: number;
+  cost: number;
+  plan: number;
+}
+
+export const DEFAULT_PORTFOLIO_WEIGHTS: PortfolioWeights = {
+  sales: 0.3, profit: 0.25, growth: 0.2, cost: 0.15, plan: 0.1,
+};
+
 export function calcPortfolioOptimization(
   data: ItemProfitabilityRecord[],
   salesData?: SalesRecord[],
   rawData?: ItemProfitabilityRecord[],
+  weights?: PortfolioWeights,
 ): PortfolioResult {
   const emptyResult: PortfolioResult = {
     items: [],
@@ -279,12 +292,13 @@ export function calcPortfolioOptimization(
       plan: percentileRank(planArr, rv.plan),
     };
 
+    const w = weights ?? DEFAULT_PORTFOLIO_WEIGHTS;
     const composite =
-      scores.sales * 0.3 +
-      scores.profit * 0.25 +
-      scores.growth * 0.2 +
-      scores.cost * 0.15 +
-      scores.plan * 0.1;
+      scores.sales * w.sales +
+      scores.profit * w.profit +
+      scores.growth * w.growth +
+      scores.cost * w.cost +
+      scores.plan * w.plan;
 
     // 전략 분류
     let action: PortfolioAction;

@@ -83,13 +83,14 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
     [teamEfficiency]
   );
 
-  // 4사분면 scatter data
+  // 4사분면 scatter data — 원본 보존, 차트 domain으로 시각 범위 제한
   const quadrantData = useMemo(() =>
     planAchievementQuadrant
       .filter((d) => isFinite(d.salesAchievement) && isFinite(d.profitAchievement))
       .map((d) => ({
-        x: Math.min(Math.max(d.salesAchievement, 0), 300), // clamp for display
-        y: Math.min(Math.max(d.profitAchievement, -100), 300),
+        x: d.salesAchievement,
+        y: d.profitAchievement,
+        isClamped: d.salesAchievement > 300 || d.salesAchievement < 0 || d.profitAchievement > 300 || d.profitAchievement < -100,
         product: d.product,
         org: d.org,
         quadrant: d.quadrant,
@@ -327,6 +328,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
                   name="매출 달성율"
                   tick={{ fontSize: 10 }}
                   tickFormatter={(v: any) => `${v}%`}
+                  domain={[0, 300]}
                   label={{ value: "매출 달성율 (%)", position: "bottom", fontSize: 11, offset: -5 }}
                 />
                 <YAxis
@@ -335,6 +337,7 @@ export function ItemCostTab({ isDateFiltered, summary, ranking, teamEfficiency, 
                   name="이익 달성율"
                   tick={{ fontSize: 10 }}
                   tickFormatter={(v: any) => `${v}%`}
+                  domain={[-100, 300]}
                   label={{ value: "공헌이익 달성율 (%)", angle: -90, position: "insideLeft", fontSize: 11 }}
                 />
                 <ZAxis range={[40, 40]} />

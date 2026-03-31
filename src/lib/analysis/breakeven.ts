@@ -298,13 +298,14 @@ export function calcOrgBreakevenFromTeam(
       org,
       sales: v.sales,
       variableCosts: v.variableCosts,
-      fixedCosts: Math.max(v.fixedCosts, 0),
+      fixedCosts: v.fixedCosts, // 음수 허용: SAP 반제 전표로 발생 가능 (calcTeamBreakeven과 동일)
       variableCostRatio,
       contributionMarginRatio,
       bepSales,
       canBreakEven,
       safetyMarginRate,
       operatingLeverage,
+      hasNegativeFixedCosts: v.fixedCosts < 0,
     });
   });
 

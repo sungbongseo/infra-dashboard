@@ -227,9 +227,10 @@ export function calcCustomerRiskSummary(
   function summarize(quadrant: CustomerRiskEntry["quadrant"]): QuadrantSummary {
     const items = matrix.filter((e) => e.quadrant === quadrant);
     const totalSales = items.reduce((sum, e) => sum + e.매출액, 0);
+    // 매출 가중평균 수익률 (단순평균 대신)
     const avgProfitRate =
-      items.length > 0
-        ? items.reduce((sum, e) => sum + e.영업이익율, 0) / items.length
+      totalSales !== 0
+        ? safeDivide(items.reduce((sum, e) => sum + e.영업이익, 0), totalSales) * 100
         : 0;
 
     // top 5 거래처 (매출액 내림차순)

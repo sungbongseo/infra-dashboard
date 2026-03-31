@@ -78,7 +78,8 @@ export function calcWhatIfScenario(
     const clampedCostRate = Math.max(0, Math.min(scenarioCostRate, 300));
     const scenarioCost = scenarioSales * clampedCostRate / 100;
     const scenarioGrossProfit = scenarioSales - scenarioCost;
-    const scenarioSGA = Math.max(0, baseSGA * (1 + params.sgaChangePercent / 100));
+    // 음수 판관비(SAP 반제 전표) 허용: Math.max(0) 제거하여 시나리오 정확성 확보
+    const scenarioSGA = baseSGA * (1 + params.sgaChangePercent / 100);
     const scenarioOperatingProfit = scenarioGrossProfit - scenarioSGA;
     const scenarioOperatingMargin = scenarioSales !== 0
       ? (safeDivide(scenarioOperatingProfit, scenarioSales)) * 100

@@ -310,7 +310,8 @@ export function calcPlanVsActualHeatmap(orgProfitData: OrgProfitRecord[]): PlanV
         const field = r[key] as { 계획: number; 실적: number; 차이: number };
         const plan = field.계획;
         const actual = field.실적;
-        // plan=0 → null(계획미설정). 9999 sentinel로 표현하여 PlanTab에서 "계획없음" 표시
+        // plan=0 → 9999 sentinel (계획미설정). PlanTab에서 getHeatmapBg()가 9999를 "계획없음"으로 표시.
+        // 히트맵 색상 로직에서 9999는 회색(noplan) 처리되므로 극단적 초과달성으로 오인되지 않음.
         const achievementRate = plan !== 0 ? (actual / plan) * 100 : 9999;
         return {
           name: label,

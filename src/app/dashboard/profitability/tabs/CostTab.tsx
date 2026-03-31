@@ -8,7 +8,7 @@ import {
   Tooltip as RechartsTooltip, Cell, Legend,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, ACTIVE_BAR, ANIMATION_CONFIG, BAR_RADIUS_TOP } from "@/components/charts";
-import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
+import { formatCurrency, formatPercent, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
 import type { MonthlyTrendPoint, MoMGrowth } from "@/lib/analysis/monthlyTrend";
 
 // ─── 비용 구조 상수 (CostTab 전용) ───
@@ -26,10 +26,10 @@ const COST_BAR_COLORS: Record<string, string> = {
 const COST_KEYS = ["원재료비", "상품매입", "외주가공비", "운반비", "지급수수료", "노무비", "기타변동비", "고정비"] as const;
 
 const COST_RATE_BINS = [
-  { label: "우수 (<70%)", min: -Infinity, max: 70, fill: "hsl(145, 60%, 42%)" },
+  { label: "우수 (<70%)", min: -Infinity, max: 70, fill: RISK_COLORS.low },
   { label: "보통 (70~85%)", min: 70, max: 85, fill: CHART_COLORS[1] },
-  { label: "주의 (85~95%)", min: 85, max: 95, fill: "hsl(35, 70%, 50%)" },
-  { label: "위험 (≥95%)", min: 95, max: Infinity, fill: "hsl(0, 65%, 55%)" },
+  { label: "주의 (85~95%)", min: 85, max: 95, fill: RISK_COLORS.medium },
+  { label: "위험 (≥95%)", min: 95, max: Infinity, fill: RISK_COLORS.high },
 ];
 
 interface CostTabProps {
@@ -105,8 +105,15 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
     );
   }
 
+  const negativeSalesCount = costEfficiency.filter((r: any) => r.hasNegativeSales).length;
+
   return (
     <>
+      {negativeSalesCount > 0 && (
+        <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300">
+          {negativeSalesCount}건의 음수 매출(반제 전표)이 포함되어 있습니다. 비율 계산 시 절대값 기준으로 산출됩니다.
+        </div>
+      )}
       {costInsight && (
         <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-1">
           <p className="font-medium">비용 구조 핵심 요약</p>
@@ -142,7 +149,7 @@ export function CostTab({ costBarData, costEfficiency, isDateFiltered, monthlyTr
           title="담당자별 비용 구성"
           dataSourceType="snapshot"
           isDateFiltered={isDateFiltered}
-          formula="비용 구성 = 원재료비 + 상품매입 + 외주가공비 + 운반비 + 지급수수료 + 노무비 + 기타변동비 + 고정비"
+          formula="비용 구성 = 원재료비(원재료+부재료) + 상품매입 + 외주가공비 + 운반비(판매+직접+제조) + 지급수수료 + 노무비(판관변동+고정+제조) + 기타변동비(복리후생, 소모품, 수도광열, 수선, 연료, 전력, 견본비) + 고정비(감가상각+기타경비)"
           description="각 담당자의 매출을 만들기 위해 들어간 비용을 8가지 항목으로 나누어 쌓아 보여줍니다. 어떤 비용이 가장 큰 비중을 차지하는지, 담당자별로 비용 구조가 어떻게 다른지 한눈에 비교할 수 있습니다."
           benchmark="원재료비 비중이 높으면 원재료 단가 관리가, 상품매입 비중이 높으면 매입처 협상이, 외주비 비중이 높으면 외주비 효율화가 원가 절감의 핵심"
           reason="담당자별 비용 구조 차이를 비교하여 비효율적인 비용 패턴을 가진 담당자를 식별하고, 원가 절감이 가능한 핵심 비용 항목을 파악합니다"

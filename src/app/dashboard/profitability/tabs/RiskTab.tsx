@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   ScatterChart,
   Scatter,
@@ -20,8 +20,9 @@ import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ChartContainer, GRID_PROPS } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatPercent, CHART_COLORS } from "@/lib/utils";
-import { calcProfitRiskMatrixEx, calcQuadrantSummary } from "@/lib/analysis/profitRiskMatrix";
+import { calcProfitRiskMatrixEx, calcQuadrantSummary, DEFAULT_MARGIN_BENCHMARK, DEFAULT_RISK_BENCHMARK } from "@/lib/analysis/profitRiskMatrix";
 import type { ProfitRiskData } from "@/lib/analysis/profitRiskMatrix";
+import { Settings2 } from "lucide-react";
 
 const QUADRANT_COLORS: Record<ProfitRiskData["quadrant"], string> = {
   star: "hsl(142.1, 76.2%, 36.3%)",
@@ -45,9 +46,30 @@ interface RiskTabProps {
 }
 
 export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales, isDateFiltered }: RiskTabProps) {
+  const [useMedian, setUseMedian] = useState(false);
+  const [marginBM, setMarginBM] = useState(DEFAULT_MARGIN_BENCHMARK);
+  const [riskBM, setRiskBM] = useState(DEFAULT_RISK_BENCHMARK);
+  const [showSettings, setShowSettings] = useState(false);
+
+  // 데이터 기반 중앙값 계산
+  const medianValues = useMemo(() => {
+    const margins = filteredOrgProfit
+      .filter((r: any) => r.매출액?.실적 !== 0)
+      .map((r: any) => r.영업이익율?.실적 ?? 0)
+      .sort((a: number, b: number) => a - b);
+    const medianMargin = margins.length > 0 ? margins[Math.floor(margins.length / 2)] : DEFAULT_MARGIN_BENCHMARK;
+    return { medianMargin };
+  }, [filteredOrgProfit]);
+
+  const effectiveMarginBM = useMedian ? medianValues.medianMargin : marginBM;
+  const effectiveRiskBM = useMedian ? DEFAULT_RISK_BENCHMARK : riskBM; // 리스크 점수는 중앙값 미지원 (0-100 스케일)
+
   const profitRiskResult = useMemo(
-    () => calcProfitRiskMatrixEx(filteredOrgProfit, allReceivableRecords, filteredSales),
-    [filteredOrgProfit, allReceivableRecords, filteredSales]
+    () => calcProfitRiskMatrixEx(filteredOrgProfit, allReceivableRecords, filteredSales, {
+      marginBenchmark: effectiveMarginBM,
+      riskBenchmark: effectiveRiskBM,
+    }),
+    [filteredOrgProfit, allReceivableRecords, filteredSales, effectiveMarginBM, effectiveRiskBM]
   );
   const profitRiskData = profitRiskResult.data;
 
@@ -64,6 +86,52 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
 
   return (
     <>
+      {/* 분류 기준 설정 패널 */}
+      <div className="rounded-lg border bg-muted/20 px-4 py-3">
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Settings2 className="h-4 w-4" />
+          분류 기준 설정
+          <span className="text-xs">
+            (이익율 {isFinite(effectiveMarginBM) ? effectiveMarginBM.toFixed(1) : "5.0"}%, 리스크 {effectiveRiskBM}점)
+          </span>
+        </button>
+        {showSettings && (
+          <div className="mt-3 space-y-3 pt-3 border-t border-border">
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input type="radio" checked={!useMedian} onChange={() => setUseMedian(false)} className="accent-primary" />
+                고정 기준
+              </label>
+              <label className="flex items-center gap-2 text-xs cursor-pointer">
+                <input type="radio" checked={useMedian} onChange={() => setUseMedian(true)} className="accent-primary" />
+                데이터 기반 (중앙값 {isFinite(medianValues.medianMargin) ? medianValues.medianMargin.toFixed(1) : "0"}%)
+              </label>
+            </div>
+            {!useMedian && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs whitespace-nowrap min-w-[90px]">영업이익율 기준:</span>
+                  <input type="range" min={-10} max={30} step={1} value={marginBM}
+                    onChange={(e) => setMarginBM(Number(e.target.value))}
+                    className="flex-1 accent-primary" />
+                  <span className="text-xs font-semibold tabular-nums w-12 text-right">{marginBM}%</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs whitespace-nowrap min-w-[90px]">리스크 점수 기준:</span>
+                  <input type="range" min={10} max={80} step={5} value={riskBM}
+                    onChange={(e) => setRiskBM(Number(e.target.value))}
+                    className="flex-1 accent-primary" />
+                  <span className="text-xs font-semibold tabular-nums w-12 text-right">{riskBM}점</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
       {profitRiskResult.matchFailures > 0 && (
         <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">
           <Info className="h-4 w-4 flex-shrink-0" />

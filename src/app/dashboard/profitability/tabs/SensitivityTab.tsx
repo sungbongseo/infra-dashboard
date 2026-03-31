@@ -28,6 +28,7 @@ interface SensitivityTabProps {
   baseSales: number;
   baseGrossProfit: number;
   baseOpProfit: number;
+  estimatedSgaVarRatio?: number; // teamContribution 데이터 기반 추정값
 }
 
 // ─── Metric selector type ───────────────────────────────────────
@@ -88,9 +89,11 @@ export function SensitivityTab({
   baseSales,
   baseGrossProfit,
   baseOpProfit,
+  estimatedSgaVarRatio,
 }: SensitivityTabProps) {
   const [selectedMetric, setSelectedMetric] = useState<MetricKey>("op");
-  const [sgaVariableRatio, setSgaVariableRatio] = useState(0.3);
+  const [sgaVariableRatio, setSgaVariableRatio] = useState(estimatedSgaVarRatio ?? 0.3);
+  const isEstimated = estimatedSgaVarRatio !== undefined && estimatedSgaVarRatio !== 0.3;
 
   // Compute sensitivity grid
   const result = useMemo(
@@ -293,12 +296,12 @@ export function SensitivityTab({
       </div>
 
       {/* SGA 변동비 비율 슬라이더 */}
-      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3 flex-wrap">
         <span className="text-sm font-medium whitespace-nowrap">판관비 변동비 비율:</span>
         <input
           type="range"
-          min={10}
-          max={50}
+          min={5}
+          max={80}
           step={5}
           value={sgaVariableRatio * 100}
           onChange={(e) => setSgaVariableRatio(Number(e.target.value) / 100)}
@@ -308,6 +311,11 @@ export function SensitivityTab({
         <span className="text-xs text-muted-foreground whitespace-nowrap">
           (고정 {Math.round((1 - sgaVariableRatio) * 100)}% : 변동 {Math.round(sgaVariableRatio * 100)}%)
         </span>
+        {isEstimated && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+            실적 기반 추정
+          </span>
+        )}
       </div>
 
       {/* Heatmap grid */}
@@ -340,7 +348,7 @@ export function SensitivityTab({
             <thead>
               <tr>
                 <th className="p-2 border border-border bg-muted/50 text-muted-foreground font-medium min-w-[72px]">
-                  물량(↕)＼가격(→)
+                  물량(↕)＼단가(→)
                 </th>
                 {STEPS_PRICE.map((priceStep) => (
                   <th

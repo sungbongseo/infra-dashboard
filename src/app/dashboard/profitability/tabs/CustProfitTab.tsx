@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -33,7 +33,10 @@ interface CustProfitTabProps {
   dateRange: { from?: string; to?: string } | null;
 }
 
+const DEFAULT_TABLE_ROWS = 50;
+
 export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, isUsingDateFiltered, isDateFiltered, dateRange }: CustProfitTabProps) {
+  const [showAllRows, setShowAllRows] = useState(false);
   const custConcentration = useMemo(() => calcCustomerConcentration(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
   const custRanking = useMemo(() => calcCustomerRanking(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
   const custSegments = useMemo(() => calcCustomerSegments(effectiveOrgCustProfit), [effectiveOrgCustProfit]);
@@ -255,7 +258,7 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
                 </tr>
               </thead>
               <tbody>
-                {custDetailTable.slice(0, 50).map((r) => (
+                {(showAllRows ? custDetailTable : custDetailTable.slice(0, DEFAULT_TABLE_ROWS)).map((r) => (
                   <tr key={r.customer} className="border-b hover:bg-muted/50">
                     <td className="p-2 font-medium text-xs">{r.customer.substring(0, 15)}</td>
                     <td className="p-2 text-xs">{r.org}</td>
@@ -275,10 +278,18 @@ export function CustProfitTab({ effectiveOrgCustProfit, effectiveProfAnalysis, i
               </tbody>
             </table>
           </div>
-          {custDetailTable.length > 50 && (
-            <p className="text-xs text-muted-foreground mt-2 px-1">
-              * 상위 50건 표시 (전체 {custDetailTable.length}건)
-            </p>
+          {custDetailTable.length > DEFAULT_TABLE_ROWS && (
+            <div className="flex items-center justify-between mt-2 px-1">
+              <p className="text-xs text-muted-foreground">
+                {showAllRows ? `전체 ${custDetailTable.length}건` : `상위 ${DEFAULT_TABLE_ROWS}건 표시 (전체 ${custDetailTable.length}건)`}
+              </p>
+              <button
+                onClick={() => setShowAllRows(!showAllRows)}
+                className="text-xs text-primary hover:underline"
+              >
+                {showAllRows ? "접기" : `전체 ${custDetailTable.length}건 보기`}
+              </button>
+            </div>
           )}
         </ChartCard>
       )}

@@ -11,12 +11,15 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Target, TrendingDown, ArrowUpDown, Scissors, AlertTriangle } from "lucide-react";
-import { formatCurrency, TOOLTIP_STYLE } from "@/lib/utils";
+import { formatCurrency, TOOLTIP_STYLE, safeFixed } from "@/lib/utils";
 import {
   calcPortfolioOptimization,
+  DEFAULT_PORTFOLIO_WEIGHTS,
   type PortfolioItem,
   type PortfolioResult,
+  type PortfolioWeights,
 } from "@/lib/analysis/portfolioOptimization";
+import { Settings2 } from "lucide-react";
 import type { ItemProfitabilityRecord, SalesRecord } from "@/types";
 
 const ACTION_COLORS: Record<string, string> = {
@@ -47,11 +50,6 @@ interface PortfolioTabProps {
   isDateFiltered?: boolean;
 }
 
-/** 안전한 toFixed — NaN/Infinity 방지 */
-function safeFixed(val: number, digits = 1): string {
-  return isFinite(val) ? val.toFixed(digits) : "0.0";
-}
-
 function ActionBadge({ action }: { action: string }) {
   return (
     <span
@@ -65,15 +63,50 @@ function ActionBadge({ action }: { action: string }) {
 
 const DEFAULT_SHOW_COUNT = 20;
 
+const WEIGHT_LABELS: Record<keyof PortfolioWeights, string> = {
+  sales: "매출 규모", profit: "수익성", growth: "성장성", cost: "원가 효율", plan: "계획 달성",
+};
+
+/** 하나의 축을 변경하고 나머지를 비례 조정하여 합계 100% 유지 */
+function adjustWeights(current: PortfolioWeights, key: keyof PortfolioWeights, newPct: number): PortfolioWeights {
+  const newVal = newPct / 100;
+  const clamped = Math.min(Math.max(newVal, 0), 0.95); // 하나가 95% 초과 방지
+  const oldVal = current[key];
+  const remaining = 1 - clamped;
+  const othersSum = 1 - oldVal;
+  const result = { ...current, [key]: clamped };
+  if (othersSum <= 0) {
+    // 모든 나머지가 0이면 균등 분배
+    const others = Object.keys(result).filter((k) => k !== key) as (keyof PortfolioWeights)[];
+    const each = remaining / others.length;
+    for (const k of others) result[k] = each;
+  } else {
+    const ratio = remaining / othersSum;
+    for (const k of Object.keys(result) as (keyof PortfolioWeights)[]) {
+      if (k !== key) result[k] = current[k] * ratio;
+    }
+  }
+  // 소수점 보정: 합계 정확히 1.0
+  const sum = Object.values(result).reduce((s, v) => s + v, 0);
+  if (Math.abs(sum - 1) > 0.001) result[key] += 1 - sum;
+  return result;
+}
+
 export function PortfolioTab({ filteredItemProfitability, rawItemProfitability, filteredSales, isDateFiltered }: PortfolioTabProps) {
   const [sortField, setSortField] = useState<"compositeScore" | "sales" | "operatingMargin">("compositeScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedFocus, setExpandedFocus] = useState(false);
   const [expandedDisc, setExpandedDisc] = useState(false);
+  const [weights, setWeights] = useState<PortfolioWeights>({ ...DEFAULT_PORTFOLIO_WEIGHTS });
+  const [showWeightSettings, setShowWeightSettings] = useState(false);
+
+  const isDefaultWeights = Object.entries(weights).every(
+    ([k, v]) => Math.abs(v - DEFAULT_PORTFOLIO_WEIGHTS[k as keyof PortfolioWeights]) < 0.01
+  );
 
   const result: PortfolioResult = useMemo(
-    () => calcPortfolioOptimization(filteredItemProfitability, filteredSales, rawItemProfitability),
-    [filteredItemProfitability, filteredSales, rawItemProfitability]
+    () => calcPortfolioOptimization(filteredItemProfitability, filteredSales, rawItemProfitability, weights),
+    [filteredItemProfitability, filteredSales, rawItemProfitability, weights]
   );
 
   const { items, summary, topFocus, topDiscontinue, categorySummary } = result;
@@ -207,6 +240,53 @@ export function PortfolioTab({ filteredItemProfitability, rawItemProfitability, 
 
   return (
     <div className="space-y-6">
+      {/* 가중치 설정 패널 */}
+      <div className="rounded-lg border bg-muted/20 px-4 py-3">
+        <button
+          onClick={() => setShowWeightSettings(!showWeightSettings)}
+          className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Settings2 className="h-4 w-4" />
+          복합 점수 가중치
+          {!isDefaultWeights && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+              사용자 조정됨
+            </span>
+          )}
+        </button>
+        {showWeightSettings && (
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            {(Object.keys(weights) as (keyof PortfolioWeights)[]).map((key) => (
+              <div key={key} className="flex items-center gap-3">
+                <span className="text-xs min-w-[70px]">{WEIGHT_LABELS[key]}</span>
+                <input
+                  type="range" min={0} max={60} step={5}
+                  value={Math.round(weights[key] * 100)}
+                  onChange={(e) => setWeights(adjustWeights(weights, key, Number(e.target.value)))}
+                  className="flex-1 accent-primary"
+                />
+                <span className="text-xs font-semibold tabular-nums w-10 text-right">
+                  {Math.round(weights[key] * 100)}%
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[10px] text-muted-foreground">
+                합계: {Math.round(Object.values(weights).reduce((s, v) => s + v, 0) * 100)}%
+              </span>
+              {!isDefaultWeights && (
+                <button
+                  onClick={() => setWeights({ ...DEFAULT_PORTFOLIO_WEIGHTS })}
+                  className="text-xs text-primary hover:underline"
+                >
+                  기본값 초기화
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 마진 침식 경고 */}
       {summary.erosionWarningCount > 0 && (
         <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 flex items-center gap-2">

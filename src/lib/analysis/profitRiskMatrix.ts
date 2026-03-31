@@ -25,8 +25,8 @@ export interface QuadrantSummary {
   recommendation: string;
 }
 
-const MARGIN_BENCHMARK = 5; // 영업이익율 기준선 (%)
-const RISK_BENCHMARK = 40; // 리스크 점수 기준선
+export const DEFAULT_MARGIN_BENCHMARK = 5; // 영업이익율 기준선 (%)
+export const DEFAULT_RISK_BENCHMARK = 40; // 리스크 점수 기준선
 
 /**
  * 사분면 결정 로직:
@@ -37,10 +37,12 @@ const RISK_BENCHMARK = 40; // 리스크 점수 기준선
  */
 function classifyQuadrant(
   profitMargin: number,
-  riskScore: number
+  riskScore: number,
+  marginBenchmark: number = DEFAULT_MARGIN_BENCHMARK,
+  riskBenchmark: number = DEFAULT_RISK_BENCHMARK
 ): ProfitRiskData["quadrant"] {
-  const highProfit = profitMargin >= MARGIN_BENCHMARK;
-  const highRisk = riskScore >= RISK_BENCHMARK;
+  const highProfit = profitMargin >= marginBenchmark;
+  const highRisk = riskScore >= riskBenchmark;
 
   if (highProfit && !highRisk) return "star";
   if (!highProfit && !highRisk) return "cash_cow";
@@ -156,11 +158,19 @@ export function calcProfitRiskMatrix(
   return calcProfitRiskMatrixEx(orgProfit, receivableAging, sales).data;
 }
 
+export interface ProfitRiskBenchmarks {
+  marginBenchmark?: number;
+  riskBenchmark?: number;
+}
+
 export function calcProfitRiskMatrixEx(
   orgProfit: OrgProfitRecord[],
   receivableAging: ReceivableAgingRecord[],
-  sales: SalesRecord[]
+  sales: SalesRecord[],
+  benchmarks?: ProfitRiskBenchmarks
 ): ProfitRiskResult {
+  const marginBM = benchmarks?.marginBenchmark ?? DEFAULT_MARGIN_BENCHMARK;
+  const riskBM = benchmarks?.riskBenchmark ?? DEFAULT_RISK_BENCHMARK;
   const riskScores = calcOrgRiskScores(receivableAging);
   const orgSalesMap = calcOrgSales(sales);
   let matchFailures = 0;
@@ -192,7 +202,7 @@ export function calcProfitRiskMatrixEx(
         sales: salesAmount,
         receivables,
         longTermRatio,
-        quadrant: classifyQuadrant(profitMargin, riskScore),
+        quadrant: classifyQuadrant(profitMargin, riskScore, marginBM, riskBM),
       };
     });
 

@@ -71,7 +71,7 @@ export function ContribTab({ contribRanking, contribByRate, orgContribPie, exclu
     [contribRanking]
   );
 
-  // 성과 티어 분류: 상위 20% 핵심, 중간 60% 성장, 하위 20% 관리 대상
+  // 성과 티어 분류 (공헌이익 기준 내림차순 정렬 후): 상위 20% 핵심, 중간 60% 성장, 하위 20% 관리 대상
   const tierInsight = useMemo(() => {
     if (contribRanking.length < 3) return null;
     const sorted = [...contribRanking].sort((a, b) => b.공헌이익 - a.공헌이익);
