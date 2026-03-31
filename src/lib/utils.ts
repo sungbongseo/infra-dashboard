@@ -468,7 +468,8 @@ export function aggregateItemProfitability(data: ItemProfitabilityRecord[]): Ite
   const planFields = ["매출수량_계획", "매출액_계획", "실적매출원가_계획", "매출총이익_계획", "영업이익_계획"] as const;
 
   for (const r of data) {
-    const key = `${r.영업조직팀}||${r.품목}`;
+    // 대분류 포함: 월별 시트 concat에서 같은 품목이 다른 대분류로 파싱될 때 카테고리 소실 방지
+    const key = `${r.영업조직팀}||${r.품목}||${r.대분류 || ""}`;
     const e = map.get(key);
     if (!e) { map.set(key, { ...r, month: undefined }); continue; }
     for (const f of numFields) (e as any)[f] += (r as any)[f] || 0;
