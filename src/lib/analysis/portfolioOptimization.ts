@@ -149,15 +149,17 @@ export function calcPortfolioOptimization(
 
   if (data.length === 0) return emptyResult;
 
-  // salesList 품목코드 → 대분류 매핑 (신뢰도 높은 SAP 품목 마스터 기준)
+  // salesList → 대분류 매핑 (품목코드 + 품목명 양쪽으로 매핑)
+  // 200 보고서의 품목 필드는 이름만 포함 (코드 없음)이므로 품목명 매핑이 핵심
   const salesCategoryMap = new Map<string, string>();
   if (salesData && salesData.length > 0) {
     for (const s of salesData) {
-      const code = (s.품목 || "").trim();
       const cat = (s.대분류 || "").trim();
-      if (code && cat) {
-        salesCategoryMap.set(code, cat);
-      }
+      if (!cat) continue;
+      const code = (s.품목 || "").trim();
+      const name = (s.품목명 || "").trim();
+      if (code) salesCategoryMap.set(code, cat);
+      if (name) salesCategoryMap.set(name, cat);
     }
   }
 
@@ -175,22 +177,29 @@ export function calcPortfolioOptimization(
     erosionMap.set(e.name, e.erosion);
   }
 
-  // ── DEBUG: 매핑 진단 ──
+  // ── DEBUG: 매핑 진단 (품목명 기반 매칭) ──
   if (salesCategoryMap.size > 0 && data.length > 0) {
-    const sampleSalesKeys = Array.from(salesCategoryMap.keys()).slice(0, 3);
-    const sampleItemCodes = data.slice(0, 3).map(r => extractItemCode(r.품목));
     let matched = 0;
+    const unmatchedSamples: string[] = [];
     for (const r of data) {
-      if (salesCategoryMap.has(extractItemCode(r.품목))) matched++;
+      const name = r.품목.trim();
+      if (salesCategoryMap.has(name) || salesCategoryMap.has(extractItemCode(name))) {
+        matched++;
+      } else if (unmatchedSamples.length < 3) {
+        unmatchedSamples.push(name);
+      }
+    }
+    const resolvedCats = new Set<string>();
+    for (const r of data) {
+      const name = r.품목.trim();
+      const cat = salesCategoryMap.get(name) || salesCategoryMap.get(extractItemCode(name));
+      if (cat) resolvedCats.add(cat);
     }
     console.log(`[Portfolio DEBUG] salesMap: ${salesCategoryMap.size}개, data: ${data.length}개, 매칭: ${matched}개(${(matched/data.length*100).toFixed(1)}%)`);
-    console.log("[Portfolio DEBUG] salesMap 키 샘플:", sampleSalesKeys);
-    console.log("[Portfolio DEBUG] itemProfit 코드 샘플:", sampleItemCodes);
-    if (matched === 0) {
-      console.warn("[Portfolio DEBUG] 매칭 0% — 품목코드 형식이 다릅니다!");
+    console.log("[Portfolio DEBUG] 매칭된 대분류:", Array.from(resolvedCats).sort());
+    if (unmatchedSamples.length > 0) {
+      console.log("[Portfolio DEBUG] 미매칭 샘플:", unmatchedSamples);
     }
-  } else {
-    console.log(`[Portfolio DEBUG] salesData: ${salesData?.length ?? 0}개, salesMap: ${salesCategoryMap.size}개`);
   }
 
   // 1) 품목+조직+대분류 단위로 집계 (대분류별 분리로 카테고리 누락 방지)
@@ -209,9 +218,9 @@ export function calcPortfolioOptimization(
   >();
 
   for (const r of data) {
-    // salesList 대분류 우선 사용 (신뢰도 높음), 없으면 200 보고서 대분류 fallback
-    const itemCode = extractItemCode(r.품목);
-    const resolvedCategory = salesCategoryMap.get(itemCode) || r.대분류 || "미분류";
+    // salesList 대분류 우선 사용 (품목명으로 매칭), 없으면 200 보고서 대분류 fallback
+    const itemName = r.품목.trim();
+    const resolvedCategory = salesCategoryMap.get(itemName) || salesCategoryMap.get(extractItemCode(itemName)) || r.대분류 || "미분류";
     const key = `${r.품목}||${r.영업조직팀}||${resolvedCategory}`;
     const prev = agg.get(key) || {
       품목: r.품목,
