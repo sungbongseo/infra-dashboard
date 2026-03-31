@@ -143,6 +143,7 @@ function normalizeItemName(name: string): string {
 export function calcPortfolioOptimization(
   data: ItemProfitabilityRecord[],
   salesData?: SalesRecord[],
+  rawData?: ItemProfitabilityRecord[],
 ): PortfolioResult {
   const emptyResult: PortfolioResult = {
     items: [],
@@ -238,8 +239,8 @@ export function calcPortfolioOptimization(
   const zeroSalesItems = allAggItems.filter((it) => it.sales === 0);
   if (items.length === 0 && zeroSalesItems.length === 0) return emptyResult;
 
-  // 2) 성장률 계산
-  const growthMap = calcGrowthByItem(data);
+  // 2) 성장률 계산 — rawData(aggregate 전, month 포함)를 사용하여 월별 추이 계산
+  const growthMap = calcGrowthByItem(rawData && rawData.length > 0 ? rawData : data);
 
   // 3) 각 축 raw 값 배열 (사전 계산으로 percentileRank 호출 최적화)
   const rawValues = items.map((it) => {

@@ -42,6 +42,7 @@ const QUADRANT_LABELS: Record<string, string> = {
 
 interface PortfolioTabProps {
   filteredItemProfitability: ItemProfitabilityRecord[];
+  rawItemProfitability?: ItemProfitabilityRecord[];
   filteredSales?: SalesRecord[];
   isDateFiltered?: boolean;
 }
@@ -64,15 +65,15 @@ function ActionBadge({ action }: { action: string }) {
 
 const DEFAULT_SHOW_COUNT = 20;
 
-export function PortfolioTab({ filteredItemProfitability, filteredSales, isDateFiltered }: PortfolioTabProps) {
+export function PortfolioTab({ filteredItemProfitability, rawItemProfitability, filteredSales, isDateFiltered }: PortfolioTabProps) {
   const [sortField, setSortField] = useState<"compositeScore" | "sales" | "operatingMargin">("compositeScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedFocus, setExpandedFocus] = useState(false);
   const [expandedDisc, setExpandedDisc] = useState(false);
 
   const result: PortfolioResult = useMemo(
-    () => calcPortfolioOptimization(filteredItemProfitability, filteredSales),
-    [filteredItemProfitability, filteredSales]
+    () => calcPortfolioOptimization(filteredItemProfitability, filteredSales, rawItemProfitability),
+    [filteredItemProfitability, filteredSales, rawItemProfitability]
   );
 
   const { items, summary, topFocus, topDiscontinue, categorySummary } = result;

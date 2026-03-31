@@ -462,11 +462,15 @@ export default function ProfitabilityPage() {
   const costDriverAnalysis = useMemo(() => calcCostDriverAnalysis(filteredItemCostDetail), [filteredItemCostDetail]);
 
   // ─── 품목별 수익성 분석 (200) + 월별 합산 ──────────────────────────────
-  const filteredItemProfitability = useMemo(() => {
+  // rawItemProfit: aggregate 전 원본 (month 포함) — 성장률 계산용
+  const rawItemProfit = useMemo(() => {
     const orgFiltered = filterByOrg(itemProfitability, effectiveOrgNames, "영업조직팀");
-    const monthFiltered = filterByMonth(orgFiltered, dateRange);
-    return aggregateItemProfitability(monthFiltered);
+    return filterByMonth(orgFiltered, dateRange);
   }, [itemProfitability, effectiveOrgNames, dateRange]);
+  const filteredItemProfitability = useMemo(
+    () => aggregateItemProfitability(rawItemProfit),
+    [rawItemProfit]
+  );
 
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
@@ -787,6 +791,7 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <PortfolioTab
               filteredItemProfitability={filteredItemProfitability}
+              rawItemProfitability={rawItemProfit}
               filteredSales={filteredSales}
               isDateFiltered={isDateFilterActive}
             />
