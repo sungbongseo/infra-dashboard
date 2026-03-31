@@ -366,13 +366,24 @@ export function calcPortfolioOptimization(
     .filter((it) => it.action === "DISCONTINUE")
     .slice(0, 50);
 
-  // 8) 대분류별 요약 (전체 품목 기준 — 매출 0 대분류도 포함)
-  const catMap = new Map<string, { total: number; focus: number; maintain: number; optimize: number; discontinue: number }>();
+  // 8) 대분류별 요약 — 원본 data에서 대분류별 unique 품목을 세고, action을 lookup
+  // calcItemHierarchy와 동일한 방식으로 대분류를 수집하여 일관성 보장
+  const actionLookup = new Map<string, PortfolioAction>();
   for (const it of allPortfolioItems) {
-    const cat = it.대분류 || "미분류";
+    actionLookup.set(`${it.품목}||${it.조직}`, it.action);
+  }
+  const catMap = new Map<string, { total: number; focus: number; maintain: number; optimize: number; discontinue: number }>();
+  // 원본 data의 각 레코드에서 대분류를 직접 수집 (품목+조직 중복 방지)
+  const catSeen = new Set<string>();
+  for (const r of data) {
+    const cat = r.대분류 || "미분류";
+    const itemKey = `${r.품목}||${r.영업조직팀}||${cat}`;
+    if (catSeen.has(itemKey)) continue;
+    catSeen.add(itemKey);
+    const action = actionLookup.get(`${r.품목}||${r.영업조직팀}`) || "DISCONTINUE";
     const prev = catMap.get(cat) || { total: 0, focus: 0, maintain: 0, optimize: 0, discontinue: 0 };
     prev.total++;
-    prev[it.action.toLowerCase() as "focus" | "maintain" | "optimize" | "discontinue"]++;
+    prev[action.toLowerCase() as "focus" | "maintain" | "optimize" | "discontinue"]++;
     catMap.set(cat, prev);
   }
   const categorySummary: CategorySummary[] = Array.from(catMap.entries())
