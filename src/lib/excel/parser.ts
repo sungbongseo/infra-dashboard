@@ -818,6 +818,14 @@ function parseSheetData(
       const ipLevels = ["판매사업부", "영업조직팀", "대분류", "중분류", "소분류", "품목계정그룹", "품목"];
       // 대분류/중분류/소분류: 소계행("시트 합계" 등)에서 카테고리명 추출 대상
       const ipCategoryFields = new Set(["대분류", "중분류", "소분류"]);
+
+      // ── 0단계: 원본 카테고리 값 저장 (역방향 보정에서 소계 경계 탐지용) ──
+      const origCategoryValues: Record<string, string[]> = {};
+      for (const field of Array.from(ipCategoryFields)) {
+        origCategoryValues[field] = ipRows.map(r => String((r as Record<string, any>)[field] || "").trim());
+      }
+
+      // ── 1단계: 순방향 fill-down (위→아래) ──
       const ipCurrent: Record<string, string> = {};
       for (const rec of ipRows) {
         for (let i = 0; i < ipLevels.length; i++) {
@@ -830,28 +838,43 @@ function parseSheetData(
                 ipCurrent[ipLevels[j]] = "";
               }
             }
-          } else if (val !== "" && isTotalRow(val) && ipCategoryFields.has(field)) {
-            // "시트 합계" → "시트" 추출하여 캐시 업데이트 + 레코드 교체
-            const extracted = extractCategoryFromTotal(val);
-            if (extracted) {
-              if (ipCurrent[field] !== extracted) {
-                ipCurrent[field] = extracted;
-                for (let j = i + 1; j < ipLevels.length; j++) {
-                  ipCurrent[ipLevels[j]] = "";
-                }
-              }
-              (rec as Record<string, any>)[field] = extracted;
-            }
           } else if (val === "" && ipCurrent[field]) {
             (rec as Record<string, any>)[field] = ipCurrent[field];
           }
         }
       }
 
-      // 역방향 fill-down 제거: 파일 시작부의 빈 영업조직팀 행에 마지막 조직을
-      // 역전파하면 타 사업부 품목이 잘못된 조직으로 배정됨.
-      // 순방향 fill-down(lines 774-791)만으로 충분하며,
-      // 영업조직팀이 비어있는 행은 org 필터에서 자연 제외됨.
+      // ── 2단계: 역방향 카테고리 보정 (아래→위) ──
+      // SAP 200 보고서에서 일부 대분류는 별도 헤더 행 없이 소계행("도막 합계")에서만
+      // 카테고리명이 존재. 순방향 fill-down은 소계를 만나기 전에 데이터 행을 지나치므로
+      // 이전 섹션의 대분류로 잘못 배정됨. 역방향 패스로 소계→위쪽 데이터 행을 보정.
+      for (const field of Array.from(ipCategoryFields)) {
+        let sectionCat = "";
+        const origVals = origCategoryValues[field];
+        for (let idx = ipRows.length - 1; idx >= 0; idx--) {
+          const origVal = origVals[idx];
+          if (isTotalRow(origVal)) {
+            const extracted = extractCategoryFromTotal(origVal);
+            if (extracted) {
+              sectionCat = extracted;
+            } else {
+              // 순수 "합계" (총계) → 섹션 리셋
+              sectionCat = "";
+            }
+            // 소계행의 레코드 값도 추출된 카테고리명으로 정리
+            if (sectionCat) {
+              (ipRows[idx] as Record<string, any>)[field] = sectionCat;
+            }
+            continue;
+          }
+          // 비소계 행: 섹션 카테고리가 있으면 적용
+          if (sectionCat) {
+            (ipRows[idx] as Record<string, any>)[field] = sectionCat;
+          }
+        }
+      }
+
+      // 영업조직팀은 역방향 보정 불필요 — org 필터에서 자연 제외됨.
 
       const mergedIP: ItemProfitabilityRecord[] = [];
       for (let i = 0; i < ipRows.length; i++) {
