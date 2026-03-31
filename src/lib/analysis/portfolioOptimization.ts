@@ -8,7 +8,7 @@
  *  - calcProfitMatrix() 4사분면 → quadrant 보조 지표
  *  - calcMarginErosion() → 마진 침식 품목 경고
  */
-import type { ItemProfitabilityRecord } from "@/types";
+import type { ItemProfitabilityRecord, SalesRecord } from "@/types";
 import { safeDivide } from "@/lib/utils";
 import { calcProfitMatrix, type ProfitMatrixItem } from "./itemHierarchy";
 import { calcMarginErosion } from "./detailedProfitAnalysis";
@@ -129,8 +129,15 @@ function calcGrowthByItem(
 
 // ─── Main ─────────────────────────────────────────────
 
+/** 품목코드 추출: "[CHMJ4229997] R-AA" → "CHMJ4229997" */
+function extractItemCode(itemField: string): string {
+  const m = itemField.match(/^\[([^\]]+)\]/);
+  return m ? m[1] : itemField.trim();
+}
+
 export function calcPortfolioOptimization(
-  data: ItemProfitabilityRecord[]
+  data: ItemProfitabilityRecord[],
+  salesData?: SalesRecord[],
 ): PortfolioResult {
   const emptyResult: PortfolioResult = {
     items: [],
@@ -141,6 +148,18 @@ export function calcPortfolioOptimization(
   };
 
   if (data.length === 0) return emptyResult;
+
+  // salesList 품목코드 → 대분류 매핑 (신뢰도 높은 SAP 품목 마스터 기준)
+  const salesCategoryMap = new Map<string, string>();
+  if (salesData && salesData.length > 0) {
+    for (const s of salesData) {
+      const code = (s.품목 || "").trim();
+      const cat = (s.대분류 || "").trim();
+      if (code && cat) {
+        salesCategoryMap.set(code, cat);
+      }
+    }
+  }
 
   // 기존 분석 참조: 4사분면 분류
   const profitMatrix = calcProfitMatrix(data);
@@ -172,10 +191,13 @@ export function calcPortfolioOptimization(
   >();
 
   for (const r of data) {
-    const key = `${r.품목}||${r.영업조직팀}||${r.대분류 || "미분류"}`;
+    // salesList 대분류 우선 사용 (신뢰도 높음), 없으면 200 보고서 대분류 fallback
+    const itemCode = extractItemCode(r.품목);
+    const resolvedCategory = salesCategoryMap.get(itemCode) || r.대분류 || "미분류";
+    const key = `${r.품목}||${r.영업조직팀}||${resolvedCategory}`;
     const prev = agg.get(key) || {
       품목: r.품목,
-      대분류: r.대분류 || "미분류",
+      대분류: resolvedCategory,
       조직: r.영업조직팀,
       sales: 0,
       cost: 0,

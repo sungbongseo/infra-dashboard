@@ -787,6 +787,7 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <PortfolioTab
               filteredItemProfitability={filteredItemProfitability}
+              filteredSales={filteredSales}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>

@@ -17,7 +17,7 @@ import {
   type PortfolioItem,
   type PortfolioResult,
 } from "@/lib/analysis/portfolioOptimization";
-import type { ItemProfitabilityRecord } from "@/types";
+import type { ItemProfitabilityRecord, SalesRecord } from "@/types";
 
 const ACTION_COLORS: Record<string, string> = {
   FOCUS: "hsl(142, 71%, 45%)",
@@ -42,6 +42,7 @@ const QUADRANT_LABELS: Record<string, string> = {
 
 interface PortfolioTabProps {
   filteredItemProfitability: ItemProfitabilityRecord[];
+  filteredSales?: SalesRecord[];
   isDateFiltered?: boolean;
 }
 
@@ -63,32 +64,15 @@ function ActionBadge({ action }: { action: string }) {
 
 const DEFAULT_SHOW_COUNT = 20;
 
-export function PortfolioTab({ filteredItemProfitability, isDateFiltered }: PortfolioTabProps) {
+export function PortfolioTab({ filteredItemProfitability, filteredSales, isDateFiltered }: PortfolioTabProps) {
   const [sortField, setSortField] = useState<"compositeScore" | "sales" | "operatingMargin">("compositeScore");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [expandedFocus, setExpandedFocus] = useState(false);
   const [expandedDisc, setExpandedDisc] = useState(false);
 
   const result: PortfolioResult = useMemo(
-    () => {
-      // ── DEBUG: 입력 데이터의 대분류 분포 확인 ──
-      const inputCategories = new Map<string, number>();
-      for (const r of filteredItemProfitability) {
-        const cat = r.대분류 || "(빈값)";
-        inputCategories.set(cat, (inputCategories.get(cat) || 0) + 1);
-      }
-      console.log("[PortfolioTab] 입력 데이터 대분류 분포:", Object.fromEntries(
-        Array.from(inputCategories.entries()).sort((a, b) => b[1] - a[1])
-      ));
-      console.log("[PortfolioTab] 입력 레코드 수:", filteredItemProfitability.length);
-
-      const res = calcPortfolioOptimization(filteredItemProfitability);
-
-      console.log("[PortfolioTab] 포트폴리오 categorySummary:", res.categorySummary.map(c => `${c.category}(${c.total})`));
-      console.log("[PortfolioTab] 포트폴리오 items 대분류:", Array.from(new Set(res.items.map(i => i.대분류))).sort());
-      return res;
-    },
-    [filteredItemProfitability]
+    () => calcPortfolioOptimization(filteredItemProfitability, filteredSales),
+    [filteredItemProfitability, filteredSales]
   );
 
   const { items, summary, topFocus, topDiscontinue, categorySummary } = result;

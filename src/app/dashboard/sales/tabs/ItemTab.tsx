@@ -90,23 +90,10 @@ export function ItemTab({ filteredSales, filteredItemProfit, inventoryMovement, 
   const hasInventory = inventoryMap !== undefined && inventoryMap.size > 0;
 
   const hierarchy = useMemo(
-    () => {
-      // ── DEBUG: ItemTab 입력 데이터의 대분류 분포 확인 ──
-      if (hasItemProfit) {
-        const cats = new Map<string, number>();
-        for (const r of filteredItemProfit) {
-          const cat = r.대분류 || "(빈값)";
-          cats.set(cat, (cats.get(cat) || 0) + 1);
-        }
-        console.log("[ItemTab] 입력 데이터 대분류 분포:", Object.fromEntries(
-          Array.from(cats.entries()).sort((a, b) => b[1] - a[1])
-        ));
-      }
-      return calcItemHierarchy(
-        hasItemProfit ? filteredItemProfit : null,
-        filteredSales,
-      );
-    },
+    () => calcItemHierarchy(
+      hasItemProfit ? filteredItemProfit : null,
+      filteredSales,
+    ),
     [filteredItemProfit, filteredSales, hasItemProfit],
   );
 
