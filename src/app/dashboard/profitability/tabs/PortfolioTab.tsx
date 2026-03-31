@@ -342,7 +342,7 @@ export function PortfolioTab({ filteredItemProfitability, filteredSales, isDateF
         dataSourceType="snapshot"
         isDateFiltered={isDateFiltered}
       >
-        <ChartContainer minHeight={350}>
+        <ChartContainer minHeight={Math.max(350, catBarData.length * 36)}>
           <BarChart data={catBarData} layout="vertical" margin={{ top: 5, right: 30, bottom: 5, left: 80 }}>
             <CartesianGrid {...GRID_PROPS} />
             <XAxis type="number" fontSize={11} />
