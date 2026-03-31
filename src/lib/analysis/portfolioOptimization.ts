@@ -135,6 +135,11 @@ function extractItemCode(itemField: string): string {
   return m ? m[1] : itemField.trim();
 }
 
+/** 품목명 정규화: 공백/특수문자 제거 + 소문자 변환으로 fuzzy 매칭 */
+function normalizeItemName(name: string): string {
+  return name.trim().replace(/[\s_\-\/\(\)\[\],.]/g, "").toLowerCase();
+}
+
 export function calcPortfolioOptimization(
   data: ItemProfitabilityRecord[],
   salesData?: SalesRecord[],
@@ -149,9 +154,10 @@ export function calcPortfolioOptimization(
 
   if (data.length === 0) return emptyResult;
 
-  // salesList → 대분류 매핑 (품목코드 + 품목명 양쪽으로 매핑)
-  // 200 보고서의 품목 필드는 이름만 포함 (코드 없음)이므로 품목명 매핑이 핵심
-  const salesCategoryMap = new Map<string, string>();
+  // salesList → 대분류 매핑 (원본 + 정규화 3단계 매칭)
+  // 200의 품목 필드는 이름만 포함하므로 품목명 매핑이 핵심
+  const salesCategoryMap = new Map<string, string>();       // 원본 키
+  const salesCategoryNormMap = new Map<string, string>();   // 정규화 키 (fallback)
   if (salesData && salesData.length > 0) {
     for (const s of salesData) {
       const cat = (s.대분류 || "").trim();
@@ -159,8 +165,19 @@ export function calcPortfolioOptimization(
       const code = (s.품목 || "").trim();
       const name = (s.품목명 || "").trim();
       if (code) salesCategoryMap.set(code, cat);
-      if (name) salesCategoryMap.set(name, cat);
+      if (name) {
+        salesCategoryMap.set(name, cat);
+        salesCategoryNormMap.set(normalizeItemName(name), cat);
+      }
     }
+  }
+
+  /** 3단계 대분류 조회: 원본 → 정규화 → 200 fallback */
+  function resolveCategory(itemName: string, fallback: string): string {
+    return salesCategoryMap.get(itemName)
+      || salesCategoryMap.get(extractItemCode(itemName))
+      || salesCategoryNormMap.get(normalizeItemName(itemName))
+      || fallback || "미분류";
   }
 
   // 기존 분석 참조: 4사분면 분류
@@ -177,6 +194,23 @@ export function calcPortfolioOptimization(
     erosionMap.set(e.name, e.erosion);
   }
 
+
+  // ── DEBUG: 정규화 매칭 진단 ──
+  if (salesCategoryMap.size > 0 && data.length > 0) {
+    let exact = 0, normalized = 0, unmatched = 0;
+    const unmatchedSamples: string[] = [];
+    for (const r of data) {
+      const n = r.품목.trim();
+      if (salesCategoryMap.has(n) || salesCategoryMap.has(extractItemCode(n))) exact++;
+      else if (salesCategoryNormMap.has(normalizeItemName(n))) normalized++;
+      else { unmatched++; if (unmatchedSamples.length < 5) unmatchedSamples.push(n); }
+    }
+    const cats = new Set<string>();
+    for (const r of data) cats.add(resolveCategory(r.품목.trim(), r.대분류));
+    console.log(`[Portfolio] 매칭: exact=${exact}, normalized=${normalized}, unmatched=${unmatched} (${((exact+normalized)/data.length*100).toFixed(1)}%)`);
+    console.log("[Portfolio] 대분류:", Array.from(cats).sort().join(", "));
+    if (unmatchedSamples.length > 0) console.log("[Portfolio] 미매칭:", unmatchedSamples);
+  }
 
   // 1) 품목+조직+대분류 단위로 집계 (대분류별 분리로 카테고리 누락 방지)
   const agg = new Map<
@@ -196,7 +230,7 @@ export function calcPortfolioOptimization(
   for (const r of data) {
     // salesList 대분류 우선 사용 (품목명으로 매칭), 없으면 200 보고서 대분류 fallback
     const itemName = r.품목.trim();
-    const resolvedCategory = salesCategoryMap.get(itemName) || salesCategoryMap.get(extractItemCode(itemName)) || r.대분류 || "미분류";
+    const resolvedCategory = resolveCategory(itemName, r.대분류);
     const key = `${r.품목}||${r.영업조직팀}||${resolvedCategory}`;
     const prev = agg.get(key) || {
       품목: r.품목,
@@ -361,7 +395,7 @@ export function calcPortfolioOptimization(
   for (const r of data) {
     // salesList 대분류 우선 사용 (resolvedCategory와 동일 로직)
     const itemName = r.품목.trim();
-    const cat = salesCategoryMap.get(itemName) || salesCategoryMap.get(extractItemCode(itemName)) || r.대분류 || "미분류";
+    const cat = resolveCategory(itemName, r.대분류);
     const itemKey = `${r.품목}||${r.영업조직팀}||${cat}`;
     if (catSeen.has(itemKey)) continue;
     catSeen.add(itemKey);
