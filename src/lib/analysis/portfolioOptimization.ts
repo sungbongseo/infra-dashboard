@@ -175,6 +175,24 @@ export function calcPortfolioOptimization(
     erosionMap.set(e.name, e.erosion);
   }
 
+  // ── DEBUG: 매핑 진단 ──
+  if (salesCategoryMap.size > 0 && data.length > 0) {
+    const sampleSalesKeys = Array.from(salesCategoryMap.keys()).slice(0, 3);
+    const sampleItemCodes = data.slice(0, 3).map(r => extractItemCode(r.품목));
+    let matched = 0;
+    for (const r of data) {
+      if (salesCategoryMap.has(extractItemCode(r.품목))) matched++;
+    }
+    console.log(`[Portfolio DEBUG] salesMap: ${salesCategoryMap.size}개, data: ${data.length}개, 매칭: ${matched}개(${(matched/data.length*100).toFixed(1)}%)`);
+    console.log("[Portfolio DEBUG] salesMap 키 샘플:", sampleSalesKeys);
+    console.log("[Portfolio DEBUG] itemProfit 코드 샘플:", sampleItemCodes);
+    if (matched === 0) {
+      console.warn("[Portfolio DEBUG] 매칭 0% — 품목코드 형식이 다릅니다!");
+    }
+  } else {
+    console.log(`[Portfolio DEBUG] salesData: ${salesData?.length ?? 0}개, salesMap: ${salesCategoryMap.size}개`);
+  }
+
   // 1) 품목+조직+대분류 단위로 집계 (대분류별 분리로 카테고리 누락 방지)
   const agg = new Map<
     string,
