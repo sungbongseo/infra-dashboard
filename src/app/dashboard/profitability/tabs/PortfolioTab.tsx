@@ -96,15 +96,20 @@ export function PortfolioTab({ filteredItemProfitability, filteredSales, isDateF
 
   // 대분류별 바 차트 데이터
   const catBarData = useMemo(
-    () =>
-      categorySummary.slice(0, 15).map((c) => ({
+    () => {
+      // DEBUG: categorySummary 전체 대분류 목록 출력
+      if (categorySummary.length > 0) {
+        console.log("[catBarData] categorySummary 대분류:", categorySummary.map(c => `${c.category}(${c.total})`).join(", "));
+      }
+      return categorySummary.slice(0, 15).map((c) => ({
         name: truncateLabel(c.category, 12),
         fullName: c.category,
         집중: c.focus,
         유지: c.maintain,
         최적화: c.optimize,
         단종검토: c.discontinue,
-      })),
+      }));
+    },
     [categorySummary]
   );
 
