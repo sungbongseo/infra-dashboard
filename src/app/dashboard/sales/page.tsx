@@ -16,7 +16,7 @@ import { calcCustomerRanking } from "@/lib/analysis/customerProfitAnalysis";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { useFilterStore } from "@/stores/filterStore";
 import { useUIStore } from "@/stores/uiStore";
-import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders } from "@/lib/hooks/useFilteredData";
+import { useFilterContext, useFilteredSales, useFilteredCollections, useFilteredOrders, useFilteredInventory } from "@/lib/hooks/useFilteredData";
 
 const CustomerTab = lazy(() => import("./tabs/CustomerTab").then(m => ({ default: m.CustomerTab })));
 const ChannelTab = lazy(() => import("./tabs/ChannelTab").then(m => ({ default: m.ChannelTab })));
@@ -103,7 +103,7 @@ export default function SalesAnalysisPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const orgCustomerProfit = useDataStore((s) => s.orgCustomerProfit);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
-  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
+  const { filteredInventoryMap } = useFilteredInventory();
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const receivableAging = useDataStore((s) => s.receivableAging);
   const isLoading = useDataStore((s) => s.isLoading);
@@ -341,7 +341,7 @@ export default function SalesAnalysisPage() {
         <TabsContent value="item" className="space-y-6">
           <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
-            <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} inventoryMovement={inventoryMovement} isDateFiltered={isDateFiltered} />
+            <ItemTab filteredSales={filteredSales} filteredItemProfit={filteredItemProfit} inventoryMovement={filteredInventoryMap} isDateFiltered={isDateFiltered} />
           </ErrorBoundary>
           </Suspense>
         </TabsContent>

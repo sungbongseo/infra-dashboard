@@ -35,11 +35,20 @@ import {
 import type { InventoryMovementRecord, SalesRecord } from "@/types";
 import type { ItemCostDetailRecord } from "@/types/itemCost";
 
+interface OrgFilterStats {
+  totalCount: number;
+  matchedCount: number;
+  sharedCount: number;
+  isOrgFiltered: boolean;
+}
+
 interface InventoryTabProps {
   data: InventoryMovementRecord[];
   isDateFiltered?: boolean;
   salesData?: SalesRecord[];
   costData?: ItemCostDetailRecord[];
+  sharedData?: InventoryMovementRecord[];
+  orgFilterStats?: OrgFilterStats;
 }
 
 /** YYYYMM → "YY.MM" or "없음" */
@@ -93,8 +102,16 @@ const QUADRANT_LABELS: Record<string, { label: string; desc: string; style: stri
   overstock: { label: "Overstock", desc: "낮매출+낮회전 — 정리 대상", style: "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30" },
 };
 
-export function InventoryTab({ data, isDateFiltered, salesData, costData }: InventoryTabProps) {
-  const hasMonthData = data.some((r) => r.month);
+export function InventoryTab({ data, isDateFiltered, salesData, costData, sharedData, orgFilterStats }: InventoryTabProps) {
+  const [showShared, setShowShared] = useState(false);
+
+  // 조직 필터 활성 시: 공유 재고 포함/제외 토글
+  const effectiveData = useMemo(() => {
+    if (!showShared || !sharedData || sharedData.length === 0) return data;
+    return [...data, ...sharedData];
+  }, [data, sharedData, showShared]);
+
+  const hasMonthData = effectiveData.some((r) => r.month);
   const [selectedGroups, setSelectedGroups] = useState<Set<string>>(DEFAULT_GROUPS);
 
   const toggleGroup = useCallback((group: string) => {
@@ -108,20 +125,20 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
   const selectAll = useCallback(() => setSelectedGroups(new Set(ACCOUNT_GROUPS)), []);
   const selectNone = useCallback(() => setSelectedGroups(new Set()), []);
 
-  const monthlyMovement = useMemo(() => calcMonthlyMovement(data), [data]);
-  const slowMoving = useMemo(() => calcSlowMoving(data), [data]);
-  const dioResults = useMemo(() => calcDIO(data), [data]);
+  const monthlyMovement = useMemo(() => calcMonthlyMovement(effectiveData), [effectiveData]);
+  const slowMoving = useMemo(() => calcSlowMoving(effectiveData), [effectiveData]);
+  const dioResults = useMemo(() => calcDIO(effectiveData), [effectiveData]);
 
   // 품목별 분석 (전 품목)
   const inventoryMap = useMemo(() => {
     const m = new Map<string, InventoryMovementRecord[]>();
-    for (const r of data) {
+    for (const r of effectiveData) {
       const arr = m.get(r.factory) || [];
       arr.push(r);
       m.set(r.factory, arr);
     }
     return m;
-  }, [data]);
+  }, [effectiveData]);
   const itemAnalysis = useMemo(() => calcItemInventory(inventoryMap), [inventoryMap]);
   const groupSummary = useMemo(() => calcGroupSummary(itemAnalysis), [itemAnalysis]);
 
@@ -248,8 +265,8 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
   // 카테고리별 재고 분석 (대분류)
   const categoryData = useMemo(() => calcCategoryInventory(filteredItems, "대분류"), [filteredItems]);
 
-  // 주거래처별 재고 분포 (raw data 기반, 품목계정그룹 필터 무관)
-  const customerData = useMemo(() => calcCustomerInventory(data), [data]);
+  // 주거래처별 재고 분포 (effectiveData 기반, 품목계정그룹 필터 무관)
+  const customerData = useMemo(() => calcCustomerInventory(effectiveData), [effectiveData]);
   const customerChartData = useMemo(() => customerData.slice(0, 10), [customerData]);
 
   // 예상 소진일 경고
@@ -267,10 +284,10 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
     [filteredItems, costData]
   );
 
-  // 수요 예측 (raw data 기반, 월별 데이터 전체)
-  const forecastItems = useMemo(() => calcInventoryForecast(data), [data]);
-  // 품목그룹별 재고 분석 (raw data 기반)
-  const itemGroupSummary = useMemo(() => calcItemGroupInventory(data), [data]);
+  // 수요 예측 (effectiveData 기반, 월별 데이터 전체)
+  const forecastItems = useMemo(() => calcInventoryForecast(effectiveData), [effectiveData]);
+  // 품목그룹별 재고 분석 (effectiveData 기반)
+  const itemGroupSummary = useMemo(() => calcItemGroupInventory(effectiveData), [effectiveData]);
 
   // 사분면 요약 카운트
   const quadrantSummary = useMemo(() => {
@@ -292,10 +309,38 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData }: Inve
     return { ...summary, grandTotal };
   }, [inventoryValue]);
 
-  if (data.length === 0) return <EmptyState message="수불현황 데이터를 업로드해 주세요." />;
+  if (effectiveData.length === 0 && data.length === 0) return <EmptyState message="수불현황 데이터를 업로드해 주세요." />;
 
   return (
     <>
+      {/* 조직 필터 상태 배너 */}
+      {orgFilterStats?.isOrgFiltered && (
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="h-3.5 w-3.5 flex-shrink-0" />
+            <span>
+              조직 필터 적용 — 전체 {orgFilterStats.totalCount.toLocaleString()}건 중{" "}
+              <span className="font-semibold">{orgFilterStats.matchedCount.toLocaleString()}건</span> 표시
+              {orgFilterStats.sharedCount > 0 && (
+                <> (공유 재고 {orgFilterStats.sharedCount.toLocaleString()}건 {showShared ? "포함" : "별도"})</>
+              )}
+            </span>
+          </div>
+          {orgFilterStats.sharedCount > 0 && (
+            <button
+              onClick={() => setShowShared(!showShared)}
+              className={`px-2 py-1 rounded text-xs font-medium border transition-colors ${
+                showShared
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-transparent border-blue-300 dark:border-blue-700 hover:bg-blue-100 dark:hover:bg-blue-900/40"
+              }`}
+            >
+              {showShared ? "담당 품목만" : "공유 재고 포함"}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 품목계정그룹 필터 */}
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <span className="text-sm font-medium text-muted-foreground mr-1">품목계정그룹:</span>

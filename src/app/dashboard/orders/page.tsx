@@ -25,7 +25,7 @@ export default function OrdersAnalysisPage() {
   const { filteredOrders } = useFilteredOrders();
   const { filteredSales } = useFilteredSales();
   const { filteredCollections } = useFilteredCollections();
-  const { filteredInventoryRecords } = useFilteredInventory();
+  const { filteredInventoryRecords, sharedInventoryRecords, orgFilterStats } = useFilteredInventory();
   const { filteredRecords: filteredAgingRecords } = useFilteredReceivables();
   const { filteredItemCostDetail } = useFilteredItemCostDetail();
   const dateRange = useFilterStore((s) => s.dateRange);
@@ -186,7 +186,7 @@ export default function OrdersAnalysisPage() {
           <TabsTrigger value="pipeline">O2C 파이프라인</TabsTrigger>
           <TabsTrigger value="o2c-flow">O2C 플로우</TabsTrigger>
           <TabsTrigger value="conversion">전환율</TabsTrigger>
-          {filteredInventoryRecords.length > 0 && (
+          {(filteredInventoryRecords.length > 0 || sharedInventoryRecords.length > 0) && (
             <TabsTrigger value="inventory">재고 분석</TabsTrigger>
           )}
         </TabsList>
@@ -262,11 +262,11 @@ export default function OrdersAnalysisPage() {
           </Suspense>
         </TabsContent>
 
-        {filteredInventoryRecords.length > 0 && (
+        {(filteredInventoryRecords.length > 0 || sharedInventoryRecords.length > 0) && (
           <TabsContent value="inventory" className="space-y-6">
             <Suspense fallback={<KpiSkeleton />}>
             <ErrorBoundary>
-              <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} salesData={filteredSales} costData={filteredItemCostDetail} />
+              <InventoryTab data={filteredInventoryRecords} isDateFiltered={isDateFiltered} salesData={filteredSales} costData={filteredItemCostDetail} sharedData={sharedInventoryRecords} orgFilterStats={orgFilterStats} />
             </ErrorBoundary>
             </Suspense>
           </TabsContent>

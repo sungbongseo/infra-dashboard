@@ -222,22 +222,113 @@ export function useFilteredHqCustomerItemProfit() {
   return { filteredHqProfit, hqCustomerItemProfit };
 }
 
-// ─── 재고 수불 데이터 (Map 기반 + 월별 필터) ──────────────────────
+// ─── 조직 품목 화이트리스트 (재고 간접 필터용) ────────────────────
+
+export interface OrgFilterStats {
+  totalCount: number;
+  matchedCount: number;
+  sharedCount: number;
+  isOrgFiltered: boolean;
+}
+
+/**
+ * 조직 필터된 매출/원가/수익성 데이터에서 품목 코드를 추출하여 화이트리스트 생성.
+ * 재고 데이터에는 영업조직 필드가 없으므로, 이 화이트리스트로 간접 필터링.
+ */
+export function useOrgItemWhitelist(): { orgItemCodes: Set<string>; isOrgFiltered: boolean } {
+  const { filteredSales } = useFilteredSales();
+  const { filteredItemCostDetail } = useFilteredItemCostDetail();
+  const { filteredItemProfit } = useFilteredItemProfitability();
+  const orgNames = useDataStore((s) => s.orgNames);
+  const selectedOrgs = useFilterStore((s) => s.selectedOrgs);
+
+  const isOrgFiltered = selectedOrgs !== null && selectedOrgs.length > 0;
+
+  const orgItemCodes = useMemo(() => {
+    if (!isOrgFiltered) return new Set<string>();
+
+    const codes = new Set<string>();
+
+    // Source 1: 매출 데이터 (품목 코드)
+    for (const r of filteredSales) {
+      const code = (r.품목 || "").trim();
+      if (code) codes.add(code);
+      // 품목명도 추가 (재고 데이터와 품목명 매칭용)
+      const name = (r.품목명 || "").trim();
+      if (name) codes.add(name);
+    }
+
+    // Source 2: 품목별 매출원가 상세 (품목 코드)
+    for (const r of filteredItemCostDetail) {
+      const code = ((r as any).품목 || "").trim();
+      if (code) codes.add(code);
+    }
+
+    // Source 3: 품목별 수익성 (200) — [CODE] NAME 형식에서 코드 추출
+    for (const r of filteredItemProfit) {
+      const raw = ((r as any).품목 || "").trim();
+      if (!raw) continue;
+      const match = raw.match(/^\[([^\]]+)\]/);
+      if (match) codes.add(match[1].trim());
+      else codes.add(raw);
+    }
+
+    return codes;
+  }, [filteredSales, filteredItemCostDetail, filteredItemProfit, isOrgFiltered]);
+
+  return { orgItemCodes, isOrgFiltered };
+}
+
+// ─── 재고 수불 데이터 (Map 기반 + 월별/조직 필터) ─────────────────
 
 export function useFilteredInventory() {
   const inventoryMovement = useDataStore((s) => s.inventoryMovement);
   const { dateRange } = useFilterContext();
+  const { orgItemCodes, isOrgFiltered } = useOrgItemWhitelist();
 
-  const filteredInventoryMap = useMemo(() => {
+  const { filteredInventoryMap, sharedInventoryMap, orgFilterStats } = useMemo(() => {
     const filtered = new Map<string, InventoryMovementRecord[]>();
+    const shared = new Map<string, InventoryMovementRecord[]>();
+    let totalCount = 0;
+    let matchedCount = 0;
+    let sharedCount = 0;
+
     for (const [factory, records] of Array.from(inventoryMovement.entries())) {
       const monthFiltered = filterByMonth(records, dateRange);
-      if (monthFiltered.length > 0) {
+      if (monthFiltered.length === 0) continue;
+
+      if (!isOrgFiltered) {
         filtered.set(factory, monthFiltered);
+        totalCount += monthFiltered.length;
+        continue;
       }
+
+      const orgMatched: InventoryMovementRecord[] = [];
+      const orgShared: InventoryMovementRecord[] = [];
+
+      for (const r of monthFiltered) {
+        totalCount++;
+        const code = (r.품목 || "").trim();
+        const name = (r.품목명 || "").trim();
+        if (orgItemCodes.has(code) || orgItemCodes.has(name)) {
+          orgMatched.push(r);
+          matchedCount++;
+        } else {
+          orgShared.push(r);
+          sharedCount++;
+        }
+      }
+
+      if (orgMatched.length > 0) filtered.set(factory, orgMatched);
+      if (orgShared.length > 0) shared.set(factory, orgShared);
     }
-    return filtered;
-  }, [inventoryMovement, dateRange]);
+
+    return {
+      filteredInventoryMap: filtered,
+      sharedInventoryMap: shared,
+      orgFilterStats: { totalCount, matchedCount, sharedCount, isOrgFiltered } as OrgFilterStats,
+    };
+  }, [inventoryMovement, dateRange, orgItemCodes, isOrgFiltered]);
 
   const filteredInventoryRecords = useMemo(() => {
     const records: InventoryMovementRecord[] = [];
@@ -245,7 +336,13 @@ export function useFilteredInventory() {
     return records;
   }, [filteredInventoryMap]);
 
-  return { filteredInventoryRecords, filteredInventoryMap, inventoryMovement };
+  const sharedInventoryRecords = useMemo(() => {
+    const records: InventoryMovementRecord[] = [];
+    Array.from(sharedInventoryMap.values()).forEach((arr) => records.push(...arr));
+    return records;
+  }, [sharedInventoryMap]);
+
+  return { filteredInventoryRecords, filteredInventoryMap, sharedInventoryRecords, sharedInventoryMap, orgFilterStats, inventoryMovement };
 }
 
 // ─── 수익성분석 (901) ─────────────────────────────────────────────
