@@ -448,11 +448,11 @@ export function PortfolioTab({ filteredItemProfitability, rawItemProfitability, 
       <div className="rounded-md bg-muted/50 p-4 text-xs text-muted-foreground space-y-2">
         <p className="font-semibold text-foreground">복합 점수 산출 기준</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-          <div>매출 규모 <span className="font-medium text-foreground">30%</span></div>
-          <div>수익성 (영업이익률) <span className="font-medium text-foreground">25%</span></div>
-          <div>성장성 (최근 3개월 vs 이전) <span className="font-medium text-foreground">20%</span></div>
-          <div>원가 효율 <span className="font-medium text-foreground">15%</span></div>
-          <div>계획 달성률 <span className="font-medium text-foreground">10%</span></div>
+          <div>매출 규모 <span className="font-medium text-foreground">{Math.round(weights.sales * 100)}%</span></div>
+          <div>수익성 (영업이익률) <span className="font-medium text-foreground">{Math.round(weights.profit * 100)}%</span></div>
+          <div>성장성 (최근 3개월 vs 이전) <span className="font-medium text-foreground">{Math.round(weights.growth * 100)}%</span></div>
+          <div>원가 효율 <span className="font-medium text-foreground">{Math.round(weights.cost * 100)}%</span></div>
+          <div>계획 달성률 <span className="font-medium text-foreground">{Math.round(weights.plan * 100)}%</span></div>
         </div>
         <p>각 축은 전체 품목 내 백분위(0~100, midrank)로 정규화. 4사분면(calcProfitMatrix) 및 마진 침식(calcMarginErosion) 참조.</p>
         <p>DISCONTINUE: 복합 &lt; 30 또는 (매출 하위10% &amp; 적자). OPTIMIZE: 30~50 &amp; 매출 ≥ 중위.</p>

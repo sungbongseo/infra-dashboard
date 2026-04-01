@@ -34,7 +34,7 @@ function makeOrgRecord(overrides: Partial<OrgProfitRecord> = {}): OrgProfitRecor
   return {
     No: 1, 판매사업본부: "", 판매사업부: "", 영업조직팀: "팀A",
     매출액: pad(1000), 실적매출원가: pad(700), 매출총이익: pad(300),
-    판관변동_직접판매운반비: pad0(), 판매관리비: pad(100), 영업이익: pad(200),
+    판관변동_직접판매운반비: pad0(), 판관변동_운반비: pad0(), 판매관리비: pad(100), 영업이익: pad(200),
     공헌이익: pad(400), 매출원가율: pad(70), 매출총이익율: pad(30),
     판관비율: pad(10), 영업이익율: pad(20), 공헌이익율: pad(40),
     ...overrides,

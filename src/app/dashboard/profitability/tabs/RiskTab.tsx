@@ -198,18 +198,18 @@ export function RiskTab({ filteredOrgProfit, allReceivableRecords, filteredSales
                   }}
                 />
                 <ReferenceLine
-                  x={5}
+                  x={effectiveMarginBM}
                   stroke="hsl(0, 0%, 50%)"
                   strokeDasharray="4 4"
                   strokeWidth={1}
-                  label={{ value: "이익율 5%", position: "top", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
+                  label={{ value: `이익율 ${isFinite(effectiveMarginBM) ? effectiveMarginBM.toFixed(1) : "5.0"}%`, position: "top", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
                 />
                 <ReferenceLine
-                  y={40}
+                  y={effectiveRiskBM}
                   stroke="hsl(0, 0%, 50%)"
                   strokeDasharray="4 4"
                   strokeWidth={1}
-                  label={{ value: "리스크 40", position: "right", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
+                  label={{ value: `리스크 ${effectiveRiskBM}`, position: "right", fontSize: 10, fill: "hsl(0, 0%, 50%)" }}
                 />
                 <Scatter data={profitRiskData} fill={CHART_COLORS[0]}>
                   {profitRiskData.map((d, i) => (
