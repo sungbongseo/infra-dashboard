@@ -240,9 +240,10 @@ export function useOrgItemWhitelist(): { orgItemCodes: Set<string>; isOrgFiltere
   const { filteredItemCostDetail } = useFilteredItemCostDetail();
   const { filteredItemProfit } = useFilteredItemProfitability();
   const orgNames = useDataStore((s) => s.orgNames);
-  const selectedOrgs = useFilterStore((s) => s.selectedOrgs);
 
-  const isOrgFiltered = selectedOrgs !== null && selectedOrgs.length > 0;
+  // 조직 필터 활성 판정: orgNames가 비어있지 않으면 항상 필터 (DEFAULT_INFRA_ORG_NAMES 포함)
+  // (매출/수주 등은 orgNames가 비어있지 않으면 항상 필터되므로 재고도 동일하게 적용)
+  const isOrgFiltered = orgNames.size > 0;
 
   const orgItemCodes = useMemo(() => {
     if (!isOrgFiltered) return new Set<string>();
