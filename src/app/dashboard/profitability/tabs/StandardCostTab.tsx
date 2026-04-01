@@ -33,7 +33,7 @@ export function StandardCostTab({ isDateFiltered, filteredItemProfitability }: S
     const all = calcStandardCostVariance(filteredItemProfitability);
     return all.slice(0, 20).map((item) => {
       // SAP 품목코드에서 [] 괄호 제거하여 가독성 향상
-      const cleaned = item.product.replace(/^\[([^\]]+)\]\s*/, "$1 ");
+      const cleaned = (item.product || "").replace(/^\[([^\]]+)\]\s*/, "$1 ").trim() || item.product;
       return {
         name: truncateLabel(cleaned, 20),
         fullName: `${item.product} (${item.org})`,

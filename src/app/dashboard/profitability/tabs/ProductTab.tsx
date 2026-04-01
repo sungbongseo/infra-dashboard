@@ -205,7 +205,7 @@ export function ProductTab({
                   labelLine={false}
                   label={(props: any) => {
                     const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
-                    if (percent < 0.03) return null;
+                    if (!isFinite(percent) || percent < 0.03) return null;
                     const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
                     const x = cx + radius * Math.cos(-midAngle * Math.PI / 180);
                     const y = cy + radius * Math.sin(-midAngle * Math.PI / 180);

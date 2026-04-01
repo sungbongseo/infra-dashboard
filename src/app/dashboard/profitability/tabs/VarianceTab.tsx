@@ -177,7 +177,7 @@ export function VarianceTab({
             { label: "매출총이익 달성", pct: planSummary.gpAchievement, plan: planSummary.totalGPPlan, actual: planSummary.totalGPActual, gap: planSummary.totalGPActual - planSummary.totalGPPlan },
             { label: "영업이익 달성", pct: planSummary.opAchievement, plan: planSummary.totalOPPlan, actual: planSummary.totalOPActual, gap: planSummary.totalOPActual - planSummary.totalOPPlan },
           ] as const).map((item) => {
-            const clampedPct = Math.min(Math.max(item.pct !== null && isFinite(item.pct) ? item.pct : 0, 0), 150);
+            const clampedPct = Math.min(Math.max(item.pct !== null && isFinite(item.pct) ? item.pct : 0, 0), 200);
             const displayPct = item.pct !== null && isFinite(item.pct) ? item.pct : 0;
             return (
               <div key={item.label} className={`rounded-lg p-4 ${gaugeBgColor(displayPct)}`}>
@@ -188,7 +188,7 @@ export function VarianceTab({
                   </span>
                 </div>
                 <Progress
-                  value={(clampedPct / 150) * 100}
+                  value={(clampedPct / 200) * 100}
                   className="h-2.5"
                   indicatorClassName={displayPct >= 100 ? "bg-emerald-500" : displayPct >= 80 ? "bg-amber-500" : "bg-red-500"}
                 />
