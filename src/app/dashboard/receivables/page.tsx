@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections } from "@/lib/hooks/useFilteredData";
+import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections, useFilteredInventory } from "@/lib/hooks/useFilteredData";
 
 const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
 const RiskTab = lazy(() => import("./tabs/RiskTab").then(m => ({ default: m.RiskTab })));
@@ -27,7 +27,7 @@ const CollectionDelayTab = lazy(() => import("./tabs/CollectionDelayTab").then(m
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
-  const inventoryMovement = useDataStore((s) => s.inventoryMovement);
+  const { filteredInventoryMap } = useFilteredInventory();
   const { filteredRecords: allRecords, filteredAgingMap } = useFilteredReceivables();
   const { filteredSales } = useFilteredSales();
   const { filteredTeamContrib } = useFilteredTeamContribution();
@@ -146,7 +146,7 @@ export default function ReceivablesPage() {
               filteredSales={filteredSales}
               filteredTeamContrib={filteredTeamContrib}
               filteredCollections={filteredCollections}
-              inventoryData={inventoryMovement}
+              inventoryData={filteredInventoryMap}
               isDateFiltered={isDateFiltered}
             />
           </ErrorBoundary>
