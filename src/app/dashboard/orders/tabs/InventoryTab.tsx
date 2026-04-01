@@ -265,7 +265,12 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData, shared
   // 카테고리별 재고 분석 (대분류)
   const categoryData = useMemo(() => calcCategoryInventory(filteredItems, "대분류"), [filteredItems]);
 
-  // 주거래처별 재고 분포 (effectiveData 기반, 품목계정그룹 필터 무관)
+  // 재고 분포: 주거래처가 50% 미만 채워져 있으면 품목계정그룹으로 자동 폴백
+  const customerFillRate = useMemo(() => {
+    const filled = effectiveData.filter((r) => (r.주거래처 || "").trim() !== "").length;
+    return effectiveData.length > 0 ? filled / effectiveData.length : 0;
+  }, [effectiveData]);
+  const customerGroupLabel = customerFillRate < 0.5 ? "품목계정그룹" : "주거래처";
   const customerData = useMemo(() => calcCustomerInventory(effectiveData), [effectiveData]);
   const customerChartData = useMemo(() => customerData.slice(0, 10), [customerData]);
 
@@ -706,12 +711,16 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData, shared
         </ChartCard>
       )}
 
-      {/* ─── 새 섹션: 주거래처별 재고 분포 ─── */}
+      {/* ─── 재고 분포 (주거래처 or 품목계정그룹 자동 폴백) ─── */}
       {customerChartData.length > 0 && (
         <ChartCard
-          title="주거래처별 재고 분포 (Top 10)"
-          formula="거래처별 기말재고 수량 합산 (전체 품목계정그룹 대상)"
-          description="주거래처별 재고 집중도를 파악합니다. 특정 거래처에 재고가 과도하게 몰려 있는지 확인하세요."
+          title={`${customerGroupLabel}별 재고 분포 (Top 10)`}
+          formula={customerFillRate < 0.5
+            ? "주거래처 필드가 대부분 비어있어 품목계정그룹(제품/원재료/반제품 등) 기준으로 표시합니다"
+            : "거래처별 기말재고 수량 합산 (전체 품목계정그룹 대상)"}
+          description={customerFillRate < 0.5
+            ? "품목계정그룹별 재고 분포를 보여줍니다. 제품/원재료/반제품 등 자재 유형별 재고 비중을 파악하세요."
+            : "주거래처별 재고 집중도를 파악합니다. 특정 거래처에 재고가 과도하게 몰려 있는지 확인하세요."}
         >
           <ErrorBoundary>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -740,7 +749,7 @@ export function InventoryTab({ data, isDateFiltered, salesData, costData, shared
               {/* 데이터 테이블 */}
               <DataTable
                 columns={[
-                  { header: "거래처", accessorKey: "customer" },
+                  { header: customerGroupLabel, accessorKey: "customer" },
                   { header: "품목수", accessorKey: "itemCount" },
                   { header: "기말재고", accessorKey: "totalClosing", cell: (info: any) => formatNumber(info.getValue()) },
                   { header: "총출고", accessorKey: "totalOutgoing", cell: (info: any) => formatNumber(info.getValue()) },

@@ -502,15 +502,33 @@ export interface CustomerInventorySummary {
 }
 
 /** 주거래처 필드 기반 재고 분포 분석 */
-export function calcCustomerInventory(data: InventoryMovementRecord[]): CustomerInventorySummary[] {
+/**
+ * 주거래처별 재고 분포. 주거래처 필드가 대부분 비어있으면 품목계정그룹으로 자동 폴백.
+ * fallbackField: 폴백 기준 ("품목계정그룹" | "대분류")
+ */
+export function calcCustomerInventory(
+  data: InventoryMovementRecord[],
+  fallbackField?: "품목계정그룹" | "대분류"
+): CustomerInventorySummary[] {
+  // 주거래처 채움률 측정: 50% 미만이면 자동 폴백
+  const filledCount = data.filter((r) => (r.주거래처 || "").trim() !== "").length;
+  const fillRate = data.length > 0 ? filledCount / data.length : 0;
+  const useField = fallbackField
+    ?? (fillRate < 0.5 ? "품목계정그룹" : undefined);
+
   const map = new Map<string, { closing: number; outgoing: number; items: Set<string> }>();
   for (const r of data) {
-    const customer = (r.주거래처 || "").trim() || "미지정";
-    const entry = map.get(customer) || { closing: 0, outgoing: 0, items: new Set() };
+    let groupKey: string;
+    if (useField) {
+      groupKey = (r[useField] || "").trim() || "미분류";
+    } else {
+      groupKey = (r.주거래처 || "").trim() || "미지정";
+    }
+    const entry = map.get(groupKey) || { closing: 0, outgoing: 0, items: new Set() };
     entry.closing += (r.기말 ?? 0);
     entry.outgoing += (r.출고 ?? 0);
     entry.items.add(r.품목);
-    map.set(customer, entry);
+    map.set(groupKey, entry);
   }
   return Array.from(map.entries())
     .map(([customer, v]) => ({
