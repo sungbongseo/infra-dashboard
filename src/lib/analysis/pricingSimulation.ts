@@ -179,6 +179,10 @@ export function calcPricingSimulation(
       // 마진 100% 이상 (비정상) → 인상 불필요
       requiredPrice = v.sales;
       priceIncrease = 0;
+    } else if (marginRatio <= 0) {
+      // 현재 적자: 마진 유지 개념 무의미 → 원가 증가분만큼 인상 필요
+      requiredPrice = v.sales + costIncrease;
+      priceIncrease = safeDivide(costIncrease, v.sales) * 100;
     } else {
       requiredPrice = safeDivide(newCost, 1 - marginRatio);
       priceIncrease = safeDivide(requiredPrice - v.sales, v.sales) * 100;

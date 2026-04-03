@@ -171,7 +171,7 @@ export function PricingSimTab({
             <div key={key} className="flex items-center gap-2">
               <span className="text-xs min-w-[75px]">{BUCKET_LABELS[key]}</span>
               <input
-                type="range" min={0} max={50} step={1}
+                type="range" min={0} max={100} step={1}
                 value={rates[key]}
                 onChange={(e) => updateRate(key, Number(e.target.value))}
                 className="flex-1 accent-primary h-1.5"
@@ -189,36 +189,40 @@ export function PricingSimTab({
           value={summary.avgPriceIncrease}
           format="percent"
           icon={<Percent className="h-5 w-5" />}
-          formula="Σ(품목별 필요인상률 × 매출 비중) — 매출 가중평균"
-          benchmark="5% 미만 양호, 10% 초과 시 거래처별 협상 전략 필요"
-          reason="전사 평균 단가 인상 폭을 파악하여 가격 정책 수준을 결정합니다"
+          description={`전체 ${summary.totalItems}개 품목의 매출 가중평균 필요 단가 인상률입니다. 최대 인상률은 ${safeFixed(summary.maxPriceIncrease, 1)}%입니다.`}
+          formula="① 품목별 신규원가 = 기존원가 + Σ(원가항목 × 상승률). ② 필요매출 = 신규원가 ÷ (1 - 현재마진율). ③ 인상률 = (필요매출 - 현재매출) ÷ 현재매출 × 100. ④ 가중평균 = Σ(품목별 인상률 × 매출비중)"
+          benchmark="5% 미만: 소폭 인상으로 흡수 가능 | 5~10%: 거래처 협상 필요 | 10% 초과: 원가 구조 개선 또는 제품 재설계 검토"
+          reason="전사 평균 단가 인상 수준을 파악하여 거래처 가격 협상의 기준선을 설정합니다. 매출 규모가 큰 품목의 인상률이 더 많이 반영됩니다."
         />
         <KpiCard
           title="미인상 시 이익 감소"
           value={summary.totalProfitLoss}
           format="currency"
           icon={<DollarSign className="h-5 w-5" />}
-          formula="Σ(품목별 원가 증가액) — 단가 미인상 시 총 이익 감소"
-          benchmark="현재 영업이익 대비 비중이 30% 이상이면 즉각 대응 필요"
-          reason="단가를 올리지 않을 경우 발생하는 이익 감소 규모를 금액으로 보여줍니다"
+          description="현재 판매단가를 유지한 채 원가만 상승할 경우 발생하는 총 매출총이익 감소액입니다."
+          formula="이익 감소 = -Σ(품목별 원가 증가액). 원가 증가액 = 원재료비 × 상승률 + 상품매입비 × 상승률 + ... (7개 버킷 각각)"
+          benchmark="현재 영업이익 대비 30% 이상 감소하면 즉각 가격 인상 대응 필요. 50% 이상이면 사업 존속 리스크."
+          reason="단가를 올리지 않고 원가만 상승하면 얼마나 이익이 줄어드는지를 금액으로 보여주어, 가격 인상의 시급성을 판단합니다."
         />
         <KpiCard
           title="고위험 품목 (10%↑)"
           value={summary.highImpactCount}
           format="number"
           icon={<AlertTriangle className="h-5 w-5" />}
-          formula="필요 단가 인상률 10% 초과 품목 수"
-          benchmark="전체 품목의 20% 이상이면 원가 구조 재검토 시급"
-          reason="단가 인상 부담이 큰 품목을 식별하여 우선 대응 대상을 선정합니다"
+          description={`전체 ${summary.totalItems}개 품목 중 ${summary.highImpactCount}개(${summary.totalItems > 0 ? safeFixed(summary.highImpactCount / summary.totalItems * 100, 0) : 0}%)가 10% 이상 인상 필요합니다.`}
+          formula="필요 단가 인상률이 10%를 초과하는 품목 수. 마진이 낮거나 원재료비 비중이 높은 품목일수록 인상률이 큽니다."
+          benchmark="전체의 20% 이상이 고위험이면 원가 구조 재검토 시급. 저마진+고원재료비 품목은 대체 원재료 또는 공정 개선 검토."
+          reason="인상 부담이 가장 큰 품목을 식별하여 우선 대응 대상을 선정합니다. 이 품목들부터 거래처 가격 협상을 시작하세요."
         />
         <KpiCard
           title="재료비 비중"
           value={summary.avgMaterialShare}
           format="percent"
           icon={<BarChart3 className="h-5 w-5" />}
-          formula="전체 매출원가 중 원재료비+부재료비 비중"
-          benchmark="50% 이상이면 원자재 시세에 높은 노출, 구매 전략 강화 필요"
-          reason="원재료 가격 변동에 대한 노출도를 파악합니다"
+          description="전체 매출원가에서 원재료비+부재료비가 차지하는 비중입니다. 이 비중이 높을수록 원자재 가격 변동에 민감합니다."
+          formula="재료비 비중 = (원재료비 + 부재료비) ÷ 총 매출원가 × 100. 상품매입비, 인건비, 외주비 등은 별도 버킷."
+          benchmark="50% 이상: 원자재 시세 직접 노출 (구매 헤지 필요) | 30~50%: 중간 노출 | 30% 미만: 가공비 중심 구조"
+          reason="원자재 가격 변동에 대한 사업 구조적 노출도를 파악합니다. 재료비 비중이 높으면 구매 전략(장기 계약, 대체 원료)이 중요합니다."
         />
       </div>
 
