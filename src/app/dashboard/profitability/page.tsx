@@ -501,6 +501,29 @@ export default function ProfitabilityPage() {
     [rawItemProfit]
   );
 
+  // 품목→대분류 매핑 (단가 시뮬레이션용): 200 보고서 + salesList에서 구축
+  const pricingCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    // Source 1: ItemProfitabilityRecord (200) — 품목 필드가 "[CODE] NAME" 형식
+    for (const r of filteredItemProfitability) {
+      const cat = ((r as any).대분류 || "").trim();
+      if (!cat) continue;
+      const raw = ((r as any).품목 || "").trim();
+      if (raw) map.set(raw, cat);
+      // 코드만 추출하여 매핑
+      const m = raw.match(/^\[([^\]]+)\]/);
+      if (m) map.set(m[1].trim(), cat);
+    }
+    // Source 2: salesList — 품목코드 + 품목명
+    for (const s of filteredSales) {
+      const cat = ((s as any).대분류 || "").trim();
+      if (!cat) continue;
+      if (s.품목) map.set(s.품목.trim(), cat);
+      if (s.품목명) map.set(s.품목명.trim(), cat);
+    }
+    return map;
+  }, [filteredItemProfitability, filteredSales]);
+
   // ─── KPI 합계 ──────────────────────────────
   const { totalGP, totalContrib, opRate, gpRate, totalSales, totalOp } = useMemo(() => {
     const sales = filteredOrgProfit.reduce((s, r) => s + r.매출액.실적, 0);
@@ -841,6 +864,7 @@ export default function ProfitabilityPage() {
             <PricingSimTab
               filteredItemCostDetail={filteredItemCostDetail}
               filteredProfAnalysis={effectiveProfAnalysis}
+              categoryMap={pricingCategoryMap}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
