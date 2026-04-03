@@ -67,12 +67,13 @@ const StandardCostTab = lazy(() => import("./tabs/StandardCostTab").then(m => ({
 const CustomerRiskMatrixTab = lazy(() => import("./tabs/CustomerRiskMatrixTab").then(m => ({ default: m.CustomerRiskMatrixTab })));
 const SgaBreakdownTab = lazy(() => import("./tabs/SgaBreakdownTab").then(m => ({ default: m.SgaBreakdownTab })));
 const PortfolioTab = lazy(() => import("./tabs/PortfolioTab").then(m => ({ default: m.PortfolioTab })));
+const PricingSimTab = lazy(() => import("./tabs/PricingSimTab").then(m => ({ default: m.PricingSimTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
   { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
-  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "portfolio"] },
+  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "portfolio", "pricingSim"] },
 ];
 
 export default function ProfitabilityPage() {
@@ -610,6 +611,7 @@ export default function ProfitabilityPage() {
           {visibleTabs.has("costVariance") && <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
           {visibleTabs.has("standardCost") && <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>}
           {visibleTabs.has("portfolio") && <TabsTrigger value="portfolio" disabled={filteredItemProfitability.length === 0}>포트폴리오</TabsTrigger>}
+          {visibleTabs.has("pricingSim") && <TabsTrigger value="pricingSim" disabled={filteredItemCostDetail.length === 0}>단가 시뮬레이션</TabsTrigger>}
         </TabsList>
         </TooltipProvider>
 
@@ -827,6 +829,18 @@ export default function ProfitabilityPage() {
               filteredItemProfitability={filteredItemProfitability}
               rawItemProfitability={rawItemProfit}
               filteredSales={filteredSales}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="pricingSim" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <PricingSimTab
+              filteredItemCostDetail={filteredItemCostDetail}
+              filteredProfAnalysis={effectiveProfAnalysis}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
