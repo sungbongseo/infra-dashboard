@@ -17,13 +17,14 @@ import {
   calcPricingSummary,
   calcCategoryPricing,
   calcCustomerPricingImpact,
+  calcFallbackPricingSimulation,
   PRESET_SCENARIOS,
   DEFAULT_COST_RATES,
   type CostBucketRates,
   type PricingSimItem,
   type CustomerPricingImpact,
 } from "@/lib/analysis/pricingSimulation";
-import type { ItemCostDetailRecord } from "@/types/itemCost";
+import type { ItemCostDetailRecord, ItemProfitabilityRecord } from "@/types/itemCost";
 import type { ProfitabilityAnalysisRecord } from "@/types";
 import type { CostBucketKey } from "@/types/itemCost";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -31,6 +32,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 interface PricingSimTabProps {
   filteredItemCostDetail: ItemCostDetailRecord[];
   filteredProfAnalysis?: ProfitabilityAnalysisRecord[];
+  filteredItemProfitability?: ItemProfitabilityRecord[];
   categoryMap?: Map<string, string>;
   isDateFiltered?: boolean;
 }
@@ -43,7 +45,7 @@ const BUCKET_LABELS: Record<CostBucketKey, string> = {
 const BUCKET_KEYS: CostBucketKey[] = ["재료비", "상품매입비", "인건비", "설비비", "외주비", "물류비", "일반경비"];
 
 export function PricingSimTab({
-  filteredItemCostDetail, filteredProfAnalysis, categoryMap, isDateFiltered,
+  filteredItemCostDetail, filteredProfAnalysis, filteredItemProfitability, categoryMap, isDateFiltered,
 }: PricingSimTabProps) {
   const [rates, setRates] = useState<CostBucketRates>({ ...DEFAULT_COST_RATES });
   const [activeView, setActiveView] = useState<"item" | "customer">("item");
@@ -63,6 +65,18 @@ export function PricingSimTab({
     () => calcCategoryPricing(simItems, categoryMap),
     [simItems, categoryMap]
   );
+
+  // 200 보고서 보완: 501에 없는 품목 추정
+  const existingItemKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const it of simItems) keys.add(`${it.품목}||${it.조직}`);
+    return keys;
+  }, [simItems]);
+
+  const fallbackItems = useMemo(() => {
+    if (!filteredItemProfitability || filteredItemProfitability.length === 0) return [];
+    return calcFallbackPricingSimulation(filteredItemProfitability as any, existingItemKeys, rates);
+  }, [filteredItemProfitability, existingItemKeys, rates]);
 
   // 품목별 버킷 맵 (거래처 분석용)
   const itemBucketMap = useMemo(() => {
@@ -333,6 +347,56 @@ export function PricingSimTab({
             </div>
           )}
         </>
+      )}
+      {/* 200 보완 품목 (501에 없는 품목) */}
+      {fallbackItems.length > 0 && (
+        <ChartCard
+          title={`원가상세 미확인 품목 (${fallbackItems.length}개) — 200 보고서 추정`}
+          isEmpty={false}
+          formula="501 보고서에 없지만 200 보고서(품목별수익성분석)에 있는 품목. Actual 원가 구성 기반 추정치입니다."
+          description="이 품목들은 501 품목별매출원가상세 보고서에 포함되지 않아 200 보고서의 실적 데이터로 추정합니다. Plan/Actual 비교가 불가하며 참고용으로 활용하세요."
+          benchmark="추정치이므로 ±5% 오차 가능. 정확한 분석이 필요하면 SAP에서 501 보고서에 해당 품목을 포함하여 재추출하세요."
+        >
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-2 text-xs text-amber-800 dark:text-amber-300 mb-3">
+            아래 {fallbackItems.length}개 품목은 200 보고서 기반 추정치입니다. 위 정밀 분석과 혼합하지 마세요.
+          </div>
+          <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
+            <table className="w-full text-xs">
+              <thead className="sticky top-0 bg-background z-10">
+                <tr className="border-b text-left">
+                  <th className="p-2">품목</th>
+                  <th className="p-2">조직</th>
+                  <th className="p-2 text-right">매출액</th>
+                  <th className="p-2 text-right">현재마진</th>
+                  <th className="p-2 text-right">재료비 비중</th>
+                  <th className="p-2 text-right">필요 인상률</th>
+                  <th className="p-2 text-right">미인상 마진</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fallbackItems.slice(0, 30).map((it, i) => (
+                  <tr key={i} className="border-b hover:bg-muted/50">
+                    <td className="p-2 font-medium">{truncateLabel(it.품목, 15)}</td>
+                    <td className="p-2">{it.조직}</td>
+                    <td className="p-2 text-right">{formatCurrency(it.currentSales)}</td>
+                    <td className="p-2 text-right">{safeFixed(it.currentMargin, 1)}%</td>
+                    <td className="p-2 text-right">{safeFixed(it.bucketShares["재료비"], 1)}%</td>
+                    <td className={`p-2 text-right font-semibold ${it.scenario.priceIncrease > 10 ? "text-red-600" : it.scenario.priceIncrease > 5 ? "text-amber-600" : "text-green-600"}`}>
+                      +{safeFixed(it.scenario.priceIncrease, 1)}%
+                      <span className="ml-1 text-[10px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300">추정</span>
+                    </td>
+                    <td className={`p-2 text-right ${it.scenario.marginIfNoIncrease < 0 ? "text-red-600 font-bold" : ""}`}>
+                      {safeFixed(it.scenario.marginIfNoIncrease, 1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {fallbackItems.length > 30 && (
+            <p className="text-xs text-muted-foreground mt-2 px-1">상위 30건 표시 (전체 {fallbackItems.length}건)</p>
+          )}
+        </ChartCard>
       )}
     </div>
   );

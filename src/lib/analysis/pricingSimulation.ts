@@ -214,6 +214,87 @@ export function calcPricingSimulation(
 }
 
 /**
+ * 200 보고서(ItemProfitabilityRecord) 기반 추정 시뮬레이션.
+ * 501에 없는 품목만 필터하여 보완용으로 사용.
+ * 501과 달리 Actual만 있고 Plan이 없으므로 "추정" 라벨 표시.
+ */
+export function calcFallbackPricingSimulation(
+  itemProfData: Array<{
+    품목: string; 영업조직팀: string; 대분류?: string;
+    매출액: number; 실적매출원가: number; 매출총이익: number;
+    원재료비: number; 부재료비: number; 상품매입: number;
+    노무비: number; 복리후생비: number; 제조고정노무비: number;
+    수도광열비: number; 전력비: number; 연료비: number; 감가상각비: number;
+    외주가공비: number; 운반비: number;
+    소모품비: number; 수선비: number; 지급수수료: number; 견본비: number; 기타경비: number;
+  }>,
+  existingItemKeys: Set<string>, // 501에 이미 있는 품목+조직 키
+  rates: CostBucketRates = DEFAULT_COST_RATES
+): PricingSimItem[] {
+  const agg = new Map<string, {
+    품목: string; 조직: string;
+    sales: number; cost: number;
+    buckets: Record<CostBucketKey, number>;
+  }>();
+
+  for (const r of itemProfData) {
+    const key = `${r.품목}||${r.영업조직팀}`;
+    if (existingItemKeys.has(key)) continue; // 501에 있는 품목 제외
+
+    const buckets: Record<CostBucketKey, number> = {
+      재료비: (r.원재료비 || 0) + (r.부재료비 || 0),
+      상품매입비: r.상품매입 || 0,
+      인건비: (r.노무비 || 0) + (r.복리후생비 || 0) + (r.제조고정노무비 || 0),
+      설비비: (r.수도광열비 || 0) + (r.전력비 || 0) + (r.연료비 || 0) + (r.감가상각비 || 0),
+      외주비: r.외주가공비 || 0,
+      물류비: r.운반비 || 0,
+      일반경비: (r.소모품비 || 0) + (r.수선비 || 0) + (r.지급수수료 || 0) + (r.견본비 || 0) + (r.기타경비 || 0),
+    };
+
+    const prev = agg.get(key);
+    if (!prev) {
+      agg.set(key, { 품목: r.품목, 조직: r.영업조직팀, sales: r.매출액, cost: r.실적매출원가, buckets });
+    } else {
+      prev.sales += r.매출액;
+      prev.cost += r.실적매출원가;
+      for (const b of Object.keys(buckets) as CostBucketKey[]) prev.buckets[b] += buckets[b];
+    }
+  }
+
+  const results: PricingSimItem[] = [];
+  for (const [, v] of Array.from(agg.entries())) {
+    if (v.sales <= 0) continue;
+    const currentMargin = safeDivide(v.sales - v.cost, v.sales) * 100;
+    const totalBucket = Object.values(v.buckets).reduce((s, a) => s + a, 0);
+    const bucketShares = {} as Record<CostBucketKey, number>;
+    for (const b of Object.keys(v.buckets) as CostBucketKey[]) {
+      bucketShares[b] = totalBucket > 0 ? safeDivide(v.buckets[b], totalBucket) * 100 : 0;
+    }
+    const costIncrease = applyRates(v.buckets, rates);
+    const newCost = v.cost + costIncrease;
+    const marginRatio = currentMargin / 100;
+    let requiredPrice: number, priceIncrease: number;
+    if (marginRatio >= 1) { requiredPrice = v.sales; priceIncrease = 0; }
+    else if (marginRatio <= 0) { requiredPrice = v.sales + costIncrease; priceIncrease = safeDivide(costIncrease, v.sales) * 100; }
+    else { requiredPrice = safeDivide(newCost, 1 - marginRatio); priceIncrease = safeDivide(requiredPrice - v.sales, v.sales) * 100; }
+
+    results.push({
+      품목: v.품목, 조직: v.조직, currentSales: v.sales, currentCost: v.cost,
+      currentMargin: isFinite(currentMargin) ? currentMargin : 0,
+      bucketAmounts: v.buckets, bucketShares,
+      scenario: {
+        costIncrease: totalBucket > 0 ? safeDivide(costIncrease, v.cost) * 100 : 0,
+        newCost, requiredPrice: isFinite(requiredPrice) ? requiredPrice : v.sales,
+        priceIncrease: isFinite(priceIncrease) ? priceIncrease : 0,
+        marginIfNoIncrease: isFinite(safeDivide(v.sales - newCost, v.sales) * 100) ? safeDivide(v.sales - newCost, v.sales) * 100 : 0,
+        profitImpact: -costIncrease,
+      },
+    });
+  }
+  return results.sort((a, b) => b.scenario.priceIncrease - a.scenario.priceIncrease);
+}
+
+/**
  * 시뮬레이션 요약 KPI
  */
 export function calcPricingSummary(items: PricingSimItem[]): PricingSimSummary {

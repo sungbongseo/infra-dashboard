@@ -864,6 +864,7 @@ export default function ProfitabilityPage() {
             <PricingSimTab
               filteredItemCostDetail={filteredItemCostDetail}
               filteredProfAnalysis={effectiveProfAnalysis}
+              filteredItemProfitability={filteredItemProfitability}
               categoryMap={pricingCategoryMap}
               isDateFiltered={isDateFilterActive}
             />
