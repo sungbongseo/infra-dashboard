@@ -865,7 +865,7 @@ export function OffsetEffectTab({
             title="최종 영업이익" value={totalSim.newOperatingProfit}
             previousValue={totalSim.baseOperatingProfit}
             format="currency"
-            formula="기존 영업이익 + 단가 인하 손실(−) + 물량 증가 공헌(+) [고정비 총액 불변]"
+            formula="Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.제조고정비] + Δ(가격효과) + Δ(물량공헌) · [200.고정비] 총액 불변"
             description={`순효과 ${totalSim.netOffsetEffect >= 0 ? "+" : ""}${formatCurrency(totalSim.netOffsetEffect)}`}
             benchmark="기존 이익 대비 개선되면 가설 성립"
             reason="시뮬레이션 후 전사 영업이익"
