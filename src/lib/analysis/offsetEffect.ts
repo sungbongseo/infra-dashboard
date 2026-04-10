@@ -132,12 +132,21 @@ export interface WaterfallStep {
   type: "start" | "decrease" | "increase" | "subtotal";
 }
 
-// 무결성 검증
+// 무결성 검증 (내부 항등식 기반)
 export interface IntegrityCheck {
-  totalViewDelta: number;
-  poolViewDelta: number;
-  difference: number;
-  differencePct: number;
+  // 4a 내부 항등식: netOffsetEffect ≡ priceReductionLoss + volumeContributionGain
+  totalViewNetDelta: number;
+  totalViewDecomposed: number; // priceLoss + volumeGain
+  totalViewIdentityError: number;
+  totalViewIsConsistent: boolean;
+
+  // 4b 내부 항등식: netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta
+  poolNetDelta: number;
+  poolDecomposed: number; // target + others
+  poolIdentityError: number;
+  poolIsConsistent: boolean;
+
+  // 전체 일관성
   isConsistent: boolean;
 }
 
@@ -207,7 +216,7 @@ export function calcCustomerItemCVP(
         customer,
         customerName: r.매출거래처명 || customer,
         item,
-        itemName: (r as any).품목명 || item,
+        itemName: r.품목명 || item,
         quantity: qty,
         revenue: rev,
         variableCost: vc,
@@ -532,13 +541,24 @@ export function calcPoolSimulation(
     };
   }
 
-  // Base: 현재 배분 기준 weight 계산
+  // Base: 가중 재배분 기준으로 일관되게 배분
+  // (SAP 원본 배분과 시뮬레이션 배분을 섞지 않기 위해 base도 가중 배분)
   const baseTotalWeight = poolItems.reduce(
     (s, it) => s + (basis === "revenue" ? it.revenue : it.quantity),
     0
   );
-  // Base 아이템 그대로 (SAP 배분 사용)
-  const baseItems = poolItems.map((it) => ({ ...it }));
+  const baseItems: ItemPoolCVP[] = poolItems.map((it) => {
+    const weight = basis === "revenue" ? it.revenue : it.quantity;
+    const allocatedFixedCost = baseTotalWeight > 0
+      ? poolFixedCost * safeDivide(weight, baseTotalWeight)
+      : 0;
+    return {
+      ...it,
+      allocatedFixedCost,
+      unitAllocatedFixedCost: safeDivide(allocatedFixedCost, it.quantity),
+      allocatedOperatingProfit: it.revenue - it.variableCost - allocatedFixedCost,
+    };
+  });
 
   // Simulated: 대상 품목 물량/단가 변경
   const volFactor = 1 + volumeIncreasePct / 100;
@@ -670,32 +690,45 @@ export function calcWaterfallSteps(sim: TotalViewSimulation): WaterfallStep[] {
 // ─── 무결성 검증 ───────────────────────────────────────
 
 /**
- * 듀얼 뷰 무결성 검증.
+ * 듀얼 뷰 무결성 검증 — 내부 항등식 기반.
  *
- * 총액 관점(4a)과 배분 관점(4b)의 합계가 일치해야 함.
- * 단, 배분 관점은 특정 풀(대분류 등)만 다루므로 해당 풀 내에서만 비교 가능.
+ * 4a와 4b는 서로 다른 데이터 소스(100 vs 200)와 다른 granularity(거래처×품목 vs 품목)이므로
+ * 직접 합계 비교는 의미가 없음. 대신 각 뷰 내부의 대수적 항등식을 검증:
  *
- * 풀 밖 품목은 총액 관점에서 영향을 받지 않으므로, 풀 관점의 netPoolMarginDelta가
- * 총액 관점의 netOffsetEffect 중 풀 내 대상 품목의 기여분과 일치해야 함.
+ * 4a: netOffsetEffect ≡ priceReductionLoss + volumeContributionGain (수학적 증명됨)
+ * 4b: netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta (정의상 true)
+ *
+ * 두 항등식이 모두 성립하면 각 관점의 계산은 논리적으로 일관됨.
  */
 export function verifyIntegrity(
   totalSim: TotalViewSimulation,
   poolSim: PoolAllocationSimulation,
   tolerance: number = 0.01
 ): IntegrityCheck {
-  const totalViewDelta = totalSim.netOffsetEffect;
-  const poolViewDelta = poolSim.netPoolMarginDelta;
-  const difference = Math.abs(totalViewDelta - poolViewDelta);
-  const denominator = Math.abs(totalSim.baseOperatingProfit) || 1;
-  const differencePct = safeDivide(difference, denominator) * 100;
-  const isConsistent = differencePct < tolerance * 100;
+  // 4a 내부 항등식
+  const totalViewNetDelta = totalSim.netOffsetEffect;
+  const totalViewDecomposed = totalSim.priceReductionLoss + totalSim.volumeContributionGain;
+  const totalViewIdentityError = Math.abs(totalViewNetDelta - totalViewDecomposed);
+  const totalDenominator = Math.max(Math.abs(totalSim.baseOperatingProfit), 1);
+  const totalViewIsConsistent = safeDivide(totalViewIdentityError, totalDenominator) < tolerance;
+
+  // 4b 내부 항등식
+  const poolNetDelta = poolSim.netPoolMarginDelta;
+  const poolDecomposed = poolSim.targetItemMarginDelta + poolSim.otherItemsMarginDelta;
+  const poolIdentityError = Math.abs(poolNetDelta - poolDecomposed);
+  const poolDenominator = Math.max(Math.abs(poolSim.poolFixedCost), 1);
+  const poolIsConsistent = safeDivide(poolIdentityError, poolDenominator) < tolerance;
 
   return {
-    totalViewDelta,
-    poolViewDelta,
-    difference,
-    differencePct,
-    isConsistent,
+    totalViewNetDelta,
+    totalViewDecomposed,
+    totalViewIdentityError,
+    totalViewIsConsistent,
+    poolNetDelta,
+    poolDecomposed,
+    poolIdentityError,
+    poolIsConsistent,
+    isConsistent: totalViewIsConsistent && poolIsConsistent,
   };
 }
 

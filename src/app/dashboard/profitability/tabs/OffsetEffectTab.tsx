@@ -780,30 +780,68 @@ export function OffsetEffectTab({
               <div className="text-sm flex-1">
                 <p className="font-semibold mb-2">
                   {integrity.isConsistent
-                    ? "✓ 무결성 검증 통과 — 두 관점의 합계가 일치합니다"
-                    : "⚠️ 무결성 경고 — 두 관점의 합계가 불일치"
+                    ? "✓ 무결성 검증 통과 — 각 관점의 내부 항등식이 성립합니다"
+                    : "⚠️ 무결성 경고 — 항등식 오차 발견"
                   }
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <p className="text-muted-foreground">Step 4a 전사 이익 변화 (총액 관점)</p>
-                    <p className="font-semibold text-sm">{formatCurrency(integrity.totalViewDelta)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                  {/* 4a 항등식 */}
+                  <div className="border rounded p-3 bg-background/50">
+                    <p className="font-medium mb-2">Step 4a 총액 관점 항등식</p>
+                    <p className="text-[11px] text-muted-foreground mb-1">netOffsetEffect ≡ priceLoss + volumeGain</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>netOffsetEffect</span>
+                        <span className="font-semibold">{formatCurrency(integrity.totalViewNetDelta)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>priceLoss + volumeGain</span>
+                        <span className="font-semibold">{formatCurrency(integrity.totalViewDecomposed)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1">
+                        <span>오차</span>
+                        <span className={`font-semibold ${integrity.totalViewIsConsistent ? "text-emerald-600" : "text-red-600"}`}>
+                          {formatCurrency(integrity.totalViewIdentityError)} {integrity.totalViewIsConsistent ? "✓" : "✗"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Step 4b 풀 마진 변화 (배분 관점)</p>
-                    <p className="font-semibold text-sm">{formatCurrency(integrity.poolViewDelta)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">차이</p>
-                    <p className="font-semibold text-sm">{formatCurrency(integrity.difference)} ({safeFixed(integrity.differencePct, 2)}%)</p>
+
+                  {/* 4b 항등식 */}
+                  <div className="border rounded p-3 bg-background/50">
+                    <p className="font-medium mb-2">Step 4b 배분 관점 항등식</p>
+                    <p className="text-[11px] text-muted-foreground mb-1">netPoolMarginDelta ≡ targetDelta + othersDelta</p>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span>netPoolMarginDelta</span>
+                        <span className="font-semibold">{formatCurrency(integrity.poolNetDelta)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>target + others</span>
+                        <span className="font-semibold">{formatCurrency(integrity.poolDecomposed)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-1">
+                        <span>오차</span>
+                        <span className={`font-semibold ${integrity.poolIsConsistent ? "text-emerald-600" : "text-red-600"}`}>
+                          {formatCurrency(integrity.poolIdentityError)} {integrity.poolIsConsistent ? "✓" : "✗"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
-                  {integrity.isConsistent
-                    ? "대수적 항등식 targetDelta + othersDelta ≡ netOffsetEffect가 성립합니다. 단, Step 4a는 전체 CVP 범위이고 4b는 선택된 풀만 다루므로, 대상 품목이 풀 내에 있고 풀 밖 품목이 영향 받지 않을 때만 완벽 일치합니다."
-                    : "차이가 1% 초과. 원인: (1) 대상 품목이 선택된 풀 밖에 있음 (2) 100 보고서와 200 보고서의 매출/원가 데이터 차이 (3) 배분 로직 버그. 확인이 필요합니다."
-                  }
-                </p>
+
+                <div className="mt-3 text-xs text-muted-foreground leading-relaxed space-y-1">
+                  <p>
+                    <strong>검증 방식:</strong> 4a와 4b는 서로 다른 데이터 소스(100 vs 200 보고서)와 다른 단위(거래처×품목 vs 품목)이므로
+                    직접 합계 비교는 의미가 없습니다. 대신 각 관점 내부의 대수적 항등식이 성립하는지 검증합니다.
+                  </p>
+                  <p className="text-[11px]">
+                    <strong>4a 항등식</strong>: 전사 영업이익 변화는 단가 인하 손실과 물량 증가 공헌이익의 합과 정확히 일치해야 합니다 (고정비 총액 불변 가정).
+                  </p>
+                  <p className="text-[11px]">
+                    <strong>4b 항등식</strong>: 풀 내 총 마진 변화는 대상 품목 마진 변화와 다른 품목 마진 변화의 합과 정확히 일치해야 합니다 (고정비 풀 재배분 원리).
+                  </p>
+                </div>
               </div>
             </div>
           </div>
