@@ -68,10 +68,11 @@ const CustomerRiskMatrixTab = lazy(() => import("./tabs/CustomerRiskMatrixTab").
 const SgaBreakdownTab = lazy(() => import("./tabs/SgaBreakdownTab").then(m => ({ default: m.SgaBreakdownTab })));
 const PortfolioTab = lazy(() => import("./tabs/PortfolioTab").then(m => ({ default: m.PortfolioTab })));
 const PricingSimTab = lazy(() => import("./tabs/PricingSimTab").then(m => ({ default: m.PricingSimTab })));
+const OffsetEffectTab = lazy(() => import("./tabs/OffsetEffectTab").then(m => ({ default: m.OffsetEffectTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
-  { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity"] },
+  { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity", "offset"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
   { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "portfolio", "pricingSim"] },
 ];
@@ -617,6 +618,7 @@ export default function ProfitabilityPage() {
           {visibleTabs.has("breakeven") && <TabsTrigger value="breakeven" disabled={filteredOrgProfit.length === 0}>손익분기</TabsTrigger>}
           {visibleTabs.has("whatif") && <TabsTrigger value="whatif" disabled={filteredOrgProfit.length === 0}>시나리오</TabsTrigger>}
           {visibleTabs.has("sensitivity") && <TabsTrigger value="sensitivity" disabled={filteredOrgProfit.length === 0}>민감도</TabsTrigger>}
+          {visibleTabs.has("offset") && <TabsTrigger value="offset" disabled={filteredCustItemDetail.length === 0}>저가수주 상계효과</TabsTrigger>}
           {/* 거래처 분석 */}
           {visibleTabs.has("custProfit") && <TabsTrigger value="custProfit" disabled={effectiveOrgCustProfit.length === 0}>
             거래처 손익<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
@@ -775,6 +777,18 @@ export default function ProfitabilityPage() {
               baseOpProfit={isUsingDateFiltered ? effectiveProfAnalysis.reduce((s, r) => s + (r.영업이익?.실적 ?? 0), 0) : totalOp}
               isDateFiltered={isDateFilterActive}
               estimatedSgaVarRatio={estimatedSgaVarRatio}
+            />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="offset" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <OffsetEffectTab
+              filteredCustItemDetail={filteredCustItemDetail}
+              filteredItemProfitability={filteredItemProfitability}
+              isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
           </Suspense>
