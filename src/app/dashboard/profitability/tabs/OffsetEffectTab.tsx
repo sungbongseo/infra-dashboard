@@ -227,11 +227,10 @@ export function OffsetEffectTab({
     [cvpItems]
   );
 
-  // 풀 시뮬레이션 품목별 영향 테이블
+  // 풀 시뮬레이션 품목별 영향 테이블 (역할 기반 재구성)
   const poolImpactTable = useMemo(() => {
-    return poolSim.baseItems.map((base, i) => {
+    const rows = poolSim.baseItems.map((base, i) => {
       const sim = poolSim.simulatedItems[i];
-      const marginDelta = sim.allocatedOperatingProfit - base.allocatedOperatingProfit;
       return {
         item: base.item,
         itemName: base.itemName,
@@ -242,14 +241,76 @@ export function OffsetEffectTab({
         simUnitFC: sim.unitAllocatedFixedCost,
         baseMargin: base.allocatedOperatingProfit,
         simMargin: sim.allocatedOperatingProfit,
-        marginDelta,
+        marginDelta: sim.allocatedOperatingProfit - base.allocatedOperatingProfit,
       };
-    }).sort((a, b) => {
-      if (a.isTarget) return -1;
-      if (b.isTarget) return 1;
-      return Math.abs(b.marginDelta) - Math.abs(a.marginDelta);
-    }).slice(0, 11); // 대상 + 10개
+    });
+    // 역할 판정: 1% 임계치 (전체 |변화| 합 대비)
+    const sumAbs = rows.reduce((s, r) => s + Math.abs(r.marginDelta), 0);
+    const neutralThreshold = sumAbs * 0.01;
+    type Role = "target" | "beneficiary" | "harmed" | "neutral";
+    const withRole = rows.map((r) => {
+      const role: Role = r.isTarget
+        ? "target"
+        : Math.abs(r.marginDelta) < neutralThreshold
+          ? "neutral"
+          : r.marginDelta > 0
+            ? "beneficiary"
+            : "harmed";
+      return { ...r, role };
+    });
+    // 막대 스케일 기준: 제품군 내 최대 |마진변화|
+    const maxAbsDelta = Math.max(...withRole.map((r) => Math.abs(r.marginDelta)), 1);
+    return withRole
+      .map((r) => ({ ...r, barPct: (Math.abs(r.marginDelta) / maxAbsDelta) * 100 }))
+      .sort((a, b) => {
+        if (a.role === "target") return -1;
+        if (b.role === "target") return 1;
+        const order: Record<Role, number> = { target: 0, beneficiary: 1, harmed: 2, neutral: 3 };
+        if (order[a.role] !== order[b.role]) return order[a.role] - order[b.role];
+        return b.marginDelta - a.marginDelta;
+      }).slice(0, 11); // 대상 + 10개
   }, [poolSim, targetItem]);
+
+  // P2-1: 액션 가이드 자동 판정
+  const actionGuide = useMemo(() => {
+    const { targetItemMarginDelta, otherItemsMarginDelta, netPoolMarginDelta } = poolSim;
+    // 우선순위: 악화 > 강한 덤 > 미미
+    if (netPoolMarginDelta < 0) {
+      return {
+        level: "harmed" as const,
+        icon: "🔴",
+        title: "제품군 장부상 마진 악화",
+        message: "이 시나리오는 제품군 전체 장부상 마진을 낮춥니다. 단가 인하 폭을 줄이거나 대상 품목을 재검토하세요.",
+        borderClass: "border-red-500",
+        bgClass: "bg-red-50/60 dark:bg-red-950/20",
+        textClass: "text-red-700 dark:text-red-400",
+      };
+    }
+    if (otherItemsMarginDelta > Math.abs(targetItemMarginDelta) * 0.5) {
+      // 수혜 top 1 찾기
+      const topBeneficiary = poolImpactTable.find((r) => r.role === "beneficiary");
+      return {
+        level: "strong" as const,
+        icon: "🟢",
+        title: "강한 덤 효과 발생",
+        message: topBeneficiary
+          ? `제품군 전체에 유리합니다. 특히 ${truncateLabel(topBeneficiary.itemName, 20)} 담당자와 협업을 고려하세요.`
+          : "제품군 전체에 유리합니다. 같은 풀 내 다른 품목 담당자와 협업하세요.",
+        borderClass: "border-emerald-500",
+        bgClass: "bg-emerald-50/60 dark:bg-emerald-950/20",
+        textClass: "text-emerald-700 dark:text-emerald-400",
+      };
+    }
+    return {
+      level: "weak" as const,
+      icon: "🟡",
+      title: "미미한 덤 효과",
+      message: "장부상 교차 보조 효과는 제한적입니다. Step 4a(전사 이익) 관점에서만 판단하세요.",
+      borderClass: "border-amber-500",
+      bgClass: "bg-amber-50/60 dark:bg-amber-950/20",
+      textClass: "text-amber-700 dark:text-amber-400",
+    };
+  }, [poolSim, poolImpactTable]);
 
   // Guard: 데이터 없음
   if (filteredCustItemDetail.length === 0) {
@@ -709,49 +770,79 @@ export function OffsetEffectTab({
         </div>
       </div>
 
-      {/* ═══ Section E: Step 4b. 품목별 수익성 영향 (배분 관점) ═══ */}
+      {/* ═══ Section E: Step 4b. 덤으로 따라오는 효과 (영업사원 친화 UI) ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Step 4b. 품목별 수익성 영향 (배분 관점)</h2>
-          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 mb-4 space-y-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <div>
-                <strong>⚠️ 장부상 재배분 표시 — 경영관리 관점 SECONDARY</strong>
-                <p className="mt-1 leading-relaxed">
-                  전사 이익은 Step 4a에서 이미 계산되었으며, 여기서 <strong>추가 이익이 발생하는 것은 아닙니다</strong>.
-                  품목 A의 물량 증가 → 풀 재배분 → 품목 B, C의 장부상 단위 고정비 감소라는 &quot;교차 보조 효과&quot;를 시각화합니다.
+          <h2 className="text-lg font-semibold mb-3">🎁 Step 4b. 덤으로 따라오는 효과 — 다른 품목들의 원가 여유</h2>
+
+          {/* 1분 요약 카드 (P1-5) */}
+          <div className="rounded-lg border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-4 mb-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">📌</span>
+              <h3 className="font-semibold text-sm">1분 요약 — 처음이신가요?</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+              <div className="bg-white/70 dark:bg-black/20 rounded p-3">
+                <p className="font-semibold mb-1">1️⃣ 왜 이 섹션이 있나요?</p>
+                <p className="leading-relaxed text-muted-foreground">
+                  Step 4a는 &quot;회사 전체 이익이 얼마나 변하나?&quot;를 답합니다.<br/>
+                  <strong className="text-foreground">Step 4b는 &quot;그 이익이 품목별로 어떻게 나뉘나?&quot;</strong>를 답합니다.
+                </p>
+              </div>
+              <div className="bg-white/70 dark:bg-black/20 rounded p-3">
+                <p className="font-semibold mb-1">2️⃣ &quot;배분&quot;이 뭔가요?</p>
+                <p className="leading-relaxed text-muted-foreground">
+                  공장 고정비(전기료, 기계 감가)를 품목별로 나누는 회계 기법입니다.
+                  <strong className="text-foreground"> 한 품목 판매 늘면 다른 품목의 몫이 줄어듭니다</strong> (실제 돈은 이동 안 함).
+                </p>
+              </div>
+              <div className="bg-white/70 dark:bg-black/20 rounded p-3">
+                <p className="font-semibold mb-1">3️⃣ 언제 유용한가요?</p>
+                <p className="leading-relaxed text-muted-foreground">
+                  <strong className="text-foreground">&quot;내가 A품목 밀어주면 B품목 담당 동료에게도 도움이 되는가?&quot;</strong>를
+                  확인할 때 사용하세요.
                 </p>
               </div>
             </div>
-            <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px]">
-              <strong>🎯 사용법:</strong>
-              <ol className="list-decimal ml-4 mt-1 space-y-0.5">
-                <li><strong>Step 4a에서 &quot;대상 품목&quot;을 먼저 선택</strong> (이 섹션은 Step 4a의 대상 품목을 자동 상속)</li>
-                <li>아래 <strong>풀 수준</strong>을 선택 (대분류 권장) → 같은 풀 내 품목들이 고정비를 공유</li>
-                <li>대상 품목이 선택된 풀 안에 있어야 재배분 효과가 나타남 (풀 밖이면 모든 값 0)</li>
-                <li>물량/단가 슬라이더는 Step 4a와 공유 — 별도 조작 불필요</li>
-              </ol>
-            </div>
-            <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px] font-mono">
-              <strong>수식:</strong><br />
-              • 품목 i의 배분 고정비 = 풀 총 고정비 × (품목 i의 매출 or 수량) / Σ(풀 내 품목 매출 or 수량)<br />
-              • 대상 품목 물량↑ → 분모↑ → 다른 품목 배분 고정비↓<br />
-              • 항등식: netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta (풀 고정비 총액 불변)
-            </div>
-            {!targetItem && (
-              <div className="ml-6 p-2 bg-red-100 dark:bg-red-950/40 rounded text-[11px] text-red-800 dark:text-red-300">
-                <strong>⚠️ 현재 대상 품목이 선택되지 않았습니다.</strong> Step 4a에서 &quot;대상 품목&quot; 드롭다운을 선택하세요.
-                대상 품목이 없으면 모든 품목이 &quot;기타&quot;로 처리되어 교차 효과가 0으로 표시됩니다.
-              </div>
-            )}
-            {targetItem && !poolItems.find((it) => it.item === targetItem) && (
-              <div className="ml-6 p-2 bg-red-100 dark:bg-red-950/40 rounded text-[11px] text-red-800 dark:text-red-300">
-                <strong>⚠️ 대상 품목이 선택된 풀({poolName}) 안에 없습니다.</strong> 다른 풀을 선택하거나, Step 4a에서 다른 품목을 선택하세요.
-                현재 풀에는 {poolItems.length}개 품목이 있습니다: {poolItems.slice(0, 3).map((it) => it.item).join(", ")}{poolItems.length > 3 ? "..." : ""}
-              </div>
-            )}
           </div>
+
+          {/* 가족 생활비 비유 배너 (P0-2) */}
+          <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50/60 dark:bg-amber-950/20 p-4 mb-4 space-y-3">
+            <div className="flex items-start gap-2">
+              <span className="text-xl">🏠</span>
+              <div className="text-xs space-y-2">
+                <p className="font-semibold text-sm">&quot;한 집안의 생활비&quot; 비유로 이해하세요</p>
+                <div className="bg-white/70 dark:bg-black/20 rounded p-2 leading-relaxed">
+                  <p><strong>예시:</strong> 한 달 전기료 10만원을 가족 <strong>4명</strong>이 똑같이 부담 → 1명당 <strong>2.5만원</strong></p>
+                  <p>손님 1명이 와서 <strong>5명</strong>이 부담 → 1명당 <strong>2만원</strong> (0.5만원씩 여유 생김)</p>
+                </div>
+                <p className="leading-relaxed">
+                  ⏩ <strong>품목도 마찬가지입니다:</strong><br/>
+                  풀 고정비 <strong>{formatCurrency(poolFixedCost, true)}</strong> → <strong>{poolItems.length}개 품목</strong>이 나눠 부담 중<br/>
+                  대상 품목 판매량 증가 → 풀 전체 비중 바뀜 → <strong>다른 품목들의 &quot;1개당 나눠 내는 고정비&quot;가 조금 줄어듦</strong>
+                </p>
+                <div className="bg-blue-100/60 dark:bg-blue-950/40 rounded p-2 leading-relaxed">
+                  <strong>✅ 중요한 사실:</strong> 이 여유분은 &quot;장부상&quot;만 보이는 것입니다.
+                  실제 회사 전체 이익은 <strong>Step 4a에서 이미 계산</strong>되었고, 여기서 추가로 돈이 생기지는 않습니다.
+                  이 섹션은 <strong>&quot;어떤 품목이 다른 품목에게 도움을 주는가?&quot;</strong>를 알아보는 용도입니다.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* 에러 상태 안내 */}
+          {!targetItem && (
+            <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 mb-4">
+              <strong>⚠️ Step 4a에서 &quot;대상 품목&quot;을 먼저 선택하세요.</strong>
+              대상 품목이 없으면 어떤 품목을 밀어줄지 알 수 없어 교차 효과가 0으로 표시됩니다.
+            </div>
+          )}
+          {targetItem && !poolItems.find((it) => it.item === targetItem) && (
+            <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 mb-4">
+              <strong>⚠️ 대상 품목이 현재 선택된 풀({poolName}) 안에 없습니다.</strong>
+              아래 &quot;풀 선택&quot;에서 다른 풀을 선택하거나, Step 4a에서 다른 품목을 선택하세요.
+            </div>
+          )}
 
           {/* 풀 설정 */}
           <div className="rounded-lg border bg-muted/20 p-4 space-y-3 mb-4">
@@ -807,80 +898,207 @@ export function OffsetEffectTab({
             </div>
           </div>
 
-          {/* 교차 효과 요약 */}
+          {/* P2-1: 액션 가이드 배너 (자동 판정) */}
+          {targetItem && poolItems.find((it) => it.item === targetItem) && (
+            <div className={`rounded-lg border-l-4 ${actionGuide.borderClass} ${actionGuide.bgClass} p-4 mb-4`}>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{actionGuide.icon}</span>
+                <div className="flex-1">
+                  <p className={`text-sm font-semibold ${actionGuide.textClass} mb-1`}>
+                    결론: {actionGuide.title}
+                  </p>
+                  <p className="text-xs leading-relaxed">{actionGuide.message}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 한 문장 스토리 카드 (P0-3) */}
+          {targetItem && poolItems.find((it) => it.item === targetItem) && (
+            <div className="rounded-lg border-2 border-emerald-400 bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 p-5 mb-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">📖</span>
+                <div className="flex-1 space-y-3">
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">이번 시나리오를 한 문장으로</p>
+                  <p className="text-sm leading-relaxed">
+                    <strong className="text-base text-emerald-700 dark:text-emerald-400">&quot;</strong>
+                    <strong>{truncateLabel(itemList.find((i) => i.code === targetItem)?.name || targetItem, 20)}</strong>
+                    {volumeIncreasePct !== 0 && <> 판매량을 <strong>{volumeIncreasePct > 0 ? "+" : ""}{volumeIncreasePct}%</strong></>}
+                    {priceDecreasePct !== 0 && <> {volumeIncreasePct !== 0 ? ", 단가를 " : "단가를 "}<strong>{priceDecreasePct}%</strong></>}
+                    {volumeIncreasePct === 0 && priceDecreasePct === 0 && " 변동 없이"}
+                    {(volumeIncreasePct !== 0 || priceDecreasePct !== 0) && " 조정하면,"}
+                    <br/>
+                    이 품목 본인은 장부상 <strong className={poolSim.targetItemMarginDelta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      {poolSim.targetItemMarginDelta >= 0 ? "+" : ""}{formatCurrency(poolSim.targetItemMarginDelta)}
+                    </strong> 변화,
+                    <br/>
+                    <strong>덤으로 다른 {poolItems.length - 1}개 품목</strong>도 총 <strong className={poolSim.otherItemsMarginDelta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      {poolSim.otherItemsMarginDelta >= 0 ? "+" : ""}{formatCurrency(poolSim.otherItemsMarginDelta)}
+                    </strong> 개선되어,
+                    <br/>
+                    <strong>{poolName} 제품군 전체</strong> 장부상 마진이 <strong className={poolSim.netPoolMarginDelta >= 0 ? "text-emerald-600" : "text-red-600"}>
+                      {poolSim.netPoolMarginDelta >= 0 ? "+" : ""}{formatCurrency(poolSim.netPoolMarginDelta)}
+                    </strong> 변화합니다.
+                    <strong className="text-base text-emerald-700 dark:text-emerald-400">&quot;</strong>
+                  </p>
+                  {poolSim.otherItemsMarginDelta > 0 && poolSim.targetItemMarginDelta !== 0 && (
+                    <div className="text-xs bg-white/70 dark:bg-black/20 rounded p-2">
+                      <strong>🎁 덤 효과 발생!</strong> 대상 품목을 밀어주면 같은 풀의 다른 {poolItems.length - 1}개 품목도 장부상 원가 여유가 생깁니다.
+                      <br/><strong>⚠️ 단, 실제 회사 현금은 Step 4a에서 계산된 금액만 변합니다. 이 덤 효과는 &quot;장부상 표시&quot;일 뿐입니다.</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 보조 KPI 3개 (영업사원 친화 라벨) */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <KpiCard
-              title="대상 품목 마진 변화" value={poolSim.targetItemMarginDelta} format="currency"
-              formula="대상 품목 (시뮬레이션 후 이익 - 기준 이익)"
-              description="저가수주 대상 품목 자체의 장부상 마진 변화"
-              benchmark="보통 음수 (저가수주이므로)"
-              reason="대상 품목이 얼마나 손실을 보는지"
+              title="① 대상 품목 본인" value={poolSim.targetItemMarginDelta} format="currency"
+              formula="대상 품목 (시나리오 후 장부상 이익 - 기준 장부상 이익)"
+              description="저가수주를 받은 품목 본인의 장부상 마진 변화. 단가 인하 손실이 있으면 보통 음수, 순수 물량 증가면 양수가 될 수도 있음."
+              benchmark="음수여도 괜찮음 — 물량 증가로 다른 품목들에게 덤을 주는 역할이므로"
+              reason="저가수주의 직접 비용/효과를 장부에서 확인"
             />
             <KpiCard
-              title="다른 품목 마진 개선" value={poolSim.otherItemsMarginDelta} format="currency"
-              formula="Σ(다른 품목 시뮬레이션 후 이익 - 기준 이익)"
-              description="풀 내 나머지 품목들의 장부상 마진 변화 합"
-              benchmark="보통 양수 (고정비 재배분으로 단위 고정비 감소)"
-              reason="교차 보조 효과 — 박리다매 가설의 장부상 표현"
+              title="② 다른 품목들 (덤 효과)" value={poolSim.otherItemsMarginDelta} format="currency"
+              formula="Σ(다른 품목 시나리오 후 장부상 이익 - 기준 장부상 이익)"
+              description={`풀 내 나머지 ${Math.max(poolItems.length - 1, 0)}개 품목 전체의 장부상 마진 개선 합계. 대상 품목 판매량이 늘면 풀 전체 매출 비중이 바뀌어 다른 품목들의 '단위 고정비'가 줄어듭니다.`}
+              benchmark="양수면 덤 효과 성립 — 다른 품목 담당 동료에게도 도움"
+              reason="박리다매 가설의 '교차 보조 효과'를 장부에서 확인"
             />
             <KpiCard
-              title="풀 순 마진 변화" value={poolSim.netPoolMarginDelta} format="currency"
-              formula="대상 + 다른 품목 마진 변화 합"
-              description={`Step 4a 순효과와 ${integrity.isConsistent ? "일치" : "불일치"}`}
-              benchmark="Step 4a netOffsetEffect와 동일해야 함"
-              reason="듀얼 뷰 무결성 검증"
+              title="③ 제품군 전체 (① + ②)" value={poolSim.netPoolMarginDelta} format="currency"
+              formula="① + ② = 같은 풀 내 모든 품목의 장부상 마진 변화 합계"
+              description={`선택한 제품군(${poolName}) 장부상 이익 총 변화. Step 4a 전사 이익 변화와 ${integrity.isConsistent ? "일관성 있음" : "불일치"}.`}
+              benchmark="음수면 가설 반증(제품군 전체 악화), 양수면 성립"
+              reason="제품군 단위에서 시나리오가 유리한지 판단"
             />
           </div>
 
-          {/* 품목별 Before/After 테이블 */}
-          {poolImpactTable.length > 0 && (
-            <ChartCard
-              title="품목별 장부상 영향 (Top 10)"
-              isEmpty={false}
-              formula="단위 고정비 = 배분 고정비 / 수량 | 마진 = 매출 - 변동비 - 배분 고정비"
-              description="대상 품목 + 풀 내 영향 큰 품목"
-              benchmark="다른 품목의 단위 고정비 감소가 핵심"
-              reason="교차 보조 효과를 품목 단위로 검증"
-            >
-              <div className="overflow-x-auto max-h-[400px] overflow-y-auto mt-3">
-                <table className="w-full text-xs">
-                  <thead className="sticky top-0 bg-background z-10">
-                    <tr className="border-b text-left">
-                      <th className="p-2">품목</th>
-                      <th className="p-2 text-right">기준 수량</th>
-                      <th className="p-2 text-right">시나리오 수량</th>
-                      <th className="p-2 text-right">기준 단위고정비</th>
-                      <th className="p-2 text-right">시나리오 단위고정비</th>
-                      <th className="p-2 text-right">기준 마진</th>
-                      <th className="p-2 text-right">시나리오 마진</th>
-                      <th className="p-2 text-right">변화</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {poolImpactTable.map((r, i) => (
-                      <tr key={i} className={`border-b hover:bg-muted/50 ${r.isTarget ? "bg-blue-50 dark:bg-blue-950/30 font-semibold" : ""}`}>
-                        <td className="p-2">
-                          {r.isTarget && <span className="mr-1 text-blue-600">🎯</span>}
-                          {truncateLabel(r.itemName, 18)}
-                        </td>
-                        <td className="p-2 text-right">{r.baseQty.toLocaleString()}</td>
-                        <td className="p-2 text-right">{r.simQty.toLocaleString()}</td>
-                        <td className="p-2 text-right">{formatCurrency(r.baseUnitFC)}</td>
-                        <td className={`p-2 text-right ${r.simUnitFC < r.baseUnitFC ? "text-green-600" : r.simUnitFC > r.baseUnitFC ? "text-red-600" : ""}`}>
-                          {formatCurrency(r.simUnitFC)}
-                        </td>
-                        <td className="p-2 text-right">{formatCurrency(r.baseMargin)}</td>
-                        <td className="p-2 text-right">{formatCurrency(r.simMargin)}</td>
-                        <td className={`p-2 text-right font-semibold ${r.marginDelta >= 0 ? "text-green-600" : "text-red-600"}`}>
-                          {r.marginDelta >= 0 ? "+" : ""}{formatCurrency(r.marginDelta)}
-                        </td>
+          {/* 품목별 역할 기반 영향 테이블 (P1-7) */}
+          {poolImpactTable.length > 0 && (() => {
+            const roleMap = {
+              target:      { icon: "🎯", label: "대상",   badge: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",    row: "bg-blue-50 dark:bg-blue-950/30 font-semibold", bar: "bg-blue-500" },
+              beneficiary: { icon: "🎁", label: "수혜자", badge: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300", row: "", bar: "bg-emerald-500" },
+              harmed:      { icon: "🔻", label: "악화",   badge: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",       row: "", bar: "bg-red-500" },
+              neutral:     { icon: "⚖️", label: "중립",   badge: "bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400",      row: "opacity-70", bar: "bg-gray-400" },
+            } as const;
+            return (
+              <ChartCard
+                title="품목별 장부상 영향 — 누가 덕을 보는가?"
+                isEmpty={false}
+                formula="장부상 마진 = 매출 − 변동비 − 배분 고정비"
+                description="대상 품목(🎯) + 수혜자(🎁) + 악화/중립 순으로 정렬. 막대 길이는 마진 변화의 상대 크기."
+                benchmark="🎁 초록 배지가 많을수록 '교차 보조 효과' 강함"
+                reason="영업사원: 어떤 품목이 누구에게 덕을 주는지 한눈에 확인"
+              >
+                {/* 용어 사전 (P2-2) */}
+                <details className="text-xs mt-2 mb-3 border rounded p-2 bg-muted/30">
+                  <summary className="cursor-pointer font-medium text-muted-foreground hover:text-foreground">
+                    ❓ 용어 설명 (처음 보시는 분은 클릭)
+                  </summary>
+                  <div className="mt-2 space-y-1.5 pl-2 leading-relaxed">
+                    <p><strong>풀 고정비</strong>: 같은 제품군이 함께 나눠 내는 공장 비용 (전기·기계 감가 등)</p>
+                    <p><strong>배분 고정비</strong>: 풀 고정비를 각 품목이 &quot;몫&quot;대로 나눈 금액 (장부상 수치, 실제 지출 아님)</p>
+                    <p><strong>장부상 마진</strong>: 매출 − 변동비 − 배분 고정비 (관리회계 기준)</p>
+                    <p><strong>교차 보조 효과</strong>: 한 품목 판매량이 늘면 풀 비중이 바뀌어 다른 품목의 배분 고정비 &quot;몫&quot;이 줄어드는 현상</p>
+                    <p className="pt-1 border-t"><strong>🎯 대상</strong>: 내가 밀어줄 품목 / <strong>🎁 수혜자</strong>: 덤으로 좋아진 품목 / <strong>🔻 악화</strong>: 장부상 악화 / <strong>⚖️ 중립</strong>: 영향 미미</p>
+                  </div>
+                </details>
+
+                <div className="overflow-x-auto max-h-[450px] overflow-y-auto mt-3">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 bg-background z-10">
+                      <tr className="border-b text-left">
+                        <th className="p-2 w-[85px]">역할</th>
+                        <th className="p-2">품목</th>
+                        <th className="p-2 text-right">마진 변화 (기준 → 시나리오)</th>
+                        <th className="p-2">변화액 (상대 크기)</th>
+                        <th className="p-2 text-right w-[70px]">변화율</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </ChartCard>
-          )}
+                    </thead>
+                    <tbody>
+                      {poolImpactTable.map((r, i) => {
+                        const roleInfo = roleMap[r.role];
+                        const pct = r.baseMargin > 0
+                          ? (r.marginDelta / r.baseMargin) * 100
+                          : r.baseMargin < 0
+                            ? (r.marginDelta / Math.abs(r.baseMargin)) * 100
+                            : null;
+                        return (
+                          <tr key={i} className={`border-b hover:bg-muted/50 ${roleInfo.row}`}>
+                            <td className="p-2">
+                              <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${roleInfo.badge}`}>
+                                <span>{roleInfo.icon}</span>
+                                <span>{roleInfo.label}</span>
+                              </span>
+                            </td>
+                            <td className="p-2">{truncateLabel(r.itemName, 22)}</td>
+                            <td className="p-2 text-right tabular-nums">
+                              <span className="text-muted-foreground">{formatCurrency(r.baseMargin)}</span>
+                              <span className="mx-1 text-muted-foreground">→</span>
+                              <span className="font-medium">{formatCurrency(r.simMargin)}</span>
+                            </td>
+                            <td className="p-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`font-semibold tabular-nums min-w-[70px] ${r.marginDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                                  {r.marginDelta >= 0 ? "+" : ""}{formatCurrency(r.marginDelta)}
+                                </div>
+                                <div className="flex-1 min-w-[40px] h-2 bg-muted/40 rounded overflow-hidden">
+                                  <div
+                                    className={`h-full ${roleInfo.bar} rounded transition-all`}
+                                    style={{ width: `${Math.max(r.barPct, 2)}%` }}
+                                  />
+                                </div>
+                              </div>
+                            </td>
+                            <td className={`p-2 text-right font-medium tabular-nums ${r.marginDelta >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+                              {pct === null ? "—" : `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* 상세 수치 (접기) */}
+                <details className="text-xs mt-3 border-t pt-2">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                    📋 상세 수치 보기 (수량 · 단위 고정비)
+                  </summary>
+                  <div className="overflow-x-auto mt-2">
+                    <table className="w-full text-[11px]">
+                      <thead>
+                        <tr className="border-b text-left text-muted-foreground">
+                          <th className="p-1.5">품목</th>
+                          <th className="p-1.5 text-right">기준 수량</th>
+                          <th className="p-1.5 text-right">시나리오 수량</th>
+                          <th className="p-1.5 text-right">기준 단위고정비</th>
+                          <th className="p-1.5 text-right">시나리오 단위고정비</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {poolImpactTable.map((r, i) => (
+                          <tr key={i} className="border-b">
+                            <td className="p-1.5">{truncateLabel(r.itemName, 22)}</td>
+                            <td className="p-1.5 text-right tabular-nums">{r.baseQty.toLocaleString()}</td>
+                            <td className="p-1.5 text-right tabular-nums">{r.simQty.toLocaleString()}</td>
+                            <td className="p-1.5 text-right tabular-nums">{formatCurrency(r.baseUnitFC)}</td>
+                            <td className={`p-1.5 text-right tabular-nums ${r.simUnitFC < r.baseUnitFC ? "text-emerald-600" : r.simUnitFC > r.baseUnitFC ? "text-red-600" : ""}`}>
+                              {formatCurrency(r.simUnitFC)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </details>
+              </ChartCard>
+            );
+          })()}
         </div>
       )}
 
