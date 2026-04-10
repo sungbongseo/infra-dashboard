@@ -157,6 +157,11 @@ export interface IntegrityCheck {
  * 제조고정노무비 + 감가상각비 + 기타경비
  *
  * ItemProfitabilityRecord는 number 타입, ItemCostDetailRecord는 PlanActualDiff 타입.
+ *
+ * @source 200.품목별수익성분석(회계).xlsx (itemProfitability)
+ * @fields 제조고정노무비, 감가상각비, 기타경비
+ * @formula 총고정비 = Σ(제조고정노무비 + 감가상각비 + 기타경비)
+ * @assumption SGA 고정비 제외 (CVP 무관), 제조 관련만 풀로 간주
  */
 export function extractManufacturingFixedCost(
   items: Array<{
@@ -180,6 +185,21 @@ export function extractManufacturingFixedCost(
 
 // ─── Step 2: CVP 아이템 생성 (거래처×품목) ─────────────
 
+/**
+ * 거래처×품목 단위 공헌이익(CVP) 아이템 생성.
+ *
+ * @source 100.거래처별품목별손익.xlsx (customerItemDetail)
+ * @fields 매출거래처, 매출거래처명, 품목, 품목명, 매출수량.실적, 매출액.실적, 매출총이익.실적
+ * @formula
+ *   변동비 = 매출액.실적 − 매출총이익.실적  (매출원가 근사)
+ *   단위단가 = 매출액 / 매출수량
+ *   단위변동비 = 변동비 / 매출수량
+ *   단위공헌이익 = 단위단가 − 단위변동비
+ *   공헌이익률 = 공헌이익 / 매출
+ * @assumption
+ *   1. 100 보고서는 원가 분리가 없어 매출원가 ≈ 변동비로 근사
+ *   2. 매출액/수량 ≤ 0 행은 제외
+ */
 export function calcCustomerItemCVP(
   data: CustomerItemDetailRecord[],
   totalFixedCost: number
@@ -357,6 +377,14 @@ export interface TotalSimInput {
 /**
  * 총액 관점 시뮬레이션 — 수학적으로 정확한 전사 영업이익 변화.
  * 항등식: newOP - baseOP = priceReductionLoss + volumeContributionGain
+ *
+ * @source 100.거래처별품목별손익.xlsx (매출/변동비) + 200.품목별수익성분석(회계).xlsx (고정비)
+ * @formula
+ *   baseOperatingProfit = Σ매출액 − Σ변동비 − 총고정비
+ *   priceReductionLoss = Σ(기존수량 × 단가 × 단가인하율)  (대상 품목만)
+ *   volumeContributionGain = Σ(추가수량 × 인하후 단위공헌이익)  (대상 품목만)
+ *   netOffsetEffect = newOperatingProfit − baseOperatingProfit ≡ priceReductionLoss + volumeContributionGain
+ * @assumption 고정비 총액 불변 (설비 캐파 내 생산)
  */
 export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulation {
   const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceDecreasePct } = input;
@@ -436,6 +464,17 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
 /**
  * 품목 풀 생성 — ItemProfitabilityRecord(200)에서 특정 계층의 품목들을 추출.
  * 제조 고정비가 품목 단위로 있어야 함.
+ *
+ * @source 200.품목별수익성분석(회계).xlsx (itemProfitability)
+ * @fields 대분류, 중분류, 품목계정그룹, 품목, 매출수량, 매출액, 실적매출원가,
+ *         제조고정노무비, 감가상각비, 기타경비
+ * @formula
+ *   품목별 고정비 = 제조고정노무비 + 감가상각비 + 기타경비
+ *   품목별 변동비 = 실적매출원가 − 고정비
+ *   풀 고정비 = Σ(품목별 고정비)
+ * @assumption
+ *   1. SAP 계층(대분류/중분류/품목계정그룹)이 실제 생산 풀의 프록시
+ *   2. 품목 코드 정규화: "[P001] 명" → "P001" (100과 키 일치)
  */
 export function calcItemPool(
   itemData: ItemProfitabilityRecord[],
@@ -526,6 +565,14 @@ export function calcItemPool(
 /**
  * 배분 관점 시뮬레이션 — 풀 내 재배분.
  * 대상 품목의 물량/단가 변경 후 매출/수량 비중으로 전체 품목에 고정비를 재배분.
+ *
+ * @source 200.품목별수익성분석(회계).xlsx (calcItemPool 결과 재사용)
+ * @formula
+ *   품목별 배분 고정비 = 풀고정비 × (품목 weight / 풀 총 weight)
+ *     weight = 매출(basis="revenue") 또는 수량(basis="quantity")
+ *   장부상 마진 = 매출 − 변동비 − 배분 고정비
+ *   targetItemMarginDelta + otherItemsMarginDelta ≡ netPoolMarginDelta
+ * @assumption 풀 고정비 총액 불변 (재배분만 발생, 품목 간 이동)
  */
 export function calcPoolSimulation(
   poolItems: ItemPoolCVP[],

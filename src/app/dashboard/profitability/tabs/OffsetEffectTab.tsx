@@ -348,11 +348,126 @@ export function OffsetEffectTab({
         </div>
       </div>
 
+      {/* ═══ Layer 1: 전역 방법론 패널 (데이터 출처 & 계산 로직) ═══ */}
+      <details className="border-2 border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg">
+        <summary className="cursor-pointer font-semibold text-sm p-4 hover:bg-indigo-100/40 dark:hover:bg-indigo-900/20 rounded-lg flex items-center gap-2">
+          <span className="text-lg">📘</span>
+          <span>이 분석은 어떻게 계산되나요? — 데이터 출처 &amp; 방법론 전체 보기 (클릭)</span>
+        </summary>
+        <div className="px-4 pb-4 space-y-4 text-xs">
+          {/* 원본 SAP 보고서 */}
+          <section>
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+              <span>📂</span><span>원본 SAP 보고서 (2개)</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="border rounded p-3 bg-background/70">
+                <p className="font-semibold text-blue-700 dark:text-blue-400 mb-1">100. 거래처별품목별손익</p>
+                <p className="text-[11px] text-muted-foreground mb-2">파일명 패턴: <code className="text-[10px]">100*거래처*품목*손익*.xlsx</code></p>
+                <p className="mb-1"><strong>사용 필드:</strong></p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                  <li>매출거래처, 매출거래처명 (키)</li>
+                  <li>품목, 품목명 (키)</li>
+                  <li>매출수량·실적 (수량)</li>
+                  <li>매출액·실적 (매출)</li>
+                  <li>매출총이익·실적 (변동비 계산용)</li>
+                </ul>
+                <p className="mt-2 text-[11px]"><strong>사용 Step:</strong> Step 1 (진단), Step 2 (CVP), Step 3 (4사분면), Step 4a (총액 시뮬)</p>
+              </div>
+              <div className="border rounded p-3 bg-background/70">
+                <p className="font-semibold text-emerald-700 dark:text-emerald-400 mb-1">200. 품목별수익성분석(회계)</p>
+                <p className="text-[11px] text-muted-foreground mb-2">파일명 패턴: <code className="text-[10px]">200*품목*수익성*.xlsx</code></p>
+                <p className="mb-1"><strong>사용 필드:</strong></p>
+                <ul className="list-disc pl-4 space-y-0.5 text-[11px]">
+                  <li>대분류, 중분류, 품목계정그룹 (풀 계층)</li>
+                  <li>품목 (키, `[코드] 명` 패턴 정규화)</li>
+                  <li>매출수량, 매출액, 실적매출원가</li>
+                  <li>제조고정노무비 (고정비)</li>
+                  <li>감가상각비 (고정비)</li>
+                  <li>기타경비 (고정비)</li>
+                </ul>
+                <p className="mt-2 text-[11px]"><strong>사용 Step:</strong> Step 4a 고정비 합계, Step 4b (배분 시뮬)</p>
+              </div>
+            </div>
+          </section>
+
+          {/* 핵심 가정 */}
+          <section>
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+              <span>📐</span><span>핵심 가정 (5개)</span>
+            </h4>
+            <ol className="list-decimal pl-5 space-y-1 text-[11px] leading-relaxed">
+              <li><strong>100의 매출원가 ≈ 변동비 근사</strong>: 100 보고서는 원가 분리(고정/변동)가 없으므로 <code>매출원가 = 매출액 − 매출총이익</code>을 변동비로 사용.</li>
+              <li><strong>제조 고정비 = 제조고정노무비 + 감가상각비 + 기타경비</strong>: SGA(판관) 고정비는 제외 (CVP 무관).</li>
+              <li><strong>고정비 총액 불변</strong>: 설비 캐파 내 생산을 전제 (계단형 원가 변경 시 결과 달라짐).</li>
+              <li><strong>풀 = SAP 품목 계층</strong>: 대분류·중분류·품목계정그룹을 실제 생산 풀의 프록시로 사용 (한계 명시).</li>
+              <li><strong>품목 코드 정규화</strong>: 200의 <code>[P001] 명</code> → <code>P001</code>로 추출하여 100과 키 일치.</li>
+            </ol>
+          </section>
+
+          {/* 듀얼 뷰 */}
+          <section>
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+              <span>🎯</span><span>왜 두 가지 관점? (듀얼 뷰)</span>
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+              <div className="border-l-4 border-blue-500 bg-blue-50/60 dark:bg-blue-950/20 p-2 rounded">
+                <p className="font-semibold mb-1">Step 4a — 총액 관점 (수학적 정확)</p>
+                <p>전사 영업이익의 실질적 변화를 계산. 고정비 총액 불변 가정 하에:</p>
+                <p className="mt-1 font-mono text-[10px]">netOP ≡ priceLoss + volumeGain</p>
+                <p className="mt-1">범위: 전체 CVP 아이템</p>
+              </div>
+              <div className="border-l-4 border-emerald-500 bg-emerald-50/60 dark:bg-emerald-950/20 p-2 rounded">
+                <p className="font-semibold mb-1">Step 4b — 배분 관점 (장부상 재배분)</p>
+                <p>품목별 고정비 풀을 재배분하여 교차 보조 효과 시각화. 전사 이익에 추가 영향 없음.</p>
+                <p className="mt-1 font-mono text-[10px]">netPool ≡ targetDelta + othersDelta</p>
+                <p className="mt-1">범위: 선택된 풀 내 품목만</p>
+              </div>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              ⚠️ <strong>두 관점은 데이터 범위가 달라 직접 합산하지 않음.</strong> 각 관점의 내부 항등식으로 무결성 검증(Step 5).
+            </p>
+          </section>
+
+          {/* 소스 코드 레퍼런스 */}
+          <section className="border-t pt-3">
+            <h4 className="font-semibold text-sm mb-2 flex items-center gap-1">
+              <span>🔗</span><span>코드 레퍼런스</span>
+            </h4>
+            <ul className="text-[11px] space-y-0.5 font-mono">
+              <li>Step 1~3, 4a: <code>src/lib/analysis/offsetEffect.ts#calcCustomerItemCVP</code></li>
+              <li>Step 4a 고정비: <code>src/lib/analysis/offsetEffect.ts#extractManufacturingFixedCost</code></li>
+              <li>Step 4a 시뮬: <code>src/lib/analysis/offsetEffect.ts#calcTotalViewSimulation</code></li>
+              <li>Step 4b 풀: <code>src/lib/analysis/offsetEffect.ts#calcItemPool</code></li>
+              <li>Step 4b 시뮬: <code>src/lib/analysis/offsetEffect.ts#calcPoolSimulation</code></li>
+              <li>Step 5 무결성: <code>src/lib/analysis/offsetEffect.ts#verifyIntegrity</code></li>
+            </ul>
+          </section>
+        </div>
+      </details>
+
       {/* ═══ Section A: Step 1. 현재 상태 진단 ═══ */}
       <div>
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-lg font-semibold">Step 1. 현재 상태 진단</h2>
           <span className="text-xs text-muted-foreground">CFO 관점 KPI + 출혈 거래처 비중</span>
+          <details className="text-xs relative">
+            <summary className="cursor-pointer px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200">
+              🔍 데이터 출처
+            </summary>
+            <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[420px] max-w-[90vw]">
+              <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익 + 200. 품목별수익성분석</p>
+              <table className="w-full text-[10px] mt-2">
+                <tbody>
+                  <tr className="border-b"><td className="py-1 pr-2">총매출</td><td className="font-mono">Σ [100.매출액·실적]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">총변동비</td><td className="font-mono">Σ ([100.매출액·실적] − [100.매출총이익·실적])</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">총고정비</td><td className="font-mono">Σ ([200.제조고정노무비] + [200.감가상각비] + [200.기타경비])</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">영업이익</td><td className="font-mono">총매출 − 총변동비 − 총고정비</td></tr>
+                  <tr><td className="py-1 pr-2">출혈 거래처</td><td className="font-mono">공헌이익 ≤ 0인 거래처×품목</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
         </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground">
           <strong className="text-foreground">📖 이 섹션 읽는 법:</strong> 4개 KPI 카드와 파이 차트로 현재 손익 구조를 한 눈에 파악합니다.
@@ -363,7 +478,7 @@ export function OffsetEffectTab({
           <KpiCard
             title="총매출" value={cvpSummary.totalRevenue} format="currency"
             icon={<DollarSign className="h-5 w-5" />}
-            formula="Σ 거래처×품목 매출액.실적 (100 보고서)"
+            formula="Σ [100.매출액·실적] (거래처×품목 집계)"
             description="전체 거래처·품목 매출 합계"
             benchmark="전사 매출 추세와 비교하여 성장 여부 파악"
             reason="CVP 분석의 기준점이 되는 현재 총매출"
@@ -371,7 +486,7 @@ export function OffsetEffectTab({
           <KpiCard
             title="총원가" value={totalCost} format="currency"
             icon={<Package className="h-5 w-5" />}
-            formula="변동비(매출원가) + 제조 고정비(제조고정노무비+감가상각비+기타경비)"
+            formula="Σ ([100.매출액·실적]−[100.매출총이익·실적]) + Σ([200.제조고정노무비]+[200.감가상각비]+[200.기타경비])"
             description={`변동비 ${formatCurrency(cvpSummary.totalVariableCost)} + 고정비 ${formatCurrency(totalFixedCost)}`}
             benchmark="원가율 = 총원가/총매출 × 100"
             reason="고정비와 변동비를 분리하여 CVP 분석 가능한 총원가 집계"
@@ -379,7 +494,7 @@ export function OffsetEffectTab({
           <KpiCard
             title="영업이익" value={cvpSummary.totalOperatingProfit} format="currency"
             icon={<TrendingUp className="h-5 w-5" />}
-            formula="공헌이익 - 고정비 총액 = (매출-변동비) - 제조 고정비"
+            formula="Σ[100.매출액·실적] − Σ[100.변동비(=매출액−매출총이익)] − Σ[200.제조고정비]"
             description={`공헌이익률 ${safeFixed(cvpSummary.overallContributionMarginRatio * 100, 1)}%`}
             benchmark="양수면 손익분기 초과, 음수면 적자 상태"
             reason="CVP 분석의 핵심 지표 — 가설 검증의 기준선"
@@ -387,7 +502,7 @@ export function OffsetEffectTab({
           <KpiCard
             title="평균 단위당 원가" value={cvpSummary.avgUnitFixedCost + cvpSummary.weightedUnitVariableCost} format="currency"
             icon={<Info className="h-5 w-5" />}
-            formula="(고정비 + 변동비) / 총 수량 = 단위변동비 + 단위고정비"
+            formula="(Σ[200.제조고정비] + Σ[100.변동비]) / Σ[100.매출수량·실적] = 단위변동비 + 단위고정비"
             description={`단위변동비 ${formatCurrency(cvpSummary.weightedUnitVariableCost)} + 단위고정비 ${formatCurrency(cvpSummary.avgUnitFixedCost)}`}
             benchmark="물량 증가 시 단위고정비가 감소 → 단위원가 개선 여지"
             reason="가설의 핵심: 물량 증가로 단위 고정비가 얼마나 낮아지는지 기준"
@@ -398,7 +513,7 @@ export function OffsetEffectTab({
           <ChartCard
             title="정상 vs 출혈 거래처·품목 비중"
             isEmpty={cvpItems.length === 0}
-            formula="출혈 = 공헌이익 ≤ 0 (단위공헌이익 마이너스, 팔수록 손해)"
+            formula="출혈: [100.매출액·실적] − [100.변동비] ≤ 0 (단위공헌이익 음수, 팔수록 손해)"
             description={`정상 ${cvpSummary.healthyCount}개 / 출혈 ${cvpSummary.bleedingCount}개 · 출혈 거래처 손실 합 ${formatCurrency(cvpSummary.bleedingContributionLoss)}`}
             benchmark="출혈 비중 20% 초과 시 즉각 가격 협상 또는 거래 재검토 필요"
             reason="저가수주의 현황을 즉시 파악하여 시뮬레이션 대상 식별"
@@ -426,7 +541,26 @@ export function OffsetEffectTab({
 
       {/* ═══ Section B: Step 2. CVP 분석 그래프 ═══ */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Step 2. CVP 손익분기점 분석</h2>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <h2 className="text-lg font-semibold">Step 2. CVP 손익분기점 분석</h2>
+          <details className="text-xs relative">
+            <summary className="cursor-pointer px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200">
+              🔍 데이터 출처
+            </summary>
+            <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[420px] max-w-[90vw]">
+              <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익 + 200. 품목별수익성분석</p>
+              <table className="w-full text-[10px] mt-2">
+                <tbody>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (수량)</td><td className="font-mono">Σ [100.매출수량·실적]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">매출선</td><td className="font-mono">가중 단위단가 × 수량</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">총원가선</td><td className="font-mono">변동비선 + 고정비선</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">고정비선 (수평)</td><td className="font-mono">Σ [200.제조고정노무비+감가상각비+기타경비]</td></tr>
+                  <tr><td className="py-1 pr-2">BEP 수량</td><td className="font-mono">고정비 / (가중 단위단가 − 가중 단위변동비)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
           <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축은 수량, Y축은 금액. 3개 라인이 표시됩니다.</p>
           <ul className="list-disc ml-5 space-y-0.5">
@@ -441,7 +575,7 @@ export function OffsetEffectTab({
         <ChartCard
           title="수량 기반 CVP 그래프 (Cost-Volume-Profit)"
           isEmpty={cvpChartData.length === 0}
-          formula="매출 = 수량 × 가중평균 단가 | 총원가 = 고정비 + 수량 × 단위변동비 | BEP = 고정비 / 단위공헌이익"
+          formula="매출선 = 수량 × 가중[100.단위단가] | 총원가선 = Σ[200.제조고정비] + 수량×가중[100.단위변동비] | BEP = [200.고정비] / ([100.단위단가] − [100.단위변동비])"
           description={`BEP 수량 ${Math.round(cvpSummary.bepQuantity).toLocaleString()}, BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)}`}
           benchmark="현재 수량이 BEP를 넘으면 수익 구간. BEP 대비 안전한계율 = (현재-BEP)/현재"
           reason="손익분기점을 시각적으로 확인하여 물량 레버리지 여지를 판단"
@@ -467,7 +601,26 @@ export function OffsetEffectTab({
 
       {/* ═══ Section C: Step 3. 수익성 산점도 ═══ */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Step 3. 거래처×품목 4사분면 매트릭스</h2>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <h2 className="text-lg font-semibold">Step 3. 거래처×품목 4사분면 매트릭스</h2>
+          <details className="text-xs relative">
+            <summary className="cursor-pointer px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200">
+              🔍 데이터 출처
+            </summary>
+            <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[420px] max-w-[90vw]">
+              <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익</p>
+              <table className="w-full text-[10px] mt-2">
+                <tbody>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출)</td><td className="font-mono">[100.매출액·실적]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">Y축 (공헌이익률)</td><td className="font-mono">공헌이익 / 매출 × 100</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">공헌이익</td><td className="font-mono">[100.매출액·실적] − [100.변동비]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">변동비</td><td className="font-mono">[100.매출액·실적] − [100.매출총이익·실적]</td></tr>
+                  <tr><td className="py-1 pr-2">사분면</td><td className="text-[10px]">Star/CashCow/Question/Dog (공헌률·매출 median 기준)</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </details>
+        </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
           <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> 각 점(버블)은 거래처×품목 조합. X축=수량, Y축=단위공헌이익, 크기=매출.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
@@ -488,7 +641,7 @@ export function OffsetEffectTab({
         </div>
         <ChartCard
           title="수량 × 단위공헌이익 (버블 = 매출)"
-          formula="X축: 수량, Y축: 단위공헌이익, 버블 크기: 매출 기여도 | 중앙값 기준 4사분면 분할"
+          formula="X축: [100.매출수량·실적], Y축: [100.매출액]−[100.변동비] / 수량 (단위공헌이익) | 버블: [100.매출액·실적] | 중앙값으로 4사분면 분할"
           description={`Star ${scatterData.star.length} / CashCow ${scatterData.cashcow.length} / Question ${scatterData.question.length} / Dog ${scatterData.dog.length}`}
           benchmark="Dog 사분면(특히 Y축 0 이하) = 쥐약 거래처. 즉각 재검토 대상"
           reason="어떤 거래처·품목이 물량은 있지만 마진이 마이너스인지 즉각 식별"
@@ -529,7 +682,7 @@ export function OffsetEffectTab({
           <ChartCard
             title={`Top 20 쥐약 품목 (출혈 거래)`}
             isEmpty={false}
-            formula="공헌이익 오름차순 (손실 큰 순)"
+            formula="[100.매출액]−[100.변동비] ≤ 0인 거래처×품목 · 공헌이익 오름차순 Top 20"
             description="단가 협상 또는 거래 축소 우선 대상"
             benchmark="Top 5는 즉각 조치 필요"
             reason="시뮬레이션 대상 후보를 빠르게 선별"
@@ -576,7 +729,27 @@ export function OffsetEffectTab({
 
       {/* ═══ Section D: Step 4a. 전사 영업이익 시뮬레이션 (총액 관점) ═══ */}
       <div>
-        <h2 className="text-lg font-semibold mb-3">Step 4a. 전사 영업이익 시뮬레이션 (총액 관점)</h2>
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <h2 className="text-lg font-semibold">Step 4a. 전사 영업이익 시뮬레이션 (총액 관점)</h2>
+          <details className="text-xs relative">
+            <summary className="cursor-pointer px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200">
+              🔍 데이터 출처
+            </summary>
+            <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[480px] max-w-[90vw]">
+              <p className="font-semibold text-[11px] mb-1">📂 100 (매출/변동비) + 200 (고정비)</p>
+              <table className="w-full text-[10px] mt-2">
+                <tbody>
+                  <tr className="border-b"><td className="py-1 pr-2">기존 영업이익</td><td className="font-mono">Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.고정비]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">단가 인하 손실</td><td className="font-mono">Σ(기존수량 × 단가 × priceDecreasePct%) (대상만)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">물량 증가 공헌</td><td className="font-mono">Σ(추가수량 × 인하후 단위공헌) (대상만)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">최종 영업이익</td><td className="font-mono">기존 + 단가손실 + 물량공헌</td></tr>
+                  <tr><td colSpan={2} className="py-1 pr-2 text-[10px] text-muted-foreground pt-1">※ 고정비 총액 불변 가정 (설비 캐파 내)</td></tr>
+                </tbody>
+              </table>
+              <p className="text-[10px] mt-2 font-mono border-t pt-1">항등식: netOP ≡ priceLoss + volumeGain</p>
+            </div>
+          </details>
+        </div>
         <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 mb-4 space-y-2">
           <div className="flex items-start gap-2">
             <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
@@ -669,21 +842,21 @@ export function OffsetEffectTab({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <KpiCard
             title="기존 영업이익" value={totalSim.baseOperatingProfit} format="currency"
-            formula="공헌이익 - 고정비 총액"
+            formula="Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.제조고정비]"
             description="시나리오 적용 전 전사 영업이익"
             benchmark="시뮬레이션의 기준선"
             reason="변화 전 영업이익을 명확히 표시"
           />
           <KpiCard
             title="단가 인하 손실" value={totalSim.priceReductionLoss} format="currency"
-            formula="Σ(기존수량 × 기존단가 × 인하율)"
+            formula="Σ([100.매출수량·실적] × [100.단위단가] × priceDecreasePct%) · 대상 품목/거래처만"
             description="대상 품목의 단가 인하로 인한 매출 감소"
             benchmark="이 손실을 물량 증가 공헌이 상쇄해야 가설 성립"
             reason="저가수주의 직접 비용"
           />
           <KpiCard
             title="물량 증가 공헌" value={totalSim.volumeContributionGain} format="currency"
-            formula="Σ(추가수량 × 인하후 단위공헌이익)"
+            formula="Σ(추가수량 × (인하단가 − [100.단위변동비])) · 대상 품목/거래처만"
             description="대상 품목 물량 증가로 인한 공헌이익 증가"
             benchmark="단가 인하 손실보다 커야 가설 성립"
             reason="박리다매의 실질적 이익"
@@ -692,7 +865,7 @@ export function OffsetEffectTab({
             title="최종 영업이익" value={totalSim.newOperatingProfit}
             previousValue={totalSim.baseOperatingProfit}
             format="currency"
-            formula="기존 이익 + 단가 인하 손실 + 물량 증가 공헌"
+            formula="기존 영업이익 + 단가 인하 손실(−) + 물량 증가 공헌(+) [고정비 총액 불변]"
             description={`순효과 ${totalSim.netOffsetEffect >= 0 ? "+" : ""}${formatCurrency(totalSim.netOffsetEffect)}`}
             benchmark="기존 이익 대비 개선되면 가설 성립"
             reason="시뮬레이션 후 전사 영업이익"
@@ -773,7 +946,29 @@ export function OffsetEffectTab({
       {/* ═══ Section E: Step 4b. 덤으로 따라오는 효과 (영업사원 친화 UI) ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">🎁 Step 4b. 덤으로 따라오는 효과 — 다른 품목들의 원가 여유</h2>
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <h2 className="text-lg font-semibold">🎁 Step 4b. 덤으로 따라오는 효과 — 다른 품목들의 원가 여유</h2>
+            <details className="text-xs relative">
+              <summary className="cursor-pointer px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-200">
+                🔍 데이터 출처
+              </summary>
+              <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[480px] max-w-[90vw]">
+                <p className="font-semibold text-[11px] mb-1">📂 200. 품목별수익성분석(회계)</p>
+                <table className="w-full text-[10px] mt-2">
+                  <tbody>
+                    <tr className="border-b"><td className="py-1 pr-2">풀 필터</td><td className="font-mono">[200.대분류] or [200.중분류] or [200.품목계정그룹]</td></tr>
+                    <tr className="border-b"><td className="py-1 pr-2">품목 수량/매출</td><td className="font-mono">[200.매출수량], [200.매출액]</td></tr>
+                    <tr className="border-b"><td className="py-1 pr-2">품목 고정비</td><td className="font-mono">[200.제조고정노무비] + [200.감가상각비] + [200.기타경비]</td></tr>
+                    <tr className="border-b"><td className="py-1 pr-2">품목 변동비</td><td className="font-mono">[200.실적매출원가] − 품목 고정비</td></tr>
+                    <tr className="border-b"><td className="py-1 pr-2">배분 고정비</td><td className="font-mono">풀고정비 × (품목 weight / 풀 weight)</td></tr>
+                    <tr className="border-b"><td className="py-1 pr-2">weight</td><td className="font-mono">매출(basis=revenue) or 수량(basis=quantity)</td></tr>
+                    <tr><td className="py-1 pr-2">장부상 마진</td><td className="font-mono">매출 − 변동비 − 배분 고정비</td></tr>
+                  </tbody>
+                </table>
+                <p className="text-[10px] mt-2 font-mono border-t pt-1">항등식: netPool ≡ targetDelta + othersDelta</p>
+              </div>
+            </details>
+          </div>
 
           {/* 1분 요약 카드 (P1-5) */}
           <div className="rounded-lg border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-4 mb-4 space-y-3">
@@ -956,21 +1151,21 @@ export function OffsetEffectTab({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <KpiCard
               title="① 대상 품목 본인" value={poolSim.targetItemMarginDelta} format="currency"
-              formula="대상 품목 (시나리오 후 장부상 이익 - 기준 장부상 이익)"
+              formula="대상 품목의 [시나리오 장부상 마진 − 기준 장부상 마진] · 장부상 마진 = [200.매출액] − [200.변동비] − 배분고정비(200)"
               description="저가수주를 받은 품목 본인의 장부상 마진 변화. 단가 인하 손실이 있으면 보통 음수, 순수 물량 증가면 양수가 될 수도 있음."
               benchmark="음수여도 괜찮음 — 물량 증가로 다른 품목들에게 덤을 주는 역할이므로"
               reason="저가수주의 직접 비용/효과를 장부에서 확인"
             />
             <KpiCard
               title="② 다른 품목들 (덤 효과)" value={poolSim.otherItemsMarginDelta} format="currency"
-              formula="Σ(다른 품목 시나리오 후 장부상 이익 - 기준 장부상 이익)"
+              formula="Σ(풀 내 대상 외 품목의 장부상 마진 변화) · 대상 물량 증가 시 매출/수량 비중 재배분으로 [200.제조고정비]의 품목별 '몫'이 줄어듦"
               description={`풀 내 나머지 ${Math.max(poolItems.length - 1, 0)}개 품목 전체의 장부상 마진 개선 합계. 대상 품목 판매량이 늘면 풀 전체 매출 비중이 바뀌어 다른 품목들의 '단위 고정비'가 줄어듭니다.`}
               benchmark="양수면 덤 효과 성립 — 다른 품목 담당 동료에게도 도움"
               reason="박리다매 가설의 '교차 보조 효과'를 장부에서 확인"
             />
             <KpiCard
               title="③ 제품군 전체 (① + ②)" value={poolSim.netPoolMarginDelta} format="currency"
-              formula="① + ② = 같은 풀 내 모든 품목의 장부상 마진 변화 합계"
+              formula="① + ② = 풀(대분류/중분류/품목계정그룹) 내 모든 품목의 장부상 마진 변화 합계 · 풀 [200.제조고정비] 총액 불변"
               description={`선택한 제품군(${poolName}) 장부상 이익 총 변화. Step 4a 전사 이익 변화와 ${integrity.isConsistent ? "일관성 있음" : "불일치"}.`}
               benchmark="음수면 가설 반증(제품군 전체 악화), 양수면 성립"
               reason="제품군 단위에서 시나리오가 유리한지 판단"
@@ -1105,7 +1300,32 @@ export function OffsetEffectTab({
       {/* ═══ Section F: Step 5. 데이터 무결성 검증 ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
         <div>
-          <h2 className="text-lg font-semibold mb-3">Step 5. 데이터 무결성 검증</h2>
+          <div className="flex items-center gap-2 mb-3 flex-wrap">
+            <h2 className="text-lg font-semibold">Step 5. 데이터 무결성 검증</h2>
+            <details className="text-xs relative">
+              <summary className="cursor-pointer px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 hover:bg-blue-200">
+                🔍 검증 방법
+              </summary>
+              <div className="absolute z-20 mt-1 p-3 border rounded bg-background shadow-lg w-[460px] max-w-[90vw]">
+                <p className="font-semibold text-[11px] mb-1">🔬 각 관점의 내부 항등식 검증</p>
+                <div className="space-y-2 mt-2 text-[11px]">
+                  <div className="border-l-2 border-blue-500 pl-2">
+                    <p className="font-semibold">Step 4a 총액 항등식</p>
+                    <p className="font-mono text-[10px]">netOffsetEffect ≡ priceLoss + volumeGain</p>
+                    <p className="text-[10px] text-muted-foreground">오차 ≥ |baseOP|×0.1% 이면 경고</p>
+                  </div>
+                  <div className="border-l-2 border-emerald-500 pl-2">
+                    <p className="font-semibold">Step 4b 배분 항등식</p>
+                    <p className="font-mono text-[10px]">netPoolMarginDelta ≡ targetDelta + othersDelta</p>
+                    <p className="text-[10px] text-muted-foreground">풀 고정비 불변이므로 정의상 성립</p>
+                  </div>
+                </div>
+                <p className="text-[10px] mt-2 text-muted-foreground border-t pt-1">
+                  ⚠️ 4a와 4b는 데이터 범위가 달라(전체 vs 풀) 직접 비교하지 않음. 각 관점의 내부 수학적 일관성만 검증.
+                </p>
+              </div>
+            </details>
+          </div>
           <div className={`rounded-lg border-l-4 p-4 ${integrity.isConsistent ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500" : "bg-amber-50 dark:bg-amber-950/30 border-amber-500"}`}>
             <div className="flex items-start gap-3">
               {integrity.isConsistent ? (
