@@ -152,17 +152,26 @@ export function OffsetEffectTab({
   }, [cvpItems]);
 
   const itemList = useMemo(() => {
-    const map = new Map<string, { name: string; revenue: number }>();
+    // cvpItems(100)와 poolItems(200) 모두에서 수집하여 union
+    const map = new Map<string, { name: string; revenue: number; inPool: boolean }>();
     for (const it of cvpItems) {
-      const prev = map.get(it.item) || { name: it.itemName, revenue: 0 };
+      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false };
       prev.revenue += it.revenue;
       map.set(it.item, prev);
+    }
+    // 200 품목도 추가 (풀 내 품목이 4a에서 선택 가능하도록)
+    for (const pi of poolItems) {
+      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true };
+      if (prev.revenue === 0) prev.revenue = pi.revenue; // 100에 없으면 200 매출로 표시
+      prev.inPool = true;
+      if (!prev.name || prev.name === pi.item) prev.name = pi.itemName;
+      map.set(pi.item, prev);
     }
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v }))
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 100);
-  }, [cvpItems]);
+      .slice(0, 150);
+  }, [cvpItems, poolItems]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
   const healthVsBleeding = useMemo(() => [
@@ -252,11 +261,42 @@ export function OffsetEffectTab({
 
   return (
     <div className="space-y-6">
+      {/* ═══ 분석 개요 배너 ═══ */}
+      <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 p-4">
+        <div className="flex items-start gap-3">
+          <Info className="h-5 w-5 text-blue-600 flex-shrink-0 mt-0.5" />
+          <div className="text-sm space-y-2">
+            <p className="font-semibold">🎯 저가수주 상계효과 검증 — CVP(Cost-Volume-Profit) 분석</p>
+            <p className="text-xs leading-relaxed">
+              영업부서의 가설 <strong>&quot;손해를 보더라도 물량을 늘려 단위 고정비를 낮추면 전체 이익이 최적화된다&quot;</strong>를
+              실제 데이터로 검증합니다. 5개 Step으로 구성: <strong>Step 1</strong>(현재 진단) → <strong>Step 2</strong>(CVP 그래프) → <strong>Step 3</strong>(4사분면) →
+              <strong>Step 4a</strong>(총액 관점 시뮬레이션) → <strong>Step 4b</strong>(배분 관점 시뮬레이션) → <strong>Step 5</strong>(무결성 검증)
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-muted-foreground mt-2">
+              <div className="bg-background/60 rounded p-2">
+                <strong className="text-foreground">📊 분석 방법</strong>: 거래처×품목 단위로 공헌이익(CM) 계산 후, 가설 시나리오를 적용하여 전사 이익 변화를 워터폴로 시각화
+              </div>
+              <div className="bg-background/60 rounded p-2">
+                <strong className="text-foreground">💡 해석 방법</strong>: 워터폴 마지막 막대가 기존 이익보다 높으면 &quot;가설 성립&quot;, 낮으면 &quot;가설 반증&quot;
+              </div>
+              <div className="bg-background/60 rounded p-2">
+                <strong className="text-foreground">🎓 이론 배경</strong>: 고전 CVP 이론 + 듀얼 뷰(총액 수학적 정확 + 배분 경영관리 장부)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* ═══ Section A: Step 1. 현재 상태 진단 ═══ */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <h2 className="text-lg font-semibold">Step 1. 현재 상태 진단</h2>
           <span className="text-xs text-muted-foreground">CFO 관점 KPI + 출혈 거래처 비중</span>
+        </div>
+        <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">📖 이 섹션 읽는 법:</strong> 4개 KPI 카드와 파이 차트로 현재 손익 구조를 한 눈에 파악합니다.
+          특히 <strong>평균 단위당 원가</strong>가 가설 검증의 핵심 기준이며, 파이 차트에서 <strong>출혈 비중</strong>이 30% 이상이면 즉각 개선이 필요합니다.
+          각 KPI 카드의 <Info className="inline h-3 w-3" /> 아이콘을 호버하면 계산식과 벤치마크를 확인할 수 있습니다.
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <KpiCard
@@ -326,6 +366,17 @@ export function OffsetEffectTab({
       {/* ═══ Section B: Step 2. CVP 분석 그래프 ═══ */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Step 2. CVP 손익분기점 분석</h2>
+        <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
+          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축은 수량, Y축은 금액. 3개 라인이 표시됩니다.</p>
+          <ul className="list-disc ml-5 space-y-0.5">
+            <li><strong className="text-foreground">회색 점선 (고정비)</strong>: 수량과 무관하게 일정 — 설비·감가상각·고정노무비 합계</li>
+            <li><strong className="text-foreground">빨간 실선 (총원가)</strong>: 수량이 늘수록 선형 증가 = 고정비 + (수량×단위변동비)</li>
+            <li><strong className="text-foreground">녹색 실선 (매출액)</strong>: 수량이 늘수록 선형 증가 = 수량×가중평균 단가</li>
+            <li><strong className="text-foreground">파란 점선 (BEP)</strong>: 총원가와 매출이 교차하는 손익분기 수량</li>
+            <li><strong className="text-foreground">주황 점선 (현재)</strong>: 현재 실적 수량 위치</li>
+          </ul>
+          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 현재 위치가 BEP보다 오른쪽이면 흑자, 왼쪽이면 적자. 현재와 BEP 사이가 멀수록 안전한계율이 높아 가격 인하 여지가 있습니다.</p>
+        </div>
         <ChartCard
           title="수량 기반 CVP 그래프 (Cost-Volume-Profit)"
           isEmpty={cvpChartData.length === 0}
@@ -356,6 +407,24 @@ export function OffsetEffectTab({
       {/* ═══ Section C: Step 3. 수익성 산점도 ═══ */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Step 3. 거래처×품목 4사분면 매트릭스</h2>
+        <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
+          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> 각 점(버블)은 거래처×품목 조합. X축=수량, Y축=단위공헌이익, 크기=매출.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+            <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded p-2">
+              <strong className="text-emerald-700 dark:text-emerald-400">⭐ Star (우상단)</strong>: 고물량+고마진. 핵심 자원 집중 및 관계 강화 대상
+            </div>
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded p-2">
+              <strong className="text-blue-700 dark:text-blue-400">💰 CashCow (우하단)</strong>: 고물량+저마진. 안정적 현금흐름, 마진 개선 여지 검토
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/30 rounded p-2">
+              <strong className="text-amber-700 dark:text-amber-400">❓ Question (좌상단)</strong>: 저물량+고마진. 물량 확대로 매출 기여도 증대 기회
+            </div>
+            <div className="bg-red-50 dark:bg-red-950/30 rounded p-2">
+              <strong className="text-red-700 dark:text-red-400">☠️ Dog (좌하단)</strong>: 저물량+저마진. <strong>쥐약 거래</strong> — 단가 재협상 또는 거래 축소
+            </div>
+          </div>
+          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> Y축 0 이하(빨간 점선 아래) 품목은 <strong>팔수록 손해</strong>인 품목입니다. Step 4a/4b 시뮬레이터에서 이들을 대상으로 시나리오를 돌려 개선 효과를 검증하세요.</p>
+        </div>
         <ChartCard
           title="수량 × 단위공헌이익 (버블 = 매출)"
           formula="X축: 수량, Y축: 단위공헌이익, 버블 크기: 매출 기여도 | 중앙값 기준 4사분면 분할"
@@ -447,13 +516,21 @@ export function OffsetEffectTab({
       {/* ═══ Section D: Step 4a. 전사 영업이익 시뮬레이션 (총액 관점) ═══ */}
       <div>
         <h2 className="text-lg font-semibold mb-3">Step 4a. 전사 영업이익 시뮬레이션 (총액 관점)</h2>
-        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 mb-4 flex items-start gap-2">
-          <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
-          <div>
-            <strong>수학적으로 정확한 전사 영업이익 변화</strong><br />
-            고정비 총액 불변 가정. 물량 증가는 공헌이익 증가로 전사 이익에 기여합니다.
-            대수 항등식: newOP − baseOP = 단가인하손실 + 물량증가공헌
+        <div className="rounded-md bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 p-3 text-xs text-blue-800 dark:text-blue-300 mb-4 space-y-2">
+          <div className="flex items-start gap-2">
+            <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <strong>수학적으로 정확한 전사 영업이익 변화 — 가설 검증의 PRIMARY</strong>
+              <p className="mt-1 leading-relaxed">고정비 총액 불변 가정 하에 물량 증가는 공헌이익 증가로 전사 이익에 기여합니다. 이 섹션의 결과가 박리다매 가설의 <strong>진짜 답</strong>입니다.</p>
+            </div>
           </div>
+          <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px] font-mono">
+            <strong>대수 항등식:</strong> newOP − baseOP ≡ priceReductionLoss + volumeContributionGain<br />
+            <strong>분해:</strong>
+            <br />• priceReductionLoss = −Σ(기존수량 × 기존단가 × 인하율)
+            <br />• volumeContributionGain = Σ(추가수량 × 인하후 단위공헌이익)
+          </div>
+          <p className="ml-6 text-[11px]"><strong>사용법:</strong> ① 대상 거래처/품목 선택 → ② 물량/단가 슬라이더 조작 → ③ 워터폴로 4단계 이익 변동 확인 → ④ 최종 이익이 기존 이익보다 높으면 &quot;가설 성립&quot;</p>
         </div>
 
         {/* 컨트롤 카드 */}
@@ -562,6 +639,16 @@ export function OffsetEffectTab({
         </div>
 
         {/* 워터폴 차트 */}
+        <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
+          <p><strong className="text-foreground">📖 워터폴 차트 읽는 법:</strong> 좌측부터 우측으로 4개 막대가 누적 흐름을 보여줍니다.</p>
+          <ul className="list-disc ml-5 space-y-0.5">
+            <li><strong className="text-foreground">① 기존 영업이익 (녹색)</strong>: 시나리오 적용 전 전사 영업이익 — 출발점</li>
+            <li><strong className="text-foreground">② 단가 인하 손실 (빨강)</strong>: 대상 품목 단가 인하로 인한 매출 감소액 (음수)</li>
+            <li><strong className="text-foreground">③ 물량 증가 공헌 (파랑)</strong>: 추가 물량 × 인하 후 단위공헌이익 (양수, 고정비 부담 없음)</li>
+            <li><strong className="text-foreground">④ 최종 영업이익 (녹색/빨강)</strong>: ① + ② + ③ — 시나리오 적용 후 전사 이익</li>
+          </ul>
+          <p className="pt-1"><strong className="text-foreground">💡 판단 기준:</strong> ④가 ①보다 높으면 가설 성립(박리다매 유리), 낮으면 가설 반증(가격 방어 필요).</p>
+        </div>
         <ChartCard
           title="상계 효과 워터폴"
           formula="기존 이익 → 단가 인하 손실(-) → 물량 증가 공헌(+) → 최종 이익"
@@ -626,13 +713,44 @@ export function OffsetEffectTab({
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
         <div>
           <h2 className="text-lg font-semibold mb-3">Step 4b. 품목별 수익성 영향 (배분 관점)</h2>
-          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 mb-4 flex items-start gap-2">
-            <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-            <div>
-              <strong>⚠️ 이 섹션은 원가회계 장부상 재배분 표시입니다.</strong><br />
-              전사 이익은 Step 4a에서 이미 계산되었으며, 여기서 추가 이익이 발생하는 것은 아닙니다.
-              품목 A의 물량 증가 → 풀 재배분 → 품목 B, C의 장부상 단위 고정비 감소. 품목별 수익성 평가 목적으로만 사용하세요.
+          <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 mb-4 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <div>
+                <strong>⚠️ 장부상 재배분 표시 — 경영관리 관점 SECONDARY</strong>
+                <p className="mt-1 leading-relaxed">
+                  전사 이익은 Step 4a에서 이미 계산되었으며, 여기서 <strong>추가 이익이 발생하는 것은 아닙니다</strong>.
+                  품목 A의 물량 증가 → 풀 재배분 → 품목 B, C의 장부상 단위 고정비 감소라는 &quot;교차 보조 효과&quot;를 시각화합니다.
+                </p>
+              </div>
             </div>
+            <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px]">
+              <strong>🎯 사용법:</strong>
+              <ol className="list-decimal ml-4 mt-1 space-y-0.5">
+                <li><strong>Step 4a에서 &quot;대상 품목&quot;을 먼저 선택</strong> (이 섹션은 Step 4a의 대상 품목을 자동 상속)</li>
+                <li>아래 <strong>풀 수준</strong>을 선택 (대분류 권장) → 같은 풀 내 품목들이 고정비를 공유</li>
+                <li>대상 품목이 선택된 풀 안에 있어야 재배분 효과가 나타남 (풀 밖이면 모든 값 0)</li>
+                <li>물량/단가 슬라이더는 Step 4a와 공유 — 별도 조작 불필요</li>
+              </ol>
+            </div>
+            <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px] font-mono">
+              <strong>수식:</strong><br />
+              • 품목 i의 배분 고정비 = 풀 총 고정비 × (품목 i의 매출 or 수량) / Σ(풀 내 품목 매출 or 수량)<br />
+              • 대상 품목 물량↑ → 분모↑ → 다른 품목 배분 고정비↓<br />
+              • 항등식: netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta (풀 고정비 총액 불변)
+            </div>
+            {!targetItem && (
+              <div className="ml-6 p-2 bg-red-100 dark:bg-red-950/40 rounded text-[11px] text-red-800 dark:text-red-300">
+                <strong>⚠️ 현재 대상 품목이 선택되지 않았습니다.</strong> Step 4a에서 &quot;대상 품목&quot; 드롭다운을 선택하세요.
+                대상 품목이 없으면 모든 품목이 &quot;기타&quot;로 처리되어 교차 효과가 0으로 표시됩니다.
+              </div>
+            )}
+            {targetItem && !poolItems.find((it) => it.item === targetItem) && (
+              <div className="ml-6 p-2 bg-red-100 dark:bg-red-950/40 rounded text-[11px] text-red-800 dark:text-red-300">
+                <strong>⚠️ 대상 품목이 선택된 풀({poolName}) 안에 없습니다.</strong> 다른 풀을 선택하거나, Step 4a에서 다른 품목을 선택하세요.
+                현재 풀에는 {poolItems.length}개 품목이 있습니다: {poolItems.slice(0, 3).map((it) => it.item).join(", ")}{poolItems.length > 3 ? "..." : ""}
+              </div>
+            )}
           </div>
 
           {/* 풀 설정 */}

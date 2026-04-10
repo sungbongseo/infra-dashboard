@@ -467,8 +467,13 @@ export function calcItemPool(
   >();
 
   for (const r of filtered) {
-    const key = r.품목 || "";
-    if (!key) continue;
+    const rawItem = r.품목 || "";
+    if (!rawItem) continue;
+    // 품목 코드 정규화: "[P001] 품목명A" → "P001" (CustomerItemDetail과 동일 형식)
+    const codeMatch = rawItem.match(/^\[([^\]]+)\]/);
+    const itemCode = codeMatch ? codeMatch[1].trim() : rawItem.trim();
+    const itemName = rawItem.replace(/^\[[^\]]+\]\s*/, "").trim() || rawItem.trim();
+    const key = itemCode; // 통일 키
     const qty = r.매출수량 || 0;
     const rev = r.매출액 || 0;
     const cost = r.실적매출원가 || 0;
@@ -479,8 +484,8 @@ export function calcItemPool(
     const prev = agg.get(key);
     if (!prev) {
       agg.set(key, {
-        item: key,
-        itemName: key.replace(/^\[[^\]]+\]\s*/, ""), // [CODE] NAME → NAME
+        item: itemCode,  // 정규화된 코드
+        itemName,
         대분류: r.대분류 || "",
         중분류: r.중분류 || "",
         품목계정그룹: (r as any).품목계정그룹 || "",
