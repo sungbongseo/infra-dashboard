@@ -36,10 +36,11 @@ interface OffsetEffectTabProps {
   isDateFiltered?: boolean;
 }
 
+// M6: 다크 모드 대비 개선 — 밝기 40→55%로 올려 dark 배경에서 가독성 확보
 const QUADRANT_COLORS = {
-  star: "hsl(142, 71%, 45%)",
-  cashcow: "hsl(217, 91%, 60%)",
-  question: "hsl(45, 93%, 47%)",
+  star: "hsl(142, 71%, 50%)",
+  cashcow: "hsl(217, 91%, 65%)",
+  question: "hsl(45, 93%, 55%)",
   dog: "hsl(0, 84%, 60%)",
 };
 
@@ -182,7 +183,8 @@ export function OffsetEffectTab({
   // CVP 그래프 데이터 (수량 기준)
   const cvpChartData = useMemo(() => {
     if (cvpSummary.totalQuantity === 0) return [];
-    const maxQty = cvpSummary.totalQuantity * 1.5;
+    // H4: Step 4a 슬라이더 +100%까지 대응 + 여유분 20%
+    const maxQty = cvpSummary.totalQuantity * 2.2;
     const steps = 20;
     const stepSize = maxQty / steps;
     const data = [];
@@ -221,7 +223,8 @@ export function OffsetEffectTab({
   // Dog 테이블 (Top 20)
   const dogItems = useMemo(
     () => [...cvpItems]
-      .filter((it) => it.quadrant === "dog" || it.totalContributionMargin < 0)
+      // H5: 4사분면 판정 기준 일관화 — quadrant 기준만 사용
+      .filter((it) => it.quadrant === "dog")
       .sort((a, b) => a.totalContributionMargin - b.totalContributionMargin)
       .slice(0, 20),
     [cvpItems]
@@ -286,7 +289,9 @@ export function OffsetEffectTab({
         textClass: "text-red-700 dark:text-red-400",
       };
     }
-    if (otherItemsMarginDelta > Math.abs(targetItemMarginDelta) * 0.5) {
+    // M3: 덤 효과 판정 임계치 — 수혜액 > 대상 손실의 50%이면 "강함" (경영관리 관행 기준)
+    const STRONG_OFFSET_THRESHOLD = 0.5;
+    if (otherItemsMarginDelta > Math.abs(targetItemMarginDelta) * STRONG_OFFSET_THRESHOLD) {
       // 수혜 top 1 찾기
       const topBeneficiary = poolImpactTable.find((r) => r.role === "beneficiary");
       return {
@@ -576,7 +581,7 @@ export function OffsetEffectTab({
           title="수량 기반 CVP 그래프 (Cost-Volume-Profit)"
           isEmpty={cvpChartData.length === 0}
           formula="매출선 = 수량 × 가중[100.단위단가] | 총원가선 = Σ[200.제조고정비] + 수량×가중[100.단위변동비] | BEP = [200.고정비] / ([100.단위단가] − [100.단위변동비])"
-          description={`BEP 수량 ${Math.round(cvpSummary.bepQuantity).toLocaleString()}, BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)}`}
+          description={isFinite(cvpSummary.bepQuantity) ? `BEP 수량 ${Math.round(cvpSummary.bepQuantity).toLocaleString()}, BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)}` : "BEP 도달 불가 (단위공헌이익 ≤ 0)"}
           benchmark="현재 수량이 BEP를 넘으면 수익 구간. BEP 대비 안전한계율 = (현재-BEP)/현재"
           reason="손익분기점을 시각적으로 확인하여 물량 레버리지 여지를 판단"
         >
@@ -592,7 +597,9 @@ export function OffsetEffectTab({
               <Line type="monotone" dataKey="고정비" stroke="hsl(0, 0%, 50%)" strokeDasharray="4 4" dot={false} />
               <Line type="monotone" dataKey="총원가" stroke="hsl(0, 84%, 60%)" strokeWidth={2} dot={false} />
               <Line type="monotone" dataKey="매출액" stroke="hsl(142, 71%, 45%)" strokeWidth={2} dot={false} />
-              <ReferenceLine x={Math.round(cvpSummary.bepQuantity)} stroke="hsl(217, 91%, 60%)" strokeDasharray="3 3" label={{ value: "BEP", fontSize: 10, fill: "hsl(217, 91%, 60%)" }} />
+              {isFinite(cvpSummary.bepQuantity) && (
+                <ReferenceLine x={Math.round(cvpSummary.bepQuantity)} stroke="hsl(217, 91%, 60%)" strokeDasharray="3 3" label={{ value: "BEP", fontSize: 10, fill: "hsl(217, 91%, 60%)" }} />
+              )}
               <ReferenceLine x={Math.round(cvpSummary.totalQuantity)} stroke="hsl(45, 93%, 47%)" strokeDasharray="4 4" label={{ value: "현재", fontSize: 10, fill: "hsl(45, 93%, 47%)" }} />
             </ComposedChart>
           </ChartContainer>
@@ -1091,6 +1098,10 @@ export function OffsetEffectTab({
                 </span>
               )}
             </div>
+            {/* M4: 배분 기준 변경 안내 */}
+            <p className="text-[10px] text-muted-foreground mt-1">
+              ※ 배분 기준(매출/수량) 변경은 장부상 품목별 배분만 영향. 전사 이익(Step 4a)은 불변.
+            </p>
           </div>
 
           {/* P2-1: 액션 가이드 배너 (자동 판정) */}

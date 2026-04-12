@@ -411,6 +411,14 @@ describe("offsetEffect", () => {
       expect(steps[3].name).toBe("최종 영업이익");
     });
 
+    it("H3: BEP Infinity 반환 (적자 상태)", () => {
+      // 변동비가 매출보다 큰 아이템 → 단위공헌이익 < 0
+      const lossItems = [makeCustItem({ qty: 100, revenue: 5000, cost: 6000 })];
+      const { summary } = calcCustomerItemCVP(lossItems, 1000);
+      expect(summary.bepQuantity).toBe(Infinity);
+      expect(summary.bepRevenue).toBe(Infinity);
+    });
+
     it("cumulative 합산 일관성", () => {
       const baseItems = [makeCustItem({ qty: 100, revenue: 10000, cost: 7000 })];
       const { items } = calcCustomerItemCVP(baseItems, 1000);
@@ -425,6 +433,83 @@ describe("offsetEffect", () => {
       const steps = calcWaterfallSteps(sim);
       expect(steps[0].cumulative).toBeCloseTo(sim.baseOperatingProfit, 0);
       expect(steps[3].cumulative).toBeCloseTo(sim.newOperatingProfit, 0);
+    });
+  });
+
+  describe("엣지 케이스 방어 (정밀 감사)", () => {
+    it("H1: 음수 매출(환입) 포함 시 CVP에 반영", () => {
+      const items = [
+        makeCustItem({ customer: "C1", item: "P1", qty: 100, revenue: 10000, cost: 7000 }),
+        makeCustItem({ customer: "C1", item: "P2", qty: -10, revenue: -500, cost: -300 }), // 환입
+      ];
+      const { items: cvp, summary } = calcCustomerItemCVP(items, 1000);
+      // P2(환입)가 포함되어야 함 (이전엔 revenue<=0으로 제외됨)
+      expect(cvp.length).toBe(2);
+      // 총매출에 환입 반영
+      expect(summary.totalRevenue).toBe(10000 + (-500));
+    });
+
+    it("H2: calcItemPool 음수 변동비 방어 (cost < fixed)", () => {
+      // 실적매출원가=500, 고정비(400+300+100)=800 → vc=500-800=-300 → 클램핑 0
+      const poolData = [
+        makeItemProfit({
+          item: "[T001] 테스트A",
+          대분류: "테스트",
+          qty: 50,
+          revenue: 5000,
+          cost: 500,
+          제조고정노무비: 400,
+          감가상각비: 300,
+          기타경비: 100,
+        }),
+      ];
+      const { items } = calcItemPool(poolData, "대분류", "테스트");
+      // 변동비가 0으로 클램핑되어야 함 (Math.max(500-800, 0) = 0)
+      expect(items[0].variableCost).toBe(0);
+    });
+
+    it("M2: calcPoolSimulation baseTotalWeight=0 → 균등 배분", () => {
+      // 모든 품목 매출 0 → weight = 0 → 균등 배분 fallback
+      const zeroItems: import("@/lib/analysis/offsetEffect").ItemPoolCVP[] = [
+        { item: "A", itemName: "A", 대분류: "T", 중분류: "", 품목계정그룹: "",
+          quantity: 10, revenue: 0, variableCost: 0,
+          allocatedFixedCost: 0, unitAllocatedFixedCost: 0,
+          unitContributionMargin: 0, allocatedOperatingProfit: 0 },
+        { item: "B", itemName: "B", 대분류: "T", 중분류: "", 품목계정그룹: "",
+          quantity: 5, revenue: 0, variableCost: 0,
+          allocatedFixedCost: 0, unitAllocatedFixedCost: 0,
+          unitContributionMargin: 0, allocatedOperatingProfit: 0 },
+      ];
+      const poolSim = calcPoolSimulation(zeroItems, 1000, "A", 0, 0, "revenue");
+      // 풀 고정비 1000을 2개 품목에 균등 배분 → 각 500
+      expect(poolSim.baseItems[0].allocatedFixedCost).toBeCloseTo(500, 0);
+      expect(poolSim.baseItems[1].allocatedFixedCost).toBeCloseTo(500, 0);
+    });
+
+    it("M5: verifyIntegrity tolerance — 극소 이익에서 false positive 없음", () => {
+      // baseOperatingProfit ≈ 0.01 (극소) + baseTotalRevenue = 10000
+      const totalSim = {
+        baseTotalRevenue: 10000, baseTotalVariableCost: 8999.99,
+        baseOperatingProfit: 0.01, baseTotalQuantity: 100, baseAvgUnitFixedCost: 10,
+        targetCustomer: null, targetItem: null,
+        volumeIncreasePct: 0, priceDecreasePct: 0,
+        newTotalRevenue: 10000, newTotalVariableCost: 8999.99,
+        newTotalQuantity: 100, newAvgUnitFixedCost: 10,
+        newOperatingProfit: 0.01,
+        priceReductionLoss: 0, volumeContributionGain: 0,
+        netOffsetEffect: 0, hypothesisValid: false,
+      };
+      const poolSim = {
+        poolLevel: "대분류" as const, poolName: "T", poolFixedCost: 1000,
+        allocationBasis: "revenue" as const, targetItem: null,
+        volumeIncreasePct: 0, priceDecreasePct: 0,
+        baseItems: [], simulatedItems: [],
+        targetItemMarginDelta: 0, otherItemsMarginDelta: 0, netPoolMarginDelta: 0,
+      };
+      const integrity = verifyIntegrity(totalSim, poolSim);
+      // denominator = max(0.01, 10000*0.0001, 1) = max(0.01, 1, 1) = 1
+      // identityError = 0 / 1 = 0 < 0.01 → consistent
+      expect(integrity.totalViewIsConsistent).toBe(true);
     });
   });
 });

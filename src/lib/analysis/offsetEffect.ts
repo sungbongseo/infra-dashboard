@@ -250,10 +250,10 @@ export function calcCustomerItemCVP(
     }
   }
 
-  // CVP 계산 (매출 0인 항목 제외)
+  // CVP 계산 (매출·수량 모두 0인 항목만 제외, 음수 매출(환입/반품)은 허용)
   const items: CVPItem[] = [];
   for (const v of Array.from(agg.values())) {
-    if (v.revenue <= 0 || v.quantity <= 0) continue;
+    if (v.revenue === 0 && v.quantity === 0) continue;
     const unitPrice = safeDivide(v.revenue, v.quantity);
     const unitVariableCost = safeDivide(v.variableCost, v.quantity);
     const unitContributionMargin = unitPrice - unitVariableCost;
@@ -292,6 +292,7 @@ function classifyCVPItems(items: CVPItem[]): CVPItem[] {
   if (items.length === 0) return items;
   const sortedQty = [...items.map((i) => i.quantity)].sort((a, b) => a - b);
   const sortedCM = [...items.map((i) => i.unitContributionMargin)].sort((a, b) => a - b);
+  // M1: lower median (Math.floor) 사용 — 짝수개 아이템 시 하위 중앙값 기준
   const pivotQty = sortedQty[Math.floor(sortedQty.length / 2)];
   const pivotCM = sortedCM[Math.floor(sortedCM.length / 2)];
 
@@ -332,9 +333,10 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
   const avgUnitFixedCost = safeDivide(totalFixedCost, totalQuantity);
   const overallContributionMarginRatio = safeDivide(totalContributionMargin, totalRevenue);
 
+  // H3: 단위공헌이익 ≤ 0이면 BEP 도달 불가 (Infinity)
   const bepQuantity = weightedUnitContributionMargin > 0
     ? safeDivide(totalFixedCost, weightedUnitContributionMargin)
-    : 0;
+    : Infinity;
   const bepRevenue = bepQuantity * weightedUnitPrice;
 
   const healthy = items.filter((i) => i.totalContributionMargin > 0);
@@ -518,7 +520,8 @@ export function calcItemPool(
     const cost = r.실적매출원가 || 0;
     const fixed =
       (r.제조고정노무비 || 0) + (r.감가상각비 || 0) + (r.기타경비 || 0);
-    const vc = cost - fixed; // 변동비 = 총원가 - 제조 고정비
+    // H2: 변동비 = 총원가 - 제조 고정비 (음수 방어: cost < fixed이면 비정상 데이터 → 0 클램핑)
+    const vc = Math.max(cost - fixed, 0);
 
     const prev = agg.get(key);
     if (!prev) {
@@ -601,9 +604,10 @@ export function calcPoolSimulation(
   );
   const baseItems: ItemPoolCVP[] = poolItems.map((it) => {
     const weight = basis === "revenue" ? it.revenue : it.quantity;
+    // M2: baseTotalWeight=0 방어 — 모든 품목 weight가 0이면 균등 배분
     const allocatedFixedCost = baseTotalWeight > 0
       ? poolFixedCost * safeDivide(weight, baseTotalWeight)
-      : 0;
+      : safeDivide(poolFixedCost, poolItems.length);
     return {
       ...it,
       allocatedFixedCost,
@@ -642,8 +646,9 @@ export function calcPoolSimulation(
 
   const simulatedItems: ItemPoolCVP[] = simulatedRaw.map((it) => {
     const weight = basis === "revenue" ? it.revenue : it.quantity;
+    // M2: newTotalWeight=0 방어 — 균등 배분 fallback
     const newAllocatedFixedCost =
-      newTotalWeight > 0 ? poolFixedCost * safeDivide(weight, newTotalWeight) : 0;
+      newTotalWeight > 0 ? poolFixedCost * safeDivide(weight, newTotalWeight) : safeDivide(poolFixedCost, simulatedRaw.length);
     return {
       ...it,
       allocatedFixedCost: newAllocatedFixedCost,
@@ -761,7 +766,12 @@ export function verifyIntegrity(
   const totalViewNetDelta = totalSim.netOffsetEffect;
   const totalViewDecomposed = totalSim.priceReductionLoss + totalSim.volumeContributionGain;
   const totalViewIdentityError = Math.abs(totalViewNetDelta - totalViewDecomposed);
-  const totalDenominator = Math.max(Math.abs(totalSim.baseOperatingProfit), 1);
+  // M5: denominator 강화 — baseOP가 극소일 때 매출 규모 기반 fallback
+  const totalDenominator = Math.max(
+    Math.abs(totalSim.baseOperatingProfit),
+    Math.abs(totalSim.baseTotalRevenue) * 0.0001,
+    1
+  );
   const totalViewIsConsistent = safeDivide(totalViewIdentityError, totalDenominator) < tolerance;
 
   // 4b 내부 항등식
