@@ -69,6 +69,11 @@ export function OffsetEffectTab({
   const [poolName, setPoolName] = useState<string>("");
   const [allocationBasis, setAllocationBasis] = useState<FixedCostAllocation>("revenue");
 
+  // 시뮬레이션 입력 모드: "percent" (비율) / "absolute" (절대 수량)
+  const [inputMode, setInputMode] = useState<"percent" | "absolute">("percent");
+  const [volumeAbsolute, setVolumeAbsolute] = useState<number>(0);
+  const [priceChangeDirect, setPriceChangeDirect] = useState<number>(0); // 소수점 직접 입력용
+
   // CVP 듀얼 모드: 전사 금액 기반 / 대분류×단위 수량 기반
   const [cvpGroupKey, setCvpGroupKey] = useState<string>("__all__");
 
@@ -102,10 +107,11 @@ export function OffsetEffectTab({
       totalFixedCost,
       targetCustomer,
       targetItem,
-      volumeIncreasePct,
-      priceChangePct,
+      volumeIncreasePct: inputMode === "absolute" ? 0 : volumeIncreasePct,
+      priceChangePct: inputMode === "absolute" ? priceChangeDirect : priceChangePct,
+      ...(inputMode === "absolute" && targetItem ? { volumeAbsolute } : {}),
     }),
-    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct]
+    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, inputMode, volumeAbsolute, priceChangeDirect]
   );
 
   // 워터폴
@@ -170,25 +176,39 @@ export function OffsetEffectTab({
 
   const itemList = useMemo(() => {
     // cvpItems(100)와 poolItems(200) 모두에서 수집하여 union
-    const map = new Map<string, { name: string; revenue: number; inPool: boolean }>();
+    const map = new Map<string, { name: string; revenue: number; inPool: boolean; quantity: number; unit: string }>();
     for (const it of cvpItems) {
-      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false };
+      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false, quantity: 0, unit: "" };
       prev.revenue += it.revenue;
+      prev.quantity += it.quantity;
       map.set(it.item, prev);
     }
     // 200 품목도 추가 (풀 내 품목이 4a에서 선택 가능하도록)
     for (const pi of poolItems) {
-      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true };
-      if (prev.revenue === 0) prev.revenue = pi.revenue; // 100에 없으면 200 매출로 표시
+      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true, quantity: 0, unit: "" };
+      if (prev.revenue === 0) prev.revenue = pi.revenue;
+      if (prev.quantity === 0) prev.quantity = pi.quantity;
       prev.inPool = true;
       if (!prev.name || prev.name === pi.item) prev.name = pi.itemName;
       map.set(pi.item, prev);
+    }
+    // 200에서 단위 정보 추가
+    if (filteredItemProfitability) {
+      for (const r of filteredItemProfitability) {
+        const raw = (r.품목 || "").trim();
+        const codeMatch = raw.match(/^\[([^\]]+)\]/);
+        const code = codeMatch ? codeMatch[1].trim() : raw;
+        const entry = map.get(code);
+        if (entry && !entry.unit && (r as any).기준단위) {
+          entry.unit = ((r as any).기준단위 || "").trim();
+        }
+      }
     }
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v }))
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 150);
-  }, [cvpItems, poolItems]);
+  }, [cvpItems, poolItems, filteredItemProfitability]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
   // 파이차트: 정상(공헌이익 > 0) vs 출혈(공헌이익 ≤ 0) 분류
@@ -957,7 +977,7 @@ export function OffsetEffectTab({
               <span className="text-xs min-w-[70px]">대상 품목:</span>
               <select
                 value={targetItem ?? ""}
-                onChange={(e) => setTargetItem(e.target.value || null)}
+                onChange={(e) => { setTargetItem(e.target.value || null); if (!e.target.value) setInputMode("percent"); }}
                 className="flex-1 text-xs border rounded px-2 py-1 bg-background"
               >
                 <option value="">전체 품목</option>
@@ -970,29 +990,87 @@ export function OffsetEffectTab({
             </div>
           </div>
 
-          {/* 슬라이더 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xs min-w-[90px]">물량 증감:</span>
-              <input
-                type="range" min={-50} max={100} step={1}
-                value={volumeIncreasePct}
-                onChange={(e) => setVolumeIncreasePct(Number(e.target.value))}
-                className="flex-1 accent-primary"
-              />
-              <span className="text-xs font-semibold tabular-nums w-12 text-right">{volumeIncreasePct > 0 ? "+" : ""}{volumeIncreasePct}%</span>
+          {/* 입력 모드 토글 */}
+          {targetItem && (
+            <div className="flex items-center gap-3 text-xs">
+              <span className="font-semibold min-w-[90px]">입력 모드:</span>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" checked={inputMode === "percent"} onChange={() => setInputMode("percent")} />
+                비율(%)
+              </label>
+              <label className="flex items-center gap-1 cursor-pointer">
+                <input type="radio" checked={inputMode === "absolute"} onChange={() => setInputMode("absolute")} />
+                절대 수량
+              </label>
+              {inputMode === "absolute" && (() => {
+                const sel = itemList.find((i) => i.code === targetItem);
+                return sel ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                    현재 {sel.quantity.toLocaleString()} {sel.unit || "개"}
+                  </span>
+                ) : null;
+              })()}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs min-w-[90px]">단가 조정:</span>
-              <input
-                type="range" min={-30} max={30} step={1}
-                value={priceChangePct}
-                onChange={(e) => setPriceChangePct(Number(e.target.value))}
-                className="flex-1 accent-primary"
-              />
-              <span className="text-xs font-semibold tabular-nums w-12 text-right">{priceChangePct}%</span>
+          )}
+
+          {/* 슬라이더 (비율 모드) / 직접 입력 (절대 수량 모드) */}
+          {inputMode === "percent" || !targetItem ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-xs min-w-[90px]">물량 증감:</span>
+                <input
+                  type="range" min={-50} max={100} step={0.5}
+                  value={volumeIncreasePct}
+                  onChange={(e) => setVolumeIncreasePct(Number(e.target.value))}
+                  className="flex-1 accent-primary"
+                />
+                <input type="number" value={volumeIncreasePct} onChange={(e) => setVolumeIncreasePct(Number(e.target.value))}
+                  className="w-16 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={0.5} min={-50} max={200} />
+                <span className="text-xs">%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs min-w-[90px]">단가 조정:</span>
+                <input
+                  type="range" min={-30} max={30} step={0.5}
+                  value={priceChangePct}
+                  onChange={(e) => setPriceChangePct(Number(e.target.value))}
+                  className="flex-1 accent-primary"
+                />
+                <input type="number" value={priceChangePct} onChange={(e) => setPriceChangePct(Number(e.target.value))}
+                  className="w-16 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={0.5} min={-50} max={50} />
+                <span className="text-xs">%</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {(() => {
+                const sel = itemList.find((i) => i.code === targetItem);
+                const unitLabel = sel?.unit || "개";
+                const currentQty = sel?.quantity || 0;
+                return (<>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs min-w-[90px]">추가 수량:</span>
+                    <input type="number" value={volumeAbsolute}
+                      onChange={(e) => setVolumeAbsolute(Number(e.target.value))}
+                      className="flex-1 text-xs border rounded px-2 py-1 bg-background tabular-nums"
+                      step={unitLabel === "KG" || unitLabel === "L" ? 1000 : unitLabel === "TON" ? 100 : 10}
+                    />
+                    <span className="text-xs font-semibold">{unitLabel}</span>
+                    <span className="text-[10px] text-muted-foreground">(→ 합계 {(currentQty + volumeAbsolute).toLocaleString()} {unitLabel})</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs min-w-[90px]">단가 조정:</span>
+                    <input type="number" value={priceChangeDirect}
+                      onChange={(e) => setPriceChangeDirect(Number(e.target.value))}
+                      className="flex-1 text-xs border rounded px-2 py-1 bg-background tabular-nums"
+                      step={0.5} min={-50} max={50}
+                    />
+                    <span className="text-xs">%</span>
+                  </div>
+                </>);
+              })()}
+            </div>
+          )}
 
           {/* 프리셋 */}
           <div className="flex flex-wrap gap-1.5">

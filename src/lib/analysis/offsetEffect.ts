@@ -387,6 +387,9 @@ export interface TotalSimInput {
   targetItem: string | null;
   volumeIncreasePct: number;
   priceChangePct: number;
+  // 절대 수량 모드: 특정 품목 선택 시 "추가 200ROL" 같은 직접 입력
+  // volumeAbsolute가 설정되면 volumeIncreasePct 대신 사용
+  volumeAbsolute?: number;
 }
 
 /**
@@ -402,7 +405,7 @@ export interface TotalSimInput {
  * @assumption 고정비 총액 불변 (설비 캐파 내 생산)
  */
 export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulation {
-  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct } = input;
+  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, volumeAbsolute } = input;
 
   const baseTotalRevenue = items.reduce((s, it) => s + it.revenue, 0);
   const baseTotalVariableCost = items.reduce((s, it) => s + it.variableCost, 0);
@@ -428,7 +431,10 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
   for (const it of items) {
     if (isTarget(it)) {
       const newPrice = Math.max(it.unitPrice * priceFactor, 0);
-      const newQty = Math.max(it.quantity * volFactor, 0);
+      // 절대 수량 모드: volumeAbsolute가 있으면 "추가 수량"으로 사용 (품목 선택 필수)
+      const newQty = volumeAbsolute !== undefined
+        ? Math.max(it.quantity + volumeAbsolute, 0)
+        : Math.max(it.quantity * volFactor, 0);
       const newRev = newPrice * newQty;
       const newVC = it.unitVariableCost * newQty;
       newTotalRevenue += newRev;
@@ -438,7 +444,9 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
       // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액 (negative)
       priceReductionLoss += it.quantity * it.unitPrice * (priceChangePct / 100);
       // 분해: 물량 증가 공헌 = 추가 수량 × 인하된 단위공헌이익
-      const addedQty = it.quantity * (volumeIncreasePct / 100);
+      const addedQty = volumeAbsolute !== undefined
+        ? volumeAbsolute
+        : it.quantity * (volumeIncreasePct / 100);
       const newUnitCM = newPrice - it.unitVariableCost;
       volumeContributionGain += addedQty * newUnitCM;
     } else {
