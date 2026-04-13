@@ -591,6 +591,8 @@ export function OffsetEffectTab({
               <CartesianGrid {...GRID_PROPS} />
               <XAxis
                 dataKey="수량"
+                type="number"
+                domain={[0, "dataMax"]}
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v) => Math.round(v).toLocaleString()}
                 label={{ value: "수량 (개)", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
