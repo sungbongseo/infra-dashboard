@@ -23,6 +23,8 @@ import {
   calcWaterfallSteps,
   verifyIntegrity,
   getAvailablePools,
+  getUnitGroups,
+  calcGroupCVP,
   type CVPItem,
   type PoolLevel,
   type FixedCostAllocation,
@@ -66,6 +68,20 @@ export function OffsetEffectTab({
   const [poolLevel, setPoolLevel] = useState<PoolLevel>("대분류");
   const [poolName, setPoolName] = useState<string>("");
   const [allocationBasis, setAllocationBasis] = useState<FixedCostAllocation>("revenue");
+
+  // CVP 듀얼 모드: 전사 금액 기반 / 대분류×단위 수량 기반
+  const [cvpGroupKey, setCvpGroupKey] = useState<string>("__all__");
+
+  const unitGroups = useMemo(
+    () => filteredItemProfitability ? getUnitGroups(filteredItemProfitability) : [],
+    [filteredItemProfitability]
+  );
+
+  const selectedGroup = useMemo(() => {
+    if (cvpGroupKey === "__all__" || !filteredItemProfitability) return null;
+    const [cat, unit] = cvpGroupKey.split("|");
+    return calcGroupCVP(filteredItemProfitability, cat, unit);
+  }, [cvpGroupKey, filteredItemProfitability]);
 
   // 전사 고정비 (제조 고정비)
   const totalFixedCost = useMemo(
@@ -181,11 +197,30 @@ export function OffsetEffectTab({
     { name: `출혈 (${cvpSummary.bleedingCount}건, ${formatCurrency(cvpSummary.bleedingContributionLoss, true)})`, value: cvpSummary.bleedingCount, fill: "hsl(0, 84%, 60%)" },
   ], [cvpSummary]);
 
-  // CVP 그래프 데이터 (금액 기반 영업이익 차트)
-  // X축 = 매출액, Y축 = 영업이익 (매출 − 총원가)
-  // 영업이익 = 매출 × 공헌이익률 − 고정비
-  // Y=0 교차점 = BEP 매출
+  // CVP 그래프 데이터 — 듀얼 모드
+  // 전사: X=매출, Y=영업이익 (금액 기반)
+  // 그룹: X=수량(단위), Y=금액 (수량 기반 — 매출선/총원가선/고정비선)
   const cvpChartData = useMemo(() => {
+    if (selectedGroup) {
+      // 수량 기반 CVP (동일 단위 그룹)
+      const g = selectedGroup;
+      if (g.totalQuantity === 0) return [];
+      const maxQty = g.totalQuantity * 2.2;
+      const steps = 20;
+      const stepSize = maxQty / steps;
+      const data = [];
+      for (let i = 0; i <= steps; i++) {
+        const qty = stepSize * i;
+        data.push({
+          수량: parseFloat(qty.toFixed(2)),
+          매출선: qty * g.weightedUnitPrice,
+          총원가: g.totalFixedCost + qty * g.weightedUnitVariableCost,
+          고정비: g.totalFixedCost,
+        });
+      }
+      return data;
+    }
+    // 전사 금액 기반 영업이익 직선
     if (cvpSummary.totalRevenue === 0) return [];
     const maxRev = cvpSummary.totalRevenue * 2.2;
     const steps = 20;
@@ -194,14 +229,13 @@ export function OffsetEffectTab({
     const data = [];
     for (let i = 0; i <= steps; i++) {
       const rev = stepSize * i;
-      const opProfit = rev * cmRatio - totalFixedCost; // 영업이익 = 매출×CM률 − 고정비
       data.push({
         매출: parseFloat(rev.toFixed(0)),
-        영업이익: opProfit,
+        영업이익: rev * cmRatio - totalFixedCost,
       });
     }
     return data;
-  }, [cvpSummary, totalFixedCost]);
+  }, [cvpSummary, totalFixedCost, selectedGroup]);
 
   // CVP 핵심 해석 지표
   const cvpInsight = useMemo(() => {
@@ -603,59 +637,85 @@ export function OffsetEffectTab({
           </ul>
           <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 이익선의 <strong>기울기 = 공헌이익률</strong>. 기울기가 가파를수록 매출 1원당 이익 증가가 큼. 현재 위치가 BEP보다 오른쪽이면 흑자.</p>
         </div>
+        {/* 그룹 선택 드롭다운 (듀얼 모드 CVP) */}
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-xs font-semibold min-w-[80px]">CVP 범위:</span>
+          <select
+            value={cvpGroupKey}
+            onChange={(e) => setCvpGroupKey(e.target.value)}
+            className="flex-1 text-xs border rounded px-2 py-1 bg-background max-w-md"
+          >
+            <option value="__all__">전사 (금액 기반 — 이종 단위 안전)</option>
+            {unitGroups.map((g) => (
+              <option key={g.label} value={`${g.category}|${g.unit}`}>
+                {g.label} ({g.itemCount}개 품목, {formatCurrency(g.totalRevenue, true)})
+              </option>
+            ))}
+          </select>
+          {selectedGroup && (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+              수량 기반 ({selectedGroup.unit})
+            </span>
+          )}
+        </div>
+
         <ChartCard
-          title="CVP 영업이익 차트 — 매출 vs 이익"
+          title={selectedGroup ? `CVP 분석 — ${selectedGroup.unit} 기준 (수량 vs 금액)` : "CVP 영업이익 차트 — 매출 vs 이익"}
           isEmpty={cvpChartData.length === 0}
-          formula="영업이익 = 매출 × 공헌이익률 − 고정비 | BEP = 이익선이 0을 만나는 매출"
-          description={isFinite(cvpSummary.bepRevenue) ? `BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)} · 안전한계율 ${safeFixed((1 - cvpSummary.bepRevenue / cvpSummary.totalRevenue) * 100, 1)}%` : "BEP 도달 불가 (공헌이익률 ≤ 0)"}
-          benchmark="Y축 0선 위 = 흑자. 기울기(공헌이익률)가 가파를수록 매출 증가 대비 이익 개선 빠름"
+          formula={selectedGroup
+            ? `매출선 = 수량×${formatCurrency(selectedGroup.weightedUnitPrice, true)}/${selectedGroup.unit} | 총원가 = ${formatCurrency(selectedGroup.totalFixedCost, true)} + 수량×${formatCurrency(selectedGroup.weightedUnitVariableCost, true)} | BEP = ${isFinite(selectedGroup.bepQuantity) ? Math.round(selectedGroup.bepQuantity).toLocaleString() + selectedGroup.unit : '도달불가'}`
+            : "영업이익 = 매출 × 공헌이익률 − 고정비 | BEP = 이익선이 0을 만나는 매출"}
+          description={selectedGroup
+            ? `BEP ${isFinite(selectedGroup.bepQuantity) ? Math.round(selectedGroup.bepQuantity).toLocaleString() + selectedGroup.unit : '도달불가'} · 현재 ${Math.round(selectedGroup.totalQuantity).toLocaleString()}${selectedGroup.unit} · 영업이익 ${formatCurrency(selectedGroup.operatingProfit)}`
+            : (isFinite(cvpSummary.bepRevenue) ? `BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)} · 안전한계율 ${safeFixed((1 - cvpSummary.bepRevenue / cvpSummary.totalRevenue) * 100, 1)}%` : "BEP 도달 불가 (공헌이익률 ≤ 0)")}
+          benchmark={selectedGroup ? `동일 단위(${selectedGroup.unit}) 그룹이므로 수량 기반 BEP 정확` : "Y축 0선 위 = 흑자. 기울기(공헌이익률)가 가파를수록 매출 증가 대비 이익 개선 빠름"}
           reason="매출 변동 시 영업이익이 어떻게 변하는지 즉각 확인"
         >
           <ChartContainer height="h-80">
+            {selectedGroup ? (
+            /* === 수량 기반 CVP (동일 단위 그룹) === */
             <ComposedChart data={cvpChartData} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
               <CartesianGrid {...GRID_PROPS} />
               <XAxis
-                dataKey="매출"
+                dataKey="수량"
                 type="number"
                 domain={[0, "dataMax"]}
                 tick={{ fontSize: 10 }}
-                tickFormatter={(v) => formatCurrency(v, true)}
-                label={{ value: "매출액", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                tickFormatter={(v) => Math.round(v).toLocaleString()}
+                label={{ value: `수량 (${selectedGroup.unit})`, position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
-              <YAxis
-                tick={{ fontSize: 10 }}
-                tickFormatter={(v) => formatCurrency(v, true)}
-                label={{ value: "영업이익", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
-              />
-              <RechartsTooltip
-                {...TOOLTIP_STYLE}
-                formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
-                labelFormatter={(v) => `매출: ${formatCurrency(Number(v))}`}
-              />
-              {/* 0선 = 손익분기 기준 */}
-              <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: "손익분기선 (이익=0)", fontSize: 9, fill: "hsl(0,0%,50%)", position: "right" }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "금액", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }} />
+              <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]} labelFormatter={(v) => `수량: ${Math.round(Number(v)).toLocaleString()} ${selectedGroup.unit}`} />
               <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 11 }} />
-              {/* 영업이익 라인 */}
-              <Line type="monotone" dataKey="영업이익" name="영업이익 (매출×CM률−고정비)" stroke="hsl(217, 91%, 60%)" strokeWidth={2.5} dot={false} />
-              {/* BEP 수직선 */}
-              {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
-                <ReferenceLine
-                  x={Math.round(cvpSummary.bepRevenue)}
-                  stroke="hsl(0, 84%, 55%)"
-                  strokeDasharray="3 3"
-                  strokeWidth={2}
-                  label={{ value: `BEP (${formatCurrency(cvpSummary.bepRevenue, true)})`, fontSize: 10, fill: "hsl(0, 84%, 55%)", position: "top" }}
-                />
+              <Line type="monotone" dataKey="고정비" name="고정비 (일정)" stroke="hsl(0,0%,40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
+              <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동)" stroke="hsl(0,84%,55%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="매출선" name="매출액" stroke="hsl(142,71%,42%)" strokeWidth={2.5} dot={false} />
+              {isFinite(selectedGroup.bepQuantity) && selectedGroup.bepQuantity > 0 && (
+                <ReferenceLine x={Math.round(selectedGroup.bepQuantity)} stroke="hsl(217,91%,60%)" strokeDasharray="3 3" strokeWidth={2}
+                  label={{ value: `BEP (${Math.round(selectedGroup.bepQuantity).toLocaleString()}${selectedGroup.unit})`, fontSize: 10, fill: "hsl(217,91%,60%)", position: "top" }} />
               )}
-              {/* 현재 매출 수직선 */}
-              <ReferenceLine
-                x={Math.round(cvpSummary.totalRevenue)}
-                stroke="hsl(142, 71%, 42%)"
-                strokeDasharray="4 4"
-                strokeWidth={2}
-                label={{ value: `현재 (${formatCurrency(cvpSummary.totalRevenue, true)})`, fontSize: 10, fill: "hsl(142, 71%, 42%)", position: "top" }}
-              />
+              <ReferenceLine x={Math.round(selectedGroup.totalQuantity)} stroke="hsl(30,90%,50%)" strokeDasharray="4 4" strokeWidth={2}
+                label={{ value: `현재 (${Math.round(selectedGroup.totalQuantity).toLocaleString()}${selectedGroup.unit})`, fontSize: 10, fill: "hsl(30,90%,50%)", position: "top" }} />
             </ComposedChart>
+            ) : (
+            /* === 전사 금액 기반 영업이익 직선 === */
+            <ComposedChart data={cvpChartData} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
+              <CartesianGrid {...GRID_PROPS} />
+              <XAxis dataKey="매출" type="number" domain={[0, "dataMax"]} tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)}
+                label={{ value: "매출액", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }} />
+              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "영업이익", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }} />
+              <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]} labelFormatter={(v) => `매출: ${formatCurrency(Number(v))}`} />
+              <ReferenceLine y={0} stroke="hsl(0,0%,50%)" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: "손익분기선 (이익=0)", fontSize: 9, fill: "hsl(0,0%,50%)", position: "right" }} />
+              <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="영업이익" name="영업이익 (매출×CM률−고정비)" stroke="hsl(217,91%,60%)" strokeWidth={2.5} dot={false} />
+              {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
+                <ReferenceLine x={Math.round(cvpSummary.bepRevenue)} stroke="hsl(0,84%,55%)" strokeDasharray="3 3" strokeWidth={2}
+                  label={{ value: `BEP (${formatCurrency(cvpSummary.bepRevenue, true)})`, fontSize: 10, fill: "hsl(0,84%,55%)", position: "top" }} />
+              )}
+              <ReferenceLine x={Math.round(cvpSummary.totalRevenue)} stroke="hsl(142,71%,42%)" strokeDasharray="4 4" strokeWidth={2}
+                label={{ value: `현재 (${formatCurrency(cvpSummary.totalRevenue, true)})`, fontSize: 10, fill: "hsl(142,71%,42%)", position: "top" }} />
+            </ComposedChart>
+            )}
           </ChartContainer>
           {/* 단일 라인(영업이익) + ReferenceLine이라 범례 불필요 — 해석 가이드에서 설명 */}
         </ChartCard>

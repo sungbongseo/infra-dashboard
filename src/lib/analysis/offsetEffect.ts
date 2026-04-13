@@ -833,3 +833,121 @@ export function getAvailablePools(
     }))
     .sort((a, b) => b.totalRevenue - a.totalRevenue);
 }
+
+// ─── 대분류×기준단위 그룹 (듀얼 모드 CVP) ─────────────────
+
+export interface UnitGroup {
+  label: string;        // "방수시트 [ROL]"
+  category: string;     // "방수시트"
+  unit: string;         // "ROL"
+  itemCount: number;
+  totalRevenue: number;
+  totalQuantity: number;
+  totalFixedCost: number;
+}
+
+/**
+ * 대분류×기준단위 기준 동일 단위 그룹 목록 생성 (수량 기반 CVP용).
+ * 같은 그룹 내에서는 단위가 동일하므로 수량 합산이 의미 있음.
+ */
+export function getUnitGroups(
+  itemData: ItemProfitabilityRecord[]
+): UnitGroup[] {
+  const map = new Map<string, {
+    category: string; unit: string;
+    items: Set<string>; revenue: number; quantity: number; fixedCost: number;
+  }>();
+
+  for (const r of itemData) {
+    const cat = ((r as any).대분류 || "").trim() || "(미분류)";
+    const unit = ((r as any).기준단위 || "").trim();
+    if (!unit) continue; // 단위 없는 행은 그룹화 불가
+    const key = `${cat}|${unit}`;
+    const entry = map.get(key) || { category: cat, unit, items: new Set(), revenue: 0, quantity: 0, fixedCost: 0 };
+    entry.items.add((r.품목 || "").trim());
+    entry.revenue += r.매출액 || 0;
+    entry.quantity += r.매출수량 || 0;
+    entry.fixedCost += (r.제조고정노무비 || 0) + (r.감가상각비 || 0) + (r.기타경비 || 0);
+    map.set(key, entry);
+  }
+
+  return Array.from(map.entries())
+    .filter(([, v]) => v.items.size >= 2) // 품목 2개 이상
+    .map(([, v]) => ({
+      label: `${v.category} [${v.unit}]`,
+      category: v.category,
+      unit: v.unit,
+      itemCount: v.items.size,
+      totalRevenue: v.revenue,
+      totalQuantity: v.quantity,
+      totalFixedCost: v.fixedCost,
+    }))
+    .sort((a, b) => b.totalRevenue - a.totalRevenue);
+}
+
+export interface GroupCVPResult {
+  unit: string;
+  totalRevenue: number;
+  totalVariableCost: number;
+  totalFixedCost: number;
+  totalQuantity: number;
+  weightedUnitPrice: number;
+  weightedUnitVariableCost: number;
+  weightedUnitContributionMargin: number;
+  overallContributionMarginRatio: number;
+  bepQuantity: number;
+  bepRevenue: number;
+  operatingProfit: number;
+}
+
+/**
+ * 선택된 대분류×단위 그룹 내 수량 기반 CVP 계산.
+ * 동일 단위이므로 수량 합산 + 가중 단가 + BEP 수량 모두 의미 있음.
+ */
+export function calcGroupCVP(
+  itemData: ItemProfitabilityRecord[],
+  category: string,
+  unit: string
+): GroupCVPResult {
+  // 그룹 필터링
+  const filtered = itemData.filter((r) => {
+    const cat = ((r as any).대분류 || "").trim() || "(미분류)";
+    const u = ((r as any).기준단위 || "").trim();
+    return cat === category && u === unit;
+  });
+
+  let totalRev = 0, totalVC = 0, totalFC = 0, totalQty = 0;
+  for (const r of filtered) {
+    const rev = r.매출액 || 0;
+    const cost = r.실적매출원가 || 0;
+    const fixed = (r.제조고정노무비 || 0) + (r.감가상각비 || 0) + (r.기타경비 || 0);
+    const vc = Math.max(cost - fixed, 0);
+    totalRev += rev;
+    totalVC += vc;
+    totalFC += fixed;
+    totalQty += r.매출수량 || 0;
+  }
+
+  const wUnitPrice = safeDivide(totalRev, totalQty);
+  const wUnitVC = safeDivide(totalVC, totalQty);
+  const wUnitCM = wUnitPrice - wUnitVC;
+  const cmRatio = safeDivide(totalRev - totalVC, totalRev);
+  const bepQty = wUnitCM > 0 ? safeDivide(totalFC, wUnitCM) : Infinity;
+  const bepRev = cmRatio > 0 ? safeDivide(totalFC, cmRatio) : Infinity;
+  const opProfit = totalRev - totalVC - totalFC;
+
+  return {
+    unit,
+    totalRevenue: totalRev,
+    totalVariableCost: totalVC,
+    totalFixedCost: totalFC,
+    totalQuantity: totalQty,
+    weightedUnitPrice: wUnitPrice,
+    weightedUnitVariableCost: wUnitVC,
+    weightedUnitContributionMargin: wUnitCM,
+    overallContributionMarginRatio: cmRatio,
+    bepQuantity: bepQty,
+    bepRevenue: bepRev,
+    operatingProfit: opProfit,
+  };
+}
