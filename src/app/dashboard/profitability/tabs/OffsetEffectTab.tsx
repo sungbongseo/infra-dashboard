@@ -629,7 +629,7 @@ export function OffsetEffectTab({
               <YAxis
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v) => formatCurrency(v, true)}
-                label={{ value: "매출 / 원가", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                label={{ value: "금액 (원)", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -637,9 +637,9 @@ export function OffsetEffectTab({
                 labelFormatter={(v) => `매출: ${formatCurrency(Number(v))}`}
               />
               <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="고정비" name="고정비 (수평)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동비)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="매출선" name="매출 (Y=X)" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="고정비" name="③ 고정비 (일정)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
+              <Line type="monotone" dataKey="총원가" name="② 총원가 (고정비+변동비)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="매출선" name="① 매출액" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
               {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
                 <ReferenceLine
                   x={Math.round(cvpSummary.bepRevenue)}
@@ -693,13 +693,16 @@ export function OffsetEffectTab({
 
         {/* 차트 해석 가이드 */}
         <div className="rounded-md border bg-muted/20 p-3 mt-3 text-xs text-muted-foreground">
-          <strong className="text-foreground">📊 이 차트의 두 선이 뜻하는 것:</strong>
-          <ul className="mt-1 space-y-1 ml-3">
-            <li><span className="font-semibold" style={{ color: "hsl(142,71%,42%)" }}>녹색 대각선</span> = 매출 자체 (X=Y). 매출이 늘면 이 선도 같이 올라감</li>
-            <li><span className="font-semibold" style={{ color: "hsl(0,84%,55%)" }}>빨간 실선</span> = 총원가 (고정비 + 변동비). 기울기가 녹색보다 낮으면 매출 1원당 원가 &lt; 1원 = <strong>흑자</strong></li>
-            <li><strong>두 선 사이의 간격</strong> = 영업이익. <strong>간격이 넓을수록 이익이 큼</strong></li>
-            <li><span className="font-semibold" style={{ color: "hsl(217,91%,60%)" }}>파란 점선(BEP)</span> = 두 선이 만나는 지점. 이 매출 이하면 <span className="text-red-600 font-semibold">적자</span>, 이상이면 <span className="text-emerald-600 font-semibold">흑자</span></li>
+          <strong className="text-foreground">📊 Y축은 &quot;원 단위 금액&quot; — 3개 선이 각각 다른 금액을 표시합니다:</strong>
+          <ul className="mt-1 space-y-1.5 ml-3">
+            <li><span className="font-semibold" style={{ color: "hsl(142,71%,42%)" }}>① 녹색 = 매출액</span>: X축(매출)과 같은 값이라 45도 대각선. &quot;이만큼 팔면 매출이 이만큼&quot;</li>
+            <li><span className="font-semibold" style={{ color: "hsl(0,84%,55%)" }}>② 빨강 = 총원가</span>: 고정비 + (매출 × 변동비율). &quot;이만큼 팔면 원가가 이만큼&quot;</li>
+            <li style={{ color: "hsl(0,0%,40%)" }}><span className="font-semibold">③ 회색 = 고정비</span>: 매출과 무관하게 일정 (설비·감가·노무비)</li>
           </ul>
+          <div className="mt-2 p-2 bg-emerald-50/50 dark:bg-emerald-950/20 rounded border-l-2 border-emerald-500">
+            <strong className="text-foreground">핵심:</strong> <strong style={{ color: "hsl(142,71%,42%)" }}>녹색(매출)</strong>이 <strong style={{ color: "hsl(0,84%,55%)" }}>빨강(원가)</strong>보다 위에 있으면 = <strong className="text-emerald-600">흑자</strong>. 그 간격이 <strong>영업이익</strong>.
+            <br/>파란 BEP 수직선 = 두 선이 만나는 매출 지점. <strong>BEP 왼쪽 = 적자, 오른쪽 = 흑자</strong>.
+          </div>
         </div>
       </div>
 
