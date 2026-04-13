@@ -45,10 +45,10 @@ const QUADRANT_COLORS = {
 };
 
 const QUADRANT_LABELS = {
-  star: "Star (고물량·고마진)",
-  cashcow: "CashCow (고물량·저마진)",
-  question: "Question (저물량·고마진)",
-  dog: "Dog (저물량·저마진) 쥐약",
+  star: "Star (고매출·고마진)",
+  cashcow: "CashCow (고매출·저마진)",
+  question: "Question (저매출·고마진)",
+  dog: "Dog (저매출·저마진) 쥐약",
 };
 
 export function OffsetEffectTab({
@@ -180,41 +180,42 @@ export function OffsetEffectTab({
     { name: "출혈 거래처/품목", value: cvpSummary.bleedingCount, fill: "hsl(0, 84%, 60%)" },
   ], [cvpSummary]);
 
-  // CVP 그래프 데이터 (수량 기준)
+  // CVP 그래프 데이터 (금액 기반 — 이종 단위 혼합 문제 해결)
+  // X축 = 매출액, Y축 = 금액 (원가/고정비)
+  // 변동비율 = totalVC / totalRevenue, 총원가(매출X) = 고정비 + X × 변동비율
   const cvpChartData = useMemo(() => {
-    if (cvpSummary.totalQuantity === 0) return [];
-    // H4: Step 4a 슬라이더 +100%까지 대응 + 여유분 20%
-    const maxQty = cvpSummary.totalQuantity * 2.2;
+    if (cvpSummary.totalRevenue === 0) return [];
+    const maxRev = cvpSummary.totalRevenue * 2.2;
     const steps = 20;
-    const stepSize = maxQty / steps;
+    const stepSize = maxRev / steps;
+    const vcRatio = cvpSummary.overallVariableCostRatio; // 변동비/매출 비율
     const data = [];
     for (let i = 0; i <= steps; i++) {
-      const qty = stepSize * i;
-      const revenue = qty * cvpSummary.weightedUnitPrice;
-      const variable = qty * cvpSummary.weightedUnitVariableCost;
+      const rev = stepSize * i;
       data.push({
-        수량: parseFloat(qty.toFixed(2)),
+        매출: parseFloat(rev.toFixed(0)),
         고정비: totalFixedCost,
-        총원가: totalFixedCost + variable,
-        매출액: revenue,
+        총원가: totalFixedCost + rev * vcRatio,
+        매출선: rev, // Y=X 대각선 (매출=매출)
       });
     }
     return data;
   }, [cvpSummary, totalFixedCost]);
 
-  // 산점도 데이터
+  // 산점도 데이터 (금액 기반 — X=매출, Y=공헌이익률)
   const scatterData = useMemo(() => {
     const byQuadrant: Record<string, any[]> = { star: [], cashcow: [], question: [], dog: [] };
     for (const it of cvpItems.slice(0, 500)) {
       byQuadrant[it.quadrant].push({
-        x: it.quantity,
-        y: it.unitContributionMargin,
+        x: it.revenue,
+        y: it.contributionMarginRatio * 100, // % 표시
         z: Math.max(it.revenue, 1),
         fullName: `${it.customerName} / ${truncateLabel(it.itemName, 20)}`,
         customer: it.customerName,
         item: it.itemName,
         revenue: it.revenue,
-        unitCM: it.unitContributionMargin,
+        cmRatio: it.contributionMarginRatio * 100,
+        totalCM: it.totalContributionMargin,
       });
     }
     return byQuadrant;
@@ -519,12 +520,12 @@ export function OffsetEffectTab({
             reason="CVP 분석의 핵심 지표 — 가설 검증의 기준선"
           />
           <KpiCard
-            title="평균 단위당 원가" value={cvpSummary.avgUnitFixedCost + cvpSummary.weightedUnitVariableCost} format="currency"
+            title="공헌이익률" value={cvpSummary.overallContributionMarginRatio * 100} format="percent"
             icon={<Info className="h-5 w-5" />}
-            formula="(Σ[200.제조고정비] + Σ[100.변동비]) / Σ[100.매출수량·실적] = 단위변동비 + 단위고정비"
-            description={`단위변동비 ${formatCurrency(cvpSummary.weightedUnitVariableCost)} + 단위고정비 ${formatCurrency(cvpSummary.avgUnitFixedCost)}`}
-            benchmark="물량 증가 시 단위고정비가 감소 → 단위원가 개선 여지"
-            reason="가설의 핵심: 물량 증가로 단위 고정비가 얼마나 낮아지는지 기준"
+            formula="공헌이익률 = (매출 − 변동비) / 매출 × 100 · BEP 매출 = 고정비 / 공헌이익률"
+            description={`변동비율 ${safeFixed(cvpSummary.overallVariableCostRatio * 100, 1)}% · BEP 매출 ${isFinite(cvpSummary.bepRevenue) ? formatCurrency(cvpSummary.bepRevenue) : "도달 불가"}`}
+            benchmark="공헌이익률이 높을수록 고정비 회수 속도 빠름. 30% 이상 양호"
+            reason="금액 기반 CVP 핵심 지표 — 이종 단위(KG/ROL/CAN) 혼합 시에도 정확"
           />
         </div>
 
@@ -532,7 +533,7 @@ export function OffsetEffectTab({
           <ChartCard
             title="정상 vs 출혈 거래처·품목 비중"
             isEmpty={cvpItems.length === 0}
-            formula="출혈: [100.매출액·실적] − [100.변동비] ≤ 0 (단위공헌이익 음수, 팔수록 손해)"
+            formula="출혈: [100.매출액·실적] − [100.변동비] ≤ 0 (공헌이익률 음수, 팔수록 손해)"
             description={`정상 ${cvpSummary.healthyCount}개 / 출혈 ${cvpSummary.bleedingCount}개 · 출혈 거래처 손실 합 ${formatCurrency(cvpSummary.bleedingContributionLoss)}`}
             benchmark="출혈 비중 20% 초과 시 즉각 가격 협상 또는 거래 재검토 필요"
             reason="저가수주의 현황을 즉시 파악하여 시뮬레이션 대상 식별"
@@ -570,46 +571,46 @@ export function OffsetEffectTab({
               <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익 + 200. 품목별수익성분석</p>
               <table className="w-full text-[10px] mt-2">
                 <tbody>
-                  <tr className="border-b"><td className="py-1 pr-2">X축 (수량)</td><td className="font-mono">Σ [100.매출수량·실적]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">매출선</td><td className="font-mono">가중 단위단가 × 수량</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">총원가선</td><td className="font-mono">변동비선 + 고정비선</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출)</td><td className="font-mono">매출액 (단위 무관, 금액 기반)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">매출선 (대각)</td><td className="font-mono">Y = X (45도 대각선)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">총원가선</td><td className="font-mono">고정비 + X × 변동비율</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">고정비선 (수평)</td><td className="font-mono">Σ [200.제조고정노무비+감가상각비+기타경비]</td></tr>
-                  <tr><td className="py-1 pr-2">BEP 수량</td><td className="font-mono">고정비 / (가중 단위단가 − 가중 단위변동비)</td></tr>
+                  <tr><td className="py-1 pr-2">BEP 매출</td><td className="font-mono">고정비 / 공헌이익률</td></tr>
                 </tbody>
               </table>
+              <p className="text-[10px] mt-2 text-muted-foreground">※ 금액 기반 CVP: 이종 단위(KG/ROL/CAN/L 등) 혼합 제품군에서도 정확한 분석 가능</p>
             </div>
           </details>
         </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
-          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축은 수량, Y축은 금액. 3개 라인이 표시됩니다.</p>
+          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축 = 매출액, Y축 = 금액. 3개 라인이 표시됩니다. <strong>금액 기반</strong>이므로 KG/ROL/CAN 등 이종 단위 혼합 제품도 정확히 비교됩니다.</p>
           <ul className="list-disc ml-5 space-y-0.5">
-            <li><strong className="text-foreground">회색 점선 (고정비)</strong>: 수량과 무관하게 일정 — 설비·감가상각·고정노무비 합계</li>
-            <li><strong className="text-foreground">빨간 실선 (총원가)</strong>: 수량이 늘수록 선형 증가 = 고정비 + (수량×단위변동비)</li>
-            <li><strong className="text-foreground">녹색 실선 (매출액)</strong>: 수량이 늘수록 선형 증가 = 수량×가중평균 단가</li>
-            <li><strong className="text-foreground">파란 점선 (BEP)</strong>: 총원가와 매출이 교차하는 손익분기 수량</li>
-            <li><strong className="text-foreground">주황 점선 (현재)</strong>: 현재 실적 수량 위치</li>
+            <li><strong className="text-foreground">회색 점선 (고정비)</strong>: 매출과 무관하게 일정 — 설비·감가상각·고정노무비 합계</li>
+            <li><strong className="text-foreground">빨간 실선 (총원가)</strong>: 매출 증가에 비례 = 고정비 + (매출 × 변동비율)</li>
+            <li><strong className="text-foreground">녹색 대각선 (매출선)</strong>: Y=X 대각선 — 매출 자체를 표시</li>
+            <li><strong className="text-foreground">파란 점선 (BEP)</strong>: 총원가와 매출이 교차하는 <strong>손익분기 매출</strong></li>
+            <li><strong className="text-foreground">주황 점선 (현재)</strong>: 현재 실적 매출 위치</li>
           </ul>
-          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 현재 위치가 BEP보다 오른쪽이면 흑자, 왼쪽이면 적자. 현재와 BEP 사이가 멀수록 안전한계율이 높아 가격 인하 여지가 있습니다.</p>
-          <p className="text-[10px] text-muted-foreground mt-1">※ BEP 수직선이 안 보이면 BEP 수량이 매우 작아 Y축 근처에 겹쳐 있는 것입니다 (이미 충분히 흑자 상태). 빨간선(총원가)과 녹색선(매출)이 거의 겹치면 마진이 매우 낮다는 의미입니다.</p>
+          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 현재 매출이 BEP 매출보다 오른쪽이면 흑자. 녹색(매출)과 빨간(원가) 사이의 간격이 넓을수록 영업이익이 큽니다.</p>
         </div>
         <ChartCard
-          title="수량 기반 CVP 그래프 (Cost-Volume-Profit)"
+          title="금액 기반 CVP 그래프 (Cost-Volume-Profit)"
           isEmpty={cvpChartData.length === 0}
-          formula="매출선 = 수량 × 가중[100.단위단가] | 총원가선 = Σ[200.제조고정비] + 수량×가중[100.단위변동비] | BEP = [200.고정비] / ([100.단위단가] − [100.단위변동비])"
-          description={isFinite(cvpSummary.bepQuantity) ? `BEP 수량 ${Math.round(cvpSummary.bepQuantity).toLocaleString()}, BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)}` : "BEP 도달 불가 (단위공헌이익 ≤ 0)"}
-          benchmark="현재 수량이 BEP를 넘으면 수익 구간. BEP 대비 안전한계율 = (현재-BEP)/현재"
-          reason="손익분기점을 시각적으로 확인하여 물량 레버리지 여지를 판단"
+          formula="매출선 = Y=X 대각선 | 총원가선 = 고정비 + 매출×변동비율 | BEP 매출 = 고정비 / 공헌이익률"
+          description={isFinite(cvpSummary.bepRevenue) ? `BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)} · 안전한계율 ${safeFixed((1 - cvpSummary.bepRevenue / cvpSummary.totalRevenue) * 100, 1)}%` : "BEP 도달 불가 (공헌이익률 ≤ 0)"}
+          benchmark="현재 매출이 BEP 매출을 넘으면 수익 구간. 금액 기반이므로 이종 단위 혼합 시에도 정확"
+          reason="손익분기 매출을 시각적으로 확인하여 가격 인하 여지를 판단"
         >
           <ChartContainer height="h-80">
             <ComposedChart data={cvpChartData} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
               <CartesianGrid {...GRID_PROPS} />
               <XAxis
-                dataKey="수량"
+                dataKey="매출"
                 type="number"
                 domain={[0, "dataMax"]}
                 tick={{ fontSize: 10 }}
-                tickFormatter={(v) => Math.round(v).toLocaleString()}
-                label={{ value: "수량 (개)", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                tickFormatter={(v) => formatCurrency(v, true)}
+                label={{ value: "매출액", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
               <YAxis
                 tick={{ fontSize: 10 }}
@@ -619,27 +620,27 @@ export function OffsetEffectTab({
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
-                labelFormatter={(v) => `수량: ${Math.round(Number(v)).toLocaleString()}`}
+                labelFormatter={(v) => `매출: ${formatCurrency(Number(v))}`}
               />
               <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
               <Line type="monotone" dataKey="고정비" name="고정비 (수평)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="매출액" name="매출액" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
-              {isFinite(cvpSummary.bepQuantity) && cvpSummary.bepQuantity > 0 && (
+              <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동비)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="매출선" name="매출 (Y=X)" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
+              {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
                 <ReferenceLine
-                  x={Math.round(cvpSummary.bepQuantity)}
+                  x={Math.round(cvpSummary.bepRevenue)}
                   stroke="hsl(217, 91%, 60%)"
                   strokeDasharray="3 3"
                   strokeWidth={2}
-                  label={{ value: `BEP (${Math.round(cvpSummary.bepQuantity).toLocaleString()})`, fontSize: 10, fill: "hsl(217, 91%, 60%)", position: "top" }}
+                  label={{ value: `BEP (${formatCurrency(cvpSummary.bepRevenue, true)})`, fontSize: 10, fill: "hsl(217, 91%, 60%)", position: "top" }}
                 />
               )}
               <ReferenceLine
-                x={Math.round(cvpSummary.totalQuantity)}
+                x={Math.round(cvpSummary.totalRevenue)}
                 stroke="hsl(30, 90%, 50%)"
                 strokeDasharray="4 4"
                 strokeWidth={2}
-                label={{ value: `현재 (${Math.round(cvpSummary.totalQuantity).toLocaleString()})`, fontSize: 10, fill: "hsl(30, 90%, 50%)", position: "top" }}
+                label={{ value: `현재 (${formatCurrency(cvpSummary.totalRevenue, true)})`, fontSize: 10, fill: "hsl(30, 90%, 50%)", position: "top" }}
               />
             </ComposedChart>
           </ChartContainer>
@@ -670,26 +671,26 @@ export function OffsetEffectTab({
           </details>
         </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
-          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> 각 점(버블)은 거래처×품목 조합. X축=수량, Y축=단위공헌이익, 크기=매출.</p>
+          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> 각 점(버블)은 거래처×품목 조합. X축=매출액, Y축=공헌이익률, 크기=매출 비중. 금액 기반이므로 이종 단위(KG/ROL/CAN) 혼합 시에도 정확히 비교됩니다.</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
             <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded p-2">
-              <strong className="text-emerald-700 dark:text-emerald-400">⭐ Star (우상단)</strong>: 고물량+고마진. 핵심 자원 집중 및 관계 강화 대상
+              <strong className="text-emerald-700 dark:text-emerald-400">⭐ Star (우상단)</strong>: 고매출+고마진. 핵심 자원 집중 및 관계 강화 대상
             </div>
             <div className="bg-blue-50 dark:bg-blue-950/30 rounded p-2">
-              <strong className="text-blue-700 dark:text-blue-400">💰 CashCow (우하단)</strong>: 고물량+저마진. 안정적 현금흐름, 마진 개선 여지 검토
+              <strong className="text-blue-700 dark:text-blue-400">💰 CashCow (우하단)</strong>: 고매출+저마진. 안정적 현금흐름, 마진 개선 여지 검토
             </div>
             <div className="bg-amber-50 dark:bg-amber-950/30 rounded p-2">
-              <strong className="text-amber-700 dark:text-amber-400">❓ Question (좌상단)</strong>: 저물량+고마진. 물량 확대로 매출 기여도 증대 기회
+              <strong className="text-amber-700 dark:text-amber-400">❓ Question (좌상단)</strong>: 저매출+고마진. 물량 확대로 매출 기여도 증대 기회
             </div>
             <div className="bg-red-50 dark:bg-red-950/30 rounded p-2">
-              <strong className="text-red-700 dark:text-red-400">☠️ Dog (좌하단)</strong>: 저물량+저마진. <strong>쥐약 거래</strong> — 단가 재협상 또는 거래 축소
+              <strong className="text-red-700 dark:text-red-400">☠️ Dog (좌하단)</strong>: 저매출+저마진. <strong>쥐약 거래</strong> — 단가 재협상 또는 거래 축소
             </div>
           </div>
           <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> Y축 0 이하(빨간 점선 아래) 품목은 <strong>팔수록 손해</strong>인 품목입니다. Step 4a/4b 시뮬레이터에서 이들을 대상으로 시나리오를 돌려 개선 효과를 검증하세요.</p>
         </div>
         <ChartCard
-          title="수량 × 단위공헌이익 (버블 = 매출)"
-          formula="X축: [100.매출수량·실적], Y축: [100.매출액]−[100.변동비] / 수량 (단위공헌이익) | 버블: [100.매출액·실적] | 중앙값으로 4사분면 분할"
+          title="매출 × 공헌이익률 (버블 = 매출 비중)"
+          formula="X축: [100.매출액·실적], Y축: ([100.매출액]−[100.변동비]) / [100.매출] × 100 (공헌이익률%) | 중앙값으로 4사분면 분할"
           description={`Star ${scatterData.star.length} / CashCow ${scatterData.cashcow.length} / Question ${scatterData.question.length} / Dog ${scatterData.dog.length}`}
           benchmark="Dog 사분면(특히 Y축 0 이하) = 쥐약 거래처. 즉각 재검토 대상"
           reason="어떤 거래처·품목이 물량은 있지만 마진이 마이너스인지 즉각 식별"
@@ -697,8 +698,8 @@ export function OffsetEffectTab({
           <ChartContainer height="h-80">
             <ScatterChart margin={{ top: 20, right: 20, bottom: 40, left: 40 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis type="number" dataKey="x" name="수량" tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v.toString()} label={{ value: "수량", position: "bottom", offset: 0, fontSize: 11 }} />
-              <YAxis type="number" dataKey="y" name="단위공헌이익" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "단위공헌이익", angle: -90, position: "insideLeft", fontSize: 11 }} />
+              <XAxis type="number" dataKey="x" name="매출" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "매출액", position: "bottom", offset: 0, fontSize: 11 }} />
+              <YAxis type="number" dataKey="y" name="공헌이익률(%)" tick={{ fontSize: 10 }} tickFormatter={(v) => `${v.toFixed(0)}%`} label={{ value: "공헌이익률(%)", angle: -90, position: "insideLeft", fontSize: 11 }} />
               <ZAxis type="number" dataKey="z" range={[20, Math.min(500, Math.max(200, cvpItems.length < 50 ? 400 : 250))]} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -708,16 +709,16 @@ export function OffsetEffectTab({
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
                       <p className="font-semibold">{d.fullName}</p>
-                      <p>수량: {d.x.toLocaleString()}</p>
                       <p>매출: {formatCurrency(d.revenue)}</p>
-                      <p className={d.unitCM >= 0 ? "text-green-600" : "text-red-600 font-bold"}>
-                        단위공헌이익: {formatCurrency(d.unitCM)}
+                      <p className={d.cmRatio >= 0 ? "text-green-600" : "text-red-600 font-bold"}>
+                        공헌이익률: {safeFixed(d.cmRatio, 1)}%
                       </p>
+                      <p>공헌이익: {formatCurrency(d.totalCM)}</p>
                     </div>
                   );
                 }}
               />
-              <ReferenceLine y={0} stroke="hsl(0, 84%, 60%)" strokeDasharray="3 3" strokeWidth={1} label={{ value: "CM=0", position: "right", fontSize: 9, fill: "hsl(0, 84%, 60%)" }} />
+              <ReferenceLine y={0} stroke="hsl(0, 84%, 60%)" strokeDasharray="3 3" strokeWidth={1} label={{ value: "CM률=0%", position: "right", fontSize: 9, fill: "hsl(0, 84%, 60%)" }} />
               {(["star", "cashcow", "question", "dog"] as const).map((q) => (
                 <Scatter key={q} name={QUADRANT_LABELS[q]} data={scatterData[q]} fill={QUADRANT_COLORS[q]} {...ANIMATION_CONFIG} />
               ))}
@@ -741,9 +742,8 @@ export function OffsetEffectTab({
                   <tr className="border-b text-left">
                     <th className="p-2">거래처</th>
                     <th className="p-2">품목</th>
-                    <th className="p-2 text-right">수량</th>
                     <th className="p-2 text-right">매출</th>
-                    <th className="p-2 text-right">단위공헌이익</th>
+                    <th className="p-2 text-right">공헌이익률</th>
                     <th className="p-2 text-right">공헌이익</th>
                     <th className="p-2">사분면</th>
                   </tr>
@@ -753,10 +753,9 @@ export function OffsetEffectTab({
                     <tr key={i} className="border-b hover:bg-muted/50">
                       <td className="p-2">{truncateLabel(it.customerName, 12)}</td>
                       <td className="p-2">{truncateLabel(it.itemName, 15)}</td>
-                      <td className="p-2 text-right">{it.quantity.toLocaleString()}</td>
                       <td className="p-2 text-right">{formatCurrency(it.revenue)}</td>
-                      <td className={`p-2 text-right font-semibold ${it.unitContributionMargin >= 0 ? "text-amber-600" : "text-red-600"}`}>
-                        {formatCurrency(it.unitContributionMargin)}
+                      <td className={`p-2 text-right font-semibold ${it.contributionMarginRatio >= 0 ? "text-amber-600" : "text-red-600"}`}>
+                        {safeFixed(it.contributionMarginRatio * 100, 1)}%
                       </td>
                       <td className="p-2 text-right text-red-600 font-bold">
                         {formatCurrency(it.totalContributionMargin)}
@@ -1146,6 +1145,11 @@ export function OffsetEffectTab({
             <p className="text-[10px] text-muted-foreground mt-1">
               ※ 배분 기준(매출/수량) 변경은 장부상 품목별 배분만 영향. 전사 이익(Step 4a)은 불변.
             </p>
+            {allocationBasis === "quantity" && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                ⚠️ 수량 기준 배분 주의: 풀 내 품목의 단위(KG/ROL/CAN/L 등)가 다르면 수량 비중이 왜곡될 수 있습니다. 이종 단위 제품군에서는 &quot;매출 비중&quot; 배분을 권장합니다.
+              </p>
+            )}
           </div>
 
           {/* P2-1: 액션 가이드 배너 (자동 판정) */}

@@ -56,13 +56,16 @@ export interface CVPSummary {
   totalFixedCost: number;
   totalOperatingProfit: number;
   totalQuantity: number;
+  // 금액 기반 CVP 지표 (이종 단위 혼합 문제 해결)
+  overallContributionMarginRatio: number; // CM / 매출 (단위 무관 비율)
+  overallVariableCostRatio: number;       // 변동비 / 매출
+  bepRevenue: number;                     // BEP 매출 = 고정비 / 공헌이익률
+  // 레거시 (수량 기반) — 품목별 개별 사용은 OK, 전사 합산은 주의
   weightedUnitPrice: number;
   weightedUnitVariableCost: number;
   weightedUnitContributionMargin: number;
   avgUnitFixedCost: number;
-  overallContributionMarginRatio: number;
   bepQuantity: number;
-  bepRevenue: number;
   healthyContributionSum: number;
   bleedingContributionLoss: number;
   healthyCount: number;
@@ -292,19 +295,21 @@ export function calcCustomerItemCVP(
 
 function classifyCVPItems(items: CVPItem[]): CVPItem[] {
   if (items.length === 0) return items;
-  const sortedQty = [...items.map((i) => i.quantity)].sort((a, b) => a - b);
-  const sortedCM = [...items.map((i) => i.unitContributionMargin)].sort((a, b) => a - b);
+  // 금액 기반 4사분면 분류 (이종 단위 혼합 해결)
+  // X축: 매출(revenue), Y축: 공헌이익률(contributionMarginRatio)
+  const sortedRev = [...items.map((i) => i.revenue)].sort((a, b) => a - b);
+  const sortedCMR = [...items.map((i) => i.contributionMarginRatio)].sort((a, b) => a - b);
   // M1: lower median (Math.floor) 사용 — 짝수개 아이템 시 하위 중앙값 기준
-  const pivotQty = sortedQty[Math.floor(sortedQty.length / 2)];
-  const pivotCM = sortedCM[Math.floor(sortedCM.length / 2)];
+  const pivotRev = sortedRev[Math.floor(sortedRev.length / 2)];
+  const pivotCMR = sortedCMR[Math.floor(sortedCMR.length / 2)];
 
   return items.map((it) => {
-    const highQty = it.quantity >= pivotQty;
-    const highCM = it.unitContributionMargin >= pivotCM;
+    const highRev = it.revenue >= pivotRev;
+    const highCM = it.contributionMarginRatio >= pivotCMR;
     let quadrant: Quadrant;
-    if (highQty && highCM) quadrant = "star";
-    else if (highQty && !highCM) quadrant = "cashcow";
-    else if (!highQty && highCM) quadrant = "question";
+    if (highRev && highCM) quadrant = "star";
+    else if (highRev && !highCM) quadrant = "cashcow";
+    else if (!highRev && highCM) quadrant = "question";
     else quadrant = "dog";
     return { ...it, quadrant };
   });
@@ -315,9 +320,9 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
     return {
       totalRevenue: 0, totalVariableCost: 0, totalContributionMargin: 0,
       totalFixedCost: totalFixedCost, totalOperatingProfit: -totalFixedCost,
-      totalQuantity: 0, weightedUnitPrice: 0, weightedUnitVariableCost: 0,
-      weightedUnitContributionMargin: 0, avgUnitFixedCost: 0,
-      overallContributionMarginRatio: 0, bepQuantity: 0, bepRevenue: 0,
+      totalQuantity: 0, overallContributionMarginRatio: 0, overallVariableCostRatio: 0,
+      bepRevenue: Infinity, weightedUnitPrice: 0, weightedUnitVariableCost: 0,
+      weightedUnitContributionMargin: 0, avgUnitFixedCost: 0, bepQuantity: Infinity,
       healthyContributionSum: 0, bleedingContributionLoss: 0,
       healthyCount: 0, bleedingCount: 0,
     };
@@ -329,17 +334,22 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
   const totalQuantity = items.reduce((s, it) => s + it.quantity, 0);
   const totalOperatingProfit = totalContributionMargin - totalFixedCost;
 
+  // 금액 기반 CVP 지표 (이종 단위 KG/ROL/CAN/L/BAG 등 혼합 시에도 정확)
+  const overallContributionMarginRatio = safeDivide(totalContributionMargin, totalRevenue);
+  const overallVariableCostRatio = safeDivide(totalVariableCost, totalRevenue);
+  // BEP 매출 = 고정비 / 공헌이익률 (단위 무관, 금액 기반)
+  const bepRevenue = overallContributionMarginRatio > 0
+    ? safeDivide(totalFixedCost, overallContributionMarginRatio)
+    : Infinity;
+
+  // 레거시 수량 기반 (품목별 개별 사용은 OK, 전사 합산은 이종 단위 주의)
   const weightedUnitPrice = safeDivide(totalRevenue, totalQuantity);
   const weightedUnitVariableCost = safeDivide(totalVariableCost, totalQuantity);
   const weightedUnitContributionMargin = weightedUnitPrice - weightedUnitVariableCost;
   const avgUnitFixedCost = safeDivide(totalFixedCost, totalQuantity);
-  const overallContributionMarginRatio = safeDivide(totalContributionMargin, totalRevenue);
-
-  // H3: 단위공헌이익 ≤ 0이면 BEP 도달 불가 (Infinity)
   const bepQuantity = weightedUnitContributionMargin > 0
     ? safeDivide(totalFixedCost, weightedUnitContributionMargin)
     : Infinity;
-  const bepRevenue = bepQuantity * weightedUnitPrice;
 
   const healthy = items.filter((i) => i.totalContributionMargin > 0);
   const bleeding = items.filter((i) => i.totalContributionMargin <= 0);
@@ -353,13 +363,14 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
     totalFixedCost,
     totalOperatingProfit,
     totalQuantity,
+    overallContributionMarginRatio,
+    overallVariableCostRatio,
+    bepRevenue,
     weightedUnitPrice,
     weightedUnitVariableCost,
     weightedUnitContributionMargin,
     avgUnitFixedCost,
-    overallContributionMarginRatio,
     bepQuantity,
-    bepRevenue,
     healthyContributionSum,
     bleedingContributionLoss,
     healthyCount: healthy.length,
