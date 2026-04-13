@@ -138,19 +138,20 @@ export function OffsetEffectTab({
     [filteredItemProfitability, poolLevel, poolName]
   );
 
-  // 배분 관점 시뮬레이션 (4b)
+  // 배분 관점 시뮬레이션 (4b) — 절대 수량 모드 지원
   const poolSim = useMemo(
     () => calcPoolSimulation(
       poolItems,
       poolFixedCost,
       targetItem,
-      volumeIncreasePct,
-      priceChangePct,
+      inputMode === "absolute" ? 0 : volumeIncreasePct,
+      inputMode === "absolute" ? priceChangeDirect : priceChangePct,
       allocationBasis,
       poolLevel,
-      poolName
+      poolName,
+      inputMode === "absolute" && targetItem ? volumeAbsolute : undefined
     ),
-    [poolItems, poolFixedCost, targetItem, volumeIncreasePct, priceChangePct, allocationBasis, poolLevel, poolName]
+    [poolItems, poolFixedCost, targetItem, volumeIncreasePct, priceChangePct, allocationBasis, poolLevel, poolName, inputMode, volumeAbsolute, priceChangeDirect]
   );
 
   // 무결성 검증 (Step 5)

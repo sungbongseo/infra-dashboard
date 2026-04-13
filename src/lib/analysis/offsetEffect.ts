@@ -608,7 +608,8 @@ export function calcPoolSimulation(
   priceChangePct: number,
   basis: FixedCostAllocation = "revenue",
   poolLevel: PoolLevel = "대분류",
-  poolName: string = ""
+  poolName: string = "",
+  volumeAbsolute?: number
 ): PoolAllocationSimulation {
   if (poolItems.length === 0) {
     return {
@@ -645,7 +646,10 @@ export function calcPoolSimulation(
 
   const simulatedRaw = poolItems.map((it) => {
     if (it.item === targetItem) {
-      const newQty = Math.max(it.quantity * volFactor, 0);
+      // 절대 수량 모드: volumeAbsolute가 있으면 "추가 수량"으로 사용
+      const newQty = volumeAbsolute !== undefined
+        ? Math.max(it.quantity + volumeAbsolute, 0)
+        : Math.max(it.quantity * volFactor, 0);
       const oldUnitPrice = safeDivide(it.revenue, it.quantity);
       const newUnitPrice = Math.max(oldUnitPrice * priceFactor, 0);
       const newRevenue = newQty * newUnitPrice;
