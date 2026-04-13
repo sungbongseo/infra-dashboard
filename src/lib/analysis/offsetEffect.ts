@@ -82,7 +82,7 @@ export interface TotalViewSimulation {
   targetCustomer: string | null;
   targetItem: string | null;
   volumeIncreasePct: number;
-  priceDecreasePct: number;
+  priceChangePct: number;
   newTotalRevenue: number;
   newTotalVariableCost: number;
   newTotalQuantity: number;
@@ -119,7 +119,7 @@ export interface PoolAllocationSimulation {
   allocationBasis: FixedCostAllocation;
   targetItem: string | null;
   volumeIncreasePct: number;
-  priceDecreasePct: number;
+  priceChangePct: number;
   baseItems: ItemPoolCVP[];
   simulatedItems: ItemPoolCVP[];
   targetItemMarginDelta: number;
@@ -386,7 +386,7 @@ export interface TotalSimInput {
   targetCustomer: string | null;
   targetItem: string | null;
   volumeIncreasePct: number;
-  priceDecreasePct: number;
+  priceChangePct: number;
 }
 
 /**
@@ -402,7 +402,7 @@ export interface TotalSimInput {
  * @assumption 고정비 총액 불변 (설비 캐파 내 생산)
  */
 export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulation {
-  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceDecreasePct } = input;
+  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct } = input;
 
   const baseTotalRevenue = items.reduce((s, it) => s + it.revenue, 0);
   const baseTotalVariableCost = items.reduce((s, it) => s + it.variableCost, 0);
@@ -423,7 +423,7 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
   let volumeContributionGain = 0;
 
   const volFactor = 1 + volumeIncreasePct / 100;
-  const priceFactor = 1 + priceDecreasePct / 100;
+  const priceFactor = 1 + priceChangePct / 100;
 
   for (const it of items) {
     if (isTarget(it)) {
@@ -436,7 +436,7 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
       newTotalQuantity += newQty;
 
       // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액 (negative)
-      priceReductionLoss += it.quantity * it.unitPrice * (priceDecreasePct / 100);
+      priceReductionLoss += it.quantity * it.unitPrice * (priceChangePct / 100);
       // 분해: 물량 증가 공헌 = 추가 수량 × 인하된 단위공헌이익
       const addedQty = it.quantity * (volumeIncreasePct / 100);
       const newUnitCM = newPrice - it.unitVariableCost;
@@ -461,7 +461,7 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
     targetCustomer,
     targetItem,
     volumeIncreasePct,
-    priceDecreasePct,
+    priceChangePct,
     newTotalRevenue,
     newTotalVariableCost,
     newTotalQuantity,
@@ -597,7 +597,7 @@ export function calcPoolSimulation(
   poolFixedCost: number,
   targetItem: string | null,
   volumeIncreasePct: number,
-  priceDecreasePct: number,
+  priceChangePct: number,
   basis: FixedCostAllocation = "revenue",
   poolLevel: PoolLevel = "대분류",
   poolName: string = ""
@@ -605,7 +605,7 @@ export function calcPoolSimulation(
   if (poolItems.length === 0) {
     return {
       poolLevel, poolName, poolFixedCost: 0, allocationBasis: basis,
-      targetItem, volumeIncreasePct, priceDecreasePct,
+      targetItem, volumeIncreasePct, priceChangePct,
       baseItems: [], simulatedItems: [],
       targetItemMarginDelta: 0, otherItemsMarginDelta: 0, netPoolMarginDelta: 0,
     };
@@ -633,7 +633,7 @@ export function calcPoolSimulation(
 
   // Simulated: 대상 품목 물량/단가 변경
   const volFactor = 1 + volumeIncreasePct / 100;
-  const priceFactor = 1 + priceDecreasePct / 100;
+  const priceFactor = 1 + priceChangePct / 100;
 
   const simulatedRaw = poolItems.map((it) => {
     if (it.item === targetItem) {
@@ -696,7 +696,7 @@ export function calcPoolSimulation(
     allocationBasis: basis,
     targetItem,
     volumeIncreasePct,
-    priceDecreasePct,
+    priceChangePct,
     baseItems,
     simulatedItems,
     targetItemMarginDelta,

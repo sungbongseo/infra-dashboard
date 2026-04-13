@@ -206,7 +206,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 0,
-        priceDecreasePct: 0,
+        priceChangePct: 0,
       });
       expect(sim.newOperatingProfit).toBeCloseTo(sim.baseOperatingProfit, 0);
       expect(sim.netOffsetEffect).toBeCloseTo(0, 0);
@@ -219,7 +219,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 20,
-        priceDecreasePct: -10,
+        priceChangePct: -10,
       });
       const decomposed = sim.priceReductionLoss + sim.volumeContributionGain;
       expect(sim.netOffsetEffect).toBeCloseTo(decomposed, 2);
@@ -232,7 +232,7 @@ describe("offsetEffect", () => {
         targetCustomer: "C1",
         targetItem: null,
         volumeIncreasePct: 30,
-        priceDecreasePct: -15,
+        priceChangePct: -15,
       });
       const decomposed = sim.priceReductionLoss + sim.volumeContributionGain;
       expect(sim.netOffsetEffect).toBeCloseTo(decomposed, 2);
@@ -245,7 +245,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: "P2",
         volumeIncreasePct: 50,
-        priceDecreasePct: -20,
+        priceChangePct: -20,
       });
       const decomposed = sim.priceReductionLoss + sim.volumeContributionGain;
       expect(sim.netOffsetEffect).toBeCloseTo(decomposed, 2);
@@ -258,7 +258,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 20,
-        priceDecreasePct: 0,
+        priceChangePct: 0,
       });
       expect(sim.priceReductionLoss).toBeCloseTo(0, 2);
       expect(sim.volumeContributionGain).toBeGreaterThan(0);
@@ -272,7 +272,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 0,
-        priceDecreasePct: -10,
+        priceChangePct: -10,
       });
       expect(sim.priceReductionLoss).toBeLessThan(0);
       expect(sim.volumeContributionGain).toBeCloseTo(0, 2);
@@ -286,7 +286,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 30,
-        priceDecreasePct: 0,
+        priceChangePct: 0,
       });
       expect(sim.newAvgUnitFixedCost).toBeLessThan(sim.baseAvgUnitFixedCost);
     });
@@ -380,7 +380,7 @@ describe("offsetEffect", () => {
           targetCustomer: null,
           targetItem: "P1",
           volumeIncreasePct: v,
-          priceDecreasePct: p,
+          priceChangePct: p,
         });
         const poolSim = calcPoolSimulation(poolItems, poolFixedCost, "P1", v, p, "revenue");
         const integrity = verifyIntegrity(totalSim, poolSim);
@@ -401,7 +401,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 20,
-        priceDecreasePct: -5,
+        priceChangePct: -5,
       });
       const steps = calcWaterfallSteps(sim);
       expect(steps).toHaveLength(4);
@@ -428,7 +428,7 @@ describe("offsetEffect", () => {
         targetCustomer: null,
         targetItem: null,
         volumeIncreasePct: 10,
-        priceDecreasePct: -5,
+        priceChangePct: -5,
       });
       const steps = calcWaterfallSteps(sim);
       expect(steps[0].cumulative).toBeCloseTo(sim.baseOperatingProfit, 0);
@@ -492,7 +492,7 @@ describe("offsetEffect", () => {
         baseTotalRevenue: 10000, baseTotalVariableCost: 8999.99,
         baseOperatingProfit: 0.01, baseTotalQuantity: 100, baseAvgUnitFixedCost: 10,
         targetCustomer: null, targetItem: null,
-        volumeIncreasePct: 0, priceDecreasePct: 0,
+        volumeIncreasePct: 0, priceChangePct: 0,
         newTotalRevenue: 10000, newTotalVariableCost: 8999.99,
         newTotalQuantity: 100, newAvgUnitFixedCost: 10,
         newOperatingProfit: 0.01,
@@ -502,7 +502,7 @@ describe("offsetEffect", () => {
       const poolSim = {
         poolLevel: "대분류" as const, poolName: "T", poolFixedCost: 1000,
         allocationBasis: "revenue" as const, targetItem: null,
-        volumeIncreasePct: 0, priceDecreasePct: 0,
+        volumeIncreasePct: 0, priceChangePct: 0,
         baseItems: [], simulatedItems: [],
         targetItemMarginDelta: 0, otherItemsMarginDelta: 0, netPoolMarginDelta: 0,
       };

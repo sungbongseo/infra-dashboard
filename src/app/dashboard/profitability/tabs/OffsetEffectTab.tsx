@@ -60,7 +60,7 @@ export function OffsetEffectTab({
   const [targetCustomer, setTargetCustomer] = useState<string | null>(null);
   const [targetItem, setTargetItem] = useState<string | null>(null);
   const [volumeIncreasePct, setVolumeIncreasePct] = useState(0);
-  const [priceDecreasePct, setPriceDecreasePct] = useState(0);
+  const [priceChangePct, setPriceChangePct] = useState(0);
 
   // 풀 설정
   const [poolLevel, setPoolLevel] = useState<PoolLevel>("대분류");
@@ -87,9 +87,9 @@ export function OffsetEffectTab({
       targetCustomer,
       targetItem,
       volumeIncreasePct,
-      priceDecreasePct,
+      priceChangePct,
     }),
-    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceDecreasePct]
+    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct]
   );
 
   // 워터폴
@@ -123,12 +123,12 @@ export function OffsetEffectTab({
       poolFixedCost,
       targetItem,
       volumeIncreasePct,
-      priceDecreasePct,
+      priceChangePct,
       allocationBasis,
       poolLevel,
       poolName
     ),
-    [poolItems, poolFixedCost, targetItem, volumeIncreasePct, priceDecreasePct, allocationBasis, poolLevel, poolName]
+    [poolItems, poolFixedCost, targetItem, volumeIncreasePct, priceChangePct, allocationBasis, poolLevel, poolName]
   );
 
   // 무결성 검증 (Step 5)
@@ -175,9 +175,10 @@ export function OffsetEffectTab({
   }, [cvpItems, poolItems]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
+  // 파이차트: 정상(공헌이익 > 0) vs 출혈(공헌이익 ≤ 0) 분류
   const healthVsBleeding = useMemo(() => [
-    { name: "정상 거래처/품목", value: cvpSummary.healthyCount, fill: "hsl(142, 71%, 45%)" },
-    { name: "출혈 거래처/품목", value: cvpSummary.bleedingCount, fill: "hsl(0, 84%, 60%)" },
+    { name: `정상 (${cvpSummary.healthyCount}건, ${formatCurrency(cvpSummary.healthyContributionSum, true)})`, value: cvpSummary.healthyCount, fill: "hsl(142, 71%, 45%)" },
+    { name: `출혈 (${cvpSummary.bleedingCount}건, ${formatCurrency(cvpSummary.bleedingContributionLoss, true)})`, value: cvpSummary.bleedingCount, fill: "hsl(0, 84%, 60%)" },
   ], [cvpSummary]);
 
   // CVP 그래프 데이터 (금액 기반 영업이익 차트)
@@ -220,7 +221,7 @@ export function OffsetEffectTab({
       byQuadrant[it.quadrant].push({
         x: it.revenue,
         y: it.contributionMarginRatio * 100, // % 표시
-        z: Math.max(it.revenue, 1),
+        z: Math.max(Math.abs(it.totalContributionMargin), 1), // 공헌이익 영향력 크기
         fullName: `${it.customerName} / ${truncateLabel(it.itemName, 20)}`,
         customer: it.customerName,
         item: it.itemName,
@@ -633,8 +634,9 @@ export function OffsetEffectTab({
               />
               {/* 0선 = 손익분기 기준 */}
               <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: "손익분기선 (이익=0)", fontSize: 9, fill: "hsl(0,0%,50%)", position: "right" }} />
+              <Legend verticalAlign="top" height={24} wrapperStyle={{ fontSize: 11 }} />
               {/* 영업이익 라인 */}
-              <Line type="monotone" dataKey="영업이익" name="영업이익" stroke="hsl(217, 91%, 60%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="영업이익" name="영업이익 (매출×CM률−고정비)" stroke="hsl(217, 91%, 60%)" strokeWidth={2.5} dot={false} />
               {/* BEP 수직선 */}
               {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
                 <ReferenceLine
@@ -843,7 +845,7 @@ export function OffsetEffectTab({
               <table className="w-full text-[10px] mt-2">
                 <tbody>
                   <tr className="border-b"><td className="py-1 pr-2">기존 영업이익</td><td className="font-mono">Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.고정비]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">단가 인하 손실</td><td className="font-mono">Σ(기존수량 × 단가 × priceDecreasePct%) (대상만)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">단가 인하 손실</td><td className="font-mono">Σ(기존수량 × 단가 × priceChangePct%) (대상만)</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">물량 증가 공헌</td><td className="font-mono">Σ(추가수량 × 인하후 단위공헌) (대상만)</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">최종 영업이익</td><td className="font-mono">기존 + 단가손실 + 물량공헌</td></tr>
                   <tr><td colSpan={2} className="py-1 pr-2 text-[10px] text-muted-foreground pt-1">※ 고정비 총액 불변 가정 (설비 캐파 내)</td></tr>
@@ -924,20 +926,21 @@ export function OffsetEffectTab({
               <span className="text-xs min-w-[90px]">단가 조정:</span>
               <input
                 type="range" min={-30} max={30} step={1}
-                value={priceDecreasePct}
-                onChange={(e) => setPriceDecreasePct(Number(e.target.value))}
+                value={priceChangePct}
+                onChange={(e) => setPriceChangePct(Number(e.target.value))}
                 className="flex-1 accent-primary"
               />
-              <span className="text-xs font-semibold tabular-nums w-12 text-right">{priceDecreasePct}%</span>
+              <span className="text-xs font-semibold tabular-nums w-12 text-right">{priceChangePct}%</span>
             </div>
           </div>
 
           {/* 프리셋 */}
           <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => { setVolumeIncreasePct(0); setPriceDecreasePct(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
-            <button onClick={() => { setVolumeIncreasePct(30); setPriceDecreasePct(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
-            <button onClick={() => { setVolumeIncreasePct(50); setPriceDecreasePct(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
-            <button onClick={() => { setVolumeIncreasePct(20); setPriceDecreasePct(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
+            <button onClick={() => { setVolumeIncreasePct(0); setPriceChangePct(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
+            <button onClick={() => { setVolumeIncreasePct(30); setPriceChangePct(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
+            <button onClick={() => { setVolumeIncreasePct(50); setPriceChangePct(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
+            <button onClick={() => { setVolumeIncreasePct(20); setPriceChangePct(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
+            <button onClick={() => { setVolumeIncreasePct(-10); setPriceChangePct(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
           </div>
         </div>
 
@@ -952,7 +955,7 @@ export function OffsetEffectTab({
           />
           <KpiCard
             title="단가 인하 손실" value={totalSim.priceReductionLoss} format="currency"
-            formula="Σ([100.매출수량·실적] × [100.단위단가] × priceDecreasePct%) · 대상 품목/거래처만"
+            formula="Σ([100.매출수량·실적] × [100.단위단가] × priceChangePct%) · 대상 품목/거래처만"
             description="대상 품목의 단가 인하로 인한 매출 감소"
             benchmark="이 손실을 물량 증가 공헌이 상쇄해야 가설 성립"
             reason="저가수주의 직접 비용"
@@ -1234,9 +1237,9 @@ export function OffsetEffectTab({
                     <strong className="text-base text-emerald-700 dark:text-emerald-400">&quot;</strong>
                     <strong>{truncateLabel(itemList.find((i) => i.code === targetItem)?.name || targetItem, 20)}</strong>
                     {volumeIncreasePct !== 0 && <> 판매량을 <strong>{volumeIncreasePct > 0 ? "+" : ""}{volumeIncreasePct}%</strong></>}
-                    {priceDecreasePct !== 0 && <> {volumeIncreasePct !== 0 ? ", 단가를 " : "단가를 "}<strong>{priceDecreasePct}%</strong></>}
-                    {volumeIncreasePct === 0 && priceDecreasePct === 0 && " 변동 없이"}
-                    {(volumeIncreasePct !== 0 || priceDecreasePct !== 0) && " 조정하면,"}
+                    {priceChangePct !== 0 && <> {volumeIncreasePct !== 0 ? ", 단가를 " : "단가를 "}<strong>{priceChangePct}%</strong></>}
+                    {volumeIncreasePct === 0 && priceChangePct === 0 && " 변동 없이"}
+                    {(volumeIncreasePct !== 0 || priceChangePct !== 0) && " 조정하면,"}
                     <br/>
                     이 품목 본인은 장부상 <strong className={poolSim.targetItemMarginDelta >= 0 ? "text-emerald-600" : "text-red-600"}>
                       {poolSim.targetItemMarginDelta >= 0 ? "+" : ""}{formatCurrency(poolSim.targetItemMarginDelta)}
