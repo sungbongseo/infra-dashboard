@@ -180,26 +180,23 @@ export function OffsetEffectTab({
     { name: "출혈 거래처/품목", value: cvpSummary.bleedingCount, fill: "hsl(0, 84%, 60%)" },
   ], [cvpSummary]);
 
-  // CVP 그래프 데이터 (금액 기반 — 이종 단위 혼합 문제 해결)
-  // X축 = 매출액, Y축 = 매출/원가 금액
-  // 총원가(매출X) = 고정비 + X × 변동비율
-  // 영업이익 영역 = 매출 − 총원가 (녹색-빨강 간격)
+  // CVP 그래프 데이터 (금액 기반 영업이익 차트)
+  // X축 = 매출액, Y축 = 영업이익 (매출 − 총원가)
+  // 영업이익 = 매출 × 공헌이익률 − 고정비
+  // Y=0 교차점 = BEP 매출
   const cvpChartData = useMemo(() => {
     if (cvpSummary.totalRevenue === 0) return [];
     const maxRev = cvpSummary.totalRevenue * 2.2;
     const steps = 20;
     const stepSize = maxRev / steps;
-    const vcRatio = cvpSummary.overallVariableCostRatio;
+    const cmRatio = cvpSummary.overallContributionMarginRatio;
     const data = [];
     for (let i = 0; i <= steps; i++) {
       const rev = stepSize * i;
-      const totalCost = totalFixedCost + rev * vcRatio;
+      const opProfit = rev * cmRatio - totalFixedCost; // 영업이익 = 매출×CM률 − 고정비
       data.push({
         매출: parseFloat(rev.toFixed(0)),
-        고정비: totalFixedCost,
-        총원가: totalCost,
-        매출선: rev,
-        영업이익: Math.max(rev - totalCost, 0), // 이익 영역 (음수면 0)
+        영업이익: opProfit,
       });
     }
     return data;
@@ -585,35 +582,33 @@ export function OffsetEffectTab({
               <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익 + 200. 품목별수익성분석</p>
               <table className="w-full text-[10px] mt-2">
                 <tbody>
-                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출)</td><td className="font-mono">매출액 (단위 무관, 금액 기반)</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">매출선 (대각)</td><td className="font-mono">Y = X (45도 대각선)</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">총원가선</td><td className="font-mono">고정비 + X × 변동비율</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">고정비선 (수평)</td><td className="font-mono">Σ [200.제조고정노무비+감가상각비+기타경비]</td></tr>
-                  <tr><td className="py-1 pr-2">BEP 매출</td><td className="font-mono">고정비 / 공헌이익률</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출)</td><td className="font-mono">매출액 (금액 기반, 단위 무관)</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">Y축 (영업이익)</td><td className="font-mono">매출 × 공헌이익률 − 고정비</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">공헌이익률</td><td className="font-mono">(매출 − 변동비) / 매출</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">고정비</td><td className="font-mono">Σ [200.제조고정노무비+감가상각비+기타경비]</td></tr>
+                  <tr><td className="py-1 pr-2">BEP 매출</td><td className="font-mono">고정비 / 공헌이익률 (Y=0 교차점)</td></tr>
                 </tbody>
               </table>
-              <p className="text-[10px] mt-2 text-muted-foreground">※ 금액 기반 CVP: 이종 단위(KG/ROL/CAN/L 등) 혼합 제품군에서도 정확한 분석 가능</p>
             </div>
           </details>
         </div>
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
-          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축 = 매출액, Y축 = 금액. 3개 라인이 표시됩니다. <strong>금액 기반</strong>이므로 KG/ROL/CAN 등 이종 단위 혼합 제품도 정확히 비교됩니다.</p>
+          <p><strong className="text-foreground">📖 이 차트 읽는 법:</strong> X축 = 매출액, Y축 = 영업이익. <strong>금액 기반</strong>이므로 KG/ROL/CAN 등 이종 단위 혼합 제품도 정확히 비교됩니다.</p>
           <ul className="list-disc ml-5 space-y-0.5">
-            <li><strong className="text-foreground">회색 점선 (고정비)</strong>: 매출과 무관하게 일정 — 설비·감가상각·고정노무비 합계</li>
-            <li><strong className="text-foreground">빨간 실선 (총원가)</strong>: 매출 증가에 비례 = 고정비 + (매출 × 변동비율)</li>
-            <li><strong className="text-foreground">녹색 대각선 (매출선)</strong>: Y=X 대각선 — 매출 자체를 표시</li>
-            <li><strong className="text-foreground">파란 점선 (BEP)</strong>: 총원가와 매출이 교차하는 <strong>손익분기 매출</strong></li>
+            <li><strong className="text-foreground">파란 실선</strong>: 매출에 따른 <strong>영업이익</strong> 변화 (매출 × 공헌이익률 − 고정비)</li>
+            <li><strong className="text-foreground">회색 점선 (0선)</strong>: 손익 기준선. 이 선 위 = <span className="text-emerald-600 font-semibold">흑자</span>, 아래 = <span className="text-red-600 font-semibold">적자</span></li>
+            <li><strong className="text-foreground">파란 점선 (BEP)</strong>: 이익선이 0선과 만나는 <strong>손익분기 매출</strong></li>
             <li><strong className="text-foreground">주황 점선 (현재)</strong>: 현재 실적 매출 위치</li>
           </ul>
-          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 현재 매출이 BEP 매출보다 오른쪽이면 흑자. 녹색(매출)과 빨간(원가) 사이의 간격이 넓을수록 영업이익이 큽니다.</p>
+          <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 이익선의 <strong>기울기 = 공헌이익률</strong>. 기울기가 가파를수록 매출 1원당 이익 증가가 큼. 현재 위치가 BEP보다 오른쪽이면 흑자.</p>
         </div>
         <ChartCard
-          title="금액 기반 CVP 그래프 (Cost-Volume-Profit)"
+          title="CVP 영업이익 차트 — 매출 vs 이익"
           isEmpty={cvpChartData.length === 0}
-          formula="매출선 = Y=X 대각선 | 총원가선 = 고정비 + 매출×변동비율 | BEP 매출 = 고정비 / 공헌이익률"
+          formula="영업이익 = 매출 × 공헌이익률 − 고정비 | BEP = 이익선이 0을 만나는 매출"
           description={isFinite(cvpSummary.bepRevenue) ? `BEP 매출 ${formatCurrency(cvpSummary.bepRevenue)} · 안전한계율 ${safeFixed((1 - cvpSummary.bepRevenue / cvpSummary.totalRevenue) * 100, 1)}%` : "BEP 도달 불가 (공헌이익률 ≤ 0)"}
-          benchmark="현재 매출이 BEP 매출을 넘으면 수익 구간. 금액 기반이므로 이종 단위 혼합 시에도 정확"
-          reason="손익분기 매출을 시각적으로 확인하여 가격 인하 여지를 판단"
+          benchmark="Y축 0선 위 = 흑자. 기울기(공헌이익률)가 가파를수록 매출 증가 대비 이익 개선 빠름"
+          reason="매출 변동 시 영업이익이 어떻게 변하는지 즉각 확인"
         >
           <ChartContainer height="h-80">
             <ComposedChart data={cvpChartData} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
@@ -629,36 +624,38 @@ export function OffsetEffectTab({
               <YAxis
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v) => formatCurrency(v, true)}
-                label={{ value: "금액 (원)", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                label={{ value: "영업이익", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
                 labelFormatter={(v) => `매출: ${formatCurrency(Number(v))}`}
               />
-              <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="고정비" name="③ 고정비 (일정)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
-              <Line type="monotone" dataKey="총원가" name="② 총원가 (고정비+변동비)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
-              <Line type="monotone" dataKey="매출선" name="① 매출액" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
+              {/* 0선 = 손익분기 기준 */}
+              <ReferenceLine y={0} stroke="hsl(0, 0%, 50%)" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: "손익분기선 (이익=0)", fontSize: 9, fill: "hsl(0,0%,50%)", position: "right" }} />
+              {/* 영업이익 라인 */}
+              <Line type="monotone" dataKey="영업이익" name="영업이익" stroke="hsl(217, 91%, 60%)" strokeWidth={2.5} dot={false} />
+              {/* BEP 수직선 */}
               {isFinite(cvpSummary.bepRevenue) && cvpSummary.bepRevenue > 0 && (
                 <ReferenceLine
                   x={Math.round(cvpSummary.bepRevenue)}
-                  stroke="hsl(217, 91%, 60%)"
+                  stroke="hsl(0, 84%, 55%)"
                   strokeDasharray="3 3"
                   strokeWidth={2}
-                  label={{ value: `BEP (${formatCurrency(cvpSummary.bepRevenue, true)})`, fontSize: 10, fill: "hsl(217, 91%, 60%)", position: "top" }}
+                  label={{ value: `BEP (${formatCurrency(cvpSummary.bepRevenue, true)})`, fontSize: 10, fill: "hsl(0, 84%, 55%)", position: "top" }}
                 />
               )}
+              {/* 현재 매출 수직선 */}
               <ReferenceLine
                 x={Math.round(cvpSummary.totalRevenue)}
-                stroke="hsl(30, 90%, 50%)"
+                stroke="hsl(142, 71%, 42%)"
                 strokeDasharray="4 4"
                 strokeWidth={2}
-                label={{ value: `현재 (${formatCurrency(cvpSummary.totalRevenue, true)})`, fontSize: 10, fill: "hsl(30, 90%, 50%)", position: "top" }}
+                label={{ value: `현재 (${formatCurrency(cvpSummary.totalRevenue, true)})`, fontSize: 10, fill: "hsl(142, 71%, 42%)", position: "top" }}
               />
             </ComposedChart>
           </ChartContainer>
-          {/* A6: 범례는 차트 내부 <Legend>로 이동됨 */}
+          {/* 단일 라인(영업이익) + ReferenceLine이라 범례 불필요 — 해석 가이드에서 설명 */}
         </ChartCard>
 
         {/* CVP 핵심 인사이트 해석 */}
@@ -693,15 +690,16 @@ export function OffsetEffectTab({
 
         {/* 차트 해석 가이드 */}
         <div className="rounded-md border bg-muted/20 p-3 mt-3 text-xs text-muted-foreground">
-          <strong className="text-foreground">📊 Y축은 &quot;원 단위 금액&quot; — 3개 선이 각각 다른 금액을 표시합니다:</strong>
-          <ul className="mt-1 space-y-1.5 ml-3">
-            <li><span className="font-semibold" style={{ color: "hsl(142,71%,42%)" }}>① 녹색 = 매출액</span>: X축(매출)과 같은 값이라 45도 대각선. &quot;이만큼 팔면 매출이 이만큼&quot;</li>
-            <li><span className="font-semibold" style={{ color: "hsl(0,84%,55%)" }}>② 빨강 = 총원가</span>: 고정비 + (매출 × 변동비율). &quot;이만큼 팔면 원가가 이만큼&quot;</li>
-            <li style={{ color: "hsl(0,0%,40%)" }}><span className="font-semibold">③ 회색 = 고정비</span>: 매출과 무관하게 일정 (설비·감가·노무비)</li>
-          </ul>
+          <strong className="text-foreground">📊 차트 읽는 법 (30초 가이드):</strong>
           <div className="mt-2 p-2 bg-emerald-50/50 dark:bg-emerald-950/20 rounded border-l-2 border-emerald-500">
-            <strong className="text-foreground">핵심:</strong> <strong style={{ color: "hsl(142,71%,42%)" }}>녹색(매출)</strong>이 <strong style={{ color: "hsl(0,84%,55%)" }}>빨강(원가)</strong>보다 위에 있으면 = <strong className="text-emerald-600">흑자</strong>. 그 간격이 <strong>영업이익</strong>.
-            <br/>파란 BEP 수직선 = 두 선이 만나는 매출 지점. <strong>BEP 왼쪽 = 적자, 오른쪽 = 흑자</strong>.
+            <ul className="space-y-1.5 ml-1">
+              <li><strong style={{ color: "hsl(217,91%,60%)" }}>파란 실선</strong> = <strong>영업이익</strong>. 매출이 늘수록 이익도 비례하여 증가하는 직선</li>
+              <li><strong>0선(수평 점선) 위 = <span className="text-emerald-600">흑자</span></strong>, 아래 = <span className="text-red-600">적자</span></li>
+              <li><strong style={{ color: "hsl(0,84%,55%)" }}>빨간 BEP 수직선</strong> = 이익이 0이 되는 <strong>손익분기 매출</strong></li>
+              <li><strong style={{ color: "hsl(142,71%,42%)" }}>녹색 현재 수직선</strong> = 현재 실적 매출 위치</li>
+              <li>직선의 <strong>기울기</strong> = 공헌이익률 ({safeFixed(cvpSummary.overallContributionMarginRatio * 100, 1)}%). 가파를수록 매출 1원당 이익 증가 빠름</li>
+              <li>직선의 <strong>Y절편</strong>(매출 0일 때) = −고정비 ({formatCurrency(-totalFixedCost)})</li>
+            </ul>
           </div>
         </div>
       </div>
