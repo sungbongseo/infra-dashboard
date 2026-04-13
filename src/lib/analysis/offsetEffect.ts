@@ -89,6 +89,8 @@ export interface TotalViewSimulation {
   volumeContributionGain: number;
   netOffsetEffect: number;
   hypothesisValid: boolean;
+  // A4: 3단계 판정 (positive/neutral/negative)
+  hypothesisResult: "positive" | "neutral" | "negative";
 }
 
 // Step 4b: 배분 관점 시뮬레이션
@@ -458,6 +460,8 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
     volumeContributionGain,
     netOffsetEffect,
     hypothesisValid: netOffsetEffect > 0,
+    // A4: 3단계 판정
+    hypothesisResult: netOffsetEffect > 0 ? "positive" : netOffsetEffect === 0 ? "neutral" : "negative",
   };
 }
 

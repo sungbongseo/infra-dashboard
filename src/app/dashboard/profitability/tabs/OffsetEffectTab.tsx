@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip as RechartsTooltip, Cell,
+  Tooltip as RechartsTooltip, Cell, Legend,
   ComposedChart, Line, ReferenceLine,
   ScatterChart, Scatter, ZAxis,
   PieChart, Pie,
@@ -193,7 +193,7 @@ export function OffsetEffectTab({
       const revenue = qty * cvpSummary.weightedUnitPrice;
       const variable = qty * cvpSummary.weightedUnitVariableCost;
       data.push({
-        수량: Math.round(qty),
+        수량: parseFloat(qty.toFixed(2)),
         고정비: totalFixedCost,
         총원가: totalFixedCost + variable,
         매출액: revenue,
@@ -353,6 +353,20 @@ export function OffsetEffectTab({
         </div>
       </div>
 
+      {/* A8: Step 미니 네비게이션 */}
+      <div className="flex flex-wrap gap-1.5 sticky top-0 z-30 bg-background/95 backdrop-blur-sm py-2 border-b mb-2">
+        {[
+          { id: "offset-step1", label: "Step 1 진단" },
+          { id: "offset-step2", label: "Step 2 CVP" },
+          { id: "offset-step3", label: "Step 3 4사분면" },
+          { id: "offset-step4a", label: "Step 4a 총액" },
+          { id: "offset-step4b", label: "Step 4b 배분" },
+          { id: "offset-step5", label: "Step 5 무결성" },
+        ].map((s) => (
+          <a key={s.id} href={`#${s.id}`} className="px-2.5 py-1 rounded text-[11px] border hover:bg-muted transition-colors">{s.label}</a>
+        ))}
+      </div>
+
       {/* ═══ Layer 1: 전역 방법론 패널 (데이터 출처 & 계산 로직) ═══ */}
       <details className="border-2 border-indigo-300 dark:border-indigo-700 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-lg">
         <summary className="cursor-pointer font-semibold text-sm p-4 hover:bg-indigo-100/40 dark:hover:bg-indigo-900/20 rounded-lg flex items-center gap-2">
@@ -452,7 +466,7 @@ export function OffsetEffectTab({
       </details>
 
       {/* ═══ Section A: Step 1. 현재 상태 진단 ═══ */}
-      <div>
+      <div id="offset-step1">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-lg font-semibold">Step 1. 현재 상태 진단</h2>
           <span className="text-xs text-muted-foreground">CFO 관점 KPI + 출혈 거래처 비중</span>
@@ -545,7 +559,7 @@ export function OffsetEffectTab({
       </div>
 
       {/* ═══ Section B: Step 2. CVP 분석 그래프 ═══ */}
-      <div>
+      <div id="offset-step2">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-lg font-semibold">Step 2. CVP 손익분기점 분석</h2>
           <details className="text-xs relative">
@@ -607,7 +621,7 @@ export function OffsetEffectTab({
                 formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
                 labelFormatter={(v) => `수량: ${Math.round(Number(v)).toLocaleString()}`}
               />
-              {/* 범례: 차트 상단에 컬러 인라인 */}
+              <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 11 }} />
               <Line type="monotone" dataKey="고정비" name="고정비 (수평)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
               <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
               <Line type="monotone" dataKey="매출액" name="매출액" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
@@ -629,19 +643,12 @@ export function OffsetEffectTab({
               />
             </ComposedChart>
           </ChartContainer>
-          {/* 범례 보조 (차트 하단) */}
-          <div className="flex flex-wrap gap-4 mt-2 text-xs justify-center">
-            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(0,0%,40%)" }} /><span className="text-muted-foreground">고정비 (수평)</span></span>
-            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ backgroundColor: "hsl(0,84%,55%)", height: 2.5 }} /><span style={{ color: "hsl(0,84%,55%)" }}>총원가</span></span>
-            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ backgroundColor: "hsl(142,71%,42%)", height: 2.5 }} /><span style={{ color: "hsl(142,71%,42%)" }}>매출액</span></span>
-            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(217,91%,60%)" }} /><span style={{ color: "hsl(217,91%,60%)" }}>BEP 수직선</span></span>
-            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(30,90%,50%)" }} /><span style={{ color: "hsl(30,90%,50%)" }}>현재 수량</span></span>
-          </div>
+          {/* A6: 범례는 차트 내부 <Legend>로 이동됨 */}
         </ChartCard>
       </div>
 
       {/* ═══ Section C: Step 3. 수익성 산점도 ═══ */}
-      <div>
+      <div id="offset-step3">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-lg font-semibold">Step 3. 거래처×품목 4사분면 매트릭스</h2>
           <details className="text-xs relative">
@@ -652,8 +659,8 @@ export function OffsetEffectTab({
               <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익</p>
               <table className="w-full text-[10px] mt-2">
                 <tbody>
-                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출)</td><td className="font-mono">[100.매출액·실적]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">Y축 (공헌이익률)</td><td className="font-mono">공헌이익 / 매출 × 100</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (수량)</td><td className="font-mono">[100.매출수량·실적]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">Y축 (단위공헌이익)</td><td className="font-mono">([100.매출액]−[100.변동비]) / [100.수량]</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">공헌이익</td><td className="font-mono">[100.매출액·실적] − [100.변동비]</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">변동비</td><td className="font-mono">[100.매출액·실적] − [100.매출총이익·실적]</td></tr>
                   <tr><td className="py-1 pr-2">사분면</td><td className="text-[10px]">Star/CashCow/Question/Dog (공헌률·매출 median 기준)</td></tr>
@@ -692,7 +699,7 @@ export function OffsetEffectTab({
               <CartesianGrid {...GRID_PROPS} />
               <XAxis type="number" dataKey="x" name="수량" tick={{ fontSize: 10 }} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v.toString()} label={{ value: "수량", position: "bottom", offset: 0, fontSize: 11 }} />
               <YAxis type="number" dataKey="y" name="단위공헌이익" tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "단위공헌이익", angle: -90, position: "insideLeft", fontSize: 11 }} />
-              <ZAxis type="number" dataKey="z" range={[30, 400]} />
+              <ZAxis type="number" dataKey="z" range={[20, Math.min(500, Math.max(200, cvpItems.length < 50 ? 400 : 250))]} />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
                 content={({ active, payload }: any) => {
@@ -769,7 +776,7 @@ export function OffsetEffectTab({
       </div>
 
       {/* ═══ Section D: Step 4a. 전사 영업이익 시뮬레이션 (총액 관점) ═══ */}
-      <div>
+      <div id="offset-step4a">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           <h2 className="text-lg font-semibold">Step 4a. 전사 영업이익 시뮬레이션 (총액 관점)</h2>
           <details className="text-xs relative">
@@ -859,9 +866,9 @@ export function OffsetEffectTab({
               <span className="text-xs font-semibold tabular-nums w-12 text-right">{volumeIncreasePct > 0 ? "+" : ""}{volumeIncreasePct}%</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-xs min-w-[90px]">단가 인하:</span>
+              <span className="text-xs min-w-[90px]">단가 조정:</span>
               <input
-                type="range" min={-30} max={0} step={1}
+                type="range" min={-30} max={30} step={1}
                 value={priceDecreasePct}
                 onChange={(e) => setPriceDecreasePct(Number(e.target.value))}
                 className="flex-1 accent-primary"
@@ -950,6 +957,7 @@ export function OffsetEffectTab({
                   );
                 }}
               />
+              <ReferenceLine y={0} stroke="hsl(0, 0%, 60%)" strokeDasharray="3 3" />
               <Bar dataKey="base" stackId="wf" fill="transparent" />
               <Bar dataKey="value" stackId="wf" radius={BAR_RADIUS_TOP} {...ANIMATION_CONFIG}>
                 {waterfall.map((w, i) => <Cell key={i} fill={w.fill} />)}
@@ -958,35 +966,37 @@ export function OffsetEffectTab({
           </ChartContainer>
         </ChartCard>
 
-        {/* 가설 검증 메시지 */}
-        <div className={`mt-4 rounded-lg border p-4 ${totalSim.hypothesisValid ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300" : "bg-red-50 dark:bg-red-950/30 border-red-300"}`}>
-          <div className="flex items-start gap-3">
-            {totalSim.hypothesisValid ? (
-              <CheckCircle2 className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-            ) : (
-              <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-            )}
-            <div className="text-sm">
-              <p className="font-semibold mb-1">
-                {totalSim.hypothesisValid
-                  ? `✓ 박리다매 가설 성립 — 상계 효과 +${formatCurrency(totalSim.netOffsetEffect)}`
-                  : `✗ 박리다매 가설 반증 — 상계 효과 ${formatCurrency(totalSim.netOffsetEffect)}`
-                }
-              </p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {totalSim.hypothesisValid
-                  ? "물량 증가로 인한 공헌이익 증가가 단가 인하 손실을 상쇄하여 전사 영업이익이 개선됩니다. 단, 고정비 총액은 현재 설비 캐파 내 생산을 전제로 불변 가정입니다. 캐파 초과 시 추가 CAPEX가 필요할 수 있습니다."
-                  : "물량 증가에도 불구하고 단가 인하 손실이 더 커서 전사 영업이익이 악화됩니다. 저가수주의 단가 인하 폭을 줄이거나, 물량 증가 목표를 더 높여야 합니다."
-                }
-              </p>
+        {/* A4: 가설 검증 메시지 — 3단계 (성립/중립/반증) */}
+        {(() => {
+          const r = totalSim.hypothesisResult;
+          const cfg = r === "positive"
+            ? { bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300", Icon: CheckCircle2, iconCls: "text-emerald-600",
+                title: `✓ 박리다매 가설 성립 — 상계 효과 +${formatCurrency(totalSim.netOffsetEffect)}`,
+                desc: "물량 증가로 인한 공헌이익 증가가 단가 인하 손실을 상쇄하여 전사 영업이익이 개선됩니다. 단, 고정비 총액은 현재 설비 캐파 내 생산을 전제로 불변 가정입니다." }
+            : r === "neutral"
+              ? { bg: "bg-gray-50 dark:bg-gray-950/30 border-gray-300", Icon: Info, iconCls: "text-gray-500",
+                  title: "— 효과 없음 (중립) — 슬라이더를 조작하여 시나리오를 설정하세요",
+                  desc: "물량/단가 변동이 0이거나, 변동 효과가 정확히 상쇄되어 전사 영업이익에 변화가 없습니다." }
+              : { bg: "bg-red-50 dark:bg-red-950/30 border-red-300", Icon: XCircle, iconCls: "text-red-600",
+                  title: `✗ 박리다매 가설 반증 — 상계 효과 ${formatCurrency(totalSim.netOffsetEffect)}`,
+                  desc: "물량 증가에도 불구하고 단가 인하 손실이 더 커서 전사 영업이익이 악화됩니다. 단가 인하 폭을 줄이거나, 물량 증가 목표를 더 높여야 합니다." };
+          return (
+            <div className={`mt-4 rounded-lg border p-4 ${cfg.bg}`}>
+              <div className="flex items-start gap-3">
+                <cfg.Icon className={`h-5 w-5 flex-shrink-0 mt-0.5 ${cfg.iconCls}`} />
+                <div className="text-sm">
+                  <p className="font-semibold mb-1">{cfg.title}</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{cfg.desc}</p>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
       </div>
 
       {/* ═══ Section E: Step 4b. 덤으로 따라오는 효과 (영업사원 친화 UI) ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
-        <div>
+        <div id="offset-step4b">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <h2 className="text-lg font-semibold">🎁 Step 4b. 덤으로 따라오는 효과 — 다른 품목들의 원가 여유</h2>
             <details className="text-xs relative">
@@ -1344,7 +1354,7 @@ export function OffsetEffectTab({
 
       {/* ═══ Section F: Step 5. 데이터 무결성 검증 ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
-        <div>
+        <div id="offset-step5">
           <div className="flex items-center gap-2 mb-3 flex-wrap">
             <h2 className="text-lg font-semibold">Step 5. 데이터 무결성 검증</h2>
             <details className="text-xs relative">
