@@ -181,26 +181,40 @@ export function OffsetEffectTab({
   ], [cvpSummary]);
 
   // CVP 그래프 데이터 (금액 기반 — 이종 단위 혼합 문제 해결)
-  // X축 = 매출액, Y축 = 금액 (원가/고정비)
-  // 변동비율 = totalVC / totalRevenue, 총원가(매출X) = 고정비 + X × 변동비율
+  // X축 = 매출액, Y축 = 매출/원가 금액
+  // 총원가(매출X) = 고정비 + X × 변동비율
+  // 영업이익 영역 = 매출 − 총원가 (녹색-빨강 간격)
   const cvpChartData = useMemo(() => {
     if (cvpSummary.totalRevenue === 0) return [];
     const maxRev = cvpSummary.totalRevenue * 2.2;
     const steps = 20;
     const stepSize = maxRev / steps;
-    const vcRatio = cvpSummary.overallVariableCostRatio; // 변동비/매출 비율
+    const vcRatio = cvpSummary.overallVariableCostRatio;
     const data = [];
     for (let i = 0; i <= steps; i++) {
       const rev = stepSize * i;
+      const totalCost = totalFixedCost + rev * vcRatio;
       data.push({
         매출: parseFloat(rev.toFixed(0)),
         고정비: totalFixedCost,
-        총원가: totalFixedCost + rev * vcRatio,
-        매출선: rev, // Y=X 대각선 (매출=매출)
+        총원가: totalCost,
+        매출선: rev,
+        영업이익: Math.max(rev - totalCost, 0), // 이익 영역 (음수면 0)
       });
     }
     return data;
   }, [cvpSummary, totalFixedCost]);
+
+  // CVP 핵심 해석 지표
+  const cvpInsight = useMemo(() => {
+    const safetyMargin = isFinite(cvpSummary.bepRevenue)
+      ? (1 - cvpSummary.bepRevenue / cvpSummary.totalRevenue) * 100
+      : 0;
+    const opProfit = cvpSummary.totalOperatingProfit;
+    const opProfitRate = cvpSummary.totalRevenue > 0
+      ? (opProfit / cvpSummary.totalRevenue) * 100 : 0;
+    return { safetyMargin, opProfit, opProfitRate };
+  }, [cvpSummary]);
 
   // 산점도 데이터 (금액 기반 — X=매출, Y=공헌이익률)
   const scatterData = useMemo(() => {
@@ -615,7 +629,7 @@ export function OffsetEffectTab({
               <YAxis
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v) => formatCurrency(v, true)}
-                label={{ value: "금액", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                label={{ value: "매출 / 원가", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
@@ -646,6 +660,47 @@ export function OffsetEffectTab({
           </ChartContainer>
           {/* A6: 범례는 차트 내부 <Legend>로 이동됨 */}
         </ChartCard>
+
+        {/* CVP 핵심 인사이트 해석 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+          <div className="rounded-lg border bg-emerald-50/50 dark:bg-emerald-950/20 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-1">현재 영업이익</p>
+            <p className={`text-lg font-bold ${cvpInsight.opProfit >= 0 ? "text-emerald-600" : "text-red-600"}`}>
+              {formatCurrency(cvpInsight.opProfit)}
+            </p>
+            <p className="text-[10px] text-muted-foreground">(영업이익률 {safeFixed(cvpInsight.opProfitRate, 1)}%)</p>
+          </div>
+          <div className="rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-1">BEP 매출 (손익분기)</p>
+            <p className="text-lg font-bold text-blue-600">
+              {isFinite(cvpSummary.bepRevenue) ? formatCurrency(cvpSummary.bepRevenue) : "도달 불가"}
+            </p>
+            <p className="text-[10px] text-muted-foreground">이 매출 이상이면 흑자</p>
+          </div>
+          <div className="rounded-lg border bg-amber-50/50 dark:bg-amber-950/20 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-1">안전한계율</p>
+            <p className={`text-lg font-bold ${cvpInsight.safetyMargin > 30 ? "text-emerald-600" : cvpInsight.safetyMargin > 10 ? "text-amber-600" : "text-red-600"}`}>
+              {safeFixed(cvpInsight.safetyMargin, 1)}%
+            </p>
+            <p className="text-[10px] text-muted-foreground">(현재−BEP)/현재 · 30%↑ 양호</p>
+          </div>
+          <div className="rounded-lg border bg-gray-50/50 dark:bg-gray-950/20 p-3 text-center">
+            <p className="text-[10px] text-muted-foreground mb-1">변동비율</p>
+            <p className="text-lg font-bold">{safeFixed(cvpSummary.overallVariableCostRatio * 100, 1)}%</p>
+            <p className="text-[10px] text-muted-foreground">매출 1원당 변동비 부담</p>
+          </div>
+        </div>
+
+        {/* 차트 해석 가이드 */}
+        <div className="rounded-md border bg-muted/20 p-3 mt-3 text-xs text-muted-foreground">
+          <strong className="text-foreground">📊 이 차트의 두 선이 뜻하는 것:</strong>
+          <ul className="mt-1 space-y-1 ml-3">
+            <li><span className="font-semibold" style={{ color: "hsl(142,71%,42%)" }}>녹색 대각선</span> = 매출 자체 (X=Y). 매출이 늘면 이 선도 같이 올라감</li>
+            <li><span className="font-semibold" style={{ color: "hsl(0,84%,55%)" }}>빨간 실선</span> = 총원가 (고정비 + 변동비). 기울기가 녹색보다 낮으면 매출 1원당 원가 &lt; 1원 = <strong>흑자</strong></li>
+            <li><strong>두 선 사이의 간격</strong> = 영업이익. <strong>간격이 넓을수록 이익이 큼</strong></li>
+            <li><span className="font-semibold" style={{ color: "hsl(217,91%,60%)" }}>파란 점선(BEP)</span> = 두 선이 만나는 지점. 이 매출 이하면 <span className="text-red-600 font-semibold">적자</span>, 이상이면 <span className="text-emerald-600 font-semibold">흑자</span></li>
+          </ul>
+        </div>
       </div>
 
       {/* ═══ Section C: Step 3. 수익성 산점도 ═══ */}
