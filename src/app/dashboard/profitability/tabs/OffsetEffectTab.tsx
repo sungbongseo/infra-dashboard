@@ -576,6 +576,7 @@ export function OffsetEffectTab({
             <li><strong className="text-foreground">주황 점선 (현재)</strong>: 현재 실적 수량 위치</li>
           </ul>
           <p className="pt-1"><strong className="text-foreground">💡 해석:</strong> 현재 위치가 BEP보다 오른쪽이면 흑자, 왼쪽이면 적자. 현재와 BEP 사이가 멀수록 안전한계율이 높아 가격 인하 여지가 있습니다.</p>
+          <p className="text-[10px] text-muted-foreground mt-1">※ BEP 수직선이 안 보이면 BEP 수량이 매우 작아 Y축 근처에 겹쳐 있는 것입니다 (이미 충분히 흑자 상태). 빨간선(총원가)과 녹색선(매출)이 거의 겹치면 마진이 매우 낮다는 의미입니다.</p>
         </div>
         <ChartCard
           title="수량 기반 CVP 그래프 (Cost-Volume-Profit)"
@@ -585,24 +586,55 @@ export function OffsetEffectTab({
           benchmark="현재 수량이 BEP를 넘으면 수익 구간. BEP 대비 안전한계율 = (현재-BEP)/현재"
           reason="손익분기점을 시각적으로 확인하여 물량 레버리지 여지를 판단"
         >
-          <ChartContainer height="h-72">
-            <ComposedChart data={cvpChartData}>
+          <ChartContainer height="h-80">
+            <ComposedChart data={cvpChartData} margin={{ top: 20, right: 30, bottom: 20, left: 10 }}>
               <CartesianGrid {...GRID_PROPS} />
-              <XAxis dataKey="수량" tick={{ fontSize: 10 }} tickFormatter={(v) => Math.round(v).toLocaleString()} />
-              <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} />
+              <XAxis
+                dataKey="수량"
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => Math.round(v).toLocaleString()}
+                label={{ value: "수량 (개)", position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+              />
+              <YAxis
+                tick={{ fontSize: 10 }}
+                tickFormatter={(v) => formatCurrency(v, true)}
+                label={{ value: "금액", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+              />
               <RechartsTooltip
                 {...TOOLTIP_STYLE}
-                formatter={(v: any) => formatCurrency(Number(v))}
+                formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]}
+                labelFormatter={(v) => `수량: ${Math.round(Number(v)).toLocaleString()}`}
               />
-              <Line type="monotone" dataKey="고정비" stroke="hsl(0, 0%, 50%)" strokeDasharray="4 4" dot={false} />
-              <Line type="monotone" dataKey="총원가" stroke="hsl(0, 84%, 60%)" strokeWidth={2} dot={false} />
-              <Line type="monotone" dataKey="매출액" stroke="hsl(142, 71%, 45%)" strokeWidth={2} dot={false} />
-              {isFinite(cvpSummary.bepQuantity) && (
-                <ReferenceLine x={Math.round(cvpSummary.bepQuantity)} stroke="hsl(217, 91%, 60%)" strokeDasharray="3 3" label={{ value: "BEP", fontSize: 10, fill: "hsl(217, 91%, 60%)" }} />
+              {/* 범례: 차트 상단에 컬러 인라인 */}
+              <Line type="monotone" dataKey="고정비" name="고정비 (수평)" stroke="hsl(0, 0%, 40%)" strokeDasharray="6 3" strokeWidth={1.5} dot={false} />
+              <Line type="monotone" dataKey="총원가" name="총원가 (고정+변동)" stroke="hsl(0, 84%, 55%)" strokeWidth={2.5} dot={false} />
+              <Line type="monotone" dataKey="매출액" name="매출액" stroke="hsl(142, 71%, 42%)" strokeWidth={2.5} dot={false} />
+              {isFinite(cvpSummary.bepQuantity) && cvpSummary.bepQuantity > 0 && (
+                <ReferenceLine
+                  x={Math.round(cvpSummary.bepQuantity)}
+                  stroke="hsl(217, 91%, 60%)"
+                  strokeDasharray="3 3"
+                  strokeWidth={2}
+                  label={{ value: `BEP (${Math.round(cvpSummary.bepQuantity).toLocaleString()})`, fontSize: 10, fill: "hsl(217, 91%, 60%)", position: "top" }}
+                />
               )}
-              <ReferenceLine x={Math.round(cvpSummary.totalQuantity)} stroke="hsl(45, 93%, 47%)" strokeDasharray="4 4" label={{ value: "현재", fontSize: 10, fill: "hsl(45, 93%, 47%)" }} />
+              <ReferenceLine
+                x={Math.round(cvpSummary.totalQuantity)}
+                stroke="hsl(30, 90%, 50%)"
+                strokeDasharray="4 4"
+                strokeWidth={2}
+                label={{ value: `현재 (${Math.round(cvpSummary.totalQuantity).toLocaleString()})`, fontSize: 10, fill: "hsl(30, 90%, 50%)", position: "top" }}
+              />
             </ComposedChart>
           </ChartContainer>
+          {/* 범례 보조 (차트 하단) */}
+          <div className="flex flex-wrap gap-4 mt-2 text-xs justify-center">
+            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(0,0%,40%)" }} /><span className="text-muted-foreground">고정비 (수평)</span></span>
+            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ backgroundColor: "hsl(0,84%,55%)", height: 2.5 }} /><span style={{ color: "hsl(0,84%,55%)" }}>총원가</span></span>
+            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5" style={{ backgroundColor: "hsl(142,71%,42%)", height: 2.5 }} /><span style={{ color: "hsl(142,71%,42%)" }}>매출액</span></span>
+            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(217,91%,60%)" }} /><span style={{ color: "hsl(217,91%,60%)" }}>BEP 수직선</span></span>
+            <span className="flex items-center gap-1"><span className="inline-block w-5 h-0.5 border-t-2 border-dashed" style={{ borderColor: "hsl(30,90%,50%)" }} /><span style={{ color: "hsl(30,90%,50%)" }}>현재 수량</span></span>
+          </div>
         </ChartCard>
       </div>
 
