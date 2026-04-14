@@ -428,27 +428,38 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
   const volFactor = 1 + volumeIncreasePct / 100;
   const priceFactor = 1 + priceChangePct / 100;
 
+  // G1: 절대 수량 모드 — 다거래처 중복 방지를 위해 대상 품목 총 수량 선계산
+  // volumeAbsolute=2000이고 P001이 거래처 3곳(100,200,300수량)에 있으면
+  // 각각 수량비중(100/600, 200/600, 300/600)으로 비례 배분
+  const targetTotalQty = volumeAbsolute !== undefined
+    ? items.filter(isTarget).reduce((s, it) => s + it.quantity, 0)
+    : 0;
+
   for (const it of items) {
     if (isTarget(it)) {
       const newPrice = Math.max(it.unitPrice * priceFactor, 0);
-      // 절대 수량 모드: volumeAbsolute가 있으면 "추가 수량"으로 사용 (품목 선택 필수)
-      const newQty = volumeAbsolute !== undefined
-        ? Math.max(it.quantity + volumeAbsolute, 0)
-        : Math.max(it.quantity * volFactor, 0);
+      // 절대 수량: 각 행에 수량 비중으로 분배 (G1 중복 방지)
+      let addedForThisRow: number;
+      let newQty: number;
+      if (volumeAbsolute !== undefined) {
+        const qtyShare = targetTotalQty > 0 ? safeDivide(it.quantity, targetTotalQty) : 0;
+        addedForThisRow = volumeAbsolute * qtyShare;
+        newQty = Math.max(it.quantity + addedForThisRow, 0);
+      } else {
+        addedForThisRow = it.quantity * (volumeIncreasePct / 100);
+        newQty = Math.max(it.quantity * volFactor, 0);
+      }
       const newRev = newPrice * newQty;
       const newVC = it.unitVariableCost * newQty;
       newTotalRevenue += newRev;
       newTotalVariableCost += newVC;
       newTotalQuantity += newQty;
 
-      // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액 (negative)
+      // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액
       priceReductionLoss += it.quantity * it.unitPrice * (priceChangePct / 100);
-      // 분해: 물량 증가 공헌 = 추가 수량 × 인하된 단위공헌이익
-      const addedQty = volumeAbsolute !== undefined
-        ? volumeAbsolute
-        : it.quantity * (volumeIncreasePct / 100);
+      // 분해: 물량 증가 공헌 = 추가 수량(비례배분) × 인하된 단위공헌이익
       const newUnitCM = newPrice - it.unitVariableCost;
-      volumeContributionGain += addedQty * newUnitCM;
+      volumeContributionGain += addedForThisRow * newUnitCM;
     } else {
       newTotalRevenue += it.revenue;
       newTotalVariableCost += it.variableCost;

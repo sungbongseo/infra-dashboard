@@ -978,7 +978,7 @@ export function OffsetEffectTab({
               <span className="text-xs min-w-[70px]">대상 품목:</span>
               <select
                 value={targetItem ?? ""}
-                onChange={(e) => { setTargetItem(e.target.value || null); if (!e.target.value) setInputMode("percent"); }}
+                onChange={(e) => { setTargetItem(e.target.value || null); if (!e.target.value) setInputMode("percent"); setVolumeAbsolute(0); setPriceChangeDirect(0); }}
                 className="flex-1 text-xs border rounded px-2 py-1 bg-background"
               >
                 <option value="">전체 품목</option>
@@ -996,11 +996,11 @@ export function OffsetEffectTab({
             <div className="flex items-center gap-3 text-xs">
               <span className="font-semibold min-w-[90px]">입력 모드:</span>
               <label className="flex items-center gap-1 cursor-pointer">
-                <input type="radio" checked={inputMode === "percent"} onChange={() => setInputMode("percent")} />
+                <input type="radio" checked={inputMode === "percent"} onChange={() => { setInputMode("percent"); setVolumeAbsolute(0); }} />
                 비율(%)
               </label>
               <label className="flex items-center gap-1 cursor-pointer">
-                <input type="radio" checked={inputMode === "absolute"} onChange={() => setInputMode("absolute")} />
+                <input type="radio" checked={inputMode === "absolute"} onChange={() => { setInputMode("absolute"); setPriceChangeDirect(priceChangePct); }} />
                 절대 수량
               </label>
               {inputMode === "absolute" && (() => {
@@ -1075,11 +1075,11 @@ export function OffsetEffectTab({
 
           {/* 프리셋 */}
           <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => { setVolumeIncreasePct(0); setPriceChangePct(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
-            <button onClick={() => { setVolumeIncreasePct(30); setPriceChangePct(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
-            <button onClick={() => { setVolumeIncreasePct(50); setPriceChangePct(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
-            <button onClick={() => { setVolumeIncreasePct(20); setPriceChangePct(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
-            <button onClick={() => { setVolumeIncreasePct(-10); setPriceChangePct(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(0); setPriceChangePct(0); setVolumeAbsolute(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(30); setPriceChangePct(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(50); setPriceChangePct(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
           </div>
         </div>
 
