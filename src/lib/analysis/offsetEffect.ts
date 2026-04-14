@@ -747,26 +747,26 @@ export function calcWaterfallSteps(sim: TotalViewSimulation): WaterfallStep[] {
     type: "start",
   });
 
-  // 2. 단가 인하 손실 (감소)
+  // 2. 단가 효과 (색상/라벨 동적 — 인상 시 양수=녹색, 인하 시 음수=빨강)
   const afterPriceLoss = baseOP + priceLoss;
   steps.push({
-    name: "단가 인하 손실",
+    name: priceLoss >= 0 ? "단가 효과 (이득)" : "단가 효과 (손실)",
     base: Math.min(baseOP, afterPriceLoss),
     value: Math.abs(priceLoss),
-    fill: "hsl(0, 84%, 60%)",
+    fill: priceLoss >= 0 ? "hsl(142, 71%, 45%)" : "hsl(0, 84%, 60%)",
     cumulative: afterPriceLoss,
-    type: "decrease",
+    type: priceLoss >= 0 ? "increase" : "decrease",
   });
 
-  // 3. 물량 증가 공헌 (증가)
+  // 3. 물량 효과 (색상/라벨 동적 — 증가 시 양수=파랑, 감소 시 음수=빨강)
   const afterVolGain = afterPriceLoss + volumeGain;
   steps.push({
-    name: "물량 증가 공헌",
+    name: volumeGain >= 0 ? "물량 효과 (공헌)" : "물량 효과 (감소)",
     base: Math.min(afterPriceLoss, afterVolGain),
     value: Math.abs(volumeGain),
-    fill: "hsl(217, 91%, 60%)",
+    fill: volumeGain >= 0 ? "hsl(217, 91%, 60%)" : "hsl(0, 84%, 60%)",
     cumulative: afterVolGain,
-    type: "increase",
+    type: volumeGain >= 0 ? "increase" : "decrease",
   });
 
   // 4. 최종 영업이익

@@ -1093,14 +1093,14 @@ export function OffsetEffectTab({
             reason="변화 전 영업이익을 명확히 표시"
           />
           <KpiCard
-            title="단가 인하 손실" value={totalSim.priceReductionLoss} format="currency"
+            title={totalSim.priceReductionLoss >= 0 ? "단가 효과 (이득)" : "단가 효과 (손실)"} value={totalSim.priceReductionLoss} format="currency"
             formula="Σ([100.매출수량·실적] × [100.단위단가] × priceChangePct%) · 대상 품목/거래처만"
             description="대상 품목의 단가 인하로 인한 매출 감소"
             benchmark="이 손실을 물량 증가 공헌이 상쇄해야 가설 성립"
             reason="저가수주의 직접 비용"
           />
           <KpiCard
-            title="물량 증가 공헌" value={totalSim.volumeContributionGain} format="currency"
+            title={totalSim.volumeContributionGain >= 0 ? "물량 효과 (공헌)" : "물량 효과 (감소)"} value={totalSim.volumeContributionGain} format="currency"
             formula="Σ(추가수량 × (인하단가 − [100.단위변동비])) · 대상 품목/거래처만"
             description="대상 품목 물량 증가로 인한 공헌이익 증가"
             benchmark="단가 인하 손실보다 커야 가설 성립"
@@ -1122,8 +1122,8 @@ export function OffsetEffectTab({
           <p><strong className="text-foreground">📖 워터폴 차트 읽는 법:</strong> 좌측부터 우측으로 4개 막대가 누적 흐름을 보여줍니다.</p>
           <ul className="list-disc ml-5 space-y-0.5">
             <li><strong className="text-foreground">① 기존 영업이익 (녹색)</strong>: 시나리오 적용 전 전사 영업이익 — 출발점</li>
-            <li><strong className="text-foreground">② 단가 인하 손실 (빨강)</strong>: 대상 품목 단가 인하로 인한 매출 감소액 (음수)</li>
-            <li><strong className="text-foreground">③ 물량 증가 공헌 (파랑)</strong>: 추가 물량 × 인하 후 단위공헌이익 (양수, 고정비 부담 없음)</li>
+            <li><strong className="text-foreground">② 단가 효과</strong>: 단가 변동에 따른 매출 변화 (인하 시 빨강/손실, 인상 시 녹색/이득)</li>
+            <li><strong className="text-foreground">③ 물량 효과</strong>: 물량 변동 × 조정 후 단위공헌이익 (증가 시 파랑/공헌, 감소 시 빨강/손실)</li>
             <li><strong className="text-foreground">④ 최종 영업이익 (녹색/빨강)</strong>: ① + ② + ③ — 시나리오 적용 후 전사 이익</li>
           </ul>
           <p className="pt-1"><strong className="text-foreground">💡 판단 기준:</strong> ④가 ①보다 높으면 가설 성립(박리다매 유리), 낮으면 가설 반증(가격 방어 필요).</p>
