@@ -7,6 +7,9 @@ import {
   calcPoolSimulation,
   calcWaterfallSteps,
   verifyIntegrity,
+  getUnitGroups,
+  calcGroupCVP,
+  calcSensitivityGrid,
 } from "./offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord, PlanActualDiff } from "@/types";
 
@@ -24,6 +27,7 @@ function makeCustItem(
     qty: number;
     revenue: number;
     cost: number;
+    sgaCost: number;
   }> = {}
 ): CustomerItemDetailRecord {
   const {
@@ -34,6 +38,7 @@ function makeCustItem(
     qty = 100,
     revenue = 10000,
     cost = 7000,
+    sgaCost = 0,
   } = overrides;
   const gp = revenue - cost;
   return {
@@ -63,7 +68,7 @@ function makeCustItem(
     상품매입: pad0(),
     매출총이익: pad(gp),
     판매관리비: pad0(),
-    판관변동_직접판매운반비: pad0(),
+    판관변동_직접판매운반비: pad(sgaCost),
     영업이익: pad(gp),
     매출총이익율: pad0(),
     영업이익율: pad0(),
@@ -484,6 +489,221 @@ describe("offsetEffect", () => {
       // 풀 고정비 1000을 2개 품목에 균등 배분 → 각 500
       expect(poolSim.baseItems[0].allocatedFixedCost).toBeCloseTo(500, 0);
       expect(poolSim.baseItems[1].allocatedFixedCost).toBeCloseTo(500, 0);
+    });
+
+    it("1-2: 짝수 개 데이터셋 중앙값 피벗 대칭성", () => {
+      // 4개 아이템 — 짝수 개일 때 중앙값 = (sorted[1] + sorted[2]) / 2
+      const data = [
+        makeCustItem({ customer: "C1", item: "P1", qty: 10, revenue: 1000, cost: 900 }),
+        makeCustItem({ customer: "C2", item: "P2", qty: 20, revenue: 2000, cost: 800 }),
+        makeCustItem({ customer: "C3", item: "P3", qty: 30, revenue: 3000, cost: 2800 }),
+        makeCustItem({ customer: "C4", item: "P4", qty: 40, revenue: 4000, cost: 1500 }),
+      ];
+      const { items } = calcCustomerItemCVP(data, 0);
+      const quadrants = items.map((it) => it.quadrant);
+      // 대칭 분류: 각 quadrant에 1개씩이어야 함 (중앙값 기반)
+      expect(quadrants.filter((q) => q === "star").length).toBeGreaterThanOrEqual(1);
+      expect(quadrants.filter((q) => q === "dog").length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("1-3: 음수 수량(반품) 아이템 quadrant 분류 제외 + summary 포함", () => {
+      const data = [
+        makeCustItem({ customer: "C1", item: "P1", qty: 100, revenue: 10000, cost: 7000 }),
+        makeCustItem({ customer: "C2", item: "P2", qty: -20, revenue: -2000, cost: -1400 }), // 반품
+      ];
+      const { items, summary } = calcCustomerItemCVP(data, 1000);
+      // 반품 아이템은 dog으로 분류
+      const returnItem = items.find((it) => it.customer === "C2");
+      expect(returnItem?.quadrant).toBe("dog");
+      // summary에 반품 통계 포함
+      expect(summary.returnItemCount).toBe(1);
+      expect(summary.returnRevenue).toBe(-2000);
+      // summary 합계에 반품 매출 포함
+      expect(summary.totalRevenue).toBe(10000 + (-2000));
+    });
+
+    it("calcPoolSimulation — volumeAbsolute 모드", () => {
+      const poolData = [
+        makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }),
+        makeItemProfit({ item: "[P2] B", 대분류: "방수", qty: 200, revenue: 30000, cost: 18000 }),
+      ];
+      const { items: poolItems, poolFixedCost } = calcItemPool(poolData, "대분류", "방수");
+      // 절대 수량 200 추가 (% 아닌 절대)
+      const sim = calcPoolSimulation(poolItems, poolFixedCost, "P1", 0, -5, "revenue", "대분류", "방수", 200);
+      // 대상 품목 수량이 100 → 300으로 증가해야 함
+      const targetSim = sim.simulatedItems.find((it) => it.item === "P1");
+      expect(targetSim?.quantity).toBe(300);
+      // 항등식 성립
+      expect(sim.netPoolMarginDelta).toBeCloseTo(sim.targetItemMarginDelta + sim.otherItemsMarginDelta, 2);
+    });
+
+    it("calcWaterfallSteps — 단가 인상 시나리오 (green bar)", () => {
+      const baseItems = [makeCustItem({ qty: 100, revenue: 10000, cost: 7000 })];
+      const { items } = calcCustomerItemCVP(baseItems, 1000);
+      const sim = calcTotalViewSimulation({
+        items,
+        totalFixedCost: 1000,
+        targetCustomer: null,
+        targetItem: null,
+        volumeIncreasePct: -10,
+        priceChangePct: 10,
+      });
+      const steps = calcWaterfallSteps(sim);
+      // 단가 인상 → priceReductionLoss가 양수(이득) → 녹색
+      expect(sim.priceReductionLoss).toBeGreaterThan(0);
+      expect(steps[1].fill).toBe("hsl(142, 71%, 45%)"); // green
+      expect(steps[1].name).toMatch(/이득/);
+    });
+
+    it("verifyIntegrity — baseOP=0 엣지케이스", () => {
+      const totalSim = {
+        baseTotalRevenue: 10000, baseTotalVariableCost: 9000,
+        baseOperatingProfit: 0, baseTotalQuantity: 100, baseAvgUnitFixedCost: 10,
+        targetCustomer: null, targetItem: null,
+        volumeIncreasePct: 10, priceChangePct: 0,
+        newTotalRevenue: 11000, newTotalVariableCost: 9900,
+        newTotalQuantity: 110, newAvgUnitFixedCost: 9.09,
+        newOperatingProfit: 100,
+        priceReductionLoss: 0, volumeContributionGain: 100,
+        netOffsetEffect: 100, hypothesisValid: true,
+        hypothesisResult: "positive" as const,
+      };
+      const poolSim = {
+        poolLevel: "대분류" as const, poolName: "T", poolFixedCost: 1000,
+        allocationBasis: "revenue" as const, targetItem: null,
+        volumeIncreasePct: 10, priceChangePct: 0,
+        baseItems: [], simulatedItems: [],
+        targetItemMarginDelta: 0, otherItemsMarginDelta: 0, netPoolMarginDelta: 0,
+      };
+      const integrity = verifyIntegrity(totalSim, poolSim);
+      expect(integrity.totalViewIsConsistent).toBe(true);
+      expect(integrity.isConsistent).toBe(true);
+    });
+
+    it("getUnitGroups — 2개 미만 아이템 그룹 필터링", () => {
+      const data = [
+        makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }),
+        // 방수 그룹에 1개만 있으면 필터링됨
+      ];
+      // 기준단위가 빈문자열이므로 그룹 형성 불가
+      const groups = getUnitGroups(data);
+      expect(groups.length).toBe(0);
+    });
+
+    it("calcGroupCVP — BEP 수량 계산", () => {
+      const data = [
+        { ...makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }), 기준단위: "KG" },
+        { ...makeItemProfit({ item: "[P2] B", 대분류: "방수", qty: 200, revenue: 20000, cost: 14000 }), 기준단위: "KG" },
+      ];
+      const result = calcGroupCVP(data, "방수", "KG");
+      expect(result.unit).toBe("KG");
+      expect(result.totalQuantity).toBe(300);
+      expect(result.bepQuantity).toBeGreaterThan(0);
+      expect(isFinite(result.bepQuantity)).toBe(true);
+    });
+
+    it("calcSensitivityGrid — 단가 인하 시 필요 물량 > 0", () => {
+      const data = [makeCustItem({ customer: "C1", item: "P1", qty: 100, revenue: 10000, cost: 7000 })];
+      const { items } = calcCustomerItemCVP(data, 1000);
+      const grid = calcSensitivityGrid(items, 1000, null, "P1", [-10, -5, 5]);
+      // 단가 인하 → 필요 물량 증가율 > 0
+      expect(grid[0].requiredVolumePct).toBeGreaterThan(0); // -10%
+      expect(grid[1].requiredVolumePct).toBeGreaterThan(0); // -5%
+      // 단가 인상 → 불필요
+      expect(grid[2].requiredVolumePct).toBe(0); // +5%
+    });
+
+    it("1-4: calcItemPool — 코드 정규화 실패 시 warnings 수집", () => {
+      const poolData = [
+        makeItemProfit({ item: "코드없는품목", 대분류: "방수", qty: 50, revenue: 5000, cost: 3000 }),
+      ];
+      const { warnings } = calcItemPool(poolData, "대분류", "방수");
+      expect(warnings.length).toBeGreaterThan(0);
+      expect(warnings[0]).toMatch(/정규화 실패/);
+    });
+
+    it("개선1: 판관변동_직접판매운반비가 변동비에 포함", () => {
+      const data = [
+        makeCustItem({ customer: "C1", item: "P1", qty: 100, revenue: 10000, cost: 7000, sgaCost: 500 }),
+      ];
+      const { items, summary } = calcCustomerItemCVP(data, 1000);
+      // 변동비 = (10000-3000) + 500 = 7500
+      expect(items[0].variableCost).toBe(7500);
+      expect(items[0].sgaVariableCost).toBe(500);
+      // 공헌이익 = 10000 - 7500 = 2500
+      expect(items[0].totalContributionMargin).toBe(2500);
+      // 영업이익 = 2500 - 1000 = 1500
+      expect(summary.totalOperatingProfit).toBe(1500);
+    });
+
+    it("개선2: calcItemPool 14개 변동비 직접 합산", () => {
+      const poolData = [
+        {
+          ...makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }),
+          원재료비: 3000, 부재료비: 500, 노무비: 1000, 외주가공비: 800,
+        },
+      ];
+      const { items } = calcItemPool(poolData, "대분류", "방수");
+      // 직접 합산: 3000+500+1000+800 = 5300 (나머지 10개 = 0)
+      expect(items[0].variableCost).toBe(5300);
+    });
+
+    it("개선3: 표준원가 이상치 경고", () => {
+      const poolData = [
+        {
+          ...makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }),
+          표준매출원가: 5000, // 실적 7000 vs 표준 5000 → 40% 차이
+        },
+      ];
+      const { warnings } = calcItemPool(poolData, "대분류", "방수");
+      const costWarnings = warnings.filter((w) => w.includes("원가 이상치"));
+      expect(costWarnings.length).toBe(1);
+      expect(costWarnings[0]).toMatch(/40%/);
+    });
+
+    it("A1: targetTotalQty ≤ 0 시 균등 분배 fallback", () => {
+      // 반품(-50)이 정상(30)보다 많은 → totalQty = -20
+      const data = [
+        makeCustItem({ customer: "C1", item: "P1", qty: 30, revenue: 3000, cost: 2100 }),
+        makeCustItem({ customer: "C2", item: "P1", qty: -50, revenue: -5000, cost: -3500 }),
+      ];
+      const { items } = calcCustomerItemCVP(data, 1000);
+      // totalQty=-20 → 절대수량 모드에서 균등분배 사용해야 crash 없음
+      const sim = calcTotalViewSimulation({
+        items, totalFixedCost: 1000, targetCustomer: null, targetItem: "P1",
+        volumeIncreasePct: 0, priceChangePct: 0, volumeAbsolute: 100,
+      });
+      // crash 없이 결과 반환
+      expect(isFinite(sim.newOperatingProfit)).toBe(true);
+    });
+
+    it("A2: 감도 분석 CM≤0 시 requiredVolumePct = Infinity", () => {
+      // 변동비 > 매출 → CM < 0 → BEP 달성 불가
+      const data = [makeCustItem({ customer: "C1", item: "P1", qty: 100, revenue: 5000, cost: 6000 })];
+      const { items } = calcCustomerItemCVP(data, 1000);
+      const grid = calcSensitivityGrid(items, 1000, null, "P1", [-10]);
+      expect(grid[0].requiredVolumePct).toBe(Infinity);
+    });
+
+    it("C1: Pool 경고 중복 제거", () => {
+      // 같은 품목 2행 (월별) → 경고 1건만
+      const poolData = [
+        makeItemProfit({ item: "코드없는품목", 대분류: "방수", qty: 50, revenue: 5000, cost: 3000 }),
+        makeItemProfit({ item: "코드없는품목", 대분류: "방수", qty: 30, revenue: 3000, cost: 2000 }),
+      ];
+      const { warnings } = calcItemPool(poolData, "대분류", "방수");
+      const normWarnings = warnings.filter((w) => w.includes("정규화 실패"));
+      expect(normWarnings.length).toBe(1); // 중복 아닌 1건만
+    });
+
+    it("B4: 변동비 fallback 경고", () => {
+      // 14개 항목 모두 0이지만 실적매출원가 > 0 → fallback 사용 경고
+      const poolData = [
+        makeItemProfit({ item: "[P1] A", 대분류: "방수", qty: 100, revenue: 10000, cost: 7000 }),
+      ];
+      const { warnings } = calcItemPool(poolData, "대분류", "방수");
+      const fbWarnings = warnings.filter((w) => w.includes("fallback"));
+      expect(fbWarnings.length).toBe(1);
     });
 
     it("M5: verifyIntegrity tolerance — 극소 이익에서 false positive 없음", () => {

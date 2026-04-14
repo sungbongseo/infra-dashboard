@@ -15,8 +15,10 @@
  *    단위 고정비가 감소" 효과를 시각화. 전사 이익에 추가 영향 없음.
  *
  * 핵심 검증 항등식:
- *    targetItemMarginDelta + otherItemsMarginDelta ≡ totalViewNetDelta
- *    (풀의 고정비 총액 불변이므로 재배분은 품목 간 이동만 있음)
+ *    4a: netOffsetEffect ≡ priceReductionLoss + volumeContributionGain
+ *    4b: netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta
+ *    주의: 4b의 netPoolMarginDelta는 대상 품목의 매출/단가 변경 효과를 반영하므로 ≠ 0.
+ *    4a와 4b는 데이터 범위가 달라(전체 vs 풀) 직접 비교 불가.
  */
 import type {
   CustomerItemDetailRecord,
@@ -38,7 +40,8 @@ export interface CVPItem {
   itemName: string;
   quantity: number;
   revenue: number;
-  variableCost: number;
+  variableCost: number;       // 제조변동비 + SGA변동비 (판관변동_직접판매운반비)
+  sgaVariableCost: number;    // 판관변동_직접판매운반비 (물류 변동비 분리 표시)
   grossProfit: number;
   unitPrice: number;
   unitVariableCost: number;
@@ -70,6 +73,9 @@ export interface CVPSummary {
   bleedingContributionLoss: number;
   healthyCount: number;
   bleedingCount: number;
+  // 반품/환입 (음수 수량) 아이템 통계
+  returnItemCount: number;
+  returnRevenue: number;
 }
 
 // Step 4a: 총액 관점 시뮬레이션
@@ -220,6 +226,7 @@ export function calcCustomerItemCVP(
       quantity: number;
       revenue: number;
       variableCost: number;
+      sgaVariableCost: number;
       grossProfit: number;
     }
   >();
@@ -232,8 +239,12 @@ export function calcCustomerItemCVP(
     const prev = agg.get(key);
     const qty = r.매출수량?.실적 || 0;
     const rev = r.매출액?.실적 || 0;
-    // 100 보고서에는 원가 분리가 없음 → 매출원가.실적을 변동비로 가정
-    const vc = (r.매출액?.실적 || 0) - (r.매출총이익?.실적 || 0);
+    // 제조 변동비 = 매출액 − 매출총이익 (매출원가 근사)
+    const mfgVC = (r.매출액?.실적 || 0) - (r.매출총이익?.실적 || 0);
+    // SGA 변동비 = 판관변동_직접판매운반비 (물류 변동비)
+    const sgaVC = r.판관변동_직접판매운반비?.실적 || 0;
+    // 총 변동비 = 제조 변동비 + SGA 변동비
+    const vc = mfgVC + sgaVC;
     const gp = r.매출총이익?.실적 || 0;
 
     if (!prev) {
@@ -245,12 +256,14 @@ export function calcCustomerItemCVP(
         quantity: qty,
         revenue: rev,
         variableCost: vc,
+        sgaVariableCost: sgaVC,
         grossProfit: gp,
       });
     } else {
       prev.quantity += qty;
       prev.revenue += rev;
       prev.variableCost += vc;
+      prev.sgaVariableCost += sgaVC;
       prev.grossProfit += gp;
     }
   }
@@ -273,6 +286,7 @@ export function calcCustomerItemCVP(
       quantity: v.quantity,
       revenue: v.revenue,
       variableCost: v.variableCost,
+      sgaVariableCost: v.sgaVariableCost,
       grossProfit: v.grossProfit,
       unitPrice,
       unitVariableCost,
@@ -293,17 +307,32 @@ export function calcCustomerItemCVP(
   return { items: classified, summary };
 }
 
+/** 정렬된 배열의 통계적 중앙값 (짝수 개수 시 두 값의 평균) */
+function median(sorted: number[]): number {
+  const n = sorted.length;
+  if (n === 0) return 0;
+  const mid = Math.floor(n / 2);
+  return n % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+}
+
 function classifyCVPItems(items: CVPItem[]): CVPItem[] {
   if (items.length === 0) return items;
+  // 반품/환입(음수 수량) 아이템은 quadrant 분류에서 제외 — summary 합산에만 포함
+  const normalItems = items.filter((i) => i.quantity >= 0);
+  if (normalItems.length === 0) {
+    return items.map((it) => ({ ...it, quadrant: "dog" as Quadrant }));
+  }
   // 금액 기반 4사분면 분류 (이종 단위 혼합 해결)
   // X축: 매출(revenue), Y축: 공헌이익률(contributionMarginRatio)
-  const sortedRev = [...items.map((i) => i.revenue)].sort((a, b) => a - b);
-  const sortedCMR = [...items.map((i) => i.contributionMarginRatio)].sort((a, b) => a - b);
-  // M1: lower median (Math.floor) 사용 — 짝수개 아이템 시 하위 중앙값 기준
-  const pivotRev = sortedRev[Math.floor(sortedRev.length / 2)];
-  const pivotCMR = sortedCMR[Math.floor(sortedCMR.length / 2)];
+  const sortedRev = [...normalItems.map((i) => i.revenue)].sort((a, b) => a - b);
+  const sortedCMR = [...normalItems.map((i) => i.contributionMarginRatio)].sort((a, b) => a - b);
+  // 통계적 표준 중앙값 사용 — 짝수개 시 (lower + upper) / 2
+  const pivotRev = median(sortedRev);
+  const pivotCMR = median(sortedCMR);
 
   return items.map((it) => {
+    // 반품 아이템은 dog으로 분류 (산점도에서 별도 표시를 위한 fallback)
+    if (it.quantity < 0) return { ...it, quadrant: "dog" as Quadrant };
     const highRev = it.revenue >= pivotRev;
     const highCM = it.contributionMarginRatio >= pivotCMR;
     let quadrant: Quadrant;
@@ -325,6 +354,7 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
       weightedUnitContributionMargin: 0, avgUnitFixedCost: 0, bepQuantity: Infinity,
       healthyContributionSum: 0, bleedingContributionLoss: 0,
       healthyCount: 0, bleedingCount: 0,
+      returnItemCount: 0, returnRevenue: 0,
     };
   }
 
@@ -356,6 +386,11 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
   const healthyContributionSum = healthy.reduce((s, i) => s + i.totalContributionMargin, 0);
   const bleedingContributionLoss = bleeding.reduce((s, i) => s + i.totalContributionMargin, 0);
 
+  // 반품/환입 통계 (음수 수량 아이템)
+  const returnItems = items.filter((i) => i.quantity < 0);
+  const returnItemCount = returnItems.length;
+  const returnRevenue = returnItems.reduce((s, i) => s + i.revenue, 0);
+
   return {
     totalRevenue,
     totalVariableCost,
@@ -375,6 +410,8 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
     bleedingContributionLoss,
     healthyCount: healthy.length,
     bleedingCount: bleeding.length,
+    returnItemCount,
+    returnRevenue,
   };
 }
 
@@ -442,7 +479,11 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
       let addedForThisRow: number;
       let newQty: number;
       if (volumeAbsolute !== undefined) {
-        const qtyShare = targetTotalQty > 0 ? safeDivide(it.quantity, targetTotalQty) : 0;
+        // A1: targetTotalQty ≤ 0 (반품 > 정상) → 균등 분배 fallback
+        const targetCount = items.filter(isTarget).length;
+        const qtyShare = targetTotalQty > 0
+          ? safeDivide(it.quantity, targetTotalQty)
+          : safeDivide(1, targetCount);
         addedForThisRow = volumeAbsolute * qtyShare;
         newQty = Math.max(it.quantity + addedForThisRow, 0);
       } else {
@@ -516,14 +557,17 @@ export function calcItemPool(
   itemData: ItemProfitabilityRecord[],
   poolLevel: PoolLevel,
   poolName: string
-): { items: ItemPoolCVP[]; poolFixedCost: number } {
+): { items: ItemPoolCVP[]; poolFixedCost: number; warnings: string[] } {
   // 풀 필터링
   const filtered = itemData.filter((r) => {
     const fieldValue = (r as any)[poolLevel] || "";
     return fieldValue.trim() === poolName;
   });
 
-  if (filtered.length === 0) return { items: [], poolFixedCost: 0 };
+  if (filtered.length === 0) return { items: [], poolFixedCost: 0, warnings: [] };
+
+  const warnings: string[] = [];
+  const warnedItems = new Set<string>(); // C1: 경고 중복 방지
 
   // 품목 단위 집계 (200은 이미 품목 단위이나 월별 중복 가능)
   const agg = new Map<
@@ -546,16 +590,31 @@ export function calcItemPool(
     if (!rawItem) continue;
     // 품목 코드 정규화: "[P001] 품목명A" → "P001" (CustomerItemDetail과 동일 형식)
     const codeMatch = rawItem.match(/^\[([^\]]+)\]/);
+    if (!codeMatch && !warnedItems.has(`norm:${rawItem}`)) {
+      warnedItems.add(`norm:${rawItem}`);
+      warnings.push(`품목 코드 정규화 실패: "${rawItem}" — 200 보고서 형식 "[코드] 이름" 미일치`);
+    }
     const itemCode = codeMatch ? codeMatch[1].trim() : rawItem.trim();
     const itemName = rawItem.replace(/^\[[^\]]+\]\s*/, "").trim() || rawItem.trim();
     const key = itemCode; // 통일 키
     const qty = r.매출수량 || 0;
     const rev = r.매출액 || 0;
-    const cost = r.실적매출원가 || 0;
     const fixed =
       (r.제조고정노무비 || 0) + (r.감가상각비 || 0) + (r.기타경비 || 0);
-    // H2: 변동비 = 총원가 - 제조 고정비 (음수 방어: cost < fixed이면 비정상 데이터 → 0 클램핑)
-    const vc = Math.max(cost - fixed, 0);
+    // 14개 변동비 항목 직접 합산 (역산 대신 정밀 집계)
+    const directVC =
+      (r.원재료비 || 0) + (r.부재료비 || 0) + (r.상품매입 || 0) +
+      (r.노무비 || 0) + (r.복리후생비 || 0) + (r.소모품비 || 0) +
+      (r.수도광열비 || 0) + (r.수선비 || 0) + (r.연료비 || 0) +
+      (r.외주가공비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
+      (r.지급수수료 || 0) + (r.견본비 || 0);
+    // 직접 합산이 0이면(필드 누락) 역산 fallback
+    const cost = r.실적매출원가 || 0;
+    if (directVC === 0 && cost > 0 && !warnedItems.has(`fb:${itemCode}`)) {
+      warnedItems.add(`fb:${itemCode}`);
+      warnings.push(`변동비 fallback: ${itemCode} — 14개 항목 합산=0, 역산(실적매출원가−고정비) 사용`);
+    }
+    const vc = directVC > 0 ? directVC : Math.max(cost - fixed, 0);
 
     const prev = agg.get(key);
     if (!prev) {
@@ -578,6 +637,24 @@ export function calcItemPool(
     }
   }
 
+  // 표준원가 대비 실적 검증 (±20% 이상 이상치 플래그)
+  for (const r of filtered) {
+    const std = r.표준매출원가 || 0;
+    const actual = r.실적매출원가 || 0;
+    if (std > 0) {
+      const varianceRate = Math.abs(actual - std) / std;
+      if (varianceRate > 0.2) {
+        const rawItem = r.품목 || "(unknown)";
+        const codeMatch = rawItem.match(/^\[([^\]]+)\]/);
+        const code = codeMatch ? codeMatch[1].trim() : rawItem.trim();
+        if (!warnedItems.has(`cv:${code}`)) {
+          warnedItems.add(`cv:${code}`);
+          warnings.push(`원가 이상치: ${code} — 실적 ${actual.toLocaleString()} vs 표준 ${std.toLocaleString()} (차이 ${(varianceRate * 100).toFixed(0)}%)`);
+        }
+      }
+    }
+  }
+
   const poolFixedCost = Array.from(agg.values()).reduce((s, v) => s + v.fixedCost, 0);
 
   const items: ItemPoolCVP[] = Array.from(agg.values()).map((v) => ({
@@ -596,7 +673,7 @@ export function calcItemPool(
     allocatedOperatingProfit: v.revenue - v.variableCost - v.fixedCost,
   }));
 
-  return { items, poolFixedCost };
+  return { items, poolFixedCost, warnings };
 }
 
 /**
@@ -973,4 +1050,66 @@ export function calcGroupCVP(
     bepRevenue: bepRev,
     operatingProfit: opProfit,
   };
+}
+
+// ─── 감도 분석 (미니 그리드) ──────────────────────────
+
+export interface SensitivityCell {
+  priceChangePct: number;
+  requiredVolumePct: number; // 손익분기를 맞추기 위해 필요한 물량 증가율
+  netEffect: number;         // 0% 물량 시 net effect (price-only scenario)
+}
+
+/**
+ * 단가 변동 시나리오별 "손익분기 필요 물량 증가율" 계산.
+ * 대상 아이템의 CVP 구조(unitCM, 기존 수량)를 기반으로
+ * priceReductionLoss를 상쇄하는 최소 물량 증가율을 역산.
+ */
+export function calcSensitivityGrid(
+  items: CVPItem[],
+  totalFixedCost: number,
+  targetCustomer: string | null,
+  targetItem: string | null,
+  priceScenarios: number[] = [-20, -15, -10, -5, 5]
+): SensitivityCell[] {
+  return priceScenarios.map((pricePct) => {
+    // 0% 물량 시나리오 (가격 변동만)
+    const zeroVolSim = calcTotalViewSimulation({
+      items, totalFixedCost, targetCustomer, targetItem,
+      volumeIncreasePct: 0, priceChangePct: pricePct,
+    });
+    const netEffect = zeroVolSim.netOffsetEffect;
+
+    // 손익분기 필요 물량: netEffect=0 되는 volumePct 역산
+    // priceReductionLoss + volumeContributionGain = 0
+    // volumeGain = -priceLoss → addedQty × newUnitCM = -priceLoss
+    // Binary search (10 iterations, 정밀도 0.1%)
+    let lo = 0, hi = 500;
+    if (pricePct >= 0) {
+      // 단가 인상 → 물량 불필요 (이미 이득)
+      return { priceChangePct: pricePct, requiredVolumePct: 0, netEffect };
+    }
+    for (let i = 0; i < 15; i++) {
+      const mid = (lo + hi) / 2;
+      const sim = calcTotalViewSimulation({
+        items, totalFixedCost, targetCustomer, targetItem,
+        volumeIncreasePct: mid, priceChangePct: pricePct,
+      });
+      if (sim.netOffsetEffect >= 0) hi = mid;
+      else lo = mid;
+    }
+    // A2: 탐색 종료 후 실제 달성 여부 검증
+    const finalMid = (lo + hi) / 2;
+    const verifySim = calcTotalViewSimulation({
+      items, totalFixedCost, targetCustomer, targetItem,
+      volumeIncreasePct: finalMid, priceChangePct: pricePct,
+    });
+    return {
+      priceChangePct: pricePct,
+      requiredVolumePct: verifySim.netOffsetEffect >= 0
+        ? Math.round(finalMid * 10) / 10
+        : Infinity, // BEP 불가능 (500% 내에서 미달성)
+      netEffect,
+    };
+  });
 }

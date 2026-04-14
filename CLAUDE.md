@@ -150,7 +150,7 @@ All pages extract tab content into separate components under `tabs/` subdirector
 |------|------|
 | Overview (`/dashboard`) | 핵심 지표, 조직 분석, 재무 건전성, 벤치마크/보고서, 경영진 보고 (5 tabs) |
 | Sales (`/dashboard/sales`) | 거래처, 품목, 유형별, 채널, 품목군, 거래처 마진, 거래처 360°, RFM, 거래처 이동, FX, 이상치, 조직스코어카드, CLV, 신규거래처 재거래율, 시계열 (15 tabs) |
-| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 3-way차이, 손익분기, 시나리오, 민감도, 거래처 손익, 거래처×품목, 상세 수익, 거래처리스크, 판관비세부, 품목원가, 원가차이, 표준원가, 포트폴리오 (20 tabs) |
+| Profitability (`/dashboard/profitability`) | 손익 현황, 조직 수익성, 팀원별 공헌이익, 비용 구조, 계획 달성, 제품 수익성, 수익성×리스크, 3-way차이, 손익분기, 시나리오, 민감도, 거래처 손익, 거래처×품목, 상세 수익, 거래처리스크, 판관비세부, 품목원가, 원가차이, 표준원가, 포트폴리오, 단가시뮬, 저가수주 상계효과 (22 tabs) |
 | Receivables (`/dashboard/receivables`) | 미수금 현황, 리스크 관리, 여신 관리, DSO/CCC, 채권 상세, 장기 미수, 선수금, 담당자 인사이트, 수금지연 (9 tabs) |
 | Orders (`/dashboard/orders`) | 수주 현황, 수주 분석, 조직 분석, O2C 파이프라인, O2C 플로우, 전환율, 재고 분석 (7 tabs) |
 | Profiles (`/dashboard/profiles`) | 종합 성과, 순위/거래처, 비용 효율, 실적 트렌드, 제품 포트폴리오 (5 tabs) |
@@ -222,3 +222,34 @@ Aggregate functions sum all `PlanActualDiff` amount fields and recalculate ratio
 - `profitabilityAnalysis` fallback: if org filter leaves zero-valued data → use full dataset with warning
 - FILE_SCHEMAS order matters: more specific patterns (e.g., `orgCustomerProfit`) must come before generic ones (e.g., `orgProfit`) since `detectFileType()` returns on first regex match
 - `COST_CATEGORIES` (17개): 독립 원가항목만 포함 (분석/합산용). `COST_CATEGORIES_WITH_SUBTOTAL` (18개): 제조변동비소계 포함 (디스플레이용). 합산 시 반드시 COST_CATEGORIES 사용하여 이중카운팅 방지
+
+### Offset Effect (저가수주 상계효과) Module
+
+`offsetEffect.ts` (960+ LOC) + `OffsetEffectTab.tsx` (1675 LOC) — 6-Step 듀얼 뷰 CVP 시뮬레이터.
+
+**핵심 설계 원칙**:
+- **듀얼 뷰**: 총액 관점(4a, 수학적 정확) + 배분 관점(4b, 장부상 재배분) 분리
+- **금액 기반 CVP**: 이종 단위(KG/ROL/CAN/L/BAG 등 15종) 혼합 문제 해결 → X축=매출, Y축=영업이익
+- **듀얼 CVP 모드**: 전사(금액 기반) + 대분류×단위 그룹(수량 기반) 선택 드롭다운
+- **듀얼 입력 모드**: 비율(%) + 절대 수량("200 ROL 추가" 직접 입력, 품목 선택 시 활성화)
+
+**데이터 소스**:
+- Step 1~3, 4a: `100.거래처별품목별손익` (CustomerItemDetailRecord) — 매출거래처, 품목, 매출수량·실적, 매출액·실적, 매출총이익·실적
+- Step 4a 고정비, 4b: `200.품목별수익성분석(회계)` (ItemProfitabilityRecord) — 대분류, 중분류, 기준단위, 매출수량, 매출액, 실적매출원가, 제조고정노무비, 감가상각비, 기타경비
+- 변동비(100) = 매출액 − 매출총이익 (매출원가 근사, 원가 분리 불가)
+- 변동비(200) = 실적매출원가 − 제조고정비 (Math.max 0 클램핑)
+
+**항등식**:
+- 4a: `netOffsetEffect ≡ priceReductionLoss + volumeContributionGain` (수학적 정확)
+- 4b: `netPoolMarginDelta ≡ targetItemMarginDelta + otherItemsMarginDelta` (풀 재배분)
+
+**주요 함수** (`offsetEffect.ts`):
+- `calcCustomerItemCVP()` — 거래처×품목 CVP 아이템 + 4사분면 분류 (매출/공헌이익률 기준)
+- `calcTotalViewSimulation()` — 총액 관점 시뮬 (volumeAbsolute 절대수량 모드 지원)
+- `calcItemPool()` / `calcPoolSimulation()` — 배분 관점 풀 재배분
+- `getUnitGroups()` — 대분류×기준단위 동일 단위 그룹 목록
+- `calcGroupCVP()` — 그룹 내 수량 기반 CVP
+
+### Pricing Simulation Module
+
+`PricingSimTab.tsx` — 품목별 필요 단가 인상률 시뮬레이션. 200 보고서 기반 원가 구조 분석 + 시나리오별 인상률 계산.

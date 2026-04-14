@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { TrendingUp, AlertTriangle, DollarSign, Package, CheckCircle2, XCircle, Info } from "lucide-react";
+import { ExportButton } from "@/components/dashboard/ExportButton";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
 import {
   extractManufacturingFixedCost,
@@ -25,10 +26,9 @@ import {
   getAvailablePools,
   getUnitGroups,
   calcGroupCVP,
-  type CVPItem,
   type PoolLevel,
   type FixedCostAllocation,
-  type ItemPoolCVP,
+  calcSensitivityGrid,
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 
@@ -76,6 +76,15 @@ export function OffsetEffectTab({
 
   // CVP 듀얼 모드: 전사 금액 기반 / 대분류×단위 수량 기반
   const [cvpGroupKey, setCvpGroupKey] = useState<string>("__all__");
+  // 테이블 확장 토글
+  const [showAllDogs, setShowAllDogs] = useState(false);
+  const [showAllPool, setShowAllPool] = useState(false);
+  // 시나리오 비교 (세션 내 휘발성, 최대 3개)
+  const [savedScenarios, setSavedScenarios] = useState<Array<{
+    label: string;
+    params: { customer: string | null; item: string | null; volPct: number; pricePct: number; mode: string };
+    result: { baseOP: number; newOP: number; netEffect: number; hypothesis: string };
+  }>>([]);
 
   const unitGroups = useMemo(
     () => filteredItemProfitability ? getUnitGroups(filteredItemProfitability) : [],
@@ -117,6 +126,14 @@ export function OffsetEffectTab({
   // 워터폴
   const waterfall = useMemo(() => calcWaterfallSteps(totalSim), [totalSim]);
 
+  // 감도 분석 그리드 (대상 선택 시에만)
+  const sensitivityGrid = useMemo(
+    () => (targetCustomer || targetItem)
+      ? calcSensitivityGrid(cvpItems, totalFixedCost, targetCustomer, targetItem)
+      : [],
+    [cvpItems, totalFixedCost, targetCustomer, targetItem]
+  );
+
   // 풀 목록 (4b)
   const availablePools = useMemo(
     () => filteredItemProfitability ? getAvailablePools(filteredItemProfitability, poolLevel) : [],
@@ -131,10 +148,10 @@ export function OffsetEffectTab({
   }, [availablePools, poolName]);
 
   // 풀 데이터 (4b)
-  const { items: poolItems, poolFixedCost } = useMemo(
+  const { items: poolItems, poolFixedCost, warnings: poolWarnings } = useMemo(
     () => filteredItemProfitability
       ? calcItemPool(filteredItemProfitability, poolLevel, poolName)
-      : { items: [], poolFixedCost: 0 },
+      : { items: [], poolFixedCost: 0, warnings: [] },
     [filteredItemProfitability, poolLevel, poolName]
   );
 
@@ -222,11 +239,19 @@ export function OffsetEffectTab({
   // 전사: X=매출, Y=영업이익 (금액 기반)
   // 그룹: X=수량(단위), Y=금액 (수량 기반 — 매출선/총원가선/고정비선)
   const cvpChartData = useMemo(() => {
+    // 시뮬레이션 파라미터에 따라 X축 범위 적응
+    const simFactor = 1 + Math.max(volumeIncreasePct, 0) / 100;
+    const absFactor = volumeAbsolute > 0 && selectedGroup
+      ? 1 + volumeAbsolute / Math.max(selectedGroup.totalQuantity, 1)
+      : 1;
+    const effectiveFactor = Math.max(simFactor, absFactor);
+    const maxMultiplier = Math.max(2.2, effectiveFactor * 1.5);
+
     if (selectedGroup) {
       // 수량 기반 CVP (동일 단위 그룹)
       const g = selectedGroup;
       if (g.totalQuantity === 0) return [];
-      const maxQty = g.totalQuantity * 2.2;
+      const maxQty = g.totalQuantity * maxMultiplier;
       const steps = 20;
       const stepSize = maxQty / steps;
       const data = [];
@@ -243,7 +268,7 @@ export function OffsetEffectTab({
     }
     // 전사 금액 기반 영업이익 직선
     if (cvpSummary.totalRevenue === 0) return [];
-    const maxRev = cvpSummary.totalRevenue * 2.2;
+    const maxRev = cvpSummary.totalRevenue * maxMultiplier;
     const steps = 20;
     const stepSize = maxRev / steps;
     const cmRatio = cvpSummary.overallContributionMarginRatio;
@@ -256,7 +281,7 @@ export function OffsetEffectTab({
       });
     }
     return data;
-  }, [cvpSummary, totalFixedCost, selectedGroup]);
+  }, [cvpSummary, totalFixedCost, selectedGroup, volumeIncreasePct, volumeAbsolute, inputMode]);
 
   // CVP 핵심 해석 지표
   const cvpInsight = useMemo(() => {
@@ -278,6 +303,7 @@ export function OffsetEffectTab({
         y: it.contributionMarginRatio * 100, // % 표시
         z: Math.max(Math.abs(it.totalContributionMargin), 1), // 공헌이익 영향력 크기
         fullName: `${it.customerName} / ${truncateLabel(it.itemName, 20)}`,
+        fullItemName: `${it.customerName} / ${it.itemName}`,
         customer: it.customerName,
         item: it.itemName,
         revenue: it.revenue,
@@ -288,15 +314,15 @@ export function OffsetEffectTab({
     return byQuadrant;
   }, [cvpItems]);
 
-  // Dog 테이블 (Top 20)
-  const dogItems = useMemo(
+  // Dog 테이블
+  const allDogItems = useMemo(
     () => [...cvpItems]
       // H5: 4사분면 판정 기준 일관화 — quadrant 기준만 사용
       .filter((it) => it.quadrant === "dog")
-      .sort((a, b) => a.totalContributionMargin - b.totalContributionMargin)
-      .slice(0, 20),
+      .sort((a, b) => a.totalContributionMargin - b.totalContributionMargin),
     [cvpItems]
   );
+  const dogItems = showAllDogs ? allDogItems : allDogItems.slice(0, 20);
 
   // 풀 시뮬레이션 품목별 영향 테이블 (역할 기반 재구성)
   const poolImpactTable = useMemo(() => {
@@ -331,7 +357,7 @@ export function OffsetEffectTab({
     });
     // 막대 스케일 기준: 제품군 내 최대 |마진변화|
     const maxAbsDelta = Math.max(...withRole.map((r) => Math.abs(r.marginDelta)), 1);
-    return withRole
+    const sorted = withRole
       .map((r) => ({ ...r, barPct: (Math.abs(r.marginDelta) / maxAbsDelta) * 100 }))
       .sort((a, b) => {
         if (a.role === "target") return -1;
@@ -339,8 +365,9 @@ export function OffsetEffectTab({
         const order: Record<Role, number> = { target: 0, beneficiary: 1, harmed: 2, neutral: 3 };
         if (order[a.role] !== order[b.role]) return order[a.role] - order[b.role];
         return b.marginDelta - a.marginDelta;
-      }).slice(0, 11); // 대상 + 10개
-  }, [poolSim, targetItem]);
+      });
+    return showAllPool ? sorted : sorted.slice(0, 11); // 기본: 대상 + 10개
+  }, [poolSim, targetItem, showAllPool]);
 
   // P2-1: 액션 가이드 자동 판정
   const actionGuide = useMemo(() => {
@@ -395,6 +422,18 @@ export function OffsetEffectTab({
 
   return (
     <div className="space-y-6">
+      {/* ═══ 기간 필터 경고 ═══ */}
+      {isDateFiltered && (
+        <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              <strong>기간 필터 적용 중</strong> — 부분 기간 데이터로 CVP를 분석하면 고정비가 과소 집계되어 BEP가 과소평가될 수 있습니다. 정확한 분석을 위해 전체 기간 데이터 사용을 권장합니다.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* ═══ 분석 개요 배너 ═══ */}
       <div className="rounded-lg border-l-4 border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 p-4">
         <div className="flex items-start gap-3">
@@ -547,7 +586,7 @@ export function OffsetEffectTab({
               <table className="w-full text-[10px] mt-2">
                 <tbody>
                   <tr className="border-b"><td className="py-1 pr-2">총매출</td><td className="font-mono">Σ [100.매출액·실적]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">총변동비</td><td className="font-mono">Σ ([100.매출액·실적] − [100.매출총이익·실적])</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">총변동비</td><td className="font-mono">Σ ([100.매출액−매출총이익] + [100.판관변동_직접판매운반비])</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">총고정비</td><td className="font-mono">Σ ([200.제조고정노무비] + [200.감가상각비] + [200.기타경비])</td></tr>
                   <tr className="border-b"><td className="py-1 pr-2">영업이익</td><td className="font-mono">총매출 − 총변동비 − 총고정비</td></tr>
                   <tr><td className="py-1 pr-2">출혈 거래처</td><td className="font-mono">공헌이익 ≤ 0인 거래처×품목</td></tr>
@@ -581,7 +620,7 @@ export function OffsetEffectTab({
           <KpiCard
             title="영업이익" value={cvpSummary.totalOperatingProfit} format="currency"
             icon={<TrendingUp className="h-5 w-5" />}
-            formula="Σ[100.매출액·실적] − Σ[100.변동비(=매출액−매출총이익)] − Σ[200.제조고정비]"
+            formula="Σ[100.매출액] − Σ[100.변동비(매출원가+판관변동_직접판매운반비)] − Σ[200.제조고정비]"
             description={`공헌이익률 ${safeFixed(cvpSummary.overallContributionMarginRatio * 100, 1)}%`}
             benchmark="양수면 손익분기 초과, 음수면 적자 상태"
             reason="CVP 분석의 핵심 지표 — 가설 검증의 기준선"
@@ -595,6 +634,12 @@ export function OffsetEffectTab({
             reason="금액 기반 CVP 핵심 지표 — 이종 단위(KG/ROL/CAN) 혼합 시에도 정확"
           />
         </div>
+
+        {cvpSummary.returnItemCount > 0 && (
+          <div className="mt-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50/50 dark:bg-amber-950/20 rounded px-3 py-1.5">
+            ⚠️ 반품/환입 {cvpSummary.returnItemCount}건 (매출 {formatCurrency(cvpSummary.returnRevenue)}) 감지 — 4사분면 분류에서 제외, 합산 지표에는 포함
+          </div>
+        )}
 
         <div className="mt-4">
           <ChartCard
@@ -799,10 +844,10 @@ export function OffsetEffectTab({
               <p className="font-semibold text-[11px] mb-1">📂 100. 거래처별품목별손익</p>
               <table className="w-full text-[10px] mt-2">
                 <tbody>
-                  <tr className="border-b"><td className="py-1 pr-2">X축 (수량)</td><td className="font-mono">[100.매출수량·실적]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">Y축 (단위공헌이익)</td><td className="font-mono">([100.매출액]−[100.변동비]) / [100.수량]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">공헌이익</td><td className="font-mono">[100.매출액·실적] − [100.변동비]</td></tr>
-                  <tr className="border-b"><td className="py-1 pr-2">변동비</td><td className="font-mono">[100.매출액·실적] − [100.매출총이익·실적]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">X축 (매출액)</td><td className="font-mono">[100.매출액·실적] — 거래처×품목 집계</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">Y축 (공헌이익률%)</td><td className="font-mono">([100.매출액]−[100.변동비]) / [100.매출액] × 100</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">공헌이익</td><td className="font-mono">[100.매출액] − [100.변동비(매출원가+판관변동)]</td></tr>
+                  <tr className="border-b"><td className="py-1 pr-2">변동비</td><td className="font-mono">[100.매출액−매출총이익] + [100.판관변동_직접판매운반비]</td></tr>
                   <tr><td className="py-1 pr-2">사분면</td><td className="text-[10px]">Star/CashCow/Question/Dog (공헌률·매출 median 기준)</td></tr>
                 </tbody>
               </table>
@@ -830,7 +875,7 @@ export function OffsetEffectTab({
         <ChartCard
           title="매출 × 공헌이익률 (버블 = 매출 비중)"
           formula="X축: [100.매출액·실적], Y축: ([100.매출액]−[100.변동비]) / [100.매출] × 100 (공헌이익률%) | 중앙값으로 4사분면 분할"
-          description={`Star ${scatterData.star.length} / CashCow ${scatterData.cashcow.length} / Question ${scatterData.question.length} / Dog ${scatterData.dog.length}`}
+          description={`Star ${scatterData.star.length} / CashCow ${scatterData.cashcow.length} / Question ${scatterData.question.length} / Dog ${scatterData.dog.length}${cvpItems.length > 500 ? ` (전체 ${cvpItems.length}건 중 500건 표시)` : ""}`}
           benchmark="Dog 사분면(특히 Y축 0 이하) = 쥐약 거래처. 즉각 재검토 대상"
           reason="어떤 거래처·품목이 물량은 있지만 마진이 마이너스인지 즉각 식별"
         >
@@ -847,7 +892,7 @@ export function OffsetEffectTab({
                   const d = payload[0].payload;
                   return (
                     <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
-                      <p className="font-semibold">{d.fullName}</p>
+                      <p className="font-semibold max-w-[300px] break-words">{d.fullItemName || d.fullName}</p>
                       <p>매출: {formatCurrency(d.revenue)}</p>
                       <p className={d.cmRatio >= 0 ? "text-green-600" : "text-red-600 font-bold"}>
                         공헌이익률: {safeFixed(d.cmRatio, 1)}%
@@ -868,12 +913,30 @@ export function OffsetEffectTab({
         {/* Dog 테이블 */}
         {dogItems.length > 0 && (
           <ChartCard
-            title={`Top 20 쥐약 품목 (출혈 거래)`}
+            title={`쥐약 품목 (출혈 거래) — ${showAllDogs ? allDogItems.length : Math.min(20, allDogItems.length)}건`}
             isEmpty={false}
-            formula="[100.매출액]−[100.변동비] ≤ 0인 거래처×품목 · 공헌이익 오름차순 Top 20"
+            formula="[100.매출액]−[100.변동비] ≤ 0인 거래처×품목 · 공헌이익 오름차순"
             description="단가 협상 또는 거래 축소 우선 대상"
             benchmark="Top 5는 즉각 조치 필요"
             reason="시뮬레이션 대상 후보를 빠르게 선별"
+            action={
+              <ExportButton
+                data={dogItems.map((it) => ({
+                  거래처: it.customerName,
+                  품목: it.itemName,
+                  매출: it.revenue,
+                  변동비: it.variableCost,
+                  "SGA변동비": it.sgaVariableCost,
+                  단가: it.unitPrice,
+                  단위변동비: it.unitVariableCost,
+                  단위공헌이익: it.unitContributionMargin,
+                  공헌이익: it.totalContributionMargin,
+                  "공헌이익률(%)": +(it.contributionMarginRatio * 100).toFixed(1),
+                }))}
+                fileName="쥐약품목_Dog"
+                className="h-7 text-xs"
+              />
+            }
           >
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto mt-3">
               <table className="w-full text-xs">
@@ -908,6 +971,16 @@ export function OffsetEffectTab({
                   ))}
                 </tbody>
               </table>
+              {allDogItems.length > 20 && (
+                <div className="text-center mt-2">
+                  <button
+                    onClick={() => setShowAllDogs(!showAllDogs)}
+                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                  >
+                    {showAllDogs ? "상위 20건만 보기" : `전체 ${allDogItems.length}건 보기`}
+                  </button>
+                </div>
+              )}
             </div>
           </ChartCard>
         )}
@@ -1076,10 +1149,10 @@ export function OffsetEffectTab({
           {/* 프리셋 */}
           <div className="flex flex-wrap gap-1.5">
             <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(0); setPriceChangePct(0); setVolumeAbsolute(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(30); setPriceChangePct(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(50); setPriceChangePct(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(30); setPriceChangePct(-10); setPriceChangeDirect(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(50); setPriceChangePct(-15); setPriceChangeDirect(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); setPriceChangeDirect(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
+            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); setPriceChangeDirect(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
           </div>
         </div>
 
@@ -1191,6 +1264,109 @@ export function OffsetEffectTab({
         })()}
       </div>
 
+      {/* ═══ 시나리오 비교 ═══ */}
+      <div className="flex items-center gap-2 mt-2">
+        <button
+          onClick={() => {
+            if (savedScenarios.length >= 3) return;
+            const effectivePrice = inputMode === "absolute" ? priceChangeDirect : priceChangePct;
+            const label = `S${savedScenarios.length + 1}: ${targetCustomer ? "거래처" : "전체"}/${targetItem ? "품목" : "전체"} vol${inputMode === "absolute" ? `+${volumeAbsolute}` : `${volumeIncreasePct}%`} price${effectivePrice}%`;
+            setSavedScenarios((prev) => [...prev, {
+              label,
+              params: { customer: targetCustomer, item: targetItem, volPct: volumeIncreasePct, pricePct: effectivePrice, mode: inputMode },
+              result: { baseOP: totalSim.baseOperatingProfit, newOP: totalSim.newOperatingProfit, netEffect: totalSim.netOffsetEffect, hypothesis: totalSim.hypothesisResult },
+            }]);
+          }}
+          disabled={savedScenarios.length >= 3}
+          className="px-2 py-1 rounded text-[10px] border hover:bg-muted disabled:opacity-40"
+        >
+          💾 현재 시나리오 저장 ({savedScenarios.length}/3)
+        </button>
+        {savedScenarios.length > 0 && (
+          <button
+            onClick={() => setSavedScenarios([])}
+            className="px-2 py-1 rounded text-[10px] border hover:bg-muted text-red-600"
+          >
+            초기화
+          </button>
+        )}
+      </div>
+      {savedScenarios.length > 0 && (
+        <div className="rounded-lg border bg-muted/20 p-3 mt-2">
+          <h4 className="text-xs font-semibold mb-2">📋 저장된 시나리오 비교</h4>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="border-b text-left text-muted-foreground">
+                <th className="p-1.5">시나리오</th>
+                <th className="p-1.5 text-right">기존 OP</th>
+                <th className="p-1.5 text-right">시뮬 OP</th>
+                <th className="p-1.5 text-right">순효과</th>
+                <th className="p-1.5">판정</th>
+              </tr>
+            </thead>
+            <tbody>
+              {savedScenarios.map((s, i) => (
+                <tr key={i} className="border-b hover:bg-muted/30">
+                  <td className="p-1.5 font-mono text-[10px]">{s.label}</td>
+                  <td className="p-1.5 text-right font-mono">{formatCurrency(s.result.baseOP)}</td>
+                  <td className="p-1.5 text-right font-mono">{formatCurrency(s.result.newOP)}</td>
+                  <td className={`p-1.5 text-right font-mono font-semibold ${s.result.netEffect >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {formatCurrency(s.result.netEffect)}
+                  </td>
+                  <td className="p-1.5">{s.result.hypothesis === "positive" ? "🟢" : s.result.hypothesis === "neutral" ? "⚪" : "🔴"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* ═══ 감도 분석 미니 그리드 ═══ */}
+      {sensitivityGrid.length > 0 && (
+        <div className="rounded-lg border bg-muted/20 p-4 mb-2">
+          <h4 className="text-sm font-semibold mb-2">📊 단가 변동 감도 분석 — &quot;단가 X% 인하 시 손익분기를 맞추려면 물량 몇 % 증가 필요?&quot;</h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="p-1.5">단가 변동</th>
+                  <th className="p-1.5 text-right">0% 물량 시 효과</th>
+                  <th className="p-1.5 text-right">필요 물량 증가율</th>
+                  <th className="p-1.5">판정</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sensitivityGrid.map((cell) => (
+                  <tr key={cell.priceChangePct} className="border-b hover:bg-muted/30">
+                    <td className={`p-1.5 font-mono ${cell.priceChangePct < 0 ? "text-red-600" : "text-green-600"}`}>
+                      {cell.priceChangePct > 0 ? "+" : ""}{cell.priceChangePct}%
+                    </td>
+                    <td className={`p-1.5 text-right font-mono ${cell.netEffect >= 0 ? "text-green-600" : "text-red-600"}`}>
+                      {formatCurrency(cell.netEffect)}
+                    </td>
+                    <td className="p-1.5 text-right font-mono font-semibold">
+                      {cell.requiredVolumePct === 0 ? "불필요" : !isFinite(cell.requiredVolumePct) ? "불가능" : `+${cell.requiredVolumePct}%`}
+                    </td>
+                    <td className="p-1.5 text-[10px]">
+                      {cell.requiredVolumePct === 0
+                        ? "🟢 이득"
+                        : !isFinite(cell.requiredVolumePct)
+                          ? "⛔ 불가능"
+                          : cell.requiredVolumePct <= 30
+                            ? "🟡 실현 가능"
+                            : cell.requiredVolumePct <= 100
+                              ? "🟠 도전적"
+                            : "🔴 비현실적"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-2">※ 선택한 대상 기준. 고정비 불변, 변동비율 현행 가정. 물량 증가율 500% 초과 시 &quot;비현실적&quot; 처리.</p>
+        </div>
+      )}
+
       {/* ═══ Section E: Step 4b. 덤으로 따라오는 효과 (영업사원 친화 UI) ═══ */}
       {filteredItemProfitability && filteredItemProfitability.length > 0 && (
         <div id="offset-step4b">
@@ -1284,6 +1460,16 @@ export function OffsetEffectTab({
             <div className="rounded-md bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 p-3 text-xs text-red-800 dark:text-red-300 mb-4">
               <strong>⚠️ 대상 품목이 현재 선택된 풀({poolName}) 안에 없습니다.</strong>
               아래 &quot;풀 선택&quot;에서 다른 풀을 선택하거나, Step 4a에서 다른 품목을 선택하세요.
+            </div>
+          )}
+          {targetItem && poolName && poolItems.length === 0 && (
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 mb-4">
+              <strong>⚠️ 풀 &quot;{poolName}&quot;에 해당 품목이 없습니다.</strong> 다른 풀 계층 또는 이름을 선택해 주세요.
+            </div>
+          )}
+          {poolWarnings.length > 0 && (
+            <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-800 dark:text-amber-300 mb-4">
+              ⚠️ 품목 코드 정규화 경고 {poolWarnings.length}건 — 200 보고서의 품목 형식이 &quot;[코드] 이름&quot;과 다른 항목이 있어 100↔200 간 키 매칭이 부정확할 수 있습니다.
             </div>
           )}
 
@@ -1515,6 +1701,17 @@ export function OffsetEffectTab({
                     </tbody>
                   </table>
                 </div>
+
+                {poolSim.baseItems.length > 11 && (
+                  <div className="text-center mt-2">
+                    <button
+                      onClick={() => setShowAllPool(!showAllPool)}
+                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      {showAllPool ? "상위 11건만 보기" : `전체 ${poolSim.baseItems.length}건 보기`}
+                    </button>
+                  </div>
+                )}
 
                 {/* 상세 수치 (접기) */}
                 <details className="text-xs mt-3 border-t pt-2">
