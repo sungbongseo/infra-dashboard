@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-15T04:52:55.919Z",
+  "lastUpdated": "2026-04-15T06:52:23.646Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -56,7 +56,7 @@
       "phaseNumber": 3,
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\costTrueVariance.test.ts",
       "timestamps": {
-        "lastUpdated": "2026-04-15T04:37:29.138Z"
+        "lastUpdated": "2026-04-15T06:52:23.645Z"
       }
     },
     "인프라 대시보드": {
@@ -68,7 +68,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:10:39.322Z",
-        "lastUpdated": "2026-04-15T03:38:30.311Z"
+        "lastUpdated": "2026-04-15T06:45:25.498Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\types\\itemCost.ts"
     },
@@ -81,7 +81,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:04.073Z",
-        "lastUpdated": "2026-04-15T04:52:55.905Z"
+        "lastUpdated": "2026-04-15T06:51:20.646Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\tabs\\CostTrueVarianceTab.tsx"
     },
@@ -286,7 +286,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-15T04:52:55.919Z"
+    "lastActivity": "2026-04-15T06:52:23.646Z"
   },
   "history": [
     {
@@ -11794,6 +11794,66 @@
     {
       "timestamp": "2026-04-15T04:52:55.905Z",
       "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:45:25.498Z",
+      "feature": "인프라 대시보드",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:45:47.710Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:46:27.533Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:46:37.700Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:47:09.247Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:47:24.551Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:48:33.932Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:50:33.881Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:51:20.646Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-15T06:52:23.645Z",
+      "feature": "analysis",
       "phase": "do",
       "action": "updated"
     }

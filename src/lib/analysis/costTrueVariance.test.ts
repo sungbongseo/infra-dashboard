@@ -364,7 +364,7 @@ describe("costTrueVariance", () => {
       expect(result.rows[0].salesAmount).toBe(300000);
     });
 
-    it("표준 없음, 제조 있음 → 2-Way", () => {
+    it("표준 없음, 제조 있음 → standard_missing 분류", () => {
       const custItem = [makeCustItem({ itemName: "울산품목", factory: "울산" })];
       const result = calcThreeWayComparison({
         customerItemDetail: custItem,
@@ -374,8 +374,51 @@ describe("costTrueVariance", () => {
       });
       expect(result.rows[0].hasStandard).toBe(false);
       expect(result.rows[0].hasManufacturing).toBe(true);
-      expect(result.rows[0].note).toMatch(/표준 미등록/);
-      expect(result.coverage.twoWayMatched).toBe(1);
+      expect(result.rows[0].noteKind).toBe("standard_missing");
+      expect(result.coverage.standardMissing).toBe(1);
+    });
+
+    it("상품 카테고리 + 제조원가 없음 → 표준원가를 매입가로 사용", () => {
+      const custItem = [makeCustItem({ itemName: "상품품목", factory: "용산", qty: 10, revenue: 100000 })];
+      const stdBook: StandardCostBookRecord[] = [{
+        factory: "용산", 품목코드: "G001", 품목명: "상품품목",
+        품목계정그룹: "상품", // 상품 카테고리
+        기본단위: "EA", 규격: "", 표준원가: 7000,
+        유효시작: "", 유효종료: "",
+      }];
+      const result = calcThreeWayComparison({
+        customerItemDetail: custItem,
+        itemProfitability: [],
+        standardCostBook: stdBook,
+        manufacturingCost: [], // 제조원가 없음
+      });
+      const row = result.rows[0];
+      expect(row.itemCategory).toBe("상품");
+      expect(row.actualCostSource).toBe("standard_as_purchase");
+      expect(row.actualUnitCost).toBe(7000); // 표준원가 = 매입가
+      expect(row.noteKind).toBe("purchase_item");
+      expect(row.note).toMatch(/매입원가 적용/);
+      expect(row.stdVsActualVariancePct).toBeNull(); // 상품은 변동률 의미 없음
+      expect(result.coverage.purchaseItems).toBe(1);
+      expect(result.coverage.threeWayMatched).toBe(0);
+    });
+
+    it("제품 카테고리 + 제조원가 없음 → product_not_produced (원가팀 확인 필요)", () => {
+      const custItem = [makeCustItem({ itemName: "미생산품목", factory: "청산" })];
+      const stdBook = [makeStdCost({ factory: "청산", code: "P001", name: "미생산품목", cost: 5000 })];
+      const result = calcThreeWayComparison({
+        customerItemDetail: custItem,
+        itemProfitability: [],
+        standardCostBook: stdBook,
+        manufacturingCost: [], // Q1 BOM 없음
+      });
+      const row = result.rows[0];
+      expect(row.itemCategory).toBe("제품");
+      expect(row.actualCostSource).toBeNull();
+      expect(row.actualUnitCost).toBeNull();
+      expect(row.noteKind).toBe("product_not_produced");
+      expect(row.note).toMatch(/Q1 미생산/);
+      expect(result.coverage.productNotProduced).toBe(1);
     });
 
     it("품목 매핑 실패 시 warnings 수집", () => {

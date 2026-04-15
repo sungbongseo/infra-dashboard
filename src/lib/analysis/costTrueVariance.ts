@@ -16,6 +16,9 @@ import type {
   ManufacturingCostRecord,
   ThreeWayComparisonRow,
   MonthlyPriceTrend,
+  ItemCategory,
+  ActualCostSource,
+  CostNoteKind,
 } from "@/types";
 import { safeDivide } from "@/lib/utils";
 
@@ -149,16 +152,19 @@ function resolveStandardCost(
   factory: string,
   itemCode: string,
   strategy: FallbackStrategy
-): { cost: number; sourceFactory: string } | null {
+): { cost: number; sourceFactory: string; group: string } | null {
   const direct = lookup.byFactory.get(`${factory}||${itemCode}`);
-  if (direct) return { cost: direct.표준원가, sourceFactory: factory };
+  if (direct) return { cost: direct.표준원가, sourceFactory: factory, group: direct.품목계정그룹 };
   const all = lookup.byCodeAll.get(itemCode);
   if (!all || all.length === 0) return null;
-  if (strategy === "first") return { cost: all[0].표준원가, sourceFactory: all[0].factory };
-  // average: 모든 공장 표준원가 산술평균 + 출처를 "평균(N개)" 라벨
+  if (strategy === "first") return { cost: all[0].표준원가, sourceFactory: all[0].factory, group: all[0].품목계정그룹 };
   const avg = all.reduce((s, r) => s + r.표준원가, 0) / all.length;
   const sources = Array.from(new Set(all.map((r) => r.factory))).sort();
-  return { cost: avg, sourceFactory: sources.length > 1 ? `평균(${sources.join("+")})` : sources[0] };
+  return {
+    cost: avg,
+    sourceFactory: sources.length > 1 ? `평균(${sources.join("+")})` : sources[0],
+    group: all[0].품목계정그룹,
+  };
 }
 
 function buildManufacturingLookup(
@@ -197,10 +203,15 @@ export interface ThreeWayResult {
   warnings: string[];
   coverage: {
     totalSalesItems: number;
-    threeWayMatched: number;     // 판매+표준+실제 모두 있음
-    twoWayMatched: number;       // 판매+실제만 (표준 없음)
-    salesOnly: number;           // 판매만 (제조 없음, 상품/외주 추정)
-    mappingFailed: number;       // 품목명→코드 매핑 실패
+    threeWayMatched: number;       // 제조원가 BOM 매칭 — 진짜 3-Way
+    purchaseItems: number;         // 상품 — 표준원가를 매입가로 사용
+    productNotProduced: number;    // 제품인데 Q1 미생산 — 원가팀 확인 필요
+    mappingFailed: number;         // 품목코드 매핑 실패
+    standardMissing: number;       // 표준원가 자체 미등록
+    /** @deprecated purchaseItems + productNotProduced로 대체 */
+    twoWayMatched: number;
+    /** @deprecated purchaseItems + productNotProduced + mappingFailed + standardMissing */
+    salesOnly: number;
   };
 }
 
@@ -270,7 +281,8 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
   // 2. 각 품목에 대해 표준원가/제조원가 룩업 + 3-Way 행 생성
   const rows: ThreeWayComparisonRow[] = [];
   const trend: MonthlyPriceTrend[] = [];
-  let threeWay = 0, twoWay = 0, salesOnly = 0;
+  let threeWayMatched = 0, purchaseItems = 0, productNotProduced = 0;
+  let mappingFailedCov = 0, standardMissingCov = 0;
 
   for (const agg of Array.from(salesByItem.values())) {
     if (agg.salesQty === 0) continue;
@@ -281,47 +293,73 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       : null;
     const standardCost = stdResolved?.cost ?? null;
     const standardCostFactory = stdResolved?.sourceFactory ?? null;
+    const itemCategory: ItemCategory =
+      stdResolved?.group === "제품" ? "제품" :
+      stdResolved?.group === "상품" ? "상품" : "unknown";
 
-    // 제조원가 룩업 (공장 직접 매칭 → 코드 fallback)
     const mfgDirect = agg.itemCode ? mfgLookup.get(`${agg.factory}||${agg.itemCode}`) : undefined;
     const mfgFallback = !mfgDirect && agg.itemCode
       ? mfgLookup.get(`*||${agg.itemCode}`)
       : undefined;
     const mfgRec = mfgDirect || mfgFallback;
-    const actualUnitCost = mfgRec?.actualUnitCost ?? null;
-    const actualCostFactory = mfgRec
+    const hasManufacturingBOM = mfgRec !== undefined;
+    let actualUnitCost: number | null = mfgRec?.actualUnitCost ?? null;
+    let actualCostFactory: string | null = mfgRec
       ? (mfgDirect ? agg.factory : (mfgRec.factory || "*"))
       : null;
+    let actualCostSource: ActualCostSource = hasManufacturingBOM ? "manufacturing" : null;
+
+    // 상품(매입품) fallback: 제조원가 없어도 표준원가 = 매입가로 사용
+    // 이는 "실제원가 누락"이 아니라 "매입 → 판매" 정상 경로
+    if (!hasManufacturingBOM && itemCategory === "상품" && standardCost !== null) {
+      actualUnitCost = standardCost;
+      actualCostSource = "standard_as_purchase";
+      actualCostFactory = standardCostFactory; // 매입 기준 = 표준원가 출처 공장
+    }
 
     const hasStandard = standardCost !== null;
     const hasManufacturing = actualUnitCost !== null;
+    const isRealManufactured = actualCostSource === "manufacturing";
 
-    // 3개 변동률 계산
     const salesVsStdMarginPct = hasStandard && avgSalesPrice > 0
       ? ((avgSalesPrice - standardCost!) / avgSalesPrice) * 100
       : null;
     const salesVsActualMarginPct = hasManufacturing && avgSalesPrice > 0
       ? ((avgSalesPrice - actualUnitCost!) / avgSalesPrice) * 100
       : null;
-    const stdVsActualVariancePct = hasStandard && hasManufacturing && standardCost! > 0
+    // 표준-실제 변동률은 오직 실제 제조 BOM일 때만 의미 있음 (상품 fallback은 항상 0%라 제외)
+    const stdVsActualVariancePct = hasStandard && isRealManufactured && standardCost! > 0
       ? ((actualUnitCost! - standardCost!) / standardCost!) * 100
       : null;
 
-    const marginVarianceImpact = hasStandard && hasManufacturing
+    const marginVarianceImpact = hasStandard && isRealManufactured
       ? (actualUnitCost! - standardCost!) * agg.salesQty
       : 0;
 
-    // 커버리지 카운트
-    if (hasStandard && hasManufacturing) threeWay++;
-    else if (hasManufacturing) twoWay++;
-    else salesOnly++;
-
-    // note
-    let note = "";
-    if (!agg.itemCode) note = "품목 매핑 실패";
-    else if (!hasStandard && !hasManufacturing) note = "상품/외주 매입 추정";
-    else if (!hasStandard) note = "표준 미등록";
-    else if (!hasManufacturing) note = "제조원가 없음";
+    // 사유 분류
+    let noteKind: CostNoteKind;
+    let note: string;
+    if (!agg.itemCode) {
+      noteKind = "mapping_failed";
+      note = "품목 매핑 실패 — 표준원가 신규 등록 필요";
+      mappingFailedCov++;
+    } else if (!hasStandard) {
+      noteKind = "standard_missing";
+      note = "표준원가 미등록";
+      standardMissingCov++;
+    } else if (isRealManufactured) {
+      noteKind = "three_way_matched";
+      note = "";
+      threeWayMatched++;
+    } else if (actualCostSource === "standard_as_purchase") {
+      noteKind = "purchase_item";
+      note = "상품 (매입원가 적용)";
+      purchaseItems++;
+    } else {
+      noteKind = "product_not_produced";
+      note = "제품 — Q1 미생산 (원가팀 BOM 확인 필요)";
+      productNotProduced++;
+    }
 
     rows.push({
       itemCode: agg.itemCode || `(unmapped:${agg.itemName.slice(0, 30)})`,
@@ -336,6 +374,9 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       actualUnitCost,
       hasManufacturing,
       actualCostFactory,
+      itemCategory,
+      actualCostSource,
+      noteKind,
       salesVsStdMarginPct,
       salesVsActualMarginPct,
       stdVsActualVariancePct,
@@ -363,10 +404,14 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
 
   const coverage = {
     totalSalesItems: rows.length,
-    threeWayMatched: threeWay,
-    twoWayMatched: twoWay,
-    salesOnly: salesOnly,
-    mappingFailed: mappingFailedCount,
+    threeWayMatched,
+    purchaseItems,
+    productNotProduced,
+    mappingFailed: mappingFailedCov,
+    standardMissing: standardMissingCov,
+    // Backward compat
+    twoWayMatched: purchaseItems + productNotProduced,
+    salesOnly: purchaseItems + productNotProduced + mappingFailedCov + standardMissingCov,
   };
 
   return { rows, trend, warnings, coverage };

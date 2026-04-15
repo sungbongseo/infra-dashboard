@@ -47,6 +47,7 @@ function makeThreeWay(factory: string, stdCost: number, actualCost: number, sale
     avgSalesPrice: salesAmount / qty,
     standardCost: stdCost, hasStandard: true, standardCostFactory: factory,
     actualUnitCost: actualCost, hasManufacturing: true, actualCostFactory: factory,
+    itemCategory: "제품", actualCostSource: "manufacturing", noteKind: "three_way_matched",
     salesVsStdMarginPct: null, salesVsActualMarginPct: null,
     stdVsActualVariancePct: ((actualCost - stdCost) / stdCost) * 100,
     marginVarianceImpact: (actualCost - stdCost) * qty,

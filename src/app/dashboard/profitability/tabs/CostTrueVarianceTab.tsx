@@ -215,33 +215,49 @@ export function CostTrueVarianceTab({
         </div>
       )}
 
-      {/* 섹션 1: 커버리지 & KPI */}
+      {/* 섹션 1: 커버리지 & KPI (6종 분류) */}
       <div id="three-way-kpi">
         <h2 className="text-lg font-semibold mb-3">Step 1. 커버리지 & 핵심 지표</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <KpiCard
             title="총 판매 품목" value={analysis.coverage.totalSalesItems} format="number"
             icon={<Package className="h-5 w-5" />}
-            description="Q1 기간 매출 발생 품목 (거래처별 집계 해제)"
-            formula="unique(100.품목명 + 공장)"
+            description="Q1 매출 발생 품목"
+            formula="unique(품목명 + 공장)"
           />
           <KpiCard
             title="3-Way 매칭" value={analysis.coverage.threeWayMatched} format="number"
             icon={<TrendingUp className="h-5 w-5" />}
-            description={`판매+표준+실제 모두 보유 (${safeFixed(analysis.coverage.threeWayMatched / Math.max(analysis.coverage.totalSalesItems, 1) * 100, 1)}%)`}
-            benchmark="70% 이상 양호"
+            description={`BOM 기반 제조품 (${safeFixed(analysis.coverage.threeWayMatched / Math.max(analysis.coverage.totalSalesItems, 1) * 100, 1)}%)`}
+            benchmark="자체 제조 품목"
           />
           <KpiCard
-            title="표준 미등록" value={analysis.coverage.twoWayMatched} format="number"
-            icon={<AlertTriangle className="h-5 w-5" />}
-            description="제조원가는 있으나 표준 없음 (울산 등 타공장)"
-          />
-          <KpiCard
-            title="상품/외주" value={analysis.coverage.salesOnly} format="number"
+            title="상품 (매입가)" value={analysis.coverage.purchaseItems} format="number"
             icon={<DollarSign className="h-5 w-5" />}
-            description="판매만 있음 (자체 제조 아님)"
+            description="표준원가 = 매입가 적용 (정상)"
+            benchmark="실제원가 산출 완료"
+          />
+          <KpiCard
+            title="⚠️ 제품 미생산" value={analysis.coverage.productNotProduced} format="number"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            description="Q1 BOM 없음 — 원가팀 확인 필요"
+            benchmark="재고 판매 or 데이터 누락"
+          />
+          <KpiCard
+            title="표준 미등록" value={analysis.coverage.standardMissing} format="number"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            description="표준원가 book에 없음"
+          />
+          <KpiCard
+            title="매핑 실패" value={analysis.coverage.mappingFailed} format="number"
+            icon={<AlertTriangle className="h-5 w-5" />}
+            description="품목명→코드 매핑 실패"
           />
         </div>
+        <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+          💡 <strong>실제원가 산출 가능 = 3-Way 매칭 + 상품(매입가)</strong> 합산.
+          &quot;제품 미생산&quot;과 &quot;매핑 실패&quot;가 실제 액션이 필요한 누락입니다.
+        </p>
       </div>
 
       {/* 공장별 표준원가 커버리지 — 누락 공장 명시 */}
@@ -722,6 +738,101 @@ export function CostTrueVarianceTab({
           </ChartCard>
         </div>
       )}
+
+      {/* 섹션: 원가팀 확인 필요 (제품 미생산 + 매핑 실패) */}
+      {(() => {
+        const notProduced = analysis.rows.filter(r => r.noteKind === "product_not_produced");
+        const mappingFailed = analysis.rows.filter(r => r.noteKind === "mapping_failed");
+        if (notProduced.length === 0 && mappingFailed.length === 0) return null;
+        const sortedNotProd = [...notProduced].sort((a, b) => b.salesAmount - a.salesAmount);
+        const sortedMapFail = [...mappingFailed].sort((a, b) => b.salesAmount - a.salesAmount);
+        return (
+          <div id="three-way-action-required" className="space-y-4">
+            <h2 className="text-lg font-semibold">📋 원가팀 확인 필요 — 실제원가 누락 품목</h2>
+            {notProduced.length > 0 && (
+              <div>
+                <h3 className="text-base font-semibold mb-2 text-amber-800 dark:text-amber-300">
+                  제품 미생산 ({notProduced.length}건) — Q1 BOM에 없는 제품
+                </h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  표준원가는 등록되어 있으나 2026-Q1 제조원가 BOM에 생산 실적이 없습니다.
+                  재고 판매 또는 BOM 입력 누락으로 추정되며, 원가팀에 확인이 필요합니다.
+                </p>
+                <ChartCard title="" isEmpty={false}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-amber-50 dark:bg-amber-950/30">
+                        <tr className="border-b text-left">
+                          <th className="p-2.5">품목명</th>
+                          <th className="p-2.5">매출 공장</th>
+                          <th className="p-2.5">표준원가 공장</th>
+                          <th className="p-2.5 text-right">판매 수량</th>
+                          <th className="p-2.5 text-right">판매 금액</th>
+                          <th className="p-2.5 text-right">표준원가</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedNotProd.map((r, i) => (
+                          <tr key={`np-${i}`} className="border-b hover:bg-muted/30">
+                            <td className="p-2.5 min-w-[260px] max-w-[400px]">
+                              <div className="font-medium break-words whitespace-normal leading-snug">{r.itemName}</div>
+                              <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{r.itemCode}</div>
+                            </td>
+                            <td className="p-2.5">{r.factory}</td>
+                            <td className="p-2.5">{r.standardCostFactory}</td>
+                            <td className="p-2.5 text-right font-mono">{r.salesQty.toLocaleString()}</td>
+                            <td className="p-2.5 text-right font-mono font-semibold">{formatCurrency(r.salesAmount)}</td>
+                            <td className="p-2.5 text-right font-mono">
+                              {r.standardCost !== null ? formatCurrency(r.standardCost) : "-"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ChartCard>
+              </div>
+            )}
+            {mappingFailed.length > 0 && (
+              <div>
+                <h3 className="text-base font-semibold mb-2 text-red-700 dark:text-red-400">
+                  품목 매핑 실패 ({mappingFailed.length}건) — 표준원가 신규 등록 필요
+                </h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  어느 공장의 표준원가 book에도 등록되지 않은 품목입니다.
+                  원가팀에 표준원가 신규 등록을 요청해야 합니다.
+                </p>
+                <ChartCard title="" isEmpty={false}>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-[13px]">
+                      <thead className="bg-red-50 dark:bg-red-950/30">
+                        <tr className="border-b text-left">
+                          <th className="p-2.5">품목명</th>
+                          <th className="p-2.5">매출 공장</th>
+                          <th className="p-2.5 text-right">판매 수량</th>
+                          <th className="p-2.5 text-right">판매 금액</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sortedMapFail.map((r, i) => (
+                          <tr key={`mf-${i}`} className="border-b hover:bg-muted/30">
+                            <td className="p-2.5 min-w-[260px] max-w-[400px]">
+                              <div className="font-medium break-words whitespace-normal leading-snug">{r.itemName}</div>
+                            </td>
+                            <td className="p-2.5">{r.factory}</td>
+                            <td className="p-2.5 text-right font-mono">{r.salesQty.toLocaleString()}</td>
+                            <td className="p-2.5 text-right font-mono font-semibold">{formatCurrency(r.salesAmount)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </ChartCard>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* 섹션 9: 미매칭/미등록 리스트 */}
       {unmatchedRows.length > 0 && (

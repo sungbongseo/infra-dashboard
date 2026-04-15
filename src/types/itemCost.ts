@@ -171,6 +171,27 @@ export interface ManufacturingCostRecord {
 }
 
 // ─── 3-Way 비교 결과 (판매 vs 표준 vs 실제) ───
+
+/** 품목 분류 — 제조원가 없음 사유 판정에 사용 */
+export type ItemCategory = "제품" | "상품" | "unknown";
+
+/**
+ * 실제원가 출처:
+ *  - "manufacturing": 제조원가 BOM 집계 (정상 제품)
+ *  - "standard_as_purchase": 표준원가를 매입가로 사용 (상품 카테고리 — 외주 매입)
+ *  - null: 미산출 (코드 매핑 실패 또는 제품 미생산)
+ */
+export type ActualCostSource = "manufacturing" | "standard_as_purchase" | null;
+
+/** 미산출 사유 세분화 */
+export type CostNoteKind =
+  | "three_way_matched"      // 3-Way 완전 매칭 — 정상
+  | "purchase_item"          // 상품 (매입가 = 표준원가)
+  | "product_not_produced"   // 제품인데 Q1 미생산 (BOM 확인 필요)
+  | "mapping_failed"         // 품목코드 매핑 실패
+  | "standard_missing"       // 표준원가 미등록
+  | "unknown";
+
 export interface ThreeWayComparisonRow {
   itemCode: string;
   itemName: string;
@@ -187,15 +208,19 @@ export interface ThreeWayComparisonRow {
   actualUnitCost: number | null;
   hasManufacturing: boolean;
   actualCostFactory: string | null;      // 제조원가 출처 공장
+  // 품목 분류 및 실제원가 출처
+  itemCategory: ItemCategory;            // 표준원가에서 추출한 계정그룹
+  actualCostSource: ActualCostSource;    // 실제원가 출처 추적
+  noteKind: CostNoteKind;                // 사유 분류 (UI 색상/필터용)
   // 3개 마진/변동률
   salesVsStdMarginPct: number | null;    // (판매 - 표준) / 판매 × 100
   salesVsActualMarginPct: number | null; // (판매 - 실제) / 판매 × 100
   stdVsActualVariancePct: number | null; // (실제 - 표준) / 표준 × 100
   // 재무 영향
   marginVarianceImpact: number;          // (실제 - 표준) × 판매수량 — 양수 = 손실, 음수 = 절감
-  /** @deprecated salesImpact는 오해 소지가 있어 marginVarianceImpact로 변경됐습니다. 유지: 기존 UI 호환. */
+  /** @deprecated salesImpact는 오해 소지가 있어 marginVarianceImpact로 변경됐습니다. */
   salesImpact: number;
-  note: string;                          // 상태 라벨
+  note: string;                          // 사람이 읽는 라벨 (noteKind에서 파생)
 }
 
 // ─── 월별 판매단가 추세 ───
