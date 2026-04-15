@@ -25,6 +25,8 @@ const TYPE_LABELS: Record<string, string> = {
   customerItemDetail: "거래처별품목별손익",
   itemCostDetail: "품목별매출원가(상세)",
   itemProfitability: "품목별수익성분석(회계)",
+  standardCostBook: "공장별 표준원가 Book",
+  manufacturingCost: "품목별 제조원가(BOM)",
   inventoryMovement: "품목별수불현황",
 };
 
@@ -42,6 +44,8 @@ const REQUIRED_FIELDS: Record<string, string[]> = {
   customerItemDetail: ["영업조직팀", "매출거래처", "품목", "제품군", "매출연월", "매출액"],
   itemCostDetail: ["영업조직팀", "품목", "매출액", "매출총이익", "공헌이익"],
   itemProfitability: ["영업조직팀", "품목", "매출액", "매출총이익", "영업이익"],
+  standardCostBook: ["factory", "품목코드", "품목명", "표준원가"],
+  manufacturingCost: ["factory", "생산품코드", "생산입고수량", "totalVariableCost", "totalFixedCost", "actualUnitCost"],
   inventoryMovement: ["품목계정그룹", "품목", "품목명", "기초", "입고", "출고", "기말"],
 };
 
@@ -74,6 +78,8 @@ export default function DataManagementPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const standardCostBook = useDataStore((s) => s.standardCostBook);
+  const manufacturingCost = useDataStore((s) => s.manufacturingCost);
   const inventoryMovement = useDataStore((s) => s.inventoryMovement);
 
   /** receivableAging은 Map이므로 모든 소스를 합쳐서 하나의 배열로 변환 */
@@ -109,9 +115,11 @@ export default function DataManagementPage() {
       customerItemDetail,
       itemCostDetail,
       itemProfitability,
+      standardCostBook,
+      manufacturingCost,
       inventoryMovement: allInventoryRecords,
     }),
-    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, allInventoryRecords]
+    [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, standardCostBook, manufacturingCost, allInventoryRecords]
   );
 
   /** 로드된 타입만 필터링하고 품질 지표 계산 */
@@ -145,8 +153,9 @@ export default function DataManagementPage() {
       + orgProfit.length + teamContribution.length + profitabilityAnalysis.length
       + allAgingRecords.length + orgCustomerProfit.length + hqCustomerItemProfit.length
       + customerItemDetail.length + itemCostDetail.length + itemProfitability.length
+      + standardCostBook.length + manufacturingCost.length
       + allInventoryRecords.length;
-  }, [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, allInventoryRecords]);
+  }, [salesList, collectionList, orderList, orgProfit, teamContribution, profitabilityAnalysis, allAgingRecords, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability, standardCostBook, manufacturingCost, allInventoryRecords]);
 
   const readyFileCount = useMemo(
     () => uploadedFiles.filter((f) => f.status === "ready").length,

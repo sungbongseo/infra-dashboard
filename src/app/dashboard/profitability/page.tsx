@@ -69,12 +69,13 @@ const SgaBreakdownTab = lazy(() => import("./tabs/SgaBreakdownTab").then(m => ({
 const PortfolioTab = lazy(() => import("./tabs/PortfolioTab").then(m => ({ default: m.PortfolioTab })));
 const PricingSimTab = lazy(() => import("./tabs/PricingSimTab").then(m => ({ default: m.PricingSimTab })));
 const OffsetEffectTab = lazy(() => import("./tabs/OffsetEffectTab").then(m => ({ default: m.OffsetEffectTab })));
+const CostTrueVarianceTab = lazy(() => import("./tabs/CostTrueVarianceTab").then(m => ({ default: m.CostTrueVarianceTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
   { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity", "offset"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
-  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "portfolio", "pricingSim"] },
+  { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "costTrueVariance", "portfolio", "pricingSim"] },
 ];
 
 export default function ProfitabilityPage() {
@@ -91,6 +92,8 @@ export default function ProfitabilityPage() {
   const customerItemDetail = useDataStore((s) => s.customerItemDetail);
   const itemCostDetail = useDataStore((s) => s.itemCostDetail);
   const itemProfitability = useDataStore((s) => s.itemProfitability);
+  const standardCostBook = useDataStore((s) => s.standardCostBook);
+  const manufacturingCost = useDataStore((s) => s.manufacturingCost);
   const isLoading = useDataStore((s) => s.isLoading);
 
   const orgProfit = useDataStore((s) => s.orgProfit);
@@ -635,6 +638,7 @@ export default function ProfitabilityPage() {
           {visibleTabs.has("itemCost") && <TabsTrigger value="itemCost" disabled={filteredItemCostDetail.length === 0}>품목원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
           {visibleTabs.has("costVariance") && <TabsTrigger value="costVariance" disabled={filteredItemCostDetail.length === 0}>원가차이<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>}
           {visibleTabs.has("standardCost") && <TabsTrigger value="standardCost" disabled={filteredItemProfitability.length === 0}>표준원가</TabsTrigger>}
+          {visibleTabs.has("costTrueVariance") && <TabsTrigger value="costTrueVariance" disabled={filteredCustItemDetail.length === 0}>3-Way 원가<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">신규</span></TabsTrigger>}
           {visibleTabs.has("portfolio") && <TabsTrigger value="portfolio" disabled={filteredItemProfitability.length === 0}>포트폴리오</TabsTrigger>}
           {visibleTabs.has("pricingSim") && <TabsTrigger value="pricingSim" disabled={filteredItemCostDetail.length === 0}>단가 시뮬레이션</TabsTrigger>}
         </TabsList>
@@ -830,6 +834,20 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <StandardCostTab
               filteredItemProfitability={filteredItemProfitability}
+              isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="costTrueVariance" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <CostTrueVarianceTab
+              filteredCustItemDetail={filteredCustItemDetail}
+              filteredItemProfitability={filteredItemProfitability}
+              standardCostBook={standardCostBook}
+              manufacturingCost={manufacturingCost}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>

@@ -127,6 +127,22 @@ export const FILE_SCHEMAS: FileSchema[] = [
     subHeaderRow: 1,
     orgFilterField: "영업조직",
   },
+  {
+    fileType: "standardCostBook",
+    // "양산공장 표준원가 3월31일 기준.xlsx", "청산공장 표준원가 ..."
+    pattern: /표준원가.*기준|공장.*표준원가/,
+    headerRow: 0,
+    hasMergedHeader: false,
+    // 같은 타입 다중 파일 업로드 시 concat (공장별 별도 파일)
+  },
+  {
+    fileType: "manufacturingCost",
+    // "픔목별 제조원가(1~3).xlsx" (픔=품 오타 포함)
+    pattern: /(품목별|픔목별)\s*제조원가/,
+    headerRow: 0,
+    hasMergedHeader: true,
+    subHeaderRow: 1,
+  },
 ];
 
 export function detectFileType(fileName: string): FileSchema | null {
@@ -147,4 +163,23 @@ export function getAgingSourceName(fileName: string): string {
 export function getFactoryName(fileName: string): string {
   const match = fileName.match(/수불현황[_\s]?(.+?)\.xlsx?$/i);
   return match ? match[1].trim() : fileName.replace(/\.xlsx?$/i, "").trim();
+}
+
+/** 표준원가 파일명에서 공장 추출 ("양산공장 표준원가..." → "양산") */
+export function getStandardCostFactory(fileName: string): string {
+  if (/양산/.test(fileName)) return "양산";
+  if (/청산|옥천/.test(fileName)) return "청산";
+  if (/울산/.test(fileName)) return "울산";
+  if (/용산/.test(fileName)) return "용산";
+  return "unknown";
+}
+
+/** 제조원가 파일의 공장명 정규화 ("청산공장(옥천)" → "청산") */
+export function normalizeFactoryName(raw: string): string {
+  if (!raw) return "unknown";
+  if (/양산/.test(raw)) return "양산";
+  if (/청산|옥천/.test(raw)) return "청산";
+  if (/울산/.test(raw)) return "울산";
+  if (/용산/.test(raw)) return "용산";
+  return raw.replace(/공장/g, "").replace(/\(.*\)/g, "").trim() || "unknown";
 }

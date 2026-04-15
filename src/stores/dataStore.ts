@@ -56,6 +56,8 @@ import type {
   ItemProfitabilityRecord,
   ReceivableAgingRecord,
   InventoryMovementRecord,
+  StandardCostBookRecord,
+  ManufacturingCostRecord,
   Organization,
   UploadedFile,
 } from "@/types";
@@ -96,6 +98,8 @@ interface DataState {
   customerItemDetail: CustomerItemDetailRecord[];
   itemCostDetail: ItemCostDetailRecord[];
   itemProfitability: ItemProfitabilityRecord[];
+  standardCostBook: StandardCostBookRecord[];
+  manufacturingCost: ManufacturingCostRecord[];
   receivableAging: Map<string, ReceivableAgingRecord[]>;
   inventoryMovement: Map<string, InventoryMovementRecord[]>;
   uploadedFiles: UploadedFile[];
@@ -117,6 +121,8 @@ interface DataState {
   setCustomerItemDetail: (data: CustomerItemDetailRecord[]) => void;
   setItemCostDetail: (data: ItemCostDetailRecord[]) => void;
   setItemProfitability: (data: ItemProfitabilityRecord[]) => void;
+  setStandardCostBook: (data: StandardCostBookRecord[]) => void;
+  setManufacturingCost: (data: ManufacturingCostRecord[]) => void;
   setReceivableAging: (source: string, data: ReceivableAgingRecord[]) => void;
   setInventoryMovement: (factory: string, data: InventoryMovementRecord[]) => void;
   addUploadedFile: (file: UploadedFile) => void;
@@ -143,6 +149,8 @@ export const useDataStore = create<DataState>((set, get) => ({
   customerItemDetail: [],
   itemCostDetail: [],
   itemProfitability: [],
+  standardCostBook: [],
+  manufacturingCost: [],
   receivableAging: new Map(),
   inventoryMovement: new Map(),
   uploadedFiles: [],
@@ -210,6 +218,14 @@ export const useDataStore = create<DataState>((set, get) => ({
     set({ itemProfitability: data });
     saveDataset("itemProfitability", data).catch(err => handleDbSaveError('저장', err));
   },
+  setStandardCostBook: (data) => {
+    set({ standardCostBook: data });
+    saveDataset("standardCostBook", data).catch(err => handleDbSaveError('저장', err));
+  },
+  setManufacturingCost: (data) => {
+    set({ manufacturingCost: data });
+    saveDataset("manufacturingCost", data).catch(err => handleDbSaveError('저장', err));
+  },
   setReceivableAging: (source, data) => {
     set((s) => {
       const next = new Map(s.receivableAging);
@@ -257,6 +273,8 @@ export const useDataStore = create<DataState>((set, get) => ({
       customerItemDetail: [],
       itemCostDetail: [],
       itemProfitability: [],
+      standardCostBook: [],
+      manufacturingCost: [],
       receivableAging: new Map(),
       inventoryMovement: new Map(),
       uploadedFiles: [],
@@ -287,6 +305,8 @@ export const useDataStore = create<DataState>((set, get) => ({
         customerItemDetail,
         itemCostDetail,
         itemProfitability,
+        standardCostBook,
+        manufacturingCost,
         agingMap,
         inventoryMap,
         storedFiles,
@@ -304,6 +324,8 @@ export const useDataStore = create<DataState>((set, get) => ({
         loadDataset("customerItemDetail"),
         loadDataset("itemCostDetail"),
         loadDataset("itemProfitability"),
+        loadDataset("standardCostBook"),
+        loadDataset("manufacturingCost"),
         loadAllAgingData(),
         loadAllInventoryData(),
         loadUploadedFiles(),
@@ -344,6 +366,8 @@ export const useDataStore = create<DataState>((set, get) => ({
         customerItemDetail: (customerItemDetail as CustomerItemDetailRecord[]) ?? [],
         itemCostDetail: (itemCostDetail as ItemCostDetailRecord[]) ?? [],
         itemProfitability: (itemProfitability as ItemProfitabilityRecord[]) ?? [],
+        standardCostBook: (standardCostBook as StandardCostBookRecord[]) ?? [],
+        manufacturingCost: (manufacturingCost as ManufacturingCostRecord[]) ?? [],
         receivableAging: agingMap,
         inventoryMovement: (() => {
           // 구 스키마(기초수량/기초금액 등) 데이터 검증 → 무효 시 빈 Map

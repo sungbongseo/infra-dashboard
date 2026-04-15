@@ -21,6 +21,8 @@ export type FileType =
   | "itemCostDetail"         // 501: 품목별매출원가(상세)
   | "itemProfitability"      // 200: 품목별수익성분석(회계)
   | "inventoryMovement"      // 품목별 수불현황
+  | "standardCostBook"       // 공장 표준원가 book (양산/청산)
+  | "manufacturingCost"      // 품목별 제조원가 (BOM, Q1 기간조회)
 ;
 
 export interface UploadedFile {

@@ -28,6 +28,8 @@ import type {
   ItemProfitabilityRecord,
   ReceivableAgingRecord,
   InventoryMovementRecord,
+  StandardCostBookRecord,
+  ManufacturingCostRecord,
 } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -57,6 +59,8 @@ export function FileUploader() {
     setCustomerItemDetail,
     setItemCostDetail,
     setItemProfitability,
+    setStandardCostBook,
+    setManufacturingCost,
     setReceivableAging,
     setInventoryMovement,
     clearAllData,
@@ -225,6 +229,20 @@ export function FileUploader() {
           case "inventoryMovement":
             setInventoryMovement(result.sourceName || file.name, result.data as InventoryMovementRecord[]);
             break;
+          case "standardCostBook": {
+            // 공장별 concat: 같은 factory 레코드 교체, 다른 factory는 유지
+            const newData = result.data as StandardCostBookRecord[];
+            const newFactory = newData[0]?.factory;
+            const existing = useDataStore.getState().standardCostBook;
+            const kept = newFactory
+              ? existing.filter((r) => r.factory !== newFactory)
+              : existing;
+            setStandardCostBook([...kept, ...newData]);
+            break;
+          }
+          case "manufacturingCost":
+            setManufacturingCost(result.data as ManufacturingCostRecord[]);
+            break;
         }
 
         setProgress(100);
@@ -257,8 +275,15 @@ export function FileUploader() {
           case "customerItemDetail":
           case "itemCostDetail":
           case "itemProfitability":
+          case "manufacturingCost":
             saveDataset(result.fileType, result.data as Record<string, unknown>[]).catch((e) =>
               console.error("IndexedDB 데이터셋 저장 실패:", e)
+            );
+            break;
+          case "standardCostBook":
+            // concat 처리 후 전체 상태를 IndexedDB에 저장
+            saveDataset("standardCostBook", useDataStore.getState().standardCostBook as unknown as Record<string, unknown>[]).catch((e) =>
+              console.error("IndexedDB 표준원가Book 저장 실패:", e)
             );
             break;
           case "receivableAging":
@@ -301,7 +326,7 @@ export function FileUploader() {
         setProgress(0);
       }
     },
-    [uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setReceivableAging, setInventoryMovement]
+    [uploadedFiles, addUploadedFile, updateUploadedFile, setOrganizations, setOrgCodes, setOrgNames, setSalesList, setCollectionList, setOrderList, setOrgProfit, setTeamContribution, setProfitabilityAnalysis, setOrgCustomerProfit, setHqCustomerItemProfit, setCustomerItemDetail, setItemCostDetail, setItemProfitability, setStandardCostBook, setManufacturingCost, setReceivableAging, setInventoryMovement]
   );
 
   const handleDrop = useCallback(

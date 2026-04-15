@@ -117,6 +117,93 @@ export interface ItemProfitabilityRecord {
   기타경비: number;
 }
 
+// ─── 표준원가 Book (공장별 품목 표준 단가표) ───
+export interface StandardCostBookRecord {
+  factory: string;          // 정규화: "양산" | "청산" | "울산" (파일명에서 추출)
+  품목코드: string;          // 매칭 키, 예: "ASCJ1021056"
+  품목명: string;
+  품목계정그룹: string;      // 제품/상품/원재료/부재료/저장품/재공품
+  기본단위: string;          // BAG/KG/CAN 등
+  규격: string;
+  표준원가: number;          // 원/단위
+  유효시작: string;          // ISO YYYY-MM-DD
+  유효종료: string;          // ISO YYYY-MM-DD (9999-12-31 = 무기한)
+}
+
+// ─── 실제 제조원가 (BOM 집계 후, 공장×품목 단위) ───
+export interface ManufacturingCostRecord {
+  factory: string;           // 정규화: "양산" | "청산" | "울산" | "용산"
+  공장명원본: string;         // 예: "청산공장(옥천)"
+  period: string;            // "2026-Q1" 고정
+  생산품코드: string;
+  생산품명: string;
+  품목그룹: string;           // 제품/상품/재공품 등
+  대분류: string;
+  중분류: string;
+  소분류: string;
+  기준단위: string;
+  생산입고수량: number;
+  환산수량: number;
+  // 합산된 14개 변동비
+  원재료비: number;
+  부재료비: number;
+  상품매입: number;
+  노무비: number;            // 제조 변동 노무비
+  복리후생비: number;
+  소모품비: number;
+  수도광열비: number;
+  수선비: number;
+  연료비: number;
+  외주가공비: number;
+  운반비: number;
+  전력비: number;
+  지급수수료: number;
+  견본비: number;
+  // 합산된 3개 고정비
+  고정노무비: number;
+  감가상각비: number;
+  기타경비: number;
+  // 파생 필드
+  totalVariableCost: number;  // 14개 변동비 합
+  totalFixedCost: number;     // 3개 고정비 합
+  actualUnitCost: number;     // (변동 + 고정) / 생산입고수량
+  bomLineCount: number;       // 원본 BOM 행 수 (검증용)
+}
+
+// ─── 3-Way 비교 결과 (판매 vs 표준 vs 실제) ───
+export interface ThreeWayComparisonRow {
+  itemCode: string;
+  itemName: string;
+  factory: string;
+  // 판매 (100 보고서 기간 합산)
+  salesQty: number;
+  salesAmount: number;
+  avgSalesPrice: number;     // salesAmount / salesQty
+  // 표준원가
+  standardCost: number | null;
+  hasStandard: boolean;
+  // 실제 제조원가
+  actualUnitCost: number | null;
+  hasManufacturing: boolean;
+  // 3개 마진/변동률
+  salesVsStdMarginPct: number | null;     // (판매 - 표준) / 판매 × 100
+  salesVsActualMarginPct: number | null;  // (판매 - 실제) / 판매 × 100
+  stdVsActualVariancePct: number | null;  // (실제 - 표준) / 표준 × 100
+  // 재무 영향
+  salesImpact: number;                     // (실제 - 표준) × 판매수량
+  note: string;                            // 상태 라벨
+}
+
+// ─── 월별 판매단가 추세 ───
+export interface MonthlyPriceTrend {
+  month: string;              // YYYYMM
+  itemCode: string;
+  itemName: string;
+  avgSalesPrice: number;
+  salesQty: number;
+  salesAmount: number;
+}
+
 // ── NEW-1: 품목별 원가 차이 랭킹 ──
 export interface ItemVarianceEntry {
   product: string;

@@ -9,10 +9,12 @@ import type {
   ItemProfitabilityRecord,
   ReceivableAgingRecord,
   InventoryMovementRecord,
+  StandardCostBookRecord,
+  ManufacturingCostRecord,
   PlanActualDiff,
   AgingAmounts,
 } from "@/types";
-import { detectFileType, getAgingSourceName, getFactoryName, type FileSchema } from "./schemas";
+import { detectFileType, getAgingSourceName, getFactoryName, getStandardCostFactory, normalizeFactoryName, type FileSchema } from "./schemas";
 import { calcRatioPAD } from "@/lib/utils";
 
 export interface ParseResult {
@@ -42,6 +44,18 @@ function numOrNull(v: unknown): number | null {
 function str(v: unknown): string {
   if (v === null || v === undefined) return "";
   return String(v).trim();
+}
+
+/** Excel serial 날짜 → ISO YYYY-MM-DD (46082 → 2026-03-31) */
+function excelSerialToISO(v: unknown): string {
+  if (v === null || v === undefined || v === "") return "";
+  const n = Number(v);
+  if (isNaN(n) || n <= 0) return "";
+  // Excel epoch: 1900-01-01 = 1 (with 1900-02-29 bug ignored)
+  // JS Date: ms since 1970-01-01 = epoch 25569
+  if (n >= 2958465) return "9999-12-31"; // 무기한
+  const date = new Date((n - 25569) * 86400000);
+  return date.toISOString().slice(0, 10);
 }
 
 function parsePlanActualDiff(row: unknown[], startIdx: number): PlanActualDiff {
@@ -1022,6 +1036,118 @@ function parseSheetData(
     case "receivableAging":
       parsed = parseReceivableAging(rawData, warnings);
       break;
+    case "standardCostBook": {
+      const factory = getStandardCostFactory(fileName);
+      const rSC = safeParseRows<StandardCostBookRecord>(rawData, 1, (row) => ({
+        factory,
+        품목코드: str(row[1]),
+        품목명: str(row[2]),
+        품목계정그룹: str(row[3]),
+        기본단위: str(row[4]),
+        규격: str(row[5]),
+        표준원가: num(row[6]),
+        유효시작: excelSerialToISO(row[7]),
+        유효종료: excelSerialToISO(row[8]),
+      }), warnings, "표준원가Book");
+      parsed = rSC.parsed.filter((r) => r.품목코드);
+      skippedRows = rSC.skipped;
+      break;
+    }
+    case "manufacturingCost": {
+      // BOM 전개 형태 — 첫 행은 직접비+고정비, 이후 행은 소요품목별 원재료/부재료
+      // 같은 (공장, 생산품코드) 집계 필요 (중복 뻥튀기 방지)
+      const rawRows = rawData.slice(2); // 머지 헤더 2행 skip
+      const byProduct = new Map<string, ManufacturingCostRecord>();
+      let bomLineCount = 0;
+      for (const row of rawRows) {
+        if (!row || !Array.isArray(row)) continue;
+        const 공장명원본 = str(row[3]);
+        const 생산품코드 = str(row[5]);
+        if (!공장명원본 || !생산품코드) continue;
+        bomLineCount++;
+        const key = `${normalizeFactoryName(공장명원본)}||${생산품코드}`;
+        const qty = num(row[11]);
+        const existing = byProduct.get(key);
+        if (!existing) {
+          // 첫 행: 생산입고수량, 대분류 등 기초 정보 저장
+          byProduct.set(key, {
+            factory: normalizeFactoryName(공장명원본),
+            공장명원본,
+            period: "2026-Q1",
+            생산품코드,
+            생산품명: str(row[6]),
+            품목그룹: str(row[4]),
+            대분류: str(row[7]),
+            중분류: str(row[8]),
+            소분류: str(row[9]),
+            기준단위: str(row[10]),
+            생산입고수량: qty,
+            환산수량: num(row[12]),
+            원재료비: num(row[17]),
+            부재료비: num(row[18]),
+            상품매입: num(row[19]),
+            노무비: num(row[20]),
+            복리후생비: num(row[21]),
+            소모품비: num(row[22]),
+            수도광열비: num(row[23]),
+            수선비: num(row[24]),
+            연료비: num(row[25]),
+            외주가공비: num(row[26]),
+            운반비: num(row[27]),
+            전력비: num(row[28]),
+            지급수수료: num(row[29]),
+            견본비: num(row[30]),
+            고정노무비: num(row[31]),
+            감가상각비: num(row[32]),
+            기타경비: num(row[33]),
+            totalVariableCost: 0,
+            totalFixedCost: 0,
+            actualUnitCost: 0,
+            bomLineCount: 1,
+          });
+        } else {
+          // 이후 행: 14개 변동비 + 3개 고정비만 합산 (수량/분류는 덮어쓰지 않음)
+          existing.원재료비 += num(row[17]);
+          existing.부재료비 += num(row[18]);
+          existing.상품매입 += num(row[19]);
+          existing.노무비 += num(row[20]);
+          existing.복리후생비 += num(row[21]);
+          existing.소모품비 += num(row[22]);
+          existing.수도광열비 += num(row[23]);
+          existing.수선비 += num(row[24]);
+          existing.연료비 += num(row[25]);
+          existing.외주가공비 += num(row[26]);
+          existing.운반비 += num(row[27]);
+          existing.전력비 += num(row[28]);
+          existing.지급수수료 += num(row[29]);
+          existing.견본비 += num(row[30]);
+          existing.고정노무비 += num(row[31]);
+          existing.감가상각비 += num(row[32]);
+          existing.기타경비 += num(row[33]);
+          existing.bomLineCount += 1;
+        }
+      }
+      // 파생 필드 계산
+      for (const rec of Array.from(byProduct.values())) {
+        rec.totalVariableCost =
+          rec.원재료비 + rec.부재료비 + rec.상품매입 + rec.노무비 +
+          rec.복리후생비 + rec.소모품비 + rec.수도광열비 + rec.수선비 +
+          rec.연료비 + rec.외주가공비 + rec.운반비 + rec.전력비 +
+          rec.지급수수료 + rec.견본비;
+        rec.totalFixedCost = rec.고정노무비 + rec.감가상각비 + rec.기타경비;
+        rec.actualUnitCost = rec.생산입고수량 > 0
+          ? (rec.totalVariableCost + rec.totalFixedCost) / rec.생산입고수량
+          : 0;
+      }
+      parsed = Array.from(byProduct.values());
+      skippedRows = 0;
+      if (parsed.length === 0) {
+        warnings.push(`제조원가: BOM 전개 후 집계 결과 0건 (원본 ${bomLineCount}행) — 파일 구조 확인 필요`);
+      } else {
+        warnings.push(`제조원가 BOM 집계: 원본 ${bomLineCount}행 → 생산품 ${parsed.length}건`);
+      }
+      break;
+    }
     default:
       throw new Error(`파서 미구현: ${schema.fileType}`);
   }
