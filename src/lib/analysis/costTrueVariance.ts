@@ -22,16 +22,26 @@ import { safeDivide } from "@/lib/utils";
 // ─── 유틸 ───────────────────────────────────────────────
 
 /**
- * 200 보고서에서 품목명→품목코드 매핑 빌드.
- * 200의 품목 필드는 "[ASCJ1021056] 바로바로 II..." 형태.
- * 이름은 100 보고서의 "바로바로 II..." 와 매칭되어야 함.
+ * 품목명→품목코드 매핑 빌드.
  *
- * 주의: 한 코드에 이름이 여러 개 있거나 vice versa 있을 수 있음 → 첫 매칭 우선.
+ * 소스 우선순위:
+ *  1) 200 보고서 (itemProfitability) — "[코드] 이름" 형식 파싱
+ *  2) 표준원가 book — 품목명 → 품목코드 직접 매핑
+ *  3) 제조원가 — 생산품명 → 생산품코드 직접 매핑
+ *
+ * 실제 200 보고서 필드가 "[코드] 이름" 형식이 아닌 경우가 많아(한글명만),
+ * 표준원가/제조원가 book에 더 의존해야 함.
+ *
+ * 주의: 한 이름에 여러 코드 가능 → 첫 매칭 우선.
  */
 export function buildItemCodeMap(
-  itemProfitability: ItemProfitabilityRecord[]
+  itemProfitability: ItemProfitabilityRecord[],
+  standardCostBook: StandardCostBookRecord[] = [],
+  manufacturingCost: ManufacturingCostRecord[] = []
 ): Map<string, string> {
   const nameToCode = new Map<string, string>();
+
+  // 1. 200 보고서 (대괄호 형식만 추출)
   for (const r of itemProfitability) {
     const raw = (r.품목 || "").trim();
     if (!raw) continue;
@@ -39,11 +49,28 @@ export function buildItemCodeMap(
     if (match) {
       const code = match[1].trim();
       const name = match[2].trim();
-      if (name && !nameToCode.has(name)) {
-        nameToCode.set(name, code);
-      }
+      if (name && !nameToCode.has(name)) nameToCode.set(name, code);
     }
   }
+
+  // 2. 표준원가 book — 제품만 매핑 (원재료/부재료는 판매 안 함)
+  for (const r of standardCostBook) {
+    const name = (r.품목명 || "").trim();
+    const code = (r.품목코드 || "").trim();
+    if (name && code && !nameToCode.has(name)) {
+      nameToCode.set(name, code);
+    }
+  }
+
+  // 3. 제조원가 — 생산품명 기반
+  for (const r of manufacturingCost) {
+    const name = (r.생산품명 || "").trim();
+    const code = (r.생산품코드 || "").trim();
+    if (name && code && !nameToCode.has(name)) {
+      nameToCode.set(name, code);
+    }
+  }
+
   return nameToCode;
 }
 
@@ -113,7 +140,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
   } = input;
 
   const warnings: string[] = [];
-  const itemCodeMap = buildItemCodeMap(itemProfitability);
+  const itemCodeMap = buildItemCodeMap(itemProfitability, standardCostBook, manufacturingCost);
   const stdLookup = buildStandardCostLookup(standardCostBook);
   const mfgLookup = buildManufacturingLookup(manufacturingCost);
 
