@@ -174,12 +174,27 @@ export function getStandardCostFactory(fileName: string): string {
   return "unknown";
 }
 
-/** 제조원가 파일의 공장명 정규화 ("청산공장(옥천)" → "청산") */
+/**
+ * 공장명 정규화 — 3개 소스 입력을 단일 키로 통합:
+ *  1) 제조원가 파일 col 3: "청산공장(옥천)", "양산공장", "용산본사(석유)", "울산공장"
+ *  2) 표준원가 파일명: "양산공장 표준원가...", "청산공장 표준원가..."
+ *  3) 100 보고서 col 28: SAP 공장 코드 "0000", "1000", "2000", "4000"
+ *
+ * 출력: "양산" | "청산" | "울산" | "용산" | "unknown"
+ */
 export function normalizeFactoryName(raw: string): string {
   if (!raw) return "unknown";
-  if (/양산/.test(raw)) return "양산";
-  if (/청산|옥천/.test(raw)) return "청산";
-  if (/울산/.test(raw)) return "울산";
-  if (/용산/.test(raw)) return "용산";
-  return raw.replace(/공장/g, "").replace(/\(.*\)/g, "").trim() || "unknown";
+  const trimmed = raw.trim();
+  // SAP 공장 코드 (100 보고서) — 제조원가 파일의 코드 컬럼과 일치
+  // 0000: 용산본사(석유), 1000: 울산공장, 2000: 청산공장(옥천), 4000: 양산공장
+  if (trimmed === "0000") return "용산";
+  if (trimmed === "1000") return "울산";
+  if (trimmed === "2000") return "청산";
+  if (trimmed === "4000") return "양산";
+  // 한글 이름 매칭
+  if (/양산/.test(trimmed)) return "양산";
+  if (/청산|옥천/.test(trimmed)) return "청산";
+  if (/울산/.test(trimmed)) return "울산";
+  if (/용산/.test(trimmed)) return "용산";
+  return trimmed.replace(/공장/g, "").replace(/\(.*\)/g, "").trim() || "unknown";
 }

@@ -174,24 +174,28 @@ export interface ManufacturingCostRecord {
 export interface ThreeWayComparisonRow {
   itemCode: string;
   itemName: string;
-  factory: string;
+  factory: string;                       // 매출 발생 공장 (정규화)
   // 판매 (100 보고서 기간 합산)
   salesQty: number;
   salesAmount: number;
-  avgSalesPrice: number;     // salesAmount / salesQty
+  avgSalesPrice: number;                 // salesAmount / salesQty
   // 표준원가
   standardCost: number | null;
   hasStandard: boolean;
+  standardCostFactory: string | null;    // 표준원가 출처 공장 ("양산"/"청산"/fallback="*")
   // 실제 제조원가
   actualUnitCost: number | null;
   hasManufacturing: boolean;
+  actualCostFactory: string | null;      // 제조원가 출처 공장
   // 3개 마진/변동률
-  salesVsStdMarginPct: number | null;     // (판매 - 표준) / 판매 × 100
-  salesVsActualMarginPct: number | null;  // (판매 - 실제) / 판매 × 100
-  stdVsActualVariancePct: number | null;  // (실제 - 표준) / 표준 × 100
+  salesVsStdMarginPct: number | null;    // (판매 - 표준) / 판매 × 100
+  salesVsActualMarginPct: number | null; // (판매 - 실제) / 판매 × 100
+  stdVsActualVariancePct: number | null; // (실제 - 표준) / 표준 × 100
   // 재무 영향
-  salesImpact: number;                     // (실제 - 표준) × 판매수량
-  note: string;                            // 상태 라벨
+  marginVarianceImpact: number;          // (실제 - 표준) × 판매수량 — 양수 = 손실, 음수 = 절감
+  /** @deprecated salesImpact는 오해 소지가 있어 marginVarianceImpact로 변경됐습니다. 유지: 기존 UI 호환. */
+  salesImpact: number;
+  note: string;                          // 상태 라벨
 }
 
 // ─── 월별 판매단가 추세 ───

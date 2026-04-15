@@ -799,7 +799,7 @@ function parseSheetData(
         매출유형: str(row[12]),
         품목군: str(row[24]),
         중분류코드: str(row[25]),
-        공장: str(row[28]),
+        공장: normalizeFactoryName(str(row[28])),
         제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },
         제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },
         매출수량: parsePlanActualDiff(row, 42),
@@ -819,6 +819,30 @@ function parseSheetData(
         ["매출거래처", "매출거래처명"],
         ["품목", "품목명", "제품군"],
       ], warnings, "거래처별품목별손익");
+      // 매출연월 forward fill — SAP CO-PA export는 같은 거래처/품목 연속 행에서
+      // 첫 행에만 매출연월을 표시하고 이후 행은 생략하는 패턴을 사용.
+      let lastMonth = "";
+      let filledCount = 0;
+      let stillEmpty = 0;
+      for (const rec of parsed as CustomerItemDetailRecord[]) {
+        const m = String(rec.매출연월 || "").trim();
+        if (m !== "" && m !== " ") {
+          lastMonth = m;
+          rec.매출연월 = m;
+        } else if (lastMonth) {
+          rec.매출연월 = lastMonth;
+          filledCount++;
+        } else {
+          rec.매출연월 = "";
+          stillEmpty++;
+        }
+      }
+      if (filledCount > 0) {
+        warnings.push(`거래처별품목별손익: 매출연월 ${filledCount}건 forward fill 적용 (SAP 반복값 생략 패턴)`);
+      }
+      if (stillEmpty > 0) {
+        warnings.push(`거래처별품목별손익: 매출연월 ${stillEmpty}건 채우기 실패 — 기간 분석에서 제외됨`);
+      }
       skippedRows = r.skipped;
       break;
     }
@@ -1059,6 +1083,8 @@ function parseSheetData(
       const rawRows = rawData.slice(2); // 머지 헤더 2행 skip
       const byProduct = new Map<string, ManufacturingCostRecord>();
       let bomLineCount = 0;
+      // 파일명에서 기간 추출 ("픔목별 제조원가(1~3)" → "2026-Q1")
+      const periodLabel = deriveManufacturingPeriod(fileName);
       for (const row of rawRows) {
         if (!row || !Array.isArray(row)) continue;
         const 공장명원본 = str(row[3]);
@@ -1073,7 +1099,7 @@ function parseSheetData(
           byProduct.set(key, {
             factory: normalizeFactoryName(공장명원본),
             공장명원본,
-            period: "2026-Q1",
+            period: periodLabel,
             생산품코드,
             생산품명: str(row[6]),
             품목그룹: str(row[4]),
@@ -1139,12 +1165,22 @@ function parseSheetData(
           ? (rec.totalVariableCost + rec.totalFixedCost) / rec.생산입고수량
           : 0;
       }
-      parsed = Array.from(byProduct.values());
+      parsed = Array.from(byProduct.values()) as ManufacturingCostRecord[];
       skippedRows = 0;
       if (parsed.length === 0) {
         warnings.push(`제조원가: BOM 전개 후 집계 결과 0건 (원본 ${bomLineCount}행) — 파일 구조 확인 필요`);
       } else {
         warnings.push(`제조원가 BOM 집계: 원본 ${bomLineCount}행 → 생산품 ${parsed.length}건`);
+        // 고정비 0 품목 카운트 — BOM 분배 누락 감지
+        const zeroFixed = (parsed as ManufacturingCostRecord[])
+          .filter((r) => r.totalFixedCost === 0 && r.totalVariableCost > 0).length;
+        if (zeroFixed > 0) {
+          const pct = Math.round((zeroFixed / parsed.length) * 100);
+          warnings.push(
+            `제조원가: 고정비 0인 생산품 ${zeroFixed}건 (${pct}%) — actualUnitCost에 고정비 미포함. ` +
+            `BOM 분배 누락 또는 공통 배부 전 상태일 가능성. 표준원가 비교 시 변동률이 실제보다 낮게 산출될 수 있음.`
+          );
+        }
       }
       break;
     }
@@ -1159,6 +1195,37 @@ function parseSheetData(
  * 셀 병합 자동 해제: !merges 메타데이터에 등록된 병합 셀만 해제.
  * 좌상단 셀 값을 병합 범위 내 나머지 셀에 복사한 뒤 !merges를 삭제.
  */
+/**
+ * 제조원가 파일명에서 기간 라벨 추출.
+ * 파일 자체에 연월 컬럼이 비어있으므로 파일명 패턴(1~3, 4~6 등)에 의존.
+ * 기본값: 업로드 시점 기반 현재 분기 라벨.
+ */
+function deriveManufacturingPeriod(fileName: string): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  // 패턴 1: "(1~3)", "(4~6)", "(7~9)", "(10~12)" 같은 분기 범위
+  const rangeMatch = fileName.match(/\((\d{1,2})\s*~\s*(\d{1,2})\)/);
+  if (rangeMatch) {
+    const start = parseInt(rangeMatch[1], 10);
+    const end = parseInt(rangeMatch[2], 10);
+    if (start >= 1 && end <= 12 && start < end) {
+      // 일반 분기: 1-3=Q1, 4-6=Q2, 7-9=Q3, 10-12=Q4
+      if (start === 1 && end === 3) return `${year}-Q1`;
+      if (start === 4 && end === 6) return `${year}-Q2`;
+      if (start === 7 && end === 9) return `${year}-Q3`;
+      if (start === 10 && end === 12) return `${year}-Q4`;
+      // 비표준 범위: MM~MM 형식
+      return `${year}-${String(start).padStart(2, "0")}~${String(end).padStart(2, "0")}`;
+    }
+  }
+  // 패턴 2: "2026Q1", "2026-Q1" 명시
+  const qMatch = fileName.match(/(\d{4})[-_\s]?Q([1-4])/i);
+  if (qMatch) return `${qMatch[1]}-Q${qMatch[2]}`;
+  // Fallback: 현재 분기
+  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+  return `${year}-Q${currentQuarter}`;
+}
+
 function unmergeSheet(sheet: XLSX.WorkSheet, warnings?: string[]): number {
   const merges = sheet["!merges"];
   if (!merges || merges.length === 0) return 0;

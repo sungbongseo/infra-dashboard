@@ -22,6 +22,27 @@ import { safeDivide } from "@/lib/utils";
 // ─── 유틸 ───────────────────────────────────────────────
 
 /**
+ * 품목명 정규화 — Fuzzy matching을 위한 키 생성.
+ *
+ * 100 보고서(매출)와 표준원가/제조원가의 품목명 표기 차이를 흡수:
+ *  - 전후 공백 제거
+ *  - 괄호 접미사 제거 ("AP-5 (상품)" → "AP-5")
+ *  - 연속 공백을 단일 공백으로
+ *  - 슬래시 앞뒤 공백 통일 ("경유/bulk" ↔ "경유 / bulk")
+ *  - 소문자화 (대소문자 차이 흡수)
+ */
+export function normalizeItemName(raw: string): string {
+  if (!raw) return "";
+  return raw
+    .trim()
+    .replace(/\([^)]*\)/g, " ")   // 괄호+내용 제거
+    .replace(/\s*\/\s*/g, "/")    // 슬래시 주변 공백 제거
+    .replace(/\s+/g, " ")         // 연속 공백 → 단일
+    .trim()
+    .toLowerCase();
+}
+
+/**
  * 품목명→품목코드 매핑 빌드.
  *
  * 소스 우선순위:
@@ -40,56 +61,104 @@ export function buildItemCodeMap(
   manufacturingCost: ManufacturingCostRecord[] = []
 ): Map<string, string> {
   const nameToCode = new Map<string, string>();
+  // Fuzzy 매칭용: 정규화된 이름 → 코드 (fallback 조회에서만 사용)
+  const normToCode = new Map<string, string>();
+
+  const addMapping = (rawName: string, code: string) => {
+    if (!rawName || !code) return;
+    const n = rawName.trim();
+    if (n && !nameToCode.has(n)) nameToCode.set(n, code);
+    const norm = normalizeItemName(rawName);
+    if (norm && !normToCode.has(norm)) normToCode.set(norm, code);
+  };
 
   // 1. 200 보고서 (대괄호 형식만 추출)
   for (const r of itemProfitability) {
     const raw = (r.품목 || "").trim();
     if (!raw) continue;
     const match = raw.match(/^\[([^\]]+)\]\s*(.*)$/);
-    if (match) {
-      const code = match[1].trim();
-      const name = match[2].trim();
-      if (name && !nameToCode.has(name)) nameToCode.set(name, code);
-    }
+    if (match) addMapping(match[2], match[1].trim());
   }
 
-  // 2. 표준원가 book — 제품만 매핑 (원재료/부재료는 판매 안 함)
+  // 2. 표준원가 book — 제품/상품만 매핑
   for (const r of standardCostBook) {
-    const name = (r.품목명 || "").trim();
-    const code = (r.품목코드 || "").trim();
-    if (name && code && !nameToCode.has(name)) {
-      nameToCode.set(name, code);
-    }
+    const 계정 = (r.품목계정그룹 || "").trim();
+    if (계정 !== "제품" && 계정 !== "상품") continue;
+    addMapping(r.품목명 || "", r.품목코드 || "");
   }
 
   // 3. 제조원가 — 생산품명 기반
-  for (const r of manufacturingCost) {
-    const name = (r.생산품명 || "").trim();
-    const code = (r.생산품코드 || "").trim();
-    if (name && code && !nameToCode.has(name)) {
-      nameToCode.set(name, code);
-    }
-  }
+  for (const r of manufacturingCost) addMapping(r.생산품명 || "", r.생산품코드 || "");
 
+  // fallback 통합: 원본 매핑에 없지만 정규화 매핑으로 해결되는 엔트리 병합
+  for (const [norm, code] of Array.from(normToCode.entries())) {
+    if (!nameToCode.has(norm)) nameToCode.set(norm, code);
+  }
   return nameToCode;
 }
 
 /**
- * 표준원가 book 조회: (factory, itemCode) → 표준원가
- * 공장이 매칭되지 않으면 다른 공장의 값을 fallback으로 사용.
+ * 품목명으로 코드 조회 — 원본 → 정규화 2단계 매칭.
  */
-function buildStandardCostLookup(
-  book: StandardCostBookRecord[]
-): Map<string, StandardCostBookRecord> {
-  const map = new Map<string, StandardCostBookRecord>();
+export function lookupItemCode(
+  itemCodeMap: Map<string, string>,
+  rawName: string
+): string | null {
+  const n = (rawName || "").trim();
+  if (!n) return null;
+  const direct = itemCodeMap.get(n);
+  if (direct) return direct;
+  const norm = normalizeItemName(rawName);
+  return itemCodeMap.get(norm) || null;
+}
+
+/**
+ * 표준원가 book 조회 구조.
+ * byFactory: (factory, itemCode) → 단일 레코드 (공장 직접 매칭)
+ * byCodeAll: itemCode → 그 코드의 모든 공장 레코드 배열 (fallback 전략에서 평균 계산)
+ * 제품/상품만 인덱싱 (원재료·부재료는 판매 대상 아님).
+ */
+interface StandardCostLookup {
+  byFactory: Map<string, StandardCostBookRecord>;
+  byCodeAll: Map<string, StandardCostBookRecord[]>;
+}
+
+function buildStandardCostLookup(book: StandardCostBookRecord[]): StandardCostLookup {
+  const byFactory = new Map<string, StandardCostBookRecord>();
+  const byCodeAll = new Map<string, StandardCostBookRecord[]>();
   for (const r of book) {
-    const key = `${r.factory}||${r.품목코드}`;
-    map.set(key, r);
-    // Fallback: 코드만 (공장 불명 시)
-    const codeOnly = `*||${r.품목코드}`;
-    if (!map.has(codeOnly)) map.set(codeOnly, r);
+    const 계정 = (r.품목계정그룹 || "").trim();
+    if (계정 !== "제품" && 계정 !== "상품") continue;
+    byFactory.set(`${r.factory}||${r.품목코드}`, r);
+    const arr = byCodeAll.get(r.품목코드) || [];
+    arr.push(r);
+    byCodeAll.set(r.품목코드, arr);
   }
-  return map;
+  return { byFactory, byCodeAll };
+}
+
+export type FallbackStrategy = "first" | "average";
+
+/**
+ * 표준원가 조회 — 매출 공장 직접 매칭 실패 시 fallback 전략 적용.
+ *  - "first": 첫 매칭 공장의 값 (기존 동작, 빠르지만 부정확)
+ *  - "average": 모든 공장의 평균 (공장 간 표준원가 차이 반영, 권장 기본값)
+ */
+function resolveStandardCost(
+  lookup: StandardCostLookup,
+  factory: string,
+  itemCode: string,
+  strategy: FallbackStrategy
+): { cost: number; sourceFactory: string } | null {
+  const direct = lookup.byFactory.get(`${factory}||${itemCode}`);
+  if (direct) return { cost: direct.표준원가, sourceFactory: factory };
+  const all = lookup.byCodeAll.get(itemCode);
+  if (!all || all.length === 0) return null;
+  if (strategy === "first") return { cost: all[0].표준원가, sourceFactory: all[0].factory };
+  // average: 모든 공장 표준원가 산술평균 + 출처를 "평균(N개)" 라벨
+  const avg = all.reduce((s, r) => s + r.표준원가, 0) / all.length;
+  const sources = Array.from(new Set(all.map((r) => r.factory))).sort();
+  return { cost: avg, sourceFactory: sources.length > 1 ? `평균(${sources.join("+")})` : sources[0] };
 }
 
 function buildManufacturingLookup(
@@ -114,6 +183,12 @@ export interface ThreeWayInput {
   manufacturingCost: ManufacturingCostRecord[];
   periodStart?: string; // "YYYYMM", 기본 "202601"
   periodEnd?: string;   // "YYYYMM", 기본 "202603"
+  /**
+   * 공장 직접 매칭 실패 시 표준원가 선택 전략.
+   *  - "average" (권장/기본): 해당 품목의 모든 공장 표준원가 평균
+   *  - "first": 첫 매칭 공장 값 (이전 동작, 빠르지만 공장 간 차이 반영 불가)
+   */
+  fallbackStrategy?: FallbackStrategy;
 }
 
 export interface ThreeWayResult {
@@ -137,6 +212,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
     manufacturingCost,
     periodStart = "202601",
     periodEnd = "202603",
+    fallbackStrategy = "average",
   } = input;
 
   const warnings: string[] = [];
@@ -165,8 +241,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
     const amount = r.매출액?.실적 || 0;
     if (qty === 0 && amount === 0) continue;
 
-    // 품목명 → 코드 매핑
-    const itemCode = itemCodeMap.get(itemName) || null;
+    const itemCode = lookupItemCode(itemCodeMap, itemName);
     const factory = (r as any).공장 || "unknown";
 
     // 집계 키: 품목명 기준 (코드 매핑 실패 시도 포함)
@@ -201,17 +276,22 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
     if (agg.salesQty === 0) continue;
     const avgSalesPrice = safeDivide(agg.salesAmount, agg.salesQty);
 
-    // 표준원가 룩업 (공장 우선 → 코드만)
-    const stdKey = agg.itemCode ? `${agg.factory}||${agg.itemCode}` : null;
-    const stdFallbackKey = agg.itemCode ? `*||${agg.itemCode}` : null;
-    const stdRec = stdKey ? (stdLookup.get(stdKey) || (stdFallbackKey ? stdLookup.get(stdFallbackKey) : undefined)) : undefined;
-    const standardCost = stdRec?.표준원가 ?? null;
+    const stdResolved = agg.itemCode
+      ? resolveStandardCost(stdLookup, agg.factory, agg.itemCode, fallbackStrategy)
+      : null;
+    const standardCost = stdResolved?.cost ?? null;
+    const standardCostFactory = stdResolved?.sourceFactory ?? null;
 
-    // 제조원가 룩업
-    const mfgKey = agg.itemCode ? `${agg.factory}||${agg.itemCode}` : null;
-    const mfgFallbackKey = agg.itemCode ? `*||${agg.itemCode}` : null;
-    const mfgRec = mfgKey ? (mfgLookup.get(mfgKey) || (mfgFallbackKey ? mfgLookup.get(mfgFallbackKey) : undefined)) : undefined;
+    // 제조원가 룩업 (공장 직접 매칭 → 코드 fallback)
+    const mfgDirect = agg.itemCode ? mfgLookup.get(`${agg.factory}||${agg.itemCode}`) : undefined;
+    const mfgFallback = !mfgDirect && agg.itemCode
+      ? mfgLookup.get(`*||${agg.itemCode}`)
+      : undefined;
+    const mfgRec = mfgDirect || mfgFallback;
     const actualUnitCost = mfgRec?.actualUnitCost ?? null;
+    const actualCostFactory = mfgRec
+      ? (mfgDirect ? agg.factory : (mfgRec.factory || "*"))
+      : null;
 
     const hasStandard = standardCost !== null;
     const hasManufacturing = actualUnitCost !== null;
@@ -227,7 +307,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       ? ((actualUnitCost! - standardCost!) / standardCost!) * 100
       : null;
 
-    const salesImpact = hasStandard && hasManufacturing
+    const marginVarianceImpact = hasStandard && hasManufacturing
       ? (actualUnitCost! - standardCost!) * agg.salesQty
       : 0;
 
@@ -252,12 +332,15 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       avgSalesPrice,
       standardCost,
       hasStandard,
+      standardCostFactory,
       actualUnitCost,
       hasManufacturing,
+      actualCostFactory,
       salesVsStdMarginPct,
       salesVsActualMarginPct,
       stdVsActualVariancePct,
-      salesImpact,
+      marginVarianceImpact,
+      salesImpact: marginVarianceImpact, // backward compat (deprecated)
       note,
     });
 
@@ -294,33 +377,61 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
 export interface FactoryVarianceRecord {
   factory: string;
   itemCount: number;
-  avgVariancePct: number | null;   // 표준-실제 평균
+  avgVariancePct: number | null;       // 매출액 가중평균 변동률 (%)
+  simpleAvgVariancePct: number | null; // 단순 산술평균 (참고용)
+  totalMarginVarianceImpact: number;   // 표준 대비 초과 원가 누적
+  totalSalesAmount: number;            // 가중치 검증용
+  hasStandardCoverage: boolean;        // 표준원가 book 커버리지
+  /** @deprecated totalMarginVarianceImpact로 대체 */
   totalSalesImpact: number;
-  hasStandardCoverage: boolean;    // 표준원가 book 있음 여부
 }
 
+/**
+ * 공장별 평균 변동률 — 매출액 가중평균 사용.
+ *
+ * 금융/원가 회계 원칙: 비율 평균은 항상 가중평균이어야 함.
+ * 단순 평균은 100건 매출 1건의 50% 변동과 1건 매출 1건의 1% 변동을 동일 가중.
+ * → 매출액을 가중치로 사용하여 재무 영향도가 큰 품목을 반영.
+ */
 export function calcFactoryVariance(rows: ThreeWayComparisonRow[]): FactoryVarianceRecord[] {
-  const byFactory = new Map<string, { variancePcts: number[]; salesImpact: number; count: number; hasStd: boolean }>();
+  const byFactory = new Map<string, {
+    weightedSum: number;       // Σ(variancePct × salesAmount)
+    salesWeight: number;       // Σ(salesAmount) — 유효 변동률을 가진 행만
+    simpleSum: number;
+    simpleCount: number;
+    impactSum: number;
+    totalSales: number;
+    count: number;
+    hasStd: boolean;
+  }>();
   for (const r of rows) {
     const key = r.factory || "unknown";
-    const entry = byFactory.get(key) || { variancePcts: [], salesImpact: 0, count: 0, hasStd: false };
-    if (r.stdVsActualVariancePct !== null) {
-      entry.variancePcts.push(r.stdVsActualVariancePct);
+    const entry = byFactory.get(key) || {
+      weightedSum: 0, salesWeight: 0, simpleSum: 0, simpleCount: 0,
+      impactSum: 0, totalSales: 0, count: 0, hasStd: false,
+    };
+    if (r.stdVsActualVariancePct !== null && r.salesAmount > 0) {
+      entry.weightedSum += r.stdVsActualVariancePct * r.salesAmount;
+      entry.salesWeight += r.salesAmount;
+      entry.simpleSum += r.stdVsActualVariancePct;
+      entry.simpleCount += 1;
       entry.hasStd = true;
     }
-    entry.salesImpact += r.salesImpact;
+    entry.impactSum += r.marginVarianceImpact;
+    entry.totalSales += r.salesAmount;
     entry.count += 1;
     byFactory.set(key, entry);
   }
   return Array.from(byFactory.entries()).map(([factory, v]) => ({
     factory,
     itemCount: v.count,
-    avgVariancePct: v.variancePcts.length > 0
-      ? v.variancePcts.reduce((s, x) => s + x, 0) / v.variancePcts.length
-      : null,
-    totalSalesImpact: v.salesImpact,
+    avgVariancePct: v.salesWeight > 0 ? v.weightedSum / v.salesWeight : null,
+    simpleAvgVariancePct: v.simpleCount > 0 ? v.simpleSum / v.simpleCount : null,
+    totalMarginVarianceImpact: v.impactSum,
+    totalSalesAmount: v.totalSales,
     hasStandardCoverage: v.hasStd,
-  })).sort((a, b) => Math.abs(b.totalSalesImpact) - Math.abs(a.totalSalesImpact));
+    totalSalesImpact: v.impactSum, // backward compat (deprecated)
+  })).sort((a, b) => Math.abs(b.totalMarginVarianceImpact) - Math.abs(a.totalMarginVarianceImpact));
 }
 
 // ─── 원가 요인 분해 (14 변동비 비율) ──────────────────────
