@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { KpiCard } from "@/components/dashboard/KpiCard";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
@@ -68,6 +68,23 @@ export function OffsetEffectTab({
   const [poolLevel, setPoolLevel] = useState<PoolLevel>("대분류");
   const [poolName, setPoolName] = useState<string>("");
   const [allocationBasis, setAllocationBasis] = useState<FixedCostAllocation>("revenue");
+
+  // 품목/거래처 검색 Combobox
+  const [itemSearch, setItemSearch] = useState("");
+  const [itemPickerOpen, setItemPickerOpen] = useState(false);
+  const [custSearch, setCustSearch] = useState("");
+  const [custPickerOpen, setCustPickerOpen] = useState(false);
+
+  // Combobox 바깥 클릭 닫기
+  useEffect(() => {
+    if (!itemPickerOpen && !custPickerOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement;
+      if (!t.closest("[data-combobox]")) { setItemPickerOpen(false); setCustPickerOpen(false); }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [itemPickerOpen, custPickerOpen]);
 
   // 시뮬레이션 입력 모드: "percent" (비율) / "absolute" (절대 수량)
   const [inputMode, setInputMode] = useState<"percent" | "absolute">("percent");
@@ -189,7 +206,7 @@ export function OffsetEffectTab({
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v }))
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 50);
+      .slice(0, 300);
   }, [cvpItems]);
 
   const itemList = useMemo(() => {
@@ -227,6 +244,23 @@ export function OffsetEffectTab({
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 300);
   }, [cvpItems, poolItems, filteredItemProfitability]);
+
+  // 검색 필터된 품목/거래처 리스트
+  const filteredItemList = useMemo(() => {
+    const q = itemSearch.trim().toLowerCase();
+    if (!q) return itemList.slice(0, 50);
+    return itemList.filter(i =>
+      i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)
+    ).slice(0, 50);
+  }, [itemList, itemSearch]);
+
+  const filteredCustList = useMemo(() => {
+    const q = custSearch.trim().toLowerCase();
+    if (!q) return customerList.slice(0, 50);
+    return customerList.filter(c =>
+      c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    ).slice(0, 50);
+  }, [customerList, custSearch]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
   // 파이차트: 정상(공헌이익 > 0) vs 출혈(공헌이익 ≤ 0) 분류
@@ -1034,33 +1068,91 @@ export function OffsetEffectTab({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="flex items-center gap-2">
               <span className="text-xs min-w-[70px]">대상 거래처:</span>
-              <select
-                value={targetCustomer ?? ""}
-                onChange={(e) => setTargetCustomer(e.target.value || null)}
-                className="flex-1 text-xs border rounded px-2 py-1 bg-background"
-              >
-                <option value="">전체 거래처</option>
-                {customerList.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {truncateLabel(c.name, 20)} ({formatCurrency(c.revenue, true)})
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1 relative" data-combobox>
+                <button type="button" onClick={() => { setCustPickerOpen(!custPickerOpen); setItemPickerOpen(false); }}
+                  className="w-full text-left text-xs border rounded px-2 py-1.5 bg-background truncate cursor-pointer hover:border-blue-400 transition-colors">
+                  {targetCustomer
+                    ? `${customerList.find(c => c.code === targetCustomer)?.name || targetCustomer}`
+                    : "전체 거래처 (클릭하여 검색)"}
+                </button>
+                {custPickerOpen && (
+                  <div className="absolute z-50 top-full mt-1 w-full min-w-[300px] bg-popover border rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-2 border-b">
+                      <input type="text" autoFocus value={custSearch}
+                        onChange={(e) => setCustSearch(e.target.value)}
+                        placeholder="거래처명 또는 코드 검색..."
+                        className="w-full text-sm border rounded px-2.5 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button type="button" onClick={() => { setTargetCustomer(null); setCustPickerOpen(false); setCustSearch(""); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 border-b font-medium">
+                      전체 거래처
+                    </button>
+                    <div className="max-h-[240px] overflow-y-auto">
+                      {filteredCustList.map(c => (
+                        <button type="button" key={c.code}
+                          onClick={() => { setTargetCustomer(c.code); setCustPickerOpen(false); setCustSearch(""); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center ${
+                            targetCustomer === c.code ? "bg-blue-50 dark:bg-blue-950/30 font-semibold" : ""
+                          }`}>
+                          <span className="truncate flex-1">{c.name}</span>
+                          <span className="text-muted-foreground ml-2 text-[11px] whitespace-nowrap">{formatCurrency(c.revenue, true)}</span>
+                        </button>
+                      ))}
+                      {filteredCustList.length === 0 && (
+                        <p className="text-center text-muted-foreground py-3 text-sm">&quot;{custSearch}&quot; 결과 없음</p>
+                      )}
+                    </div>
+                    <div className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
+                      {custSearch ? `${filteredCustList.length}건 매칭` : `전체 ${customerList.length}건 중 상위 50건`}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs min-w-[70px]">대상 품목:</span>
-              <select
-                value={targetItem ?? ""}
-                onChange={(e) => { setTargetItem(e.target.value || null); if (!e.target.value) setInputMode("percent"); setVolumeAbsolute(0); setPriceChangeDirect(0); }}
-                className="flex-1 text-xs border rounded px-2 py-1 bg-background"
-              >
-                <option value="">전체 품목</option>
-                {itemList.map((i) => (
-                  <option key={i.code} value={i.code}>
-                    {truncateLabel(i.name, 25)} ({formatCurrency(i.revenue, true)})
-                  </option>
-                ))}
-              </select>
+              <div className="flex-1 relative" data-combobox>
+                <button type="button" onClick={() => { setItemPickerOpen(!itemPickerOpen); setCustPickerOpen(false); }}
+                  className="w-full text-left text-xs border rounded px-2 py-1.5 bg-background truncate cursor-pointer hover:border-blue-400 transition-colors">
+                  {targetItem
+                    ? `${itemList.find(i => i.code === targetItem)?.name || targetItem}`
+                    : "전체 품목 (클릭하여 검색)"}
+                </button>
+                {itemPickerOpen && (
+                  <div className="absolute z-50 top-full mt-1 w-full min-w-[320px] bg-popover border rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
+                    <div className="p-2 border-b">
+                      <input type="text" autoFocus value={itemSearch}
+                        onChange={(e) => setItemSearch(e.target.value)}
+                        placeholder="품목명 또는 코드 검색..."
+                        className="w-full text-sm border rounded px-2.5 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <button type="button" onClick={() => { setTargetItem(null); setItemPickerOpen(false); setItemSearch(""); setInputMode("percent"); setVolumeAbsolute(0); setPriceChangeDirect(0); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 border-b font-medium">
+                      전체 품목
+                    </button>
+                    <div className="max-h-[280px] overflow-y-auto">
+                      {filteredItemList.map(i => (
+                        <button type="button" key={i.code}
+                          onClick={() => { setTargetItem(i.code); setItemPickerOpen(false); setItemSearch(""); setVolumeAbsolute(0); setPriceChangeDirect(0); }}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center ${
+                            targetItem === i.code ? "bg-blue-50 dark:bg-blue-950/30 font-semibold" : ""
+                          }`}>
+                          <span className="truncate flex-1">{i.name}</span>
+                          <span className="text-muted-foreground ml-2 text-[11px] whitespace-nowrap">{formatCurrency(i.revenue, true)}</span>
+                        </button>
+                      ))}
+                      {filteredItemList.length === 0 && (
+                        <p className="text-center text-muted-foreground py-3 text-sm">&quot;{itemSearch}&quot; 결과 없음</p>
+                      )}
+                    </div>
+                    <div className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
+                      {itemSearch ? `${filteredItemList.length}건 매칭` : `전체 ${itemList.length}건 중 상위 50건`}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
