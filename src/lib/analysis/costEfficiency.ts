@@ -171,14 +171,14 @@ export function calcStandardCostAccuracyKPI(
     .map((r) => ({ abs: Math.abs(r.stdVsActualVariancePct!), w: r.salesAmount }))
     .sort((a, b) => a.abs - b.abs);
   let cumWeight = 0;
-  let median = 0;
-  let p90 = 0;
+  let median: number | null = null;
+  let p90: number | null = null;
   for (const e of sortedByAbs) {
     cumWeight += e.w;
-    if (median === 0 && cumWeight >= totalSales * 0.5) median = e.abs;
-    if (p90 === 0 && cumWeight >= totalSales * 0.9) { p90 = e.abs; break; }
+    if (median === null && cumWeight >= totalSales * 0.5) median = e.abs;
+    if (p90 === null && cumWeight >= totalSales * 0.9) { p90 = e.abs; break; }
   }
-  if (p90 === 0) p90 = sortedByAbs[sortedByAbs.length - 1]?.abs || 0;
+  if (p90 === null) p90 = sortedByAbs[sortedByAbs.length - 1]?.abs ?? 0;
 
   // 양수 비중 (매출액 가중)
   const overSalesSum = matched
@@ -216,8 +216,8 @@ export function calcStandardCostAccuracyKPI(
   return {
     sampleSize: matched.length,
     weightedAbsVariancePct,
-    medianAbsVariancePct: median,
-    p90AbsVariancePct: p90,
+    medianAbsVariancePct: median ?? 0,
+    p90AbsVariancePct: p90 ?? 0,
     overStandardRatio,
     within5PctRatio,
     within10PctRatio,
@@ -346,6 +346,9 @@ export function detectInefficiencies(
         ? `${r.factory} ${r.itemName}: 실제 단가가 표준보다 ${r.stdVsActualVariancePct.toFixed(1)}% 높음 → 원가 관리 점검 필요`
         : `${r.factory} ${r.itemName}: 실제 단가가 표준보다 ${(-r.stdVsActualVariancePct).toFixed(1)}% 낮음 → 표준 하향 조정 검토`,
       currentLocation: { factory: r.factory, unitCost: r.actualUnitCost! },
+      estimatedAnnualSavings: r.actualUnitCost !== null && r.standardCost !== null
+        ? Math.abs(r.actualUnitCost - r.standardCost) * r.salesQty * 4
+        : 0,
     });
   }
 

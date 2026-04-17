@@ -38,7 +38,7 @@ export function normalizeItemName(raw: string): string {
   if (!raw) return "";
   return raw
     .trim()
-    .replace(/\([^)]*\)/g, " ")   // 괄호+내용 제거
+    .replace(/\((?:상품|제품|침적|매입|벌크|원재료|부재료|반제품)\)/gi, " ")   // 분류 태그만 제거 (규격 괄호 보존)
     .replace(/\s*\/\s*/g, "/")    // 슬래시 주변 공백 제거
     .replace(/\s+/g, " ")         // 연속 공백 → 단일
     .trim()
@@ -212,6 +212,7 @@ export interface ThreeWayResult {
     twoWayMatched: number;
     /** @deprecated purchaseItems + productNotProduced + mappingFailed + standardMissing */
     salesOnly: number;
+    skippedZeroQty: number;
   };
 }
 
@@ -253,7 +254,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
     if (qty === 0 && amount === 0) continue;
 
     const itemCode = lookupItemCode(itemCodeMap, itemName);
-    const factory = (r as any).공장 || "unknown";
+    const factory = r.공장 || "unknown";
 
     // 집계 키: 품목명 기준 (코드 매핑 실패 시도 포함)
     const aggKey = itemCode ? `${itemCode}||${factory}` : `__name__||${itemName}`;
@@ -282,10 +283,10 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
   const rows: ThreeWayComparisonRow[] = [];
   const trend: MonthlyPriceTrend[] = [];
   let threeWayMatched = 0, purchaseItems = 0, productNotProduced = 0;
-  let mappingFailedCov = 0, standardMissingCov = 0;
+  let mappingFailedCov = 0, standardMissingCov = 0, skippedZeroQty = 0;
 
   for (const agg of Array.from(salesByItem.values())) {
-    if (agg.salesQty === 0) continue;
+    if (agg.salesQty === 0) { skippedZeroQty++; continue; }
     const avgSalesPrice = safeDivide(agg.salesAmount, agg.salesQty);
 
     const stdResolved = agg.itemCode
@@ -336,6 +337,22 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       ? (actualUnitCost! - standardCost!) * agg.salesQty
       : 0;
 
+    // 데이터 품질 플래그 — 극단값/소량배치/고정비집중 탐지
+    const dataQualityFlags: Array<"extreme_variance" | "low_qty_high_variance" | "fixed_cost_dominates"> = [];
+    const absVariance = stdVsActualVariancePct !== null ? Math.abs(stdVsActualVariancePct) : 0;
+    if (absVariance > 1000) dataQualityFlags.push("extreme_variance");
+    if (agg.salesQty < 10 && absVariance > 100) dataQualityFlags.push("low_qty_high_variance");
+    if (actualUnitCost !== null && standardCost !== null && standardCost > 0
+        && actualUnitCost > standardCost * 50 && agg.salesQty < 10) {
+      dataQualityFlags.push("fixed_cost_dominates");
+    }
+    const actualCostConfidence = stdVsActualVariancePct === null ? 1.0
+      : absVariance > 1000 ? 0.1
+      : absVariance > 500 ? 0.3
+      : absVariance > 100 ? 0.5
+      : absVariance > 50 ? 0.7
+      : 1.0;
+
     // 사유 분류
     let noteKind: CostNoteKind;
     let note: string;
@@ -383,6 +400,8 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
       marginVarianceImpact,
       salesImpact: marginVarianceImpact, // backward compat (deprecated)
       note,
+      dataQualityFlags,
+      actualCostConfidence,
     });
 
     // 월별 추세 (판매만 기록)
@@ -412,6 +431,7 @@ export function calcThreeWayComparison(input: ThreeWayInput): ThreeWayResult {
     // Backward compat
     twoWayMatched: purchaseItems + productNotProduced,
     salesOnly: purchaseItems + productNotProduced + mappingFailedCov + standardMissingCov,
+    skippedZeroQty,
   };
 
   return { rows, trend, warnings, coverage };
@@ -507,7 +527,7 @@ export function calcCostDriverBreakdown(
     const 노무비V = pct(r.노무비);
     const 외주 = pct(r.외주가공비);
     const 고정 = pct(r.totalFixedCost);
-    const 기타 = 100 - 원재료 - 부재료 - 노무비V - 외주 - 고정;
+    const 기타 = Math.max(0, 100 - 원재료 - 부재료 - 노무비V - 외주 - 고정);
     const drivers = [
       { name: "원재료비", v: 원재료 },
       { name: "부재료비", v: 부재료 },

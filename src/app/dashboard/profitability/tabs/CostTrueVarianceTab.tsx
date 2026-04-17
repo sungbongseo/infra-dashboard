@@ -115,12 +115,24 @@ export function CostTrueVarianceTab({
     if (searchQuery.trim()) {
       return [...filteredRows].sort((a, b) => b.salesAmount - a.salesAmount).slice(0, 100);
     }
-    return [...filteredRows].sort((a, b) => Math.abs(b.salesImpact) - Math.abs(a.salesImpact)).slice(0, 20);
+    return [...filteredRows].sort((a, b) => b.marginVarianceImpact - a.marginVarianceImpact).slice(0, 20);
   }, [filteredRows, searchQuery]);
 
-  // 미매칭 품목 리스트
+  // 데이터 품질 경고 품목 (극단값/소량배치)
+  const qualityAlertRows = useMemo(
+    () => analysis.rows
+      .filter((r) => r.dataQualityFlags.length > 0)
+      .sort((a, b) => Math.abs(b.stdVsActualVariancePct ?? 0) - Math.abs(a.stdVsActualVariancePct ?? 0)),
+    [analysis.rows]
+  );
+
+  // 미매칭 품목 리스트 — 정상 상품(매입)은 제외
   const unmatchedRows = useMemo(
-    () => analysis.rows.filter((r) => r.note && r.note !== ""),
+    () => analysis.rows.filter((r) =>
+      r.noteKind === "mapping_failed" ||
+      r.noteKind === "standard_missing" ||
+      r.noteKind === "product_not_produced"
+    ),
     [analysis.rows]
   );
 
@@ -212,6 +224,76 @@ export function CostTrueVarianceTab({
         <div className="rounded-md border border-amber-300 bg-amber-50/50 p-3 text-sm text-amber-900 dark:text-amber-200 dark:bg-amber-950/20 space-y-1">
           {!hasStdData && <p>⚠️ 표준원가 book 미업로드 — 업로드하면 3-Way 비교가 활성화됩니다. (예: &quot;양산공장 표준원가 3월31일 기준.xlsx&quot;)</p>}
           {!hasMfgData && <p>⚠️ 제조원가 파일 미업로드 — 업로드하면 실제 단가 비교가 활성화됩니다. (예: &quot;품목별 제조원가(1~3).xlsx&quot;)</p>}
+        </div>
+      )}
+
+      {/* 데이터 품질 경고 — 극단적 변동률 품목 */}
+      {qualityAlertRows.length > 0 && (
+        <div className="rounded-lg border-l-4 border-red-500 bg-red-50/70 dark:bg-red-950/20 p-4 space-y-3">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-red-800 dark:text-red-300">
+                원가 데이터 품질 경고 — 극단적 변동률 {qualityAlertRows.length}건 감지
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-400 mt-1 leading-relaxed">
+                소량 배치(10개 미만)에서 고정비가 집중 배분되거나, 표준원가 등록 오류로 극단적 변동률(±1000% 초과)이 발생한 품목입니다.
+                원가팀에 표준원가 적정성 확인 또는 BOM 데이터 검증을 요청하세요.
+              </p>
+            </div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-[13px]">
+              <thead className="bg-red-100/50 dark:bg-red-950/40">
+                <tr className="border-b text-left">
+                  <th className="p-2">심각도</th>
+                  <th className="p-2">품목</th>
+                  <th className="p-2">공장</th>
+                  <th className="p-2 text-right">판매수량</th>
+                  <th className="p-2 text-right">표준원가</th>
+                  <th className="p-2 text-right">실제원가</th>
+                  <th className="p-2 text-right">변동률</th>
+                  <th className="p-2">진단</th>
+                </tr>
+              </thead>
+              <tbody>
+                {qualityAlertRows.slice(0, 15).map((r, i) => {
+                  const absV = Math.abs(r.stdVsActualVariancePct ?? 0);
+                  const severity = absV > 1000 ? "극단" : absV > 500 ? "심각" : "주의";
+                  const flags = r.dataQualityFlags;
+                  const diagnosis = flags.includes("fixed_cost_dominates")
+                    ? `수량 ${r.salesQty}개에 고정비 집중 → 단가 ${Math.round((r.actualUnitCost ?? 0) / Math.max(r.standardCost ?? 1, 1))}배`
+                    : flags.includes("extreme_variance")
+                    ? `변동률 ${absV.toFixed(0)}% — 표준원가 재검토 필요`
+                    : `소량(${r.salesQty}개) + 변동률 ${absV.toFixed(0)}%`;
+                  return (
+                    <tr key={`qa-${i}`} className="border-b hover:bg-muted/30">
+                      <td className="p-2">
+                        <span className={`px-2 py-0.5 rounded text-white text-[11px] font-bold ${
+                          severity === "극단" ? "bg-red-600" : severity === "심각" ? "bg-orange-600" : "bg-amber-600"
+                        }`}>{severity}</span>
+                      </td>
+                      <td className="p-2 min-w-[220px]">
+                        <div className="font-medium break-words whitespace-normal leading-snug">{r.itemName}</div>
+                        <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{r.itemCode}</div>
+                      </td>
+                      <td className="p-2">{r.factory}</td>
+                      <td className="p-2 text-right font-mono">{r.salesQty.toLocaleString()}</td>
+                      <td className="p-2 text-right font-mono">{r.standardCost !== null ? formatCurrency(r.standardCost) : "-"}</td>
+                      <td className="p-2 text-right font-mono">{r.actualUnitCost !== null ? formatCurrency(r.actualUnitCost) : "-"}</td>
+                      <td className="p-2 text-right font-mono font-bold text-red-600 dark:text-red-400">
+                        {r.stdVsActualVariancePct !== null ? `+${r.stdVsActualVariancePct.toFixed(1)}%` : "-"}
+                      </td>
+                      <td className="p-2 text-[12px] text-muted-foreground">{diagnosis}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            {qualityAlertRows.length > 15 && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">상위 15건 표시 (전체 {qualityAlertRows.length}건)</p>
+            )}
+          </div>
         </div>
       )}
 
@@ -320,7 +402,7 @@ export function CostTrueVarianceTab({
       <div id="three-way-table">
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h2 className="text-lg font-semibold">
-            Step 2. 3-Way 비교 — {searchQuery.trim() ? `검색결과 (매출액순 Top 100)` : `판매영향액 Top 20`}
+            Step 2. 3-Way 비교 — {searchQuery.trim() ? `검색결과 (${topImpactRows.length}건, 매출액순)` : `판매영향액 Top ${Math.min(20, topImpactRows.length)}건`}
           </h2>
           <ExportButton
             data={filteredRows.map((r) => ({
@@ -330,12 +412,12 @@ export function CostTrueVarianceTab({
               판매수량: r.salesQty,
               판매금액: r.salesAmount,
               판매단가: Math.round(r.avgSalesPrice),
-              표준원가: r.standardCost ?? "",
+              표준원가: r.standardCost !== null ? Math.round(r.standardCost) : "",
               실제제조원가: r.actualUnitCost !== null ? Math.round(r.actualUnitCost) : "",
               "판매-표준마진(%)": r.salesVsStdMarginPct !== null ? safeFixed(r.salesVsStdMarginPct, 1) : "",
               "판매-실제마진(%)": r.salesVsActualMarginPct !== null ? safeFixed(r.salesVsActualMarginPct, 1) : "",
               "표준-실제변동률(%)": r.stdVsActualVariancePct !== null ? safeFixed(r.stdVsActualVariancePct, 1) : "",
-              판매영향액: Math.round(r.salesImpact),
+              판매영향액: Math.round(r.marginVarianceImpact),
               비고: r.note,
             }))}
             fileName="3-Way_원가비교_2026Q1"
@@ -397,14 +479,14 @@ export function CostTrueVarianceTab({
               </thead>
               <tbody>
                 {topImpactRows.map((r, i) => (
-                  <tr key={`${r.itemCode}-${i}`} className="border-b hover:bg-muted/30">
+                  <tr key={`${r.itemCode}-${i}`} className={`border-b hover:bg-muted/30 ${r.dataQualityFlags.length > 0 ? "bg-red-50/30 dark:bg-red-950/10" : ""}`}>
                     <td className="p-2.5 min-w-[260px] max-w-[380px]">
                       <div className="font-medium text-[13px] break-words whitespace-normal leading-snug">{r.itemName}</div>
                       <div className="text-[11px] text-muted-foreground font-mono mt-0.5">{r.itemCode}</div>
                     </td>
                     <td className="p-2.5">{r.factory}</td>
                     <td className="p-2.5 text-right font-mono">{r.salesQty.toLocaleString()}</td>
-                    <td className="p-2.5 text-right font-mono">{formatCurrency(r.avgSalesPrice)}</td>
+                    <td className="p-2.5 text-right font-mono">{isFinite(r.avgSalesPrice) ? formatCurrency(r.avgSalesPrice) : "-"}</td>
                     <td className="p-2.5 text-right font-mono">
                       {r.standardCost !== null ? (
                         <span title={r.standardCostFactory && r.standardCostFactory !== r.factory
@@ -427,13 +509,24 @@ export function CostTrueVarianceTab({
                         </span>
                       ) : <span className="text-muted-foreground">-</span>}
                     </td>
-                    <td className={`p-2.5 text-right font-mono font-semibold ${r.stdVsActualVariancePct === null ? "" : r.stdVsActualVariancePct > 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                    <td className={`p-2.5 text-right font-mono font-semibold ${
+                      r.stdVsActualVariancePct === null ? "" :
+                      Math.abs(r.stdVsActualVariancePct) > 1000 ? "text-red-700 dark:text-red-300 bg-red-100/60 dark:bg-red-950/50" :
+                      Math.abs(r.stdVsActualVariancePct) > 100 ? "text-red-600 dark:text-red-400 bg-red-50/40 dark:bg-red-950/30" :
+                      r.stdVsActualVariancePct > 0 ? "text-red-600 dark:text-red-400" :
+                      "text-green-700 dark:text-green-400"
+                    }`}>
                       {r.stdVsActualVariancePct !== null ? `${r.stdVsActualVariancePct > 0 ? "+" : ""}${safeFixed(r.stdVsActualVariancePct, 1)}%` : "-"}
                     </td>
-                    <td className={`p-2.5 text-right font-mono ${r.salesImpact > 0 ? "text-red-600 dark:text-red-400" : r.salesImpact < 0 ? "text-green-700 dark:text-green-400" : ""}`}>
-                      {r.salesImpact !== 0 ? formatCurrency(r.salesImpact) : "-"}
+                    <td className={`p-2.5 text-right font-mono ${r.marginVarianceImpact > 0 ? "text-red-600 dark:text-red-400" : r.marginVarianceImpact < 0 ? "text-green-700 dark:text-green-400" : ""}`}>
+                      {r.marginVarianceImpact !== 0 ? formatCurrency(r.marginVarianceImpact) : "-"}
                     </td>
-                    <td className="p-2.5 text-[11px] text-muted-foreground">{r.note}</td>
+                    <td className="p-2.5 text-[11px] text-muted-foreground">
+                      {r.dataQualityFlags.length > 0 && (
+                        <span className="text-red-600 dark:text-red-400 font-bold mr-1" title={r.dataQualityFlags.join(", ")}>⚠</span>
+                      )}
+                      {r.note}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -486,8 +579,8 @@ export function CostTrueVarianceTab({
           <ChartContainer height="h-64">
             <BarChart data={factoryVariance.map((f) => ({
               공장: f.factory,
-              평균변동률: f.avgVariancePct !== null ? +f.avgVariancePct.toFixed(1) : 0,
-              단순평균: f.simpleAvgVariancePct !== null ? +f.simpleAvgVariancePct.toFixed(1) : 0,
+              평균변동률: f.avgVariancePct !== null ? +f.avgVariancePct.toFixed(1) : undefined,
+              단순평균: f.simpleAvgVariancePct !== null ? +f.simpleAvgVariancePct.toFixed(1) : undefined,
               hasStd: f.hasStandardCoverage,
               품목수: f.itemCount,
               매출액: f.totalSalesAmount,
@@ -555,6 +648,7 @@ export function CostTrueVarianceTab({
                     <th className="p-2 text-right">노무비</th>
                     <th className="p-2 text-right">외주</th>
                     <th className="p-2 text-right">고정비</th>
+                    <th className="p-2 text-right">기타</th>
                     <th className="p-2">주요 원인</th>
                   </tr>
                 </thead>
@@ -572,6 +666,7 @@ export function CostTrueVarianceTab({
                       <td className="p-2.5 text-right font-mono">{safeFixed(d.노무비Pct, 1)}%</td>
                       <td className="p-2.5 text-right font-mono">{safeFixed(d.외주가공비Pct, 1)}%</td>
                       <td className="p-2.5 text-right font-mono">{safeFixed(d.고정비Pct, 1)}%</td>
+                      <td className="p-2.5 text-right font-mono text-muted-foreground">{safeFixed(d.기타Pct, 1)}%</td>
                       <td className="p-2.5 text-[12px] font-semibold">{d.dominantDriver}</td>
                     </tr>
                   ))}

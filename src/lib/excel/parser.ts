@@ -1171,6 +1171,13 @@ function parseSheetData(
         warnings.push(`제조원가: BOM 전개 후 집계 결과 0건 (원본 ${bomLineCount}행) — 파일 구조 확인 필요`);
       } else {
         warnings.push(`제조원가 BOM 집계: 원본 ${bomLineCount}행 → 생산품 ${parsed.length}건`);
+        const zeroQtyWithCost = (parsed as ManufacturingCostRecord[])
+          .filter((r) => r.생산입고수량 === 0 && (r.totalVariableCost + r.totalFixedCost) > 0).length;
+        if (zeroQtyWithCost > 0) {
+          warnings.push(
+            `제조원가: 생산입고수량 0인 품목 ${zeroQtyWithCost}건 — 단가 0으로 처리됨. BOM 확인 필요`
+          );
+        }
         // 고정비 0 품목 카운트 — BOM 분배 누락 감지
         const zeroFixed = (parsed as ManufacturingCostRecord[])
           .filter((r) => r.totalFixedCost === 0 && r.totalVariableCost > 0).length;

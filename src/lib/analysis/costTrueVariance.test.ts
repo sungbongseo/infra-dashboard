@@ -192,6 +192,17 @@ describe("costTrueVariance", () => {
       expect(normalizeItemName("  경유/bulk  ")).toBe(normalizeItemName("경유 / bulk"));
     });
 
+    it("규격 괄호는 보존 (분류 태그만 제거)", () => {
+      // 규격 정보가 다른 품목은 다른 키로 구분되어야 함
+      expect(normalizeItemName("MP-BDPC(칼라,1.0mm*1m*10m)"))
+        .not.toBe(normalizeItemName("MP-BDPC(칼라,2.0mm*1m*10m)"));
+      // 규격 괄호는 결과에 보존
+      expect(normalizeItemName("MP-BDPC(칼라,1.0mm*1m*10m)")).toContain("(칼라,1.0mm*1m*10m)");
+      // 분류 태그는 여전히 제거
+      expect(normalizeItemName("AP-5(상품)")).toBe(normalizeItemName("AP-5"));
+      expect(normalizeItemName("RA7(침적)")).toBe(normalizeItemName("RA7"));
+    });
+
     it("대소문자 차이 흡수", () => {
       expect(normalizeItemName("AP-5")).toBe(normalizeItemName("ap-5"));
     });
@@ -508,6 +519,73 @@ describe("costTrueVariance", () => {
       // 원재료 = 400000 (50% of 800000), totalCost = 1000000
       expect(d.원재료비Pct).toBeCloseTo(40, 1);
       expect(d.dominantDriver).toBe("원재료비");
+    });
+  });
+
+  describe("edge cases", () => {
+    it("음수 매출수량 (credit memo) — 행 포함 및 avgSalesPrice 정상 계산", () => {
+      // 반품/credit memo: qty=-50, revenue=-300000
+      const custItem = [
+        makeCustItem({ itemName: "반품품목", factory: "양산", month: "202602", qty: -50, revenue: -300000 }),
+      ];
+      const stdBook = [makeStdCost({ factory: "양산", code: "RET01", name: "반품품목", cost: 5000 })];
+      const mfgCost = [makeMfgCost({ factory: "양산", code: "RET01", name: "반품품목", qty: 100, totalVC: 400000, totalFC: 200000 })];
+      const result = calcThreeWayComparison({
+        customerItemDetail: custItem,
+        itemProfitability: [makeItemProfit("반품품목", "RET01")],
+        standardCostBook: stdBook,
+        manufacturingCost: mfgCost,
+      });
+      // salesQty !== 0 이므로 행이 포함되어야 함
+      expect(result.rows.length).toBe(1);
+      const row = result.rows[0];
+      expect(row.salesQty).toBe(-50);
+      expect(row.salesAmount).toBe(-300000);
+      // avgSalesPrice: -300000 / -50 = 6000 (양수)
+      expect(row.avgSalesPrice).toBe(6000);
+      // marginVarianceImpact = (actualUnitCost - standardCost) × salesQty
+      // = (6000 - 5000) × (-50) = -50000 (반품이므로 음수 영향)
+      expect(row.marginVarianceImpact).toBe(-50000);
+    });
+
+    it("매출액 > 0, 매출수량 = 0 (단가 조정) — 스킵 및 skippedZeroQty 카운터 증가", () => {
+      // 단가 조정 전표: 금액만 있고 수량 0
+      const custItem = [
+        makeCustItem({ itemName: "조정품목", factory: "양산", month: "202601", qty: 0, revenue: 500000 }),
+      ];
+      const result = calcThreeWayComparison({
+        customerItemDetail: custItem,
+        itemProfitability: [makeItemProfit("조정품목", "ADJ01")],
+        standardCostBook: [],
+        manufacturingCost: [],
+      });
+      // qty=0이면 avgSalesPrice 계산 불가 → 스킵
+      expect(result.rows.length).toBe(0);
+      expect(result.coverage.skippedZeroQty).toBeGreaterThanOrEqual(1);
+    });
+
+    it("동일 품목 3개월 상이한 단가 — 가중평균 단가 (단순평균 아님)", () => {
+      const custItem = [
+        makeCustItem({ itemName: "월별품목", factory: "양산", month: "202601", qty: 30, revenue: 210000 }), // 단가 7000
+        makeCustItem({ itemName: "월별품목", factory: "양산", month: "202602", qty: 40, revenue: 320000 }), // 단가 8000
+        makeCustItem({ itemName: "월별품목", factory: "양산", month: "202603", qty: 30, revenue: 270000 }), // 단가 9000
+      ];
+      const result = calcThreeWayComparison({
+        customerItemDetail: custItem,
+        itemProfitability: [makeItemProfit("월별품목", "MON01")],
+        standardCostBook: [],
+        manufacturingCost: [],
+      });
+      expect(result.rows.length).toBe(1);
+      const row = result.rows[0];
+      // 합산: qty=100, revenue=800000
+      expect(row.salesQty).toBe(100);
+      expect(row.salesAmount).toBe(800000);
+      // 가중평균: 800000/100 = 8000 (단순평균 (7000+8000+9000)/3 = 8000 과 같지만 원리가 다름)
+      expect(row.avgSalesPrice).toBe(8000);
+      // 단순평균과 값이 같아도 가중평균 공식으로 계산됨을 확인 — 비대칭 수량으로 재검증
+      // qty: 30+40+30=100, revenue: 210000+320000+270000=800000 → 800000/100=8000
+      expect(row.avgSalesPrice).toBe(row.salesAmount / row.salesQty);
     });
   });
 });

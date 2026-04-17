@@ -221,6 +221,12 @@ export interface ThreeWayComparisonRow {
   /** @deprecated salesImpact는 오해 소지가 있어 marginVarianceImpact로 변경됐습니다. */
   salesImpact: number;
   note: string;                          // 사람이 읽는 라벨 (noteKind에서 파생)
+  dataQualityFlags: Array<
+    | "extreme_variance"       // |variance| > 1000%
+    | "low_qty_high_variance"  // qty < 10 + variance > 100%
+    | "fixed_cost_dominates"   // actual > 50x standard on tiny qty
+  >;
+  actualCostConfidence: number; // 0.0 (매우 의심) ~ 1.0 (신뢰)
 }
 
 // ─── 월별 판매단가 추세 ───
