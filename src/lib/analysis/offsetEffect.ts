@@ -272,8 +272,10 @@ export function calcCustomerItemCVP(
   const items: CVPItem[] = [];
   for (const v of Array.from(agg.values())) {
     if (v.revenue === 0 && v.quantity === 0) continue;
-    const unitPrice = safeDivide(v.revenue, v.quantity);
-    const unitVariableCost = safeDivide(v.variableCost, v.quantity);
+    // 수량 0이지만 매출 있는 경우(금액 거래): 수량 1로 간주하여 단가 = 매출액 그대로 사용
+    const effectiveQty = v.quantity !== 0 ? v.quantity : 1;
+    const unitPrice = safeDivide(v.revenue, effectiveQty);
+    const unitVariableCost = safeDivide(v.variableCost, effectiveQty);
     const unitContributionMargin = unitPrice - unitVariableCost;
     const totalContributionMargin = v.revenue - v.variableCost;
     const contributionMarginRatio = safeDivide(totalContributionMargin, v.revenue);
@@ -283,7 +285,7 @@ export function calcCustomerItemCVP(
       customerName: v.customerName,
       item: v.item,
       itemName: v.itemName,
-      quantity: v.quantity,
+      quantity: effectiveQty,
       revenue: v.revenue,
       variableCost: v.variableCost,
       sgaVariableCost: v.sgaVariableCost,

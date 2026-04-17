@@ -225,7 +225,7 @@ export function OffsetEffectTab({
     return Array.from(map.entries())
       .map(([code, v]) => ({ code, ...v }))
       .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 150);
+      .slice(0, 300);
   }, [cvpItems, poolItems, filteredItemProfitability]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
@@ -748,7 +748,7 @@ export function OffsetEffectTab({
                 domain={[0, "dataMax"]}
                 tick={{ fontSize: 10 }}
                 tickFormatter={(v) => Math.round(v).toLocaleString()}
-                label={{ value: `수량 (${selectedGroup.unit})`, position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
+                label={{ value: `수량 (${selectedGroup.unit || "단위"})`, position: "insideBottomRight", offset: -5, fontSize: 10, fill: "hsl(0,0%,50%)" }}
               />
               <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatCurrency(v, true)} label={{ value: "금액", angle: -90, position: "insideLeft", offset: 10, fontSize: 10, fill: "hsl(0,0%,50%)" }} />
               <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any, name: any) => [formatCurrency(Number(v)), name]} labelFormatter={(v) => `수량: ${Math.round(Number(v)).toLocaleString()} ${selectedGroup.unit}`} />
@@ -977,7 +977,7 @@ export function OffsetEffectTab({
                     onClick={() => setShowAllDogs(!showAllDogs)}
                     className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
                   >
-                    {showAllDogs ? "상위 20건만 보기" : `전체 ${allDogItems.length}건 보기`}
+                    {showAllDogs ? `상위 ${Math.min(20, allDogItems.length)}건만 보기` : `전체 ${allDogItems.length}건 보기`}
                   </button>
                 </div>
               )}
@@ -1775,7 +1775,7 @@ export function OffsetEffectTab({
                   </div>
                 </div>
                 <p className="text-[10px] mt-2 text-muted-foreground border-t pt-1">
-                  ⚠️ 4a와 4b는 데이터 범위가 달라(전체 vs 풀) 직접 비교하지 않음. 각 관점의 내부 수학적 일관성만 검증.
+                  ⚠️ 4a(총액 관점)는 전사 100 보고서의 모든 거래처×품목 기반, 4b(배분 관점)는 200 보고서의 제품군 풀(동일 단위 그룹) 기반으로 범위가 다릅니다. 합계 비교는 의미 없고, 각각의 항등식(내부 수학적 일관성)만 검증합니다.
                 </p>
               </div>
             </details>
