@@ -1180,7 +1180,7 @@ export function OffsetEffectTab({
           )}
 
           {/* 슬라이더 (비율 모드) / 직접 입력 (절대 수량 모드) */}
-          {inputMode === "percent" || !targetItem ? (
+          {inputMode === "percent" || !targetItem ? (<>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs min-w-[90px]">물량 증감:</span>
@@ -1207,7 +1207,30 @@ export function OffsetEffectTab({
                 <span className="text-xs">%</span>
               </div>
             </div>
-          ) : (
+            {priceChangePct !== 0 && (() => {
+              const basePrice = targetItem
+                ? cvpItems.find(i => i.item === targetItem)?.unitPrice ?? cvpSummary.weightedUnitPrice
+                : cvpSummary.weightedUnitPrice;
+              const newPrice = basePrice * (1 + priceChangePct / 100);
+              const diff = newPrice - basePrice;
+              return basePrice > 0 ? (
+                <div className="flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
+                  <span className="text-muted-foreground">📊 기준단가:</span>
+                  <span className="font-mono font-semibold">{formatCurrency(basePrice)}</span>
+                  <span className="text-muted-foreground">→</span>
+                  <span className={`font-mono font-semibold ${diff < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                    {formatCurrency(newPrice)}
+                  </span>
+                  <span className={`text-[11px] ${diff < 0 ? "text-red-500" : "text-green-600"}`}>
+                    (△ {diff > 0 ? "+" : ""}{formatCurrency(diff)})
+                  </span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">
+                    {targetItem ? "선택 품목 평균" : "전체 가중평균"} · Q1 판매단가 기준
+                  </span>
+                </div>
+              ) : null;
+            })()}
+          </>) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(() => {
                 const sel = itemList.find((i) => i.code === targetItem);
@@ -1233,6 +1256,25 @@ export function OffsetEffectTab({
                     />
                     <span className="text-xs">%</span>
                   </div>
+                  {priceChangeDirect !== 0 && (() => {
+                    const bp = sel?.quantity ? sel.revenue / sel.quantity : cvpSummary.weightedUnitPrice;
+                    const np = bp * (1 + priceChangeDirect / 100);
+                    const d = np - bp;
+                    return bp > 0 ? (
+                      <div className="col-span-2 flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
+                        <span className="text-muted-foreground">📊 기준단가:</span>
+                        <span className="font-mono font-semibold">{formatCurrency(bp)}</span>
+                        <span className="text-muted-foreground">→</span>
+                        <span className={`font-mono font-semibold ${d < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                          {formatCurrency(np)}
+                        </span>
+                        <span className={`text-[11px] ${d < 0 ? "text-red-500" : "text-green-600"}`}>
+                          (△ {d > 0 ? "+" : ""}{formatCurrency(d)})
+                        </span>
+                        <span className="text-[10px] text-muted-foreground ml-auto">선택 품목 평균 · Q1 판매단가 기준</span>
+                      </div>
+                    ) : null;
+                  })()}
                 </>);
               })()}
             </div>
