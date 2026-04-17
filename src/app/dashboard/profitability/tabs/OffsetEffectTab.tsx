@@ -86,6 +86,11 @@ export function OffsetEffectTab({
     return () => document.removeEventListener("mousedown", handler);
   }, [itemPickerOpen, custPickerOpen]);
 
+  // 원가 변동 슬라이더
+  const [costRawMaterialPct, setCostRawMaterialPct] = useState(0);
+  const [costLaborPct, setCostLaborPct] = useState(0);
+  const [costOutsourcingPct, setCostOutsourcingPct] = useState(0);
+
   // 시뮬레이션 입력 모드: "percent" (비율) / "absolute" (절대 수량)
   const [inputMode, setInputMode] = useState<"percent" | "absolute">("percent");
   const [volumeAbsolute, setVolumeAbsolute] = useState<number>(0);
@@ -126,6 +131,35 @@ export function OffsetEffectTab({
     [filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
   );
 
+  // 품목별 원가 구성 비율 맵 (원가 변동 시뮬용)
+  const vcCostRatioMap = useMemo(() => {
+    if (!filteredItemProfitability || filteredItemProfitability.length === 0) return undefined;
+    const map = new Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>();
+    for (const r of filteredItemProfitability) {
+      const raw = (r.품목 || "").trim();
+      const match = raw.match(/^\[([^\]]+)\]\s*(.*)$/);
+      const name = match ? match[2].trim() : raw;
+      if (!name || map.has(name)) continue;
+      const rawMat = (r.원재료비 || 0) + (r.부재료비 || 0) + (r.상품매입 || 0);
+      const labor = (r.노무비 || 0) + (r.복리후생비 || 0);
+      const outsourcing = r.외주가공비 || 0;
+      const total = rawMat + labor + outsourcing + (r.소모품비 || 0) + (r.수도광열비 || 0) +
+        (r.수선비 || 0) + (r.연료비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
+        (r.지급수수료 || 0) + (r.견본비 || 0);
+      if (total > 0) map.set(name, {
+        rawMaterialRatio: rawMat / total, laborRatio: labor / total, outsourcingRatio: outsourcing / total,
+      });
+    }
+    return map.size > 0 ? map : undefined;
+  }, [filteredItemProfitability]);
+
+  const costChangePct = useMemo(() =>
+    (costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0)
+      ? { rawMaterial: costRawMaterialPct, labor: costLaborPct, outsourcing: costOutsourcingPct }
+      : undefined,
+    [costRawMaterialPct, costLaborPct, costOutsourcingPct]
+  );
+
   // 총액 관점 시뮬레이션 (4a)
   const totalSim = useMemo(
     () => calcTotalViewSimulation({
@@ -136,8 +170,10 @@ export function OffsetEffectTab({
       volumeIncreasePct: inputMode === "absolute" ? 0 : volumeIncreasePct,
       priceChangePct: inputMode === "absolute" ? priceChangeDirect : priceChangePct,
       ...(inputMode === "absolute" && targetItem ? { volumeAbsolute } : {}),
+      costChangePct,
+      vcCostRatioMap,
     }),
-    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, inputMode, volumeAbsolute, priceChangeDirect]
+    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, inputMode, volumeAbsolute, priceChangeDirect, costChangePct, vcCostRatioMap]
   );
 
   // 워터폴
@@ -1230,6 +1266,44 @@ export function OffsetEffectTab({
                 </div>
               ) : null;
             })()}
+            {/* 원가 변동 슬라이더 (선택사항) */}
+            <details className="mt-1">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                ⚙️ 원가 변동 시뮬레이션 (선택사항 — 0%면 현재 원가 유지)
+                {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">적용 중</span>
+                )}
+              </summary>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 p-3 rounded-md border bg-background/60">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs min-w-[70px]">원자재비:</span>
+                  <input type="range" min={-30} max={50} step={1} value={costRawMaterialPct}
+                    onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
+                    className="flex-1 accent-primary" />
+                  <input type="number" value={costRawMaterialPct} onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
+                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                  <span className="text-xs">%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs min-w-[70px]">노무비:</span>
+                  <input type="range" min={-20} max={30} step={1} value={costLaborPct}
+                    onChange={(e) => setCostLaborPct(Number(e.target.value))}
+                    className="flex-1 accent-primary" />
+                  <input type="number" value={costLaborPct} onChange={(e) => setCostLaborPct(Number(e.target.value))}
+                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                  <span className="text-xs">%</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs min-w-[70px]">외주가공:</span>
+                  <input type="range" min={-20} max={30} step={1} value={costOutsourcingPct}
+                    onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
+                    className="flex-1 accent-primary" />
+                  <input type="number" value={costOutsourcingPct} onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
+                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                  <span className="text-xs">%</span>
+                </div>
+              </div>
+            </details>
           </>) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(() => {

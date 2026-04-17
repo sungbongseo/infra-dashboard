@@ -202,26 +202,40 @@ export function extractManufacturingFixedCost(
  * 변동비율 = Σ(14개 변동비) / 실적매출원가
  * 100 보고서의 역산 근사(매출-매출총이익)를 이 비율로 보정하면 고정비 혼입을 제거.
  */
+export interface VCDetailRatios {
+  overallVCRatio: number;       // 총변동비 / 실적매출원가
+  rawMaterialRatio: number;     // 원재료비 / 총변동비
+  laborRatio: number;           // 노무비 / 총변동비
+  outsourcingRatio: number;     // 외주가공비 / 총변동비
+}
+
 function buildVariableCostRatioMap(
   itemProfitability: ItemProfitabilityRecord[]
-): Map<string, number> {
-  const ratioMap = new Map<string, number>();
+): Map<string, VCDetailRatios> {
+  const ratioMap = new Map<string, VCDetailRatios>();
   for (const r of itemProfitability) {
     const raw = (r.품목 || "").trim();
     if (!raw) continue;
     const match = raw.match(/^\[([^\]]+)\]\s*(.*)$/);
     const itemName = match ? match[2].trim() : raw;
     if (!itemName) continue;
-    const directVC =
-      (r.원재료비 || 0) + (r.부재료비 || 0) + (r.상품매입 || 0) +
-      (r.노무비 || 0) + (r.복리후생비 || 0) + (r.소모품비 || 0) +
-      (r.수도광열비 || 0) + (r.수선비 || 0) + (r.연료비 || 0) +
-      (r.외주가공비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
+    const rawMat = (r.원재료비 || 0) + (r.부재료비 || 0) + (r.상품매입 || 0);
+    const labor = (r.노무비 || 0) + (r.복리후생비 || 0);
+    const outsourcing = r.외주가공비 || 0;
+    const directVC = rawMat + labor + outsourcing +
+      (r.소모품비 || 0) + (r.수도광열비 || 0) + (r.수선비 || 0) +
+      (r.연료비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
       (r.지급수수료 || 0) + (r.견본비 || 0);
     const totalCost = r.실적매출원가 || 0;
     if (totalCost > 0 && directVC > 0) {
-      const ratio = Math.min(directVC / totalCost, 1.0);
-      if (!ratioMap.has(itemName)) ratioMap.set(itemName, ratio);
+      if (!ratioMap.has(itemName)) {
+        ratioMap.set(itemName, {
+          overallVCRatio: Math.min(directVC / totalCost, 1.0),
+          rawMaterialRatio: safeDivide(rawMat, directVC),
+          laborRatio: safeDivide(labor, directVC),
+          outsourcingRatio: safeDivide(outsourcing, directVC),
+        });
+      }
     }
   }
   return ratioMap;
@@ -273,8 +287,8 @@ export function calcCustomerItemCVP(
     // 제조 변동비: 200 보고서 변동비율로 보정 (있으면), 없으면 역산 근사
     const itemName = (r.품목 || "").trim();
     const grossCOGS = (r.매출액?.실적 || 0) - (r.매출총이익?.실적 || 0);
-    const vcRatio = vcRatioMap?.get(itemName);
-    const mfgVC = vcRatio !== undefined ? grossCOGS * vcRatio : grossCOGS;
+    const vcDetail = vcRatioMap?.get(itemName);
+    const mfgVC = vcDetail !== undefined ? grossCOGS * vcDetail.overallVCRatio : grossCOGS;
     // SGA 변동비 = 판관변동_직접판매운반비 (물류 변동비)
     const sgaVC = r.판관변동_직접판매운반비?.실적 || 0;
     // 총 변동비 = 제조 변동비(보정) + SGA 변동비
@@ -453,6 +467,12 @@ function calcCVPSummary(items: CVPItem[], totalFixedCost: number): CVPSummary {
 
 // ─── Step 4a: 총액 관점 시뮬레이션 ─────────────────────
 
+export interface CostChangePct {
+  rawMaterial: number;   // 원자재비 인상률 (%, 기본 0)
+  labor: number;         // 노무비 인상률 (%, 기본 0)
+  outsourcing: number;   // 외주가공비 인상률 (%, 기본 0)
+}
+
 export interface TotalSimInput {
   items: CVPItem[];
   totalFixedCost: number;
@@ -460,9 +480,9 @@ export interface TotalSimInput {
   targetItem: string | null;
   volumeIncreasePct: number;
   priceChangePct: number;
-  // 절대 수량 모드: 특정 품목 선택 시 "추가 200ROL" 같은 직접 입력
-  // volumeAbsolute가 설정되면 volumeIncreasePct 대신 사용
   volumeAbsolute?: number;
+  costChangePct?: CostChangePct;
+  vcCostRatioMap?: Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>;
 }
 
 /**
@@ -478,7 +498,9 @@ export interface TotalSimInput {
  * @assumption 고정비 총액 불변 (설비 캐파 내 생산)
  */
 export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulation {
-  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, volumeAbsolute } = input;
+  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, volumeAbsolute, costChangePct, vcCostRatioMap } = input;
+  const costAdj = costChangePct ?? { rawMaterial: 0, labor: 0, outsourcing: 0 };
+  const hasCostChange = costAdj.rawMaterial !== 0 || costAdj.labor !== 0 || costAdj.outsourcing !== 0;
 
   const baseTotalRevenue = items.reduce((s, it) => s + it.revenue, 0);
   const baseTotalVariableCost = items.reduce((s, it) => s + it.variableCost, 0);
@@ -526,20 +548,47 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
         addedForThisRow = it.quantity * (volumeIncreasePct / 100);
         newQty = Math.max(it.quantity * volFactor, 0);
       }
+      // 원가 인상 반영: 품목별 원가 구성 비율로 변동비 조정
+      let adjustedUnitVC = it.unitVariableCost;
+      if (hasCostChange) {
+        const ratios = vcCostRatioMap?.get(it.item);
+        const rawR = ratios?.rawMaterialRatio ?? 0.5;
+        const labR = ratios?.laborRatio ?? 0.1;
+        const outR = ratios?.outsourcingRatio ?? 0.1;
+        const otherR = Math.max(0, 1 - rawR - labR - outR);
+        adjustedUnitVC = it.unitVariableCost * (
+          rawR * (1 + costAdj.rawMaterial / 100) +
+          labR * (1 + costAdj.labor / 100) +
+          outR * (1 + costAdj.outsourcing / 100) +
+          otherR
+        );
+      }
       const newRev = newPrice * newQty;
-      const newVC = it.unitVariableCost * newQty;
+      const newVC = adjustedUnitVC * newQty;
       newTotalRevenue += newRev;
       newTotalVariableCost += newVC;
       newTotalQuantity += newQty;
 
       // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액
       priceReductionLoss += it.quantity * it.unitPrice * (priceChangePct / 100);
-      // 분해: 물량 증가 공헌 = 추가 수량(비례배분) × 인하된 단위공헌이익
-      const newUnitCM = newPrice - it.unitVariableCost;
+      // 분해: 물량 증가 공헌 = 추가 수량 × 인하된 단위공헌이익 (원가 인상 반영)
+      const newUnitCM = newPrice - adjustedUnitVC;
       volumeContributionGain += addedForThisRow * newUnitCM;
     } else {
       newTotalRevenue += it.revenue;
-      newTotalVariableCost += it.variableCost;
+      if (hasCostChange) {
+        const ratios = vcCostRatioMap?.get(it.item);
+        const rawR = ratios?.rawMaterialRatio ?? 0.5;
+        const labR = ratios?.laborRatio ?? 0.1;
+        const outR = ratios?.outsourcingRatio ?? 0.1;
+        const otherR = Math.max(0, 1 - rawR - labR - outR);
+        const adjFactor = rawR * (1 + costAdj.rawMaterial / 100) +
+          labR * (1 + costAdj.labor / 100) +
+          outR * (1 + costAdj.outsourcing / 100) + otherR;
+        newTotalVariableCost += it.variableCost * adjFactor;
+      } else {
+        newTotalVariableCost += it.variableCost;
+      }
       newTotalQuantity += it.quantity;
     }
   }
