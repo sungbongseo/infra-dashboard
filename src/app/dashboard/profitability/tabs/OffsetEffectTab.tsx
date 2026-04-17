@@ -14,7 +14,7 @@ import {
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { TrendingUp, AlertTriangle, DollarSign, Package, CheckCircle2, XCircle, Info } from "lucide-react";
 import { ExportButton } from "@/components/dashboard/ExportButton";
-import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
+import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS, safeDivide } from "@/lib/utils";
 import {
   extractManufacturingFixedCost,
   calcCustomerItemCVP,
@@ -28,6 +28,7 @@ import {
   calcGroupCVP,
   type PoolLevel,
   type FixedCostAllocation,
+  type CVPItem,
   calcSensitivityGrid,
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
@@ -35,6 +36,7 @@ import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types"
 interface OffsetEffectTabProps {
   filteredCustItemDetail: CustomerItemDetailRecord[];
   filteredItemProfitability?: ItemProfitabilityRecord[];
+  rawItemProfitability?: ItemProfitabilityRecord[];
   isDateFiltered?: boolean;
 }
 
@@ -56,6 +58,7 @@ const QUADRANT_LABELS = {
 export function OffsetEffectTab({
   filteredCustItemDetail,
   filteredItemProfitability,
+  rawItemProfitability,
   isDateFiltered,
 }: OffsetEffectTabProps) {
   // 시나리오 상태
@@ -96,6 +99,9 @@ export function OffsetEffectTab({
   const [volumeAbsolute, setVolumeAbsolute] = useState<number>(0);
   const [priceChangeDirect, setPriceChangeDirect] = useState<number>(0); // 소수점 직접 입력용
 
+  // 200 전용 품목: 희망 판매단가 직접 입력
+  const [manualUnitPrice, setManualUnitPrice] = useState<number>(0);
+
   // CVP 듀얼 모드: 전사 금액 기반 / 대분류×단위 수량 기반
   const [cvpGroupKey, setCvpGroupKey] = useState<string>("__all__");
   // 테이블 확장 토글
@@ -131,6 +137,25 @@ export function OffsetEffectTab({
     [filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
   );
 
+  // 데이터 기간 라벨 (100 보고서의 매출연월 기준)
+  const dataPeriodLabel = useMemo(() => {
+    const months = new Set<string>();
+    for (const r of filteredCustItemDetail) {
+      const m = (r as any).매출연월 || (r as any).month || "";
+      if (m) months.add(String(m).slice(0, 7).replace("-", ""));
+    }
+    if (months.size === 0) return "데이터 없음";
+    const sorted = Array.from(months).sort();
+    const fmt = (ym: string) => {
+      const y = ym.slice(0, 4);
+      const m = ym.slice(4, 6) || ym.slice(5, 7);
+      return `${y}.${m}`;
+    };
+    return sorted.length === 1
+      ? `${fmt(sorted[0])} 판매단가`
+      : `${fmt(sorted[0])}~${fmt(sorted[sorted.length - 1])} 평균 판매단가`;
+  }, [filteredCustItemDetail]);
+
   // 품목별 원가 구성 비율 맵 (원가 변동 시뮬용)
   const vcCostRatioMap = useMemo(() => {
     if (!filteredItemProfitability || filteredItemProfitability.length === 0) return undefined;
@@ -160,32 +185,7 @@ export function OffsetEffectTab({
     [costRawMaterialPct, costLaborPct, costOutsourcingPct]
   );
 
-  // 총액 관점 시뮬레이션 (4a)
-  const totalSim = useMemo(
-    () => calcTotalViewSimulation({
-      items: cvpItems,
-      totalFixedCost,
-      targetCustomer,
-      targetItem,
-      volumeIncreasePct: inputMode === "absolute" ? 0 : volumeIncreasePct,
-      priceChangePct: inputMode === "absolute" ? priceChangeDirect : priceChangePct,
-      ...(inputMode === "absolute" && targetItem ? { volumeAbsolute } : {}),
-      costChangePct,
-      vcCostRatioMap,
-    }),
-    [cvpItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, inputMode, volumeAbsolute, priceChangeDirect, costChangePct, vcCostRatioMap]
-  );
-
-  // 워터폴
-  const waterfall = useMemo(() => calcWaterfallSteps(totalSim), [totalSim]);
-
-  // 감도 분석 그리드 (대상 선택 시에만)
-  const sensitivityGrid = useMemo(
-    () => (targetCustomer || targetItem)
-      ? calcSensitivityGrid(cvpItems, totalFixedCost, targetCustomer, targetItem)
-      : [],
-    [cvpItems, totalFixedCost, targetCustomer, targetItem]
-  );
+  // (totalSim, waterfall, sensitivityGrid는 simItems 뒤에 정의 — 아래 참조)
 
   // 풀 목록 (4b)
   const availablePools = useMemo(
@@ -224,12 +224,7 @@ export function OffsetEffectTab({
     [poolItems, poolFixedCost, targetItem, volumeIncreasePct, priceChangePct, allocationBasis, poolLevel, poolName, inputMode, volumeAbsolute, priceChangeDirect]
   );
 
-  // 무결성 검증 (Step 5)
-  // 주의: 총액 관점은 전체 CVP 범위, 배분 관점은 선택된 풀만 → 대상 품목이 풀 내에 있을 때만 비교 의미 있음
-  const integrity = useMemo(
-    () => verifyIntegrity(totalSim, poolSim),
-    [totalSim, poolSim]
-  );
+  // (integrity는 totalSim 뒤에 정의 — 아래 참조)
 
   // 거래처·품목 드롭다운 목록
   const customerList = useMemo(() => {
@@ -247,31 +242,50 @@ export function OffsetEffectTab({
 
   const itemList = useMemo(() => {
     // cvpItems(100)와 poolItems(200) 모두에서 수집하여 union
-    const map = new Map<string, { name: string; revenue: number; inPool: boolean; quantity: number; unit: string }>();
+    const map = new Map<string, { name: string; revenue: number; inPool: boolean; in100: boolean; quantity: number; unit: string; actualCOGS: number; actualQty200: number; actualUnitCost: number; costRatio: number }>();
     for (const it of cvpItems) {
-      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false, quantity: 0, unit: "" };
+      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0 };
       prev.revenue += it.revenue;
       prev.quantity += it.quantity;
+      prev.in100 = true;
       map.set(it.item, prev);
     }
     // 200 품목도 추가 (풀 내 품목이 4a에서 선택 가능하도록)
     for (const pi of poolItems) {
-      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true, quantity: 0, unit: "" };
+      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0 };
       if (prev.revenue === 0) prev.revenue = pi.revenue;
       if (prev.quantity === 0) prev.quantity = pi.quantity;
       prev.inPool = true;
       if (!prev.name || prev.name === pi.item) prev.name = pi.itemName;
       map.set(pi.item, prev);
     }
-    // 200에서 단위 정보 추가
+    // 200에서 단위 + 원가 데이터 수집
     if (filteredItemProfitability) {
+      // 품목코드별 원가 합산 (다중 조직 대응)
+      const costAgg = new Map<string, { cogs: number; qty: number; rev: number }>();
       for (const r of filteredItemProfitability) {
         const raw = (r.품목 || "").trim();
         const codeMatch = raw.match(/^\[([^\]]+)\]/);
         const code = codeMatch ? codeMatch[1].trim() : raw;
+        const prev = costAgg.get(code) || { cogs: 0, qty: 0, rev: 0 };
+        prev.cogs += r.실적매출원가 || 0;
+        prev.qty += r.매출수량 || 0;
+        prev.rev += r.매출액 || 0;
+        costAgg.set(code, prev);
+        // 단위 정보도 병합
         const entry = map.get(code);
         if (entry && !entry.unit && (r as any).기준단위) {
           entry.unit = ((r as any).기준단위 || "").trim();
+        }
+      }
+      // 원가 데이터 병합
+      for (const [code, cost] of Array.from(costAgg.entries())) {
+        const entry = map.get(code);
+        if (entry) {
+          entry.actualCOGS = cost.cogs;
+          entry.actualQty200 = cost.qty;
+          entry.actualUnitCost = cost.qty > 0 ? cost.cogs / cost.qty : 0;
+          entry.costRatio = cost.rev > 0 ? (cost.cogs / cost.rev) * 100 : 0;
         }
       }
     }
@@ -280,6 +294,109 @@ export function OffsetEffectTab({
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 300);
   }, [cvpItems, poolItems, filteredItemProfitability]);
+
+  // 월별 단가·원가 추이 (rawItemProfitability: aggregate 전, month 보존)
+  const monthlyBreakdown = useMemo(() => {
+    if (!targetItem || !rawItemProfitability || rawItemProfitability.length === 0) return null;
+    const monthMap = new Map<string, { rev: number; qty: number; cogs: number }>();
+    for (const r of rawItemProfitability) {
+      const raw = (r.품목 || "").trim();
+      const codeMatch = raw.match(/^\[([^\]]+)\]/);
+      const code = codeMatch ? codeMatch[1].trim() : raw;
+      if (code !== targetItem) continue;
+      const month = r.month || "";
+      if (!month) continue;
+      const prev = monthMap.get(month) || { rev: 0, qty: 0, cogs: 0 };
+      prev.rev += r.매출액 || 0;
+      prev.qty += r.매출수량 || 0;
+      prev.cogs += r.실적매출원가 || 0;
+      monthMap.set(month, prev);
+    }
+    if (monthMap.size === 0) return null;
+    return Array.from(monthMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, d]) => {
+        const unitPrice = safeDivide(d.rev, d.qty);
+        const unitCost = safeDivide(d.cogs, d.qty);
+        return {
+          month,
+          monthLabel: `${month.slice(0, 4)}.${month.slice(4, 6)}`,
+          unitPrice,
+          unitCost,
+          margin: unitPrice - unitCost,
+          costRatio: safeDivide(d.cogs, d.rev) * 100,
+          quantity: d.qty,
+          revenue: d.rev,
+          cogs: d.cogs,
+        };
+      });
+  }, [targetItem, rawItemProfitability]);
+
+  // 200 전용 품목: 합성 CVPItem 생성 (사용자가 희망 판매단가 입력 시)
+  const selectedItemInfo = targetItem ? itemList.find(i => i.code === targetItem) : null;
+  const is200Only = selectedItemInfo ? !selectedItemInfo.in100 : false;
+  const syntheticCvpItem = useMemo((): CVPItem | null => {
+    if (!is200Only || !selectedItemInfo || manualUnitPrice <= 0) return null;
+    const qty = selectedItemInfo.actualQty200 || selectedItemInfo.quantity || 1;
+    const uc = selectedItemInfo.actualUnitCost;
+    return {
+      customer: "__manual__",
+      customerName: "수동 시뮬레이션",
+      item: targetItem!,
+      itemName: selectedItemInfo.name,
+      quantity: qty,
+      revenue: manualUnitPrice * qty,
+      variableCost: selectedItemInfo.actualCOGS || uc * qty,
+      sgaVariableCost: 0,
+      grossProfit: (manualUnitPrice - uc) * qty,
+      unitPrice: manualUnitPrice,
+      unitVariableCost: uc,
+      unitContributionMargin: manualUnitPrice - uc,
+      totalContributionMargin: (manualUnitPrice - uc) * qty,
+      contributionMarginRatio: safeDivide(manualUnitPrice - uc, manualUnitPrice),
+      quadrant: "question",
+      isLowPriceOrder: manualUnitPrice < uc,
+    };
+  }, [is200Only, selectedItemInfo, manualUnitPrice, targetItem]);
+
+  // 시뮬 대상 items: 200 전용 합성 아이템 포함
+  const simItems = useMemo(
+    () => syntheticCvpItem ? [...cvpItems, syntheticCvpItem] : cvpItems,
+    [cvpItems, syntheticCvpItem]
+  );
+
+  // 총액 관점 시뮬레이션 (4a)
+  const totalSim = useMemo(
+    () => calcTotalViewSimulation({
+      items: simItems,
+      totalFixedCost,
+      targetCustomer,
+      targetItem,
+      volumeIncreasePct: inputMode === "absolute" ? 0 : volumeIncreasePct,
+      priceChangePct: inputMode === "absolute" ? priceChangeDirect : priceChangePct,
+      ...(inputMode === "absolute" && targetItem ? { volumeAbsolute } : {}),
+      costChangePct,
+      vcCostRatioMap,
+    }),
+    [simItems, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, inputMode, volumeAbsolute, priceChangeDirect, costChangePct, vcCostRatioMap]
+  );
+
+  // 워터폴
+  const waterfall = useMemo(() => calcWaterfallSteps(totalSim), [totalSim]);
+
+  // 감도 분석 그리드 (대상 선택 시에만)
+  const sensitivityGrid = useMemo(
+    () => (targetCustomer || targetItem)
+      ? calcSensitivityGrid(simItems, totalFixedCost, targetCustomer, targetItem)
+      : [],
+    [simItems, totalFixedCost, targetCustomer, targetItem]
+  );
+
+  // 무결성 검증 (Step 5)
+  const integrity = useMemo(
+    () => verifyIntegrity(totalSim, poolSim),
+    [totalSim, poolSim]
+  );
 
   // 검색 필터된 품목/거래처 리스트
   const filteredItemList = useMemo(() => {
@@ -1171,11 +1288,14 @@ export function OffsetEffectTab({
                     <div className="max-h-[280px] overflow-y-auto">
                       {filteredItemList.map(i => (
                         <button type="button" key={i.code}
-                          onClick={() => { setTargetItem(i.code); setItemPickerOpen(false); setItemSearch(""); setVolumeAbsolute(0); setPriceChangeDirect(0); }}
+                          onClick={() => { setTargetItem(i.code); setItemPickerOpen(false); setItemSearch(""); setVolumeAbsolute(0); setPriceChangeDirect(0); setManualUnitPrice(0); if (!i.in100) setInputMode("absolute"); }}
                           className={`w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center ${
                             targetItem === i.code ? "bg-blue-50 dark:bg-blue-950/30 font-semibold" : ""
                           }`}>
-                          <span className="truncate flex-1">{i.name}</span>
+                          <span className="truncate flex-1">
+                            {i.name}
+                            {!i.in100 && <span className="ml-1.5 text-[9px] px-1 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300">200전용</span>}
+                          </span>
                           <span className="text-muted-foreground ml-2 text-[11px] whitespace-nowrap">{formatCurrency(i.revenue, true)}</span>
                         </button>
                       ))}
@@ -1215,6 +1335,79 @@ export function OffsetEffectTab({
             </div>
           )}
 
+          {/* 원가 비교 카드 — 품목 선택 시 200 원가 데이터 표시 */}
+          {targetItem && selectedItemInfo && selectedItemInfo.actualUnitCost > 0 && (() => {
+            const uc = selectedItemInfo.actualUnitCost;
+            const up = selectedItemInfo.in100 ? safeDivide(selectedItemInfo.revenue, selectedItemInfo.quantity) : 0;
+            const margin = selectedItemInfo.in100 ? up - uc : 0;
+            const marginPct = selectedItemInfo.in100 ? safeDivide(margin, up) * 100 : 0;
+            const isBelowCost = selectedItemInfo.in100 && margin < 0;
+            return (
+              <div className={`rounded-md border px-3 py-2 text-xs ${isBelowCost ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"}`}>
+                <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                  {selectedItemInfo.in100 ? (
+                    <>
+                      <div><span className="text-muted-foreground">판매단가</span> <span className="font-mono font-semibold">{formatCurrency(up)}</span></div>
+                      <div><span className="text-muted-foreground">단위원가</span> <span className="font-mono font-semibold">{formatCurrency(uc)}</span></div>
+                      <div>
+                        <span className="text-muted-foreground">마진</span>{" "}
+                        <span className={`font-mono font-semibold ${margin < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                          {margin > 0 ? "+" : ""}{formatCurrency(margin)} ({safeFixed(marginPct, 1)}%)
+                        </span>
+                      </div>
+                      <div><span className="text-muted-foreground">원가율</span> <span className="font-mono">{safeFixed(selectedItemInfo.costRatio, 1)}%</span></div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-1.5">
+                        <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+                        <strong className="text-amber-800 dark:text-amber-300">판매 실적 없음 (200 보고서 전용)</strong>
+                      </div>
+                      <div><span className="text-muted-foreground">실적 단위원가</span> <span className="font-mono font-semibold">{formatCurrency(uc)}</span></div>
+                      <div><span className="text-muted-foreground">200 기준 수량</span> <span className="font-mono">{selectedItemInfo.quantity.toLocaleString()} {selectedItemInfo.unit || "개"}</span></div>
+                    </>
+                  )}
+                  <span className="text-[10px] text-muted-foreground ml-auto">200.실적매출원가/매출수량</span>
+                </div>
+                {isBelowCost && (
+                  <div className="mt-1 text-red-700 dark:text-red-400 font-semibold flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" /> 원가 미달 — 판매단가가 실적 원가보다 낮습니다
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* 200 전용: 희망 판매단가 입력 → 시뮬 활성화 */}
+          {is200Only && targetItem && (
+            <div className="rounded-md border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 px-3 py-2 space-y-2">
+              <div className="flex items-center gap-2 text-xs">
+                <DollarSign className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="font-semibold text-blue-800 dark:text-blue-300">희망 판매단가를 입력하면 시뮬레이션이 작동합니다</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs min-w-[90px]">희망 판매단가:</span>
+                <input type="number" value={manualUnitPrice || ""}
+                  onChange={(e) => setManualUnitPrice(Number(e.target.value))}
+                  placeholder={`원가 ${formatCurrency(selectedItemInfo?.actualUnitCost || 0)} 참고`}
+                  className="flex-1 text-xs border rounded px-2 py-1.5 bg-background tabular-nums max-w-[200px]"
+                  step={1000} min={0}
+                />
+                <span className="text-xs">원</span>
+                {manualUnitPrice > 0 && selectedItemInfo && (() => {
+                  const m = manualUnitPrice - selectedItemInfo.actualUnitCost;
+                  const pct = safeDivide(m, manualUnitPrice) * 100;
+                  return (
+                    <span className={`text-xs font-semibold ${m < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                      예상 마진: {m > 0 ? "+" : ""}{formatCurrency(m)} ({safeFixed(pct, 1)}%)
+                      {m < 0 && " (원가 미달!)"}
+                    </span>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
           {/* 슬라이더 (비율 모드) / 직접 입력 (절대 수량 모드) */}
           {inputMode === "percent" || !targetItem ? (<>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1249,9 +1442,11 @@ export function OffsetEffectTab({
                 : cvpSummary.weightedUnitPrice;
               const newPrice = basePrice * (1 + priceChangePct / 100);
               const diff = newPrice - basePrice;
+              const uc = selectedItemInfo?.actualUnitCost || 0;
+              const simMargin = uc > 0 ? newPrice - uc : 0;
               return basePrice > 0 ? (
-                <div className="flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
-                  <span className="text-muted-foreground">📊 기준단가:</span>
+                <div className="flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
+                  <span className="text-muted-foreground">기준단가:</span>
                   <span className="font-mono font-semibold">{formatCurrency(basePrice)}</span>
                   <span className="text-muted-foreground">→</span>
                   <span className={`font-mono font-semibold ${diff < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
@@ -1260,50 +1455,20 @@ export function OffsetEffectTab({
                   <span className={`text-[11px] ${diff < 0 ? "text-red-500" : "text-green-600"}`}>
                     (△ {diff > 0 ? "+" : ""}{formatCurrency(diff)})
                   </span>
+                  {uc > 0 && (<>
+                    <span className="text-muted-foreground ml-1">|</span>
+                    <span className="text-muted-foreground">원가:</span>
+                    <span className="font-mono">{formatCurrency(uc)}</span>
+                    <span className={`font-mono font-semibold ${simMargin < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                      시뮬마진 {simMargin > 0 ? "+" : ""}{formatCurrency(simMargin)}
+                    </span>
+                  </>)}
                   <span className="text-[10px] text-muted-foreground ml-auto">
-                    {targetItem ? "선택 품목 평균" : "전체 가중평균"} · Q1 판매단가 기준
+                    {targetItem ? "선택 품목" : "전체 가중평균"} · {is200Only ? "200 보고서 기준" : dataPeriodLabel}
                   </span>
                 </div>
               ) : null;
             })()}
-            {/* 원가 변동 슬라이더 (선택사항) */}
-            <details className="mt-1">
-              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                ⚙️ 원가 변동 시뮬레이션 (선택사항 — 0%면 현재 원가 유지)
-                {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
-                  <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">적용 중</span>
-                )}
-              </summary>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 p-3 rounded-md border bg-background/60">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs min-w-[70px]">원자재비:</span>
-                  <input type="range" min={-30} max={50} step={1} value={costRawMaterialPct}
-                    onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
-                    className="flex-1 accent-primary" />
-                  <input type="number" value={costRawMaterialPct} onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
-                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
-                  <span className="text-xs">%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs min-w-[70px]">노무비:</span>
-                  <input type="range" min={-20} max={30} step={1} value={costLaborPct}
-                    onChange={(e) => setCostLaborPct(Number(e.target.value))}
-                    className="flex-1 accent-primary" />
-                  <input type="number" value={costLaborPct} onChange={(e) => setCostLaborPct(Number(e.target.value))}
-                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
-                  <span className="text-xs">%</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs min-w-[70px]">외주가공:</span>
-                  <input type="range" min={-20} max={30} step={1} value={costOutsourcingPct}
-                    onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
-                    className="flex-1 accent-primary" />
-                  <input type="number" value={costOutsourcingPct} onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
-                    className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
-                  <span className="text-xs">%</span>
-                </div>
-              </div>
-            </details>
           </>) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {(() => {
@@ -1334,9 +1499,11 @@ export function OffsetEffectTab({
                     const bp = sel?.quantity ? sel.revenue / sel.quantity : cvpSummary.weightedUnitPrice;
                     const np = bp * (1 + priceChangeDirect / 100);
                     const d = np - bp;
+                    const uc = selectedItemInfo?.actualUnitCost || 0;
+                    const sm = uc > 0 ? np - uc : 0;
                     return bp > 0 ? (
-                      <div className="col-span-2 flex items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
-                        <span className="text-muted-foreground">📊 기준단가:</span>
+                      <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
+                        <span className="text-muted-foreground">기준단가:</span>
                         <span className="font-mono font-semibold">{formatCurrency(bp)}</span>
                         <span className="text-muted-foreground">→</span>
                         <span className={`font-mono font-semibold ${d < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
@@ -1345,7 +1512,15 @@ export function OffsetEffectTab({
                         <span className={`text-[11px] ${d < 0 ? "text-red-500" : "text-green-600"}`}>
                           (△ {d > 0 ? "+" : ""}{formatCurrency(d)})
                         </span>
-                        <span className="text-[10px] text-muted-foreground ml-auto">선택 품목 평균 · Q1 판매단가 기준</span>
+                        {uc > 0 && (<>
+                          <span className="text-muted-foreground ml-1">|</span>
+                          <span className="text-muted-foreground">원가:</span>
+                          <span className="font-mono">{formatCurrency(uc)}</span>
+                          <span className={`font-mono font-semibold ${sm < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                            시뮬마진 {sm > 0 ? "+" : ""}{formatCurrency(sm)}
+                          </span>
+                        </>)}
+                        <span className="text-[10px] text-muted-foreground ml-auto">선택 품목 · {is200Only ? "200 보고서 기준" : dataPeriodLabel}</span>
                       </div>
                     ) : null;
                   })()}
@@ -1353,6 +1528,45 @@ export function OffsetEffectTab({
               })()}
             </div>
           )}
+
+          {/* 원가 변동 슬라이더 — 입력 모드 무관하게 항상 표시 */}
+          <details className="mt-1">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+              ⚙️ 원가 변동 시뮬레이션 (선택사항 — 0%면 현재 원가 유지)
+              {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
+                <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">적용 중</span>
+              )}
+            </summary>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2 p-3 rounded-md border bg-background/60">
+              <div className="flex items-center gap-2">
+                <span className="text-xs min-w-[70px]">원자재비:</span>
+                <input type="range" min={-30} max={50} step={1} value={costRawMaterialPct}
+                  onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
+                  className="flex-1 accent-primary" />
+                <input type="number" value={costRawMaterialPct} onChange={(e) => setCostRawMaterialPct(Number(e.target.value))}
+                  className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                <span className="text-xs">%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs min-w-[70px]">노무비:</span>
+                <input type="range" min={-20} max={30} step={1} value={costLaborPct}
+                  onChange={(e) => setCostLaborPct(Number(e.target.value))}
+                  className="flex-1 accent-primary" />
+                <input type="number" value={costLaborPct} onChange={(e) => setCostLaborPct(Number(e.target.value))}
+                  className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                <span className="text-xs">%</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs min-w-[70px]">외주가공:</span>
+                <input type="range" min={-20} max={30} step={1} value={costOutsourcingPct}
+                  onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
+                  className="flex-1 accent-primary" />
+                <input type="number" value={costOutsourcingPct} onChange={(e) => setCostOutsourcingPct(Number(e.target.value))}
+                  className="w-14 text-xs text-right border rounded px-1 py-0.5 bg-background tabular-nums" step={1} />
+                <span className="text-xs">%</span>
+              </div>
+            </div>
+          </details>
 
           {/* 프리셋 */}
           <div className="flex flex-wrap gap-1.5">
@@ -1362,6 +1576,63 @@ export function OffsetEffectTab({
             <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); setPriceChangeDirect(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
             <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); setPriceChangeDirect(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
           </div>
+
+          {/* 월별 단가·원가 추이 */}
+          {targetItem && monthlyBreakdown && monthlyBreakdown.length >= 1 && (
+            <details className="mt-1">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                📅 월별 단가·원가 추이 ({monthlyBreakdown.length}개월)
+                {monthlyBreakdown.some(m => m.margin < 0) && (
+                  <span className="ml-2 px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 text-[10px] font-semibold">원가 미달 월 있음</span>
+                )}
+              </summary>
+              <div className="mt-2 space-y-2">
+                {monthlyBreakdown.length >= 2 && (
+                  <ChartContainer height="h-40">
+                    <ComposedChart data={monthlyBreakdown}>
+                      <CartesianGrid {...GRID_PROPS} />
+                      <XAxis dataKey="monthLabel" tick={{ fontSize: 10 }} />
+                      <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickFormatter={(v: any) => formatCurrency(v, true)} />
+                      <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} />
+                      <Bar yAxisId="left" dataKey="unitPrice" name="매출단가" fill={CHART_COLORS[0]} radius={BAR_RADIUS_TOP} />
+                      <Line yAxisId="left" dataKey="unitCost" name="단위원가" stroke="hsl(0, 84%, 60%)" strokeDasharray="5 5" dot={{ r: 3 }} strokeWidth={2} />
+                      <Bar yAxisId="right" dataKey="quantity" name="수량" fill={CHART_COLORS[2]} opacity={0.25} radius={BAR_RADIUS_TOP} />
+                      <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any, name: any) => [typeof v === "number" ? (name === "수량" ? v.toLocaleString() : formatCurrency(v)) : v, name]} />
+                      <Legend wrapperStyle={{ fontSize: 10 }} />
+                    </ComposedChart>
+                  </ChartContainer>
+                )}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b text-muted-foreground">
+                        <th className="text-left py-1 px-2">월</th>
+                        <th className="text-right py-1 px-2">매출단가</th>
+                        <th className="text-right py-1 px-2">단위원가</th>
+                        <th className="text-right py-1 px-2">마진</th>
+                        <th className="text-right py-1 px-2">원가율</th>
+                        <th className="text-right py-1 px-2">수량</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyBreakdown.map(m => (
+                        <tr key={m.month} className="border-b last:border-0 hover:bg-muted/30">
+                          <td className="py-1 px-2 font-mono">{m.monthLabel}</td>
+                          <td className="py-1 px-2 text-right font-mono">{m.quantity > 0 ? formatCurrency(m.unitPrice) : "—"}</td>
+                          <td className="py-1 px-2 text-right font-mono">{m.quantity > 0 ? formatCurrency(m.unitCost) : "—"}</td>
+                          <td className={`py-1 px-2 text-right font-mono font-semibold ${m.margin < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                            {m.quantity > 0 ? `${m.margin > 0 ? "+" : ""}${formatCurrency(m.margin)}` : "—"}
+                          </td>
+                          <td className="py-1 px-2 text-right font-mono">{m.quantity > 0 ? `${safeFixed(m.costRatio, 1)}%` : "—"}</td>
+                          <td className="py-1 px-2 text-right font-mono">{m.quantity > 0 ? m.quantity.toLocaleString() : "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </details>
+          )}
         </div>
 
         {/* 실시간 KPI */}

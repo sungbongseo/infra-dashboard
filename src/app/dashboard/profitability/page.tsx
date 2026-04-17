@@ -792,6 +792,7 @@ export default function ProfitabilityPage() {
             <OffsetEffectTab
               filteredCustItemDetail={filteredCustItemDetail}
               filteredItemProfitability={filteredItemProfitability}
+              rawItemProfitability={rawItemProfit}
               isDateFiltered={isDateFilterActive}
             />
           </ErrorBoundary>
