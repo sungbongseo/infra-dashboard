@@ -197,24 +197,55 @@ export function extractManufacturingFixedCost(
 // ─── Step 2: CVP 아이템 생성 (거래처×품목) ─────────────
 
 /**
+ * 품목별 변동비율 맵 빌드 — 200 보고서의 14개 변동비 항목으로 정확한 비율 산출.
+ *
+ * 변동비율 = Σ(14개 변동비) / 실적매출원가
+ * 100 보고서의 역산 근사(매출-매출총이익)를 이 비율로 보정하면 고정비 혼입을 제거.
+ */
+function buildVariableCostRatioMap(
+  itemProfitability: ItemProfitabilityRecord[]
+): Map<string, number> {
+  const ratioMap = new Map<string, number>();
+  for (const r of itemProfitability) {
+    const raw = (r.품목 || "").trim();
+    if (!raw) continue;
+    const match = raw.match(/^\[([^\]]+)\]\s*(.*)$/);
+    const itemName = match ? match[2].trim() : raw;
+    if (!itemName) continue;
+    const directVC =
+      (r.원재료비 || 0) + (r.부재료비 || 0) + (r.상품매입 || 0) +
+      (r.노무비 || 0) + (r.복리후생비 || 0) + (r.소모품비 || 0) +
+      (r.수도광열비 || 0) + (r.수선비 || 0) + (r.연료비 || 0) +
+      (r.외주가공비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
+      (r.지급수수료 || 0) + (r.견본비 || 0);
+    const totalCost = r.실적매출원가 || 0;
+    if (totalCost > 0 && directVC > 0) {
+      const ratio = Math.min(directVC / totalCost, 1.0);
+      if (!ratioMap.has(itemName)) ratioMap.set(itemName, ratio);
+    }
+  }
+  return ratioMap;
+}
+
+/**
  * 거래처×품목 단위 공헌이익(CVP) 아이템 생성.
  *
  * @source 100.거래처별품목별손익.xlsx (customerItemDetail)
  * @fields 매출거래처, 매출거래처명, 품목, 품목명, 매출수량.실적, 매출액.실적, 매출총이익.실적
  * @formula
- *   변동비 = 매출액.실적 − 매출총이익.실적  (매출원가 근사)
+ *   변동비 = 매출원가 × 변동비율(200) (정확 분리) | 매출액 − 매출총이익 (fallback)
  *   단위단가 = 매출액 / 매출수량
  *   단위변동비 = 변동비 / 매출수량
  *   단위공헌이익 = 단위단가 − 단위변동비
  *   공헌이익률 = 공헌이익 / 매출
- * @assumption
- *   1. 100 보고서는 원가 분리가 없어 매출원가 ≈ 변동비로 근사
- *   2. 매출액/수량 ≤ 0 행은 제외
+ * @param itemProfitability 200 보고서 — 품목별 변동비율 보정 소스 (선택, 없으면 역산 근사)
  */
 export function calcCustomerItemCVP(
   data: CustomerItemDetailRecord[],
-  totalFixedCost: number
+  totalFixedCost: number,
+  itemProfitability?: ItemProfitabilityRecord[]
 ): { items: CVPItem[]; summary: CVPSummary } {
+  const vcRatioMap = itemProfitability ? buildVariableCostRatioMap(itemProfitability) : null;
   // 품목+거래처 단위 집계
   const agg = new Map<
     string,
@@ -239,11 +270,14 @@ export function calcCustomerItemCVP(
     const prev = agg.get(key);
     const qty = r.매출수량?.실적 || 0;
     const rev = r.매출액?.실적 || 0;
-    // 제조 변동비 = 매출액 − 매출총이익 (매출원가 근사)
-    const mfgVC = (r.매출액?.실적 || 0) - (r.매출총이익?.실적 || 0);
+    // 제조 변동비: 200 보고서 변동비율로 보정 (있으면), 없으면 역산 근사
+    const itemName = (r.품목 || "").trim();
+    const grossCOGS = (r.매출액?.실적 || 0) - (r.매출총이익?.실적 || 0);
+    const vcRatio = vcRatioMap?.get(itemName);
+    const mfgVC = vcRatio !== undefined ? grossCOGS * vcRatio : grossCOGS;
     // SGA 변동비 = 판관변동_직접판매운반비 (물류 변동비)
     const sgaVC = r.판관변동_직접판매운반비?.실적 || 0;
-    // 총 변동비 = 제조 변동비 + SGA 변동비
+    // 총 변동비 = 제조 변동비(보정) + SGA 변동비
     const vc = mfgVC + sgaVC;
     const gp = r.매출총이익?.실적 || 0;
 

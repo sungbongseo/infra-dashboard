@@ -105,8 +105,8 @@ export function OffsetEffectTab({
 
   // CVP 계산 (Step 1~3)
   const { items: cvpItems, summary: cvpSummary } = useMemo(
-    () => calcCustomerItemCVP(filteredCustItemDetail, totalFixedCost),
-    [filteredCustItemDetail, totalFixedCost]
+    () => calcCustomerItemCVP(filteredCustItemDetail, totalFixedCost, filteredItemProfitability),
+    [filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
   );
 
   // 총액 관점 시뮬레이션 (4a)
