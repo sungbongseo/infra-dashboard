@@ -185,8 +185,9 @@ export function CostTrueVarianceTab({
             <p className="font-semibold text-base">🎯 3-Way 원가 비교 — 판매단가 vs 표준원가 vs 실제 제조원가</p>
             <p className="text-sm leading-relaxed">
               2026-Q1(1~3월) 기간 사업부가 판매한 품목별로 3가지 단가를 비교합니다:
-              <strong> ① 판매단가</strong>(100 보고서 평균) <strong>② 표준원가</strong>(공장 표준원가 book)
-              <strong> ③ 실제 제조원가</strong>(BOM 집계, 제조원가÷생산수량).
+              <strong> ① 판매단가</strong>(100 거래처별품목별손익 보고서의 매출액÷수량 평균)
+              <strong> ② 표준원가</strong>(공장별 표준원가 Book — 원가팀이 설정한 목표 제조 단가)
+              <strong> ③ 실제 제조원가</strong>(BOM 전개 — 실제 투입된 원자재·노무비·경비를 생산수량으로 나눈 값).
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground mt-2">
               <div className="bg-background/60 rounded p-2.5">
@@ -304,36 +305,44 @@ export function CostTrueVarianceTab({
           <KpiCard
             title="총 판매 품목" value={analysis.coverage.totalSalesItems} format="number"
             icon={<Package className="h-5 w-5" />}
-            description="Q1 매출 발생 품목"
-            formula="unique(품목명 + 공장)"
+            formula="Q1(1~3월) 기간 매출이 1건 이상 발생한 품목×공장 조합 수"
+            description="분석 대상 품목 수. 이 중 몇 개가 3-Way 매칭에 성공했는지가 분석 커버리지를 결정합니다"
+            benchmark="3-Way 매칭률 70% 이상이면 분석 신뢰도 양호"
           />
           <KpiCard
             title="3-Way 매칭" value={analysis.coverage.threeWayMatched} format="number"
             icon={<TrendingUp className="h-5 w-5" />}
-            description={`BOM 기반 제조품 (${safeFixed(analysis.coverage.threeWayMatched / Math.max(analysis.coverage.totalSalesItems, 1) * 100, 1)}%)`}
-            benchmark="자체 제조 품목"
+            formula="판매단가(매출÷수량) + 표준원가(원가Book) + 실제원가(BOM제조원가) 3개 모두 있는 품목 수. BOM = 제품을 만드는 데 필요한 원자재/공정 목록"
+            description={`3가지 단가를 모두 비교할 수 있는 자체 제조 품목 (${safeFixed(analysis.coverage.threeWayMatched / Math.max(analysis.coverage.totalSalesItems, 1) * 100, 1)}%). 이 수가 많을수록 원가 관리 분석이 정확해집니다`}
+            benchmark="전체 품목의 50% 이상이면 의미 있는 분석 가능. 70% 이상 권장"
           />
           <KpiCard
             title="상품 (매입가)" value={analysis.coverage.purchaseItems} format="number"
             icon={<DollarSign className="h-5 w-5" />}
-            description="표준원가 = 매입가 적용 (정상)"
-            benchmark="실제원가 산출 완료"
+            formula="자체 생산하지 않고 외부에서 구매하는 품목(상품). 표준원가를 매입가로 간주하여 실제원가 대신 사용"
+            description="매입 상품은 제조원가(BOM)가 없는 것이 정상입니다. 표준원가 = 매입가로 처리되어 실제원가가 산출된 것으로 봅니다"
+            benchmark="정상 분류. 별도 조치 불필요"
           />
           <KpiCard
             title="⚠️ 제품 미생산" value={analysis.coverage.productNotProduced} format="number"
             icon={<AlertTriangle className="h-5 w-5" />}
-            description="Q1 BOM 없음 — 원가팀 확인 필요"
-            benchmark="재고 판매 or 데이터 누락"
+            formula="표준원가 Book에는 등록되어 있지만, Q1 제조원가 파일에 생산 실적이 없는 제품 수"
+            description="제조 공장에서 이번 분기 생산하지 않았지만 판매는 된 품목. 기존 재고를 판매했거나, 제조원가 데이터에서 누락되었을 수 있습니다"
+            benchmark="10건 이하면 정상 (재고 판매). 50건 이상이면 제조원가 파일 누락 가능성 — 원가팀 확인 필요"
           />
           <KpiCard
             title="표준 미등록" value={analysis.coverage.standardMissing} format="number"
             icon={<AlertTriangle className="h-5 w-5" />}
-            description="표준원가 book에 없음"
+            formula="품목 코드는 매핑되었지만, 해당 공장의 표준원가 Book에 단가가 등록되지 않은 품목 수"
+            description="표준원가가 없으면 '표준 vs 실제' 비교가 불가능합니다. 신규 품목이거나 해당 공장의 표준원가 파일이 미업로드된 경우 발생"
+            benchmark="0건이 이상적. 5건 이상이면 해당 공장 표준원가 파일 업로드 또는 원가팀 신규 등록 요청"
           />
           <KpiCard
             title="매핑 실패" value={analysis.coverage.mappingFailed} format="number"
             icon={<AlertTriangle className="h-5 w-5" />}
-            description="품목명→코드 매핑 실패"
+            formula="매출 보고서(100)의 품목명을 표준원가/제조원가의 품목코드로 연결하지 못한 건수. 200 보고서에 품목명이 없거나 표기가 다른 경우 발생"
+            description="매핑 실패 품목은 표준원가도, 실제원가도 조회할 수 없어 3-Way 분석에서 완전히 제외됩니다"
+            benchmark="0건이 이상적. 발생 시 원가팀에 200 보고서 품목명 확인 또는 표준원가 Book 신규 등록 요청"
           />
         </div>
         <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
@@ -466,15 +475,15 @@ export function CostTrueVarianceTab({
             <table className="w-full text-[13px]">
               <thead className="bg-muted/30 sticky top-0">
                 <tr className="border-b text-left">
-                  <th className="p-2">품목</th>
-                  <th className="p-2">공장</th>
-                  <th className="p-2 text-right">판매수량</th>
-                  <th className="p-2 text-right">판매단가</th>
-                  <th className="p-2 text-right">표준원가</th>
-                  <th className="p-2 text-right">실제원가</th>
-                  <th className="p-2 text-right">표준-실제</th>
-                  <th className="p-2 text-right">판매영향</th>
-                  <th className="p-2">비고</th>
+                  <th className="p-2 cursor-help" title="매출이 발생한 제품/상품명과 SAP 품목코드">품목</th>
+                  <th className="p-2 cursor-help" title="이 품목의 매출이 발생한 생산 공장 (양산/청산/울산/용산)">공장</th>
+                  <th className="p-2 text-right cursor-help" title="Q1(1~3월) 총 판매 수량 합계">판매수량</th>
+                  <th className="p-2 text-right cursor-help" title="Q1 평균 판매 단가 = 매출액 ÷ 판매수량. 고객에게 실제로 판매한 가격">판매단가</th>
+                  <th className="p-2 text-right cursor-help" title="공장 표준원가 Book에 등록된 기준 단가. 원가팀이 설정한 '이 정도에 만들어야 한다'는 목표 원가">표준원가</th>
+                  <th className="p-2 text-right cursor-help" title="BOM(제조 공정) 기반 실제 제조 단가. 원자재+노무비+고정비를 생산수량으로 나눈 값">실제원가</th>
+                  <th className="p-2 text-right cursor-help" title="(실제원가 - 표준원가) ÷ 표준원가 × 100. 양수 = 표준보다 비싸게 생산(손실), 음수 = 표준보다 싸게 생산(절감)">표준-실제</th>
+                  <th className="p-2 text-right cursor-help" title="(실제원가 - 표준원가) × 판매수량. 표준 대비 추가 발생한 원가 총액. 양수 = 초과 원가(손실), 음수 = 원가 절감">판매영향</th>
+                  <th className="p-2 cursor-help" title="분류 사유: 3-Way 매칭, 상품(매입), 제품 미생산, 매핑 실패, 표준 미등록. ⚠ 표시 = 데이터 품질 경고">비고</th>
                 </tr>
               </thead>
               <tbody>
@@ -523,7 +532,11 @@ export function CostTrueVarianceTab({
                     </td>
                     <td className="p-2.5 text-[11px] text-muted-foreground">
                       {r.dataQualityFlags.length > 0 && (
-                        <span className="text-red-600 dark:text-red-400 font-bold mr-1" title={r.dataQualityFlags.join(", ")}>⚠</span>
+                        <span className="text-red-600 dark:text-red-400 font-bold mr-1" title={r.dataQualityFlags.map((f: string) => ({
+                          "extreme_variance": "극단적 변동률 (±1000% 초과) — 표준원가 등록 오류 또는 소량 시제품 배치",
+                          "low_qty_high_variance": "소량 배치 + 높은 변동률 — 생산수량 10개 미만에서 고정비가 집중 배분",
+                          "fixed_cost_dominates": "고정비 지배 — 실제원가가 표준의 50배 이상. 감가상각비·고정노무비가 소량에 집중",
+                        }[f] || f)).join(" | ")}>⚠</span>
                       )}
                       {r.note}
                     </td>
@@ -541,7 +554,7 @@ export function CostTrueVarianceTab({
           <h2 className="text-lg font-semibold mb-3">Step 3. 월별 판매단가 추세 (Top 5 영향 품목)</h2>
           <ChartCard
             title="판매단가 월별 변동 (Q1)"
-            description="판매영향액 Top 5 품목의 월별 평균 판매단가 — 단가 추세 파악"
+            description="판매영향액 Top 5 품목의 월별 평균 판매단가 — 단가가 급변하는 품목은 거래처 협상 또는 원자재 가격 변동 영향일 수 있습니다"
             isEmpty={trendChartData.length === 0}
           >
             <ChartContainer height="h-72">
@@ -595,18 +608,23 @@ export function CostTrueVarianceTab({
                   if (!active || !payload?.[0]) return null;
                   const d = payload[0].payload;
                   return (
-                    <div className="bg-popover border rounded-lg p-2 text-xs shadow-md space-y-1">
-                      <p className="font-semibold">{d.공장}</p>
-                      <p>품목 수: {d.품목수}</p>
+                    <div className="bg-popover border rounded-lg p-3 text-xs shadow-md space-y-1.5 max-w-[280px]">
+                      <p className="font-semibold text-sm">{d.공장} ({d.품목수}개 품목)</p>
                       {d.hasStd ? (
                         <>
                           <p><strong>가중평균 변동률: {d.평균변동률}%</strong></p>
-                          <p className="text-muted-foreground">단순평균: {d.단순평균}%</p>
-                          <p>총 매출액: {formatCurrency(d.매출액)}</p>
-                          <p>마진영향 누적: {formatCurrency(d.영향액)}</p>
+                          <p className="text-muted-foreground text-[11px]">→ 매출이 큰 품목일수록 더 많이 반영한 평균</p>
+                          <p className="text-muted-foreground">단순평균: {d.단순평균}% (참고용)</p>
+                          <div className="border-t pt-1.5 mt-1.5 space-y-0.5">
+                            <p>총 매출액: {formatCurrency(d.매출액)}</p>
+                            <p>마진영향 누적: {formatCurrency(d.영향액)}</p>
+                            <p className="text-muted-foreground text-[11px]">
+                              {d.영향액 > 0 ? "→ 양수 = 표준보다 비싸게 생산한 총 초과원가" : d.영향액 < 0 ? "→ 음수 = 표준보다 싸게 생산한 총 절감액" : ""}
+                            </p>
+                          </div>
                         </>
                       ) : (
-                        <p className="text-amber-600">표준원가 book 없음 (N/A)</p>
+                        <p className="text-amber-600">이 공장은 표준원가 Book이 업로드되지 않아 변동률을 산출할 수 없습니다</p>
                       )}
                     </div>
                   );
@@ -633,7 +651,7 @@ export function CostTrueVarianceTab({
           <h2 className="text-lg font-semibold mb-3">Step 5. 원가 요인 분해 — 생산원가 Top 10</h2>
           <ChartCard
             title="품목별 원가 구성 (14개 변동비 + 3개 고정비)"
-            description="각 품목의 원가에서 어떤 항목이 주요 요인인지 구성 비율로 분석"
+            description="각 품목의 원가에서 어떤 항목이 주요 요인인지 구성 비율로 분석. 원재료비 비중이 높으면 구매단가 협상, 고정비 비중이 높으면 생산량 증대가 개선 포인트입니다"
             isEmpty={false}
           >
             <div className="overflow-x-auto">
@@ -738,7 +756,7 @@ export function CostTrueVarianceTab({
           <h2 className="text-lg font-semibold mb-3">Step 7. 공장 간 동일 품목 효율성 비교 ({multiFactoryItems.length}건)</h2>
           <ChartCard
             title="다공장 생산 품목의 공장별 단가"
-            description="여러 공장에서 생산되는 품목의 원가 차이 — 공장 라인 통합·이전 의사결정 근거"
+            description="여러 공장에서 생산되는 품목의 원가 차이. 스프레드(차이)가 20% 이상이면 생산 라인 이전으로 연간 수천만원 절감 가능합니다"
             isEmpty={false}
           >
             <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
@@ -793,7 +811,7 @@ export function CostTrueVarianceTab({
           <h2 className="text-lg font-semibold mb-3">Step 8. 원가 효율성 알림 ({inefficiencyAlerts.length}건)</h2>
           <ChartCard
             title="즉시 액션 가능한 원가 절감/개선 기회"
-            description="공장 간 단가 차이 ≥ 10% 또는 표준 대비 실제 ≥ 20% 차이 품목"
+            description="공장 간 단가 차이 ≥ 10% 또는 표준 대비 실제 ≥ 20% 차이 품목. 절감 가능액은 (단가 차이 × 현재 수량 × 4분기)로 추정한 연간 절감 예상액입니다"
             isEmpty={false}
           >
             <div className="space-y-2.5 p-3 max-h-[520px] overflow-y-auto">
