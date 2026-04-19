@@ -159,7 +159,7 @@ export function OffsetEffectTab({
   // 품목별 원가 구성 비율 맵 (원가 변동 시뮬용)
   const vcCostRatioMap = useMemo(() => {
     if (!filteredItemProfitability || filteredItemProfitability.length === 0) return undefined;
-    const map = new Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>();
+    const map = new Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number; overallVCRatio: number }>();
     for (const r of filteredItemProfitability) {
       const raw = (r.품목 || "").trim();
       const match = raw.match(/^\[([^\]]+)\]\s*(.*)$/);
@@ -171,8 +171,10 @@ export function OffsetEffectTab({
       const total = rawMat + labor + outsourcing + (r.소모품비 || 0) + (r.수도광열비 || 0) +
         (r.수선비 || 0) + (r.연료비 || 0) + (r.운반비 || 0) + (r.전력비 || 0) +
         (r.지급수수료 || 0) + (r.견본비 || 0);
+      const totalCost = r.실적매출원가 || 0;
+      const overallVCRatio = totalCost > 0 ? Math.min(total / totalCost, 1.0) : 1.0;
       if (total > 0) map.set(name, {
-        rawMaterialRatio: rawMat / total, laborRatio: labor / total, outsourcingRatio: outsourcing / total,
+        rawMaterialRatio: rawMat / total, laborRatio: labor / total, outsourcingRatio: outsourcing / total, overallVCRatio,
       });
     }
     return map.size > 0 ? map : undefined;
@@ -338,7 +340,11 @@ export function OffsetEffectTab({
   const syntheticCvpItem = useMemo((): CVPItem | null => {
     if (!is200Only || !selectedItemInfo || manualUnitPrice <= 0) return null;
     const qty = selectedItemInfo.actualQty200 || selectedItemInfo.quantity || 1;
-    const uc = selectedItemInfo.actualUnitCost;
+    // 변동비 분리: actualCOGS(총원가) × vcRatio → 변동비만 추출
+    const ratios = vcCostRatioMap?.get(selectedItemInfo.name);
+    const vcRatio = ratios?.overallVCRatio ?? 0.8;
+    const totalVC = (selectedItemInfo.actualCOGS || selectedItemInfo.actualUnitCost * qty) * vcRatio;
+    const unitVC = safeDivide(totalVC, qty);
     return {
       customer: "__manual__",
       customerName: "수동 시뮬레이션",
@@ -346,20 +352,45 @@ export function OffsetEffectTab({
       itemName: selectedItemInfo.name,
       quantity: qty,
       revenue: manualUnitPrice * qty,
-      variableCost: selectedItemInfo.actualCOGS || uc * qty,
+      variableCost: totalVC,
       sgaVariableCost: 0,
-      grossProfit: (manualUnitPrice - uc) * qty,
+      grossProfit: (manualUnitPrice - unitVC) * qty,
       unitPrice: manualUnitPrice,
-      unitVariableCost: uc,
-      unitContributionMargin: manualUnitPrice - uc,
-      totalContributionMargin: (manualUnitPrice - uc) * qty,
-      contributionMarginRatio: safeDivide(manualUnitPrice - uc, manualUnitPrice),
+      unitVariableCost: unitVC,
+      unitContributionMargin: manualUnitPrice - unitVC,
+      totalContributionMargin: (manualUnitPrice - unitVC) * qty,
+      contributionMarginRatio: safeDivide(manualUnitPrice - unitVC, manualUnitPrice),
       quadrant: "question",
-      isLowPriceOrder: manualUnitPrice < uc,
+      isLowPriceOrder: manualUnitPrice < unitVC,
     };
-  }, [is200Only, selectedItemInfo, manualUnitPrice, targetItem]);
+  }, [is200Only, selectedItemInfo, manualUnitPrice, targetItem, vcCostRatioMap]);
 
   // 시뮬 대상 items: 200 전용 합성 아이템 포함
+  // 원가 슬라이더 반영 후 조정 원가 (UI 표시용)
+  const adjustedCostInfo = useMemo(() => {
+    if (!selectedItemInfo || selectedItemInfo.actualUnitCost <= 0) return null;
+    const hasCostChange = costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0;
+    if (!hasCostChange) return null;
+    const uc = selectedItemInfo.actualUnitCost;
+    const ratios = vcCostRatioMap?.get(selectedItemInfo.name);
+    const rawR = ratios?.rawMaterialRatio ?? 0.5;
+    const labR = ratios?.laborRatio ?? 0.1;
+    const outR = ratios?.outsourcingRatio ?? 0.1;
+    const otherR = Math.max(0, 1 - rawR - labR - outR);
+    const vcRatio = ratios?.overallVCRatio ?? 0.8;
+    const unitVC = uc * vcRatio;
+    const unitFC = uc * (1 - vcRatio);
+    const adjFactor = rawR * (1 + costRawMaterialPct / 100) + labR * (1 + costLaborPct / 100) + outR * (1 + costOutsourcingPct / 100) + otherR;
+    const adjustedUnitVC = unitVC * adjFactor;
+    const adjustedUnitCost = adjustedUnitVC + unitFC;
+    const costDiff = adjustedUnitCost - uc;
+    return {
+      originalUnitCost: uc, adjustedUnitCost, costDiff,
+      costChangePctTotal: safeDivide(costDiff, uc) * 100,
+      vcRatio, unitVC, unitFC, adjustedUnitVC, hasRatioData: !!ratios,
+    };
+  }, [selectedItemInfo, costRawMaterialPct, costLaborPct, costOutsourcingPct, vcCostRatioMap]);
+
   const simItems = useMemo(
     () => syntheticCvpItem ? [...cvpItems, syntheticCvpItem] : cvpItems,
     [cvpItems, syntheticCvpItem]
@@ -387,9 +418,9 @@ export function OffsetEffectTab({
   // 감도 분석 그리드 (대상 선택 시에만)
   const sensitivityGrid = useMemo(
     () => (targetCustomer || targetItem)
-      ? calcSensitivityGrid(simItems, totalFixedCost, targetCustomer, targetItem)
+      ? calcSensitivityGrid(simItems, totalFixedCost, targetCustomer, targetItem, undefined, costChangePct, vcCostRatioMap)
       : [],
-    [simItems, totalFixedCost, targetCustomer, targetItem]
+    [simItems, totalFixedCost, targetCustomer, targetItem, costChangePct, vcCostRatioMap]
   );
 
   // 무결성 검증 (Step 5)
@@ -1205,12 +1236,13 @@ export function OffsetEffectTab({
             </div>
           </div>
           <div className="ml-6 p-2 bg-white/60 dark:bg-black/20 rounded text-[11px] font-mono">
-            <strong>대수 항등식:</strong> newOP − baseOP ≡ priceReductionLoss + volumeContributionGain<br />
-            <strong>분해:</strong>
-            <br />• priceReductionLoss = −Σ(기존수량 × 기존단가 × 인하율)
-            <br />• volumeContributionGain = Σ(추가수량 × 인하후 단위공헌이익)
+            <strong>대수 항등식:</strong> newOP − baseOP ≡ priceEffect + costEffect + volumeEffect<br />
+            <strong>3-way 분해:</strong>
+            <br />• priceEffect = Σ(기존수량 × (신규단가 − 기존단가)) — 가격 변동
+            <br />• costEffect = Σ(기존수량 × (기존변동비 − 조정변동비)) — 원가 변동
+            <br />• volumeEffect = Σ(추가수량 × (신규단가 − 조정변동비)) — 물량 변동
           </div>
-          <p className="ml-6 text-[11px]"><strong>사용법:</strong> ① 대상 거래처/품목 선택 → ② 물량/단가 슬라이더 조작 → ③ 워터폴로 4단계 이익 변동 확인 → ④ 최종 이익이 기존 이익보다 높으면 &quot;가설 성립&quot;</p>
+          <p className="ml-6 text-[11px]"><strong>사용법:</strong> ① 대상 거래처/품목 선택 → ② 물량/단가/원가 슬라이더 조작 → ③ 워터폴로 이익 변동 확인 → ④ 최종 이익이 기존 이익보다 높으면 &quot;가설 성립&quot;</p>
         </div>
 
         {/* 컨트롤 카드 */}
@@ -1374,6 +1406,36 @@ export function OffsetEffectTab({
                     <AlertTriangle className="h-3 w-3" /> 원가 미달 — 판매단가가 실적 원가보다 낮습니다
                   </div>
                 )}
+                {adjustedCostInfo && (
+                  <div className="mt-1 pt-1 border-t border-dashed flex flex-wrap items-center gap-x-5 gap-y-1 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">조정 후 단위원가</span>{" "}
+                      <span className={`font-mono font-semibold ${adjustedCostInfo.costDiff > 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                        {formatCurrency(adjustedCostInfo.adjustedUnitCost)}
+                      </span>
+                      <span className={`ml-1 text-[10px] ${adjustedCostInfo.costDiff > 0 ? "text-red-500" : "text-green-600"}`}>
+                        ({adjustedCostInfo.costDiff > 0 ? "+" : ""}{safeFixed(adjustedCostInfo.costChangePctTotal, 1)}%)
+                      </span>
+                    </div>
+                    {selectedItemInfo?.in100 && (() => {
+                      const adjUp = safeDivide(selectedItemInfo.revenue, selectedItemInfo.quantity);
+                      const adjMargin = adjUp - adjustedCostInfo.adjustedUnitCost;
+                      const adjMarginPct = safeDivide(adjMargin, adjUp) * 100;
+                      return (
+                        <div>
+                          <span className="text-muted-foreground">조정 후 마진</span>{" "}
+                          <span className={`font-mono font-semibold ${adjMargin < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                            {adjMargin > 0 ? "+" : ""}{formatCurrency(adjMargin)} ({safeFixed(adjMarginPct, 1)}%)
+                          </span>
+                        </div>
+                      );
+                    })()}
+                    {!adjustedCostInfo.hasRatioData && (
+                      <span className="text-[10px] text-amber-600 dark:text-amber-400">(추정 비율 사용)</span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground ml-auto">원가 슬라이더 반영</span>
+                  </div>
+                )}
               </div>
             );
           })()}
@@ -1442,7 +1504,7 @@ export function OffsetEffectTab({
                 : cvpSummary.weightedUnitPrice;
               const newPrice = basePrice * (1 + priceChangePct / 100);
               const diff = newPrice - basePrice;
-              const uc = selectedItemInfo?.actualUnitCost || 0;
+              const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.actualUnitCost || 0);
               const simMargin = uc > 0 ? newPrice - uc : 0;
               return basePrice > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
@@ -1457,7 +1519,7 @@ export function OffsetEffectTab({
                   </span>
                   {uc > 0 && (<>
                     <span className="text-muted-foreground ml-1">|</span>
-                    <span className="text-muted-foreground">원가:</span>
+                    <span className="text-muted-foreground">{adjustedCostInfo ? "조정원가:" : "원가:"}</span>
                     <span className="font-mono">{formatCurrency(uc)}</span>
                     <span className={`font-mono font-semibold ${simMargin < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                       시뮬마진 {simMargin > 0 ? "+" : ""}{formatCurrency(simMargin)}
@@ -1499,7 +1561,7 @@ export function OffsetEffectTab({
                     const bp = sel?.quantity ? sel.revenue / sel.quantity : cvpSummary.weightedUnitPrice;
                     const np = bp * (1 + priceChangeDirect / 100);
                     const d = np - bp;
-                    const uc = selectedItemInfo?.actualUnitCost || 0;
+                    const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.actualUnitCost || 0);
                     const sm = uc > 0 ? np - uc : 0;
                     return bp > 0 ? (
                       <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
@@ -1514,7 +1576,7 @@ export function OffsetEffectTab({
                         </span>
                         {uc > 0 && (<>
                           <span className="text-muted-foreground ml-1">|</span>
-                          <span className="text-muted-foreground">원가:</span>
+                          <span className="text-muted-foreground">{adjustedCostInfo ? "조정원가:" : "원가:"}</span>
                           <span className="font-mono">{formatCurrency(uc)}</span>
                           <span className={`font-mono font-semibold ${sm < 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
                             시뮬마진 {sm > 0 ? "+" : ""}{formatCurrency(sm)}
@@ -1566,6 +1628,35 @@ export function OffsetEffectTab({
                 <span className="text-xs">%</span>
               </div>
             </div>
+            {adjustedCostInfo && (
+              <div className="mt-3 p-2.5 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20 text-xs space-y-1.5">
+                <div className="flex items-center gap-2 font-semibold text-amber-800 dark:text-amber-300">
+                  <Info className="h-3.5 w-3.5" />
+                  원가 조정 결과 — {selectedItemInfo?.name || targetItem}
+                </div>
+                <div className="flex flex-wrap gap-x-5 gap-y-1">
+                  <div>
+                    <span className="text-muted-foreground">기존 단위원가</span>{" "}
+                    <span className="font-mono">{formatCurrency(adjustedCostInfo.originalUnitCost)}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">→ 조정 후</span>{" "}
+                    <span className={`font-mono font-semibold ${adjustedCostInfo.costDiff > 0 ? "text-red-600 dark:text-red-400" : "text-green-700 dark:text-green-400"}`}>
+                      {formatCurrency(adjustedCostInfo.adjustedUnitCost)}
+                    </span>
+                    <span className={`ml-1 text-[10px] ${adjustedCostInfo.costDiff > 0 ? "text-red-500" : "text-green-600"}`}>
+                      (△ {adjustedCostInfo.costDiff > 0 ? "+" : ""}{formatCurrency(adjustedCostInfo.costDiff)}, {adjustedCostInfo.costDiff > 0 ? "+" : ""}{safeFixed(adjustedCostInfo.costChangePctTotal, 1)}%)
+                    </span>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10px] text-muted-foreground">
+                  <span>변동비 비중: {safeFixed(adjustedCostInfo.vcRatio * 100, 0)}%</span>
+                  <span>변동비: {formatCurrency(adjustedCostInfo.unitVC)} → {formatCurrency(adjustedCostInfo.adjustedUnitVC)}</span>
+                  <span>고정비: {formatCurrency(adjustedCostInfo.unitFC)} (불변)</span>
+                  {!adjustedCostInfo.hasRatioData && <span className="text-amber-600 dark:text-amber-400">* 200 보고서 원가 비율 없음 — 추정 비율 사용</span>}
+                </div>
+              </div>
+            )}
           </details>
 
           {/* 프리셋 */}
@@ -1635,7 +1726,7 @@ export function OffsetEffectTab({
           )}
         </div>
 
-        {/* 실시간 KPI */}
+        {/* 실시간 KPI — 3-way 분해 */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <KpiCard
             title="기존 영업이익" value={totalSim.baseOperatingProfit} format="currency"
@@ -1645,24 +1736,28 @@ export function OffsetEffectTab({
             reason="변화 전 영업이익을 명확히 표시"
           />
           <KpiCard
-            title={totalSim.priceReductionLoss >= 0 ? "단가 효과 (이득)" : "단가 효과 (손실)"} value={totalSim.priceReductionLoss} format="currency"
-            formula="Σ([100.매출수량·실적] × [100.단위단가] × priceChangePct%) · 대상 품목/거래처만"
-            description="대상 품목의 단가 인하로 인한 매출 감소"
-            benchmark="이 손실을 물량 증가 공헌이 상쇄해야 가설 성립"
-            reason="저가수주의 직접 비용"
+            title={totalSim.priceEffect >= 0 ? "가격 효과 (이득)" : "가격 효과 (손실)"} value={totalSim.priceEffect} format="currency"
+            formula="Σ(기존수량 × (신규단가 − 기존단가)) · 대상 품목만"
+            description="대상 품목의 가격 변동에 의한 매출 변화"
+            benchmark="가격 인상=양수, 인하=음수"
+            reason="가격 변동의 직접 효과"
           />
           <KpiCard
-            title={totalSim.volumeContributionGain >= 0 ? "물량 효과 (공헌)" : "물량 효과 (감소)"} value={totalSim.volumeContributionGain} format="currency"
-            formula="Σ(추가수량 × (인하단가 − [100.단위변동비])) · 대상 품목/거래처만"
-            description="대상 품목 물량 증가로 인한 공헌이익 증가"
-            benchmark="단가 인하 손실보다 커야 가설 성립"
-            reason="박리다매의 실질적 이익"
+            title={(() => {
+              const combined = totalSim.costEffect + totalSim.volumeEffect;
+              return combined >= 0 ? "원가+물량 효과 (이득)" : "원가+물량 효과 (손실)";
+            })()}
+            value={totalSim.costEffect + totalSim.volumeEffect} format="currency"
+            formula={`원가: Σ(기존수량 × (기존변동비 − 조정변동비)) = ${formatCurrency(totalSim.costEffect)}\n물량: Σ(추가수량 × 신규단위공헌이익) = ${formatCurrency(totalSim.volumeEffect)}`}
+            description={`원가 효과 ${formatCurrency(totalSim.costEffect)} + 물량 효과 ${formatCurrency(totalSim.volumeEffect)}`}
+            benchmark="원가 인상=음수, 물량 증가=양수"
+            reason="원가 변동과 물량 변동의 합산 효과"
           />
           <KpiCard
             title="최종 영업이익" value={totalSim.newOperatingProfit}
             previousValue={totalSim.baseOperatingProfit}
             format="currency"
-            formula="Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.제조고정비] + Δ(가격효과) + Δ(물량공헌) · [200.고정비] 총액 불변"
+            formula="기존 영업이익 + 가격효과 + 원가효과 + 물량효과 · 항등식: net ≡ price + cost + volume"
             description={`순효과 ${totalSim.netOffsetEffect >= 0 ? "+" : ""}${formatCurrency(totalSim.netOffsetEffect)}`}
             benchmark="기존 이익 대비 개선되면 가설 성립"
             reason="시뮬레이션 후 전사 영업이익"
@@ -1671,18 +1766,19 @@ export function OffsetEffectTab({
 
         {/* 워터폴 차트 */}
         <div className="rounded-md border bg-muted/30 p-3 mb-3 text-xs text-muted-foreground space-y-1">
-          <p><strong className="text-foreground">📖 워터폴 차트 읽는 법:</strong> 좌측부터 우측으로 4개 막대가 누적 흐름을 보여줍니다.</p>
+          <p><strong className="text-foreground">📖 워터폴 차트 읽는 법:</strong> 3-way 분해로 가격·원가·물량 효과를 순차 누적합니다.</p>
           <ul className="list-disc ml-5 space-y-0.5">
-            <li><strong className="text-foreground">① 기존 영업이익 (녹색)</strong>: 시나리오 적용 전 전사 영업이익 — 출발점</li>
-            <li><strong className="text-foreground">② 단가 효과</strong>: 단가 변동에 따른 매출 변화 (인하 시 빨강/손실, 인상 시 녹색/이득)</li>
-            <li><strong className="text-foreground">③ 물량 효과</strong>: 물량 변동 × 조정 후 단위공헌이익 (증가 시 파랑/공헌, 감소 시 빨강/손실)</li>
-            <li><strong className="text-foreground">④ 최종 영업이익 (녹색/빨강)</strong>: ① + ② + ③ — 시나리오 적용 후 전사 이익</li>
+            <li><strong className="text-foreground">① 기존 영업이익 (녹색)</strong>: 시나리오 적용 전 — 출발점</li>
+            <li><strong className="text-foreground">② 가격 효과</strong>: 기존수량 × 단가변동 (인하=빨강, 인상=녹색)</li>
+            <li><strong className="text-foreground">③ 원가 효과</strong>: 기존수량 × 변동비변동 (원가인상=주황, 절감=녹색) — 슬라이더 0이면 생략</li>
+            <li><strong className="text-foreground">④ 물량 효과</strong>: 추가수량 × 신규 단위공헌이익 (증가=파랑, 감소=빨강)</li>
+            <li><strong className="text-foreground">⑤ 최종 영업이익</strong>: ① + ② + ③ + ④ — 항등식 보장</li>
           </ul>
-          <p className="pt-1"><strong className="text-foreground">💡 판단 기준:</strong> ④가 ①보다 높으면 가설 성립(박리다매 유리), 낮으면 가설 반증(가격 방어 필요).</p>
+          <p className="pt-1"><strong className="text-foreground">💡 판단 기준:</strong> ⑤가 ①보다 높으면 가설 성립(박리다매 유리), 낮으면 가설 반증(가격 방어 필요).</p>
         </div>
         <ChartCard
           title="상계 효과 워터폴"
-          formula="기존 이익 → 단가 인하 손실(-) → 물량 증가 공헌(+) → 최종 이익"
+          formula="기존 이익 → 가격 효과 → 원가 효과 → 물량 효과 → 최종 이익 (3-way 분해)"
           description="각 스텝의 이익 변동을 시각적으로 추적"
           benchmark="최종 이익이 기존 이익보다 높으면 박리다매 가설 성립"
           reason="저가수주 상계 효과를 한 눈에 검증"
@@ -2343,7 +2439,8 @@ export function OffsetEffectTab({
         <p><strong>데이터 소스</strong>: CustomerItemDetailRecord (100 보고서, 거래처×품목 매출/원가), ItemProfitabilityRecord (200 보고서, 품목별 제조 고정비).</p>
         <p><strong>변동비 정의</strong>: 100 보고서의 매출원가 실적을 변동비로 가정. 제조 고정비는 200 보고서에서 별도 추출.</p>
         <p><strong>고정비 출처</strong>: 제조고정노무비 + 감가상각비 + 기타경비. SGA 고정비는 제외 (CVP 무관).</p>
-        <p><strong>핵심 가정</strong>: (1) 고정비 총액 불변 (설비 캐파 내 생산), (2) 변동비 선형 증가, (3) 배분 관점은 장부상 표시 목적.</p>
+        <p><strong>대수 항등식</strong>: newOP − baseOP ≡ priceEffect + costEffect + volumeEffect. 3-way 분해로 가격·원가·물량 효과를 독립 분석.</p>
+        <p><strong>핵심 가정</strong>: (1) 고정비 총액 불변 (설비 캐파 내 생산), (2) 변동비 선형 증가, (3) 원가 슬라이더는 대상 품목에만 적용 (비대상 불변), (4) 배분 관점은 장부상 표시 목적.</p>
         <p><strong>대수 항등식</strong>: newOP − baseOP = priceReductionLoss + volumeContributionGain. 이 식은 고정비 총액 불변 가정 하에 수학적으로 정확.</p>
         <p><strong>왜곡 방지</strong>: 총액 관점(4a)과 배분 관점(4b)을 합산하지 않고 별도 섹션으로 제시. 무결성 검증(5)으로 두 관점의 합계 일치성 확인.</p>
       </div>

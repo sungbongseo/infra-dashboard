@@ -94,6 +94,11 @@ export interface TotalViewSimulation {
   newTotalQuantity: number;
   newAvgUnitFixedCost: number;
   newOperatingProfit: number;
+  // 3-way 분해: net ≡ priceEffect + costEffect + volumeEffect
+  priceEffect: number;           // 가격 변동 효과 (기존수량 × 단가변동)
+  costEffect: number;            // 원가 변동 효과 (기존수량 × 변동비변동, 음수=원가상승)
+  volumeEffect: number;          // 물량 변동 효과 (추가수량 × 신규 단위공헌이익)
+  // 하위호환 (deprecated)
   priceReductionLoss: number;
   volumeContributionGain: number;
   netOffsetEffect: number;
@@ -517,8 +522,10 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
   let newTotalRevenue = 0;
   let newTotalVariableCost = 0;
   let newTotalQuantity = 0;
-  let priceReductionLoss = 0;
-  let volumeContributionGain = 0;
+  // 3-way 분해: net ≡ priceEffect + costEffect + volumeEffect
+  let priceEffect = 0;      // 가격 변동 효과
+  let costEffect = 0;       // 원가 변동 효과 (음수=원가 상승)
+  let volumeEffect = 0;     // 물량 변동 효과
 
   const volFactor = 1 + volumeIncreasePct / 100;
   const priceFactor = 1 + priceChangePct / 100;
@@ -569,26 +576,17 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
       newTotalVariableCost += newVC;
       newTotalQuantity += newQty;
 
-      // 분해: 단가 인하 손실 = 기존 수량 × 단가 인하액
-      priceReductionLoss += it.quantity * it.unitPrice * (priceChangePct / 100);
-      // 분해: 물량 증가 공헌 = 추가 수량 × 인하된 단위공헌이익 (원가 인상 반영)
-      const newUnitCM = newPrice - adjustedUnitVC;
-      volumeContributionGain += addedForThisRow * newUnitCM;
+      // 3-way 분해 (항등식: net ≡ priceEffect + costEffect + volumeEffect)
+      // 가격 효과: 기존 수량 × 단가 변동 (원가 무관)
+      priceEffect += it.quantity * (newPrice - it.unitPrice);
+      // 원가 효과: 기존 수량 × 변동비 변동 (부호 반전: 원가↑=이익↓)
+      costEffect += it.quantity * (it.unitVariableCost - adjustedUnitVC);
+      // 물량 효과: 추가 수량 × 신규 단위공헌이익 (가격+원가 변동 반영)
+      volumeEffect += addedForThisRow * (newPrice - adjustedUnitVC);
     } else {
+      // 비대상 품목: 원가·매출 모두 원본 유지 (상수 기준선)
       newTotalRevenue += it.revenue;
-      if (hasCostChange) {
-        const ratios = vcCostRatioMap?.get(it.item);
-        const rawR = ratios?.rawMaterialRatio ?? 0.5;
-        const labR = ratios?.laborRatio ?? 0.1;
-        const outR = ratios?.outsourcingRatio ?? 0.1;
-        const otherR = Math.max(0, 1 - rawR - labR - outR);
-        const adjFactor = rawR * (1 + costAdj.rawMaterial / 100) +
-          labR * (1 + costAdj.labor / 100) +
-          outR * (1 + costAdj.outsourcing / 100) + otherR;
-        newTotalVariableCost += it.variableCost * adjFactor;
-      } else {
-        newTotalVariableCost += it.variableCost;
-      }
+      newTotalVariableCost += it.variableCost;
       newTotalQuantity += it.quantity;
     }
   }
@@ -612,8 +610,13 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
     newTotalQuantity,
     newAvgUnitFixedCost,
     newOperatingProfit,
-    priceReductionLoss,
-    volumeContributionGain,
+    // 3-way 분해
+    priceEffect,
+    costEffect,
+    volumeEffect,
+    // 하위호환 (deprecated)
+    priceReductionLoss: priceEffect,
+    volumeContributionGain: costEffect + volumeEffect,
     netOffsetEffect,
     hypothesisValid: netOffsetEffect > 0,
     // A4: 3단계 판정
@@ -895,8 +898,9 @@ export function calcPoolSimulation(
 export function calcWaterfallSteps(sim: TotalViewSimulation): WaterfallStep[] {
   const steps: WaterfallStep[] = [];
   const baseOP = sim.baseOperatingProfit;
-  const priceLoss = sim.priceReductionLoss; // negative
-  const volumeGain = sim.volumeContributionGain;
+  const pe = sim.priceEffect;
+  const ce = sim.costEffect;
+  const ve = sim.volumeEffect;
   const finalOP = sim.newOperatingProfit;
 
   // 1. 기존 영업이익
@@ -909,29 +913,46 @@ export function calcWaterfallSteps(sim: TotalViewSimulation): WaterfallStep[] {
     type: "start",
   });
 
-  // 2. 단가 효과 (색상/라벨 동적 — 인상 시 양수=녹색, 인하 시 음수=빨강)
-  const afterPriceLoss = baseOP + priceLoss;
-  steps.push({
-    name: priceLoss >= 0 ? "단가 효과 (이득)" : "단가 효과 (손실)",
-    base: Math.min(baseOP, afterPriceLoss),
-    value: Math.abs(priceLoss),
-    fill: priceLoss >= 0 ? "hsl(142, 71%, 45%)" : "hsl(0, 84%, 60%)",
-    cumulative: afterPriceLoss,
-    type: priceLoss >= 0 ? "increase" : "decrease",
-  });
+  // 2. 가격 효과 (인상=녹색, 인하=빨강)
+  const afterPrice = baseOP + pe;
+  if (pe !== 0) {
+    steps.push({
+      name: pe >= 0 ? "가격 효과 (이득)" : "가격 효과 (손실)",
+      base: Math.min(baseOP, afterPrice),
+      value: Math.abs(pe),
+      fill: pe >= 0 ? "hsl(142, 71%, 45%)" : "hsl(0, 84%, 60%)",
+      cumulative: afterPrice,
+      type: pe >= 0 ? "increase" : "decrease",
+    });
+  }
 
-  // 3. 물량 효과 (색상/라벨 동적 — 증가 시 양수=파랑, 감소 시 음수=빨강)
-  const afterVolGain = afterPriceLoss + volumeGain;
-  steps.push({
-    name: volumeGain >= 0 ? "물량 효과 (공헌)" : "물량 효과 (감소)",
-    base: Math.min(afterPriceLoss, afterVolGain),
-    value: Math.abs(volumeGain),
-    fill: volumeGain >= 0 ? "hsl(217, 91%, 60%)" : "hsl(0, 84%, 60%)",
-    cumulative: afterVolGain,
-    type: volumeGain >= 0 ? "increase" : "decrease",
-  });
+  // 3. 원가 효과 (원가↓=녹색, 원가↑=주황) — 슬라이더 0이면 숨김
+  const afterCost = afterPrice + ce;
+  if (ce !== 0) {
+    steps.push({
+      name: ce >= 0 ? "원가 효과 (절감)" : "원가 효과 (인상)",
+      base: Math.min(afterPrice, afterCost),
+      value: Math.abs(ce),
+      fill: ce >= 0 ? "hsl(142, 71%, 45%)" : "hsl(30, 90%, 55%)",
+      cumulative: afterCost,
+      type: ce >= 0 ? "increase" : "decrease",
+    });
+  }
 
-  // 4. 최종 영업이익
+  // 4. 물량 효과 (증가=파랑, 감소=빨강)
+  const afterVol = afterCost + ve;
+  if (ve !== 0) {
+    steps.push({
+      name: ve >= 0 ? "물량 효과 (공헌)" : "물량 효과 (감소)",
+      base: Math.min(afterCost, afterVol),
+      value: Math.abs(ve),
+      fill: ve >= 0 ? "hsl(217, 91%, 60%)" : "hsl(0, 84%, 60%)",
+      cumulative: afterVol,
+      type: ve >= 0 ? "increase" : "decrease",
+    });
+  }
+
+  // 5. 최종 영업이익
   steps.push({
     name: "최종 영업이익",
     base: Math.min(0, finalOP),
@@ -1155,23 +1176,23 @@ export function calcSensitivityGrid(
   totalFixedCost: number,
   targetCustomer: string | null,
   targetItem: string | null,
-  priceScenarios: number[] = [-20, -15, -10, -5, 5]
+  priceScenarios: number[] = [-20, -15, -10, -5, 5],
+  costChangePct?: CostChangePct,
+  vcCostRatioMap?: Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>,
 ): SensitivityCell[] {
   return priceScenarios.map((pricePct) => {
-    // 0% 물량 시나리오 (가격 변동만)
+    // 0% 물량 시나리오 (가격 변동만 + 원가 슬라이더 반영)
     const zeroVolSim = calcTotalViewSimulation({
       items, totalFixedCost, targetCustomer, targetItem,
       volumeIncreasePct: 0, priceChangePct: pricePct,
+      costChangePct, vcCostRatioMap,
     });
     const netEffect = zeroVolSim.netOffsetEffect;
 
     // 손익분기 필요 물량: netEffect=0 되는 volumePct 역산
-    // priceReductionLoss + volumeContributionGain = 0
-    // volumeGain = -priceLoss → addedQty × newUnitCM = -priceLoss
-    // Binary search (10 iterations, 정밀도 0.1%)
     let lo = 0, hi = 500;
-    if (pricePct >= 0) {
-      // 단가 인상 → 물량 불필요 (이미 이득)
+    if (netEffect >= 0) {
+      // 0% 물량에서도 이미 이득 → 물량 불필요
       return { priceChangePct: pricePct, requiredVolumePct: 0, netEffect };
     }
     for (let i = 0; i < 15; i++) {
@@ -1179,6 +1200,7 @@ export function calcSensitivityGrid(
       const sim = calcTotalViewSimulation({
         items, totalFixedCost, targetCustomer, targetItem,
         volumeIncreasePct: mid, priceChangePct: pricePct,
+        costChangePct, vcCostRatioMap,
       });
       if (sim.netOffsetEffect >= 0) hi = mid;
       else lo = mid;
@@ -1188,6 +1210,7 @@ export function calcSensitivityGrid(
     const verifySim = calcTotalViewSimulation({
       items, totalFixedCost, targetCustomer, targetItem,
       volumeIncreasePct: finalMid, priceChangePct: pricePct,
+      costChangePct, vcCostRatioMap,
     });
     return {
       priceChangePct: pricePct,
