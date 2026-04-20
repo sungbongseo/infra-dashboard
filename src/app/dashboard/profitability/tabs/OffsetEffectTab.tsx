@@ -34,7 +34,7 @@ import {
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { calcCapacityUtilization } from "@/lib/analysis/lowPriceVerification";
-import { calcHypothesisVerdict, calcComprehensiveVerdict, calcCustomerPortfolioOffset } from "@/lib/analysis/offsetEffect";
+import { calcHypothesisVerdict, calcComprehensiveVerdict, calcCustomerPortfolioOffset, calcQuickVerdict, type QuickVerdict } from "@/lib/analysis/offsetEffect";
 
 interface OffsetEffectTabProps {
   filteredCustItemDetail: CustomerItemDetailRecord[];
@@ -124,6 +124,11 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     params: { customer: string | null; item: string | null; volPct: number; pricePct: number; mode: string };
     result: { baseOP: number; newOP: number; netEffect: number; hypothesis: string };
   }>>([]);
+
+  // ─── 저가수주 판단기 상태 ───
+  const [qdProposedPrice, setQdProposedPrice] = useState<number>(0);
+  const [qdAdditionalQty, setQdAdditionalQty] = useState<number>(0);
+  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
   const unitGroups = useMemo(
     () => filteredItemProfitability ? getUnitGroups(filteredItemProfitability) : [],
@@ -684,6 +689,34 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     };
   }, [poolSim, poolImpactTable]);
 
+  // 품목 리스트 (판단기 드롭다운용)
+  const itemOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const c of cvpItems) {
+      if (!map.has(c.item)) map.set(c.item, c.itemName || c.item);
+    }
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
+  }, [cvpItems]);
+
+  // 저가수주 판단기 결과
+  const quickVerdict = useMemo(
+    () => calcQuickVerdict(
+      cvpItems, totalFixedCost, filteredItemProfitability,
+      targetItem, targetCustomer,
+      qdProposedPrice, qdAdditionalQty,
+    ),
+    [cvpItems, totalFixedCost, filteredItemProfitability, targetItem, targetCustomer, qdProposedPrice, qdAdditionalQty]
+  );
+
+  // 품목 선택 시 현재 단가 자동 표시
+  const currentItemUnitPrice = useMemo(() => {
+    if (!targetItem) return 0;
+    const rows = cvpItems.filter(c => c.item === targetItem && (targetCustomer === null || c.customer === targetCustomer));
+    const qty = rows.reduce((s, c) => s + c.quantity, 0);
+    const rev = rows.reduce((s, c) => s + c.revenue, 0);
+    return qty > 0 ? rev / qty : 0;
+  }, [cvpItems, targetItem, targetCustomer]);
+
   // Guard: 데이터 없음
   if (filteredCustItemDetail.length === 0) {
     return <EmptyState requiredFiles={["100.거래처별품목별손익", "200.품목별수익성분석(회계)"]} />;
@@ -692,8 +725,161 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
   // KPI
   const totalCost = cvpSummary.totalVariableCost + cvpSummary.totalFixedCost;
 
+  // 판단기 판정 색상
+  const qdBg = quickVerdict.verdict === "approve"
+    ? "bg-green-50 dark:bg-green-950/30 border-green-500"
+    : quickVerdict.verdict === "reject"
+      ? "bg-red-50 dark:bg-red-950/30 border-red-500"
+      : "bg-amber-50 dark:bg-amber-950/30 border-amber-500";
+  const qdIcon = quickVerdict.verdict === "approve" ? "✅"
+    : quickVerdict.verdict === "reject" ? "❌" : "⚠️";
+
   return (
     <div className="space-y-6">
+      {/* ═══ 저가수주 판단기 (1화면 의사결정 카드) ═══ */}
+      <div className="rounded-xl border-2 border-indigo-300 dark:border-indigo-700 bg-gradient-to-br from-indigo-50/80 to-blue-50/80 dark:from-indigo-950/30 dark:to-blue-950/30 p-5">
+        <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+          <span className="text-xl">🎯</span>
+          저가수주 판단기
+          <span className="text-xs font-normal text-muted-foreground ml-2">— 품목·수량·단가를 입력하면 즉시 판정합니다</span>
+        </h2>
+
+        {/* 입력 4개 */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <div>
+            <label className="text-[10px] font-semibold text-muted-foreground block mb-1">대상 품목</label>
+            <select
+              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
+              value={targetItem || ""}
+              onChange={(e) => {
+                const v = e.target.value || null;
+                setTargetItem(v);
+                setQdProposedPrice(0); // 품목 바뀌면 단가 리셋
+              }}
+            >
+              <option value="">선택...</option>
+              {itemOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-muted-foreground block mb-1">거래처 (선택)</label>
+            <select
+              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
+              value={targetCustomer || ""}
+              onChange={(e) => setTargetCustomer(e.target.value || null)}
+            >
+              <option value="">전체 거래처</option>
+              {cvpItems
+                .filter(c => !targetItem || c.item === targetItem)
+                .reduce((acc, c) => { if (!acc.find(a => a.customer === c.customer)) acc.push(c); return acc; }, [] as CVPItem[])
+                .map(c => <option key={c.customer} value={c.customer}>{c.customerName}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+              예상 추가수량
+              {targetItem && <span className="text-blue-600 ml-1">(현재 {Math.round(cvpItems.filter(c => c.item === targetItem).reduce((s, c) => s + c.quantity, 0)).toLocaleString()})</span>}
+            </label>
+            <input
+              type="number"
+              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
+              placeholder="예: 2000"
+              value={qdAdditionalQty || ""}
+              onChange={(e) => setQdAdditionalQty(Number(e.target.value) || 0)}
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
+              제안 단가 (원/단위)
+              {currentItemUnitPrice > 0 && <span className="text-blue-600 ml-1">(현재 {Math.round(currentItemUnitPrice).toLocaleString()}원)</span>}
+            </label>
+            <input
+              type="number"
+              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
+              placeholder={currentItemUnitPrice > 0 ? `현재: ${Math.round(currentItemUnitPrice).toLocaleString()}` : "단가 입력"}
+              value={qdProposedPrice || ""}
+              onChange={(e) => setQdProposedPrice(Number(e.target.value) || 0)}
+            />
+          </div>
+        </div>
+
+        {/* 판정 결과 */}
+        {targetItem && qdAdditionalQty > 0 && qdProposedPrice > 0 && (
+          <div className={`rounded-lg border-l-4 p-4 ${qdBg}`}>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-2xl">{qdIcon}</span>
+              <span className="text-base font-bold">{quickVerdict.verdictLabel}</span>
+              {quickVerdict.priceChangePct !== 0 && (
+                <span className="text-xs text-muted-foreground ml-2">
+                  (단가 {quickVerdict.priceChangePct > 0 ? "+" : ""}{safeFixed(quickVerdict.priceChangePct, 1)}%)
+                </span>
+              )}
+            </div>
+
+            {/* 3가지 관점 카드 */}
+            <div className="grid grid-cols-3 gap-2 mb-3">
+              <div className={`text-center p-2 rounded border ${quickVerdict.singleItemEffect >= 0 ? "border-green-300 bg-green-50/50 dark:bg-green-950/20" : "border-red-300 bg-red-50/50 dark:bg-red-950/20"}`}>
+                <div className="text-[10px] text-muted-foreground">대상 품목 단독</div>
+                <div className={`text-sm font-bold ${quickVerdict.singleItemEffect >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                  {formatCurrency(quickVerdict.singleItemEffect)}
+                </div>
+              </div>
+              <div className={`text-center p-2 rounded border ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "border-green-300 bg-green-50/50 dark:bg-green-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
+                <div className="text-[10px] text-muted-foreground">풀 원가절감 덤</div>
+                <div className={`text-sm font-bold ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "text-green-700 dark:text-green-400" : "text-gray-500"}`}>
+                  {quickVerdict.poolOthersGain !== null ? formatCurrency(quickVerdict.poolOthersGain) : "—"}
+                </div>
+                {quickVerdict.poolName && <div className="text-[9px] text-muted-foreground">{quickVerdict.poolName}</div>}
+              </div>
+              <div className={`text-center p-2 rounded border ${quickVerdict.portfolioOtherCM > 0 ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
+                <div className="text-[10px] text-muted-foreground">거래처 포트폴리오</div>
+                <div className={`text-sm font-bold ${quickVerdict.portfolioOtherCM > 0 ? "text-blue-700 dark:text-blue-400" : "text-gray-500"}`}>
+                  {formatCurrency(quickVerdict.portfolioOtherCM)}
+                </div>
+                <div className="text-[9px] text-muted-foreground">기존 실적 기준</div>
+              </div>
+            </div>
+
+            {/* 이유 */}
+            <div className="space-y-1 mb-2">
+              {quickVerdict.reasons.map((r, i) => (
+                <p key={i} className="text-xs leading-relaxed">{r}</p>
+              ))}
+            </div>
+
+            {/* 감도: 최소 필요 수량 */}
+            {quickVerdict.minRequiredVolume !== null && (
+              <div className={`text-xs mt-2 px-2 py-1 rounded ${quickVerdict.isVolumeEnough ? "bg-green-100/50 dark:bg-green-900/20" : "bg-amber-100/50 dark:bg-amber-900/20"}`}>
+                감도: 단독 손익분기 최소 <strong>{quickVerdict.minRequiredVolume.toLocaleString()}</strong>개
+                {quickVerdict.isVolumeEnough
+                  ? ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 충분)`
+                  : ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 부족)`}
+              </div>
+            )}
+
+            <p className="text-[10px] text-muted-foreground mt-2">
+              4a(100 보고서)와 4b(200 보고서)는 데이터 범위가 달라 정확한 합산이 아닙니다. 방향성 참고용.
+            </p>
+          </div>
+        )}
+
+        {/* 미입력 안내 */}
+        {(!targetItem || qdAdditionalQty <= 0 || qdProposedPrice <= 0) && (
+          <div className="text-center py-4 text-sm text-muted-foreground">
+            품목 · 수량 · 단가를 입력하면 즉시 판정 결과가 표시됩니다
+          </div>
+        )}
+      </div>
+
+      {/* ═══ 상세 분석 (기존 Step 1~5) ═══ */}
+      <details open={showDetailedAnalysis} onToggle={(e) => setShowDetailedAnalysis((e.target as HTMLDetailsElement).open)}>
+        <summary className="cursor-pointer font-semibold text-sm p-3 border rounded-lg hover:bg-muted/50 transition-colors flex items-center gap-2">
+          <span className="text-base">{showDetailedAnalysis ? "▼" : "▶"}</span>
+          상세 분석 보기 (Step 1~5 전체)
+          <span className="text-xs font-normal text-muted-foreground">— 시뮬레이션 슬라이더, CVP 차트, 4사분면, 워터폴 등</span>
+        </summary>
+        <div className="pt-4 space-y-6">
+
       {/* ═══ 기간 필터 경고 ═══ */}
       {isDateFiltered && (
         <div className="rounded-lg border-l-4 border-amber-500 bg-amber-50/50 dark:bg-amber-950/20 p-3">
@@ -2629,6 +2815,9 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
         <p><strong>대수 항등식</strong>: newOP − baseOP = priceReductionLoss + volumeContributionGain. 이 식은 고정비 총액 불변 가정 하에 수학적으로 정확.</p>
         <p><strong>왜곡 방지</strong>: 총액 관점(4a)과 배분 관점(4b)을 합산하지 않고 별도 섹션으로 제시. 무결성 검증(5)으로 두 관점의 합계 일치성 확인.</p>
       </div>
+
+        </div>{/* end details content */}
+      </details>
     </div>
   );
 }

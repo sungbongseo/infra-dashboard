@@ -1510,3 +1510,178 @@ export function calcCustomerPortfolioOffset(
     customers,
   };
 }
+
+// ─── 저가수주 판단기 (Quick Verdict) ────────────
+
+export type QuickVerdictResult = "approve" | "reject" | "conditional";
+
+export interface QuickVerdict {
+  verdict: QuickVerdictResult;
+  verdictLabel: string;
+  /** 3가지 관점 금액 */
+  singleItemEffect: number;     // 4a 단독
+  poolOthersGain: number | null; // 4b 풀 덤
+  portfolioOtherCM: number;     // 거래처 포트폴리오 (기존 실적)
+  poolName: string;
+  /** 한국어 이유 (3줄 이내) */
+  reasons: string[];
+  /** 감도: 최소 필요 수량 (손익분기) */
+  minRequiredVolume: number | null;
+  isVolumeEnough: boolean;
+  /** 현재 단가 정보 */
+  currentUnitPrice: number;
+  proposedUnitPrice: number;
+  priceChangePct: number;
+}
+
+/**
+ * 저가수주 판단기 — 1화면 YES/NO 의사결정.
+ *
+ * 기존 분석 함수를 조합하여 3가지 관점을 하나의 판정으로 통합:
+ *  1. 4a: 대상 품목 단독 효과 (calcTotalViewSimulation)
+ *  2. 4b: 풀 내 다른 품목 원가 절감 (calcComprehensiveVerdict)
+ *  3. 거래처 포트폴리오: 기존 다른 품목 마진 (calcCustomerPortfolioOffset)
+ *
+ * 판정 기준:
+ *  ✅ APPROVE: 종합 순효과 양수 OR 거래처 포트폴리오 양수
+ *  ❌ REJECT: 3가지 관점 모두 음수
+ *  ⚠️ CONDITIONAL: 일부 조건에서만 이득
+ */
+export function calcQuickVerdict(
+  cvpItems: CVPItem[],
+  totalFixedCost: number,
+  itemProfitability: ItemProfitabilityRecord[] | undefined,
+  targetItem: string | null,
+  targetCustomer: string | null,
+  proposedUnitPrice: number,
+  additionalQuantity: number,
+): QuickVerdict {
+  if (!targetItem || additionalQuantity <= 0) {
+    return {
+      verdict: "conditional",
+      verdictLabel: "품목과 수량을 입력하세요",
+      singleItemEffect: 0,
+      poolOthersGain: null,
+      portfolioOtherCM: 0,
+      poolName: "",
+      reasons: ["대상 품목과 예상 추가수량을 입력하면 판정이 시작됩니다."],
+      minRequiredVolume: null,
+      isVolumeEnough: false,
+      currentUnitPrice: 0,
+      proposedUnitPrice: 0,
+      priceChangePct: 0,
+    };
+  }
+
+  // 현재 단가 조회
+  const targetRows = cvpItems.filter(c => c.item === targetItem && (targetCustomer === null || c.customer === targetCustomer));
+  const totalQty = targetRows.reduce((s, c) => s + c.quantity, 0);
+  const totalRev = targetRows.reduce((s, c) => s + c.revenue, 0);
+  const currentUnitPrice = totalQty > 0 ? totalRev / totalQty : 0;
+  const priceChangePct = currentUnitPrice > 0 ? ((proposedUnitPrice / currentUnitPrice) - 1) * 100 : 0;
+
+  // 1. 4a: 단일 품목 시뮬
+  const sim4a = calcTotalViewSimulation({
+    items: cvpItems,
+    totalFixedCost,
+    targetCustomer,
+    targetItem,
+    volumeIncreasePct: 0,
+    priceChangePct,
+    volumeAbsolute: additionalQuantity,
+  });
+
+  // 2. 4a+4b 종합 판정
+  const comp = calcComprehensiveVerdict(sim4a, itemProfitability, targetItem, 0, priceChangePct);
+
+  // 3. 거래처 포트폴리오
+  const portfolio = calcCustomerPortfolioOffset(cvpItems, targetItem, targetCustomer);
+
+  // 4. 감도: 최소 필요 수량 역산 (이진 탐색)
+  let minRequiredVolume: number | null = null;
+  if (sim4a.netOffsetEffect < 0 && currentUnitPrice > 0) {
+    let lo = 0, hi = additionalQuantity * 5;
+    for (let i = 0; i < 20; i++) {
+      const mid = Math.round((lo + hi) / 2);
+      const test = calcTotalViewSimulation({
+        items: cvpItems, totalFixedCost, targetCustomer, targetItem,
+        volumeIncreasePct: 0, priceChangePct, volumeAbsolute: mid,
+      });
+      if (test.netOffsetEffect >= 0) hi = mid;
+      else lo = mid;
+    }
+    const finalVol = Math.ceil((lo + hi) / 2);
+    const verify = calcTotalViewSimulation({
+      items: cvpItems, totalFixedCost, targetCustomer, targetItem,
+      volumeIncreasePct: 0, priceChangePct, volumeAbsolute: finalVol,
+    });
+    minRequiredVolume = verify.netOffsetEffect >= 0 ? finalVol : null;
+  }
+  const isVolumeEnough = minRequiredVolume !== null ? additionalQuantity >= minRequiredVolume : sim4a.netOffsetEffect >= 0;
+
+  // 5. 판정
+  const poolGain = comp.poolOthersGain ?? 0;
+  const comprehensiveNet = sim4a.netOffsetEffect + poolGain;
+  const portfolioCM = portfolio.totalPortfolioCM;
+
+  const fmtAmt = (v: number) => {
+    const abs = Math.abs(v);
+    const sign = v >= 0 ? "+" : "";
+    if (abs >= 1e8) return `${sign}${(v / 1e8).toFixed(1)}억원`;
+    if (abs >= 1e4) return `${sign}${Math.round(v / 1e4).toLocaleString()}만원`;
+    return `${sign}${Math.round(v).toLocaleString()}원`;
+  };
+
+  let verdict: QuickVerdictResult;
+  let verdictLabel: string;
+  const reasons: string[] = [];
+
+  if (sim4a.netOffsetEffect >= 0) {
+    verdict = "approve";
+    verdictLabel = "이 저가수주는 진행 가능합니다";
+    reasons.push(`이 품목 단독으로도 ${fmtAmt(sim4a.netOffsetEffect)} 이익 증가.`);
+    if (poolGain > 0) reasons.push(`추가로 같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}.`);
+  } else if (comprehensiveNet >= 0 || portfolioCM > 0) {
+    verdict = "conditional";
+    verdictLabel = "조건부 진행 가능 — 아래 주의사항 확인";
+    reasons.push(`이 품목 단독은 ${fmtAmt(sim4a.netOffsetEffect)} 손실.`);
+    if (comprehensiveNet >= 0) {
+      reasons.push(`같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}으로 상쇄 가능.`);
+    }
+    if (portfolioCM > 0 && targetCustomer) {
+      reasons.push(`이 거래처 전체 포트폴리오 마진은 ${fmtAmt(portfolioCM)} (기존 실적 기준).`);
+    } else if (portfolioCM > 0) {
+      reasons.push(`대상 품목 거래처들의 포트폴리오 마진 합계 ${fmtAmt(portfolioCM)}.`);
+    }
+    if (minRequiredVolume !== null && !isVolumeEnough) {
+      reasons.push(`단독 손익분기: 최소 ${minRequiredVolume.toLocaleString()}개 필요 (현재 ${additionalQuantity.toLocaleString()}개 부족).`);
+    }
+  } else {
+    verdict = "reject";
+    verdictLabel = "이 저가수주는 손실입니다";
+    reasons.push(`이 품목 단독 ${fmtAmt(sim4a.netOffsetEffect)} 손실.`);
+    if (poolGain <= 0) {
+      reasons.push(`풀 내 다른 품목 원가 절감 효과도 미미 (${fmtAmt(poolGain)}).`);
+    } else {
+      reasons.push(`풀 원가 절감 ${fmtAmt(poolGain)}으로도 상쇄 부족. 종합 ${fmtAmt(comprehensiveNet)}.`);
+    }
+    if (minRequiredVolume === null) {
+      reasons.push(`이 단가로는 물량을 아무리 늘려도 손익분기 도달 불가.`);
+    }
+  }
+
+  return {
+    verdict,
+    verdictLabel,
+    singleItemEffect: sim4a.netOffsetEffect,
+    poolOthersGain: comp.poolOthersGain,
+    portfolioOtherCM: portfolioCM,
+    poolName: comp.poolName,
+    reasons,
+    minRequiredVolume,
+    isVolumeEnough,
+    currentUnitPrice,
+    proposedUnitPrice,
+    priceChangePct,
+  };
+}
