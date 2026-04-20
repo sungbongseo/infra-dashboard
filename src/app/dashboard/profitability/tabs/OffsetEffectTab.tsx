@@ -244,17 +244,18 @@ export function OffsetEffectTab({
 
   const itemList = useMemo(() => {
     // cvpItems(100)와 poolItems(200) 모두에서 수집하여 union
-    const map = new Map<string, { name: string; revenue: number; inPool: boolean; in100: boolean; quantity: number; unit: string; actualCOGS: number; actualQty200: number; actualUnitCost: number; costRatio: number }>();
+    const map = new Map<string, { name: string; revenue: number; inPool: boolean; in100: boolean; quantity: number; unit: string; actualCOGS: number; actualQty200: number; actualUnitCost: number; costRatio: number; grossProfit100: number; unitCost100: number }>();
     for (const it of cvpItems) {
-      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0 };
+      const prev = map.get(it.item) || { name: it.itemName, revenue: 0, inPool: false, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0, grossProfit100: 0, unitCost100: 0 };
       prev.revenue += it.revenue;
       prev.quantity += it.quantity;
+      prev.grossProfit100 += it.grossProfit;
       prev.in100 = true;
       map.set(it.item, prev);
     }
     // 200 품목도 추가 (풀 내 품목이 4a에서 선택 가능하도록)
     for (const pi of poolItems) {
-      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0 };
+      const prev = map.get(pi.item) || { name: pi.itemName, revenue: 0, inPool: true, in100: false, quantity: 0, unit: "", actualCOGS: 0, actualQty200: 0, actualUnitCost: 0, costRatio: 0, grossProfit100: 0, unitCost100: 0 };
       if (prev.revenue === 0) prev.revenue = pi.revenue;
       if (prev.quantity === 0) prev.quantity = pi.quantity;
       prev.inPool = true;
@@ -289,6 +290,12 @@ export function OffsetEffectTab({
           entry.actualUnitCost = cost.qty > 0 ? cost.cogs / cost.qty : 0;
           entry.costRatio = cost.rev > 0 ? (cost.cogs / cost.rev) * 100 : 0;
         }
+      }
+    }
+    // 100 기반 단위원가 계산 (판매단가와 동일 분모 보장)
+    for (const entry of Array.from(map.values())) {
+      if (entry.in100 && entry.quantity > 0) {
+        entry.unitCost100 = (entry.revenue - entry.grossProfit100) / entry.quantity;
       }
     }
     return Array.from(map.entries())
@@ -368,10 +375,13 @@ export function OffsetEffectTab({
   // 시뮬 대상 items: 200 전용 합성 아이템 포함
   // 원가 슬라이더 반영 후 조정 원가 (UI 표시용)
   const adjustedCostInfo = useMemo(() => {
-    if (!selectedItemInfo || selectedItemInfo.actualUnitCost <= 0) return null;
+    if (!selectedItemInfo) return null;
+    // 100 기반 원가 우선, 200 전용이면 200 기반
+    const baseUc = selectedItemInfo.in100 ? selectedItemInfo.unitCost100 : selectedItemInfo.actualUnitCost;
+    if (baseUc <= 0) return null;
     const hasCostChange = costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0;
     if (!hasCostChange) return null;
-    const uc = selectedItemInfo.actualUnitCost;
+    const uc = baseUc;
     const ratios = vcCostRatioMap?.get(selectedItemInfo.name);
     const rawR = ratios?.rawMaterialRatio ?? 0.5;
     const labR = ratios?.laborRatio ?? 0.1;
@@ -1367,13 +1377,15 @@ export function OffsetEffectTab({
             </div>
           )}
 
-          {/* 원가 비교 카드 — 품목 선택 시 200 원가 데이터 표시 */}
-          {targetItem && selectedItemInfo && selectedItemInfo.actualUnitCost > 0 && (() => {
-            const uc = selectedItemInfo.actualUnitCost;
+          {/* 원가 비교 카드 — 100 기반 원가 (동일 분모 보장) */}
+          {targetItem && selectedItemInfo && (selectedItemInfo.unitCost100 > 0 || selectedItemInfo.actualUnitCost > 0) && (() => {
+            // 100 품목: unitCost100 (판매단가와 동일 분모), 200전용: actualUnitCost (대안 없음)
+            const uc = selectedItemInfo.in100 ? selectedItemInfo.unitCost100 : selectedItemInfo.actualUnitCost;
             const up = selectedItemInfo.in100 ? safeDivide(selectedItemInfo.revenue, selectedItemInfo.quantity) : 0;
             const margin = selectedItemInfo.in100 ? up - uc : 0;
             const marginPct = selectedItemInfo.in100 ? safeDivide(margin, up) * 100 : 0;
             const isBelowCost = selectedItemInfo.in100 && margin < 0;
+            const costRatioDisplay = selectedItemInfo.in100 ? safeDivide(uc, up) * 100 : selectedItemInfo.costRatio;
             return (
               <div className={`rounded-md border px-3 py-2 text-xs ${isBelowCost ? "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800" : "bg-slate-50 dark:bg-slate-900/40 border-slate-200 dark:border-slate-700"}`}>
                 <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
@@ -1387,7 +1399,10 @@ export function OffsetEffectTab({
                           {margin > 0 ? "+" : ""}{formatCurrency(margin)} ({safeFixed(marginPct, 1)}%)
                         </span>
                       </div>
-                      <div><span className="text-muted-foreground">원가율</span> <span className="font-mono">{safeFixed(selectedItemInfo.costRatio, 1)}%</span></div>
+                      <div><span className="text-muted-foreground">원가율</span> <span className="font-mono">{safeFixed(costRatioDisplay, 1)}%</span></div>
+                      {selectedItemInfo.actualUnitCost > 0 && Math.abs(uc - selectedItemInfo.actualUnitCost) > 1 && (
+                        <span className="text-[9px] text-muted-foreground">(참고 200원가: {formatCurrency(selectedItemInfo.actualUnitCost)})</span>
+                      )}
                     </>
                   ) : (
                     <>
@@ -1399,7 +1414,7 @@ export function OffsetEffectTab({
                       <div><span className="text-muted-foreground">200 기준 수량</span> <span className="font-mono">{selectedItemInfo.quantity.toLocaleString()} {selectedItemInfo.unit || "개"}</span></div>
                     </>
                   )}
-                  <span className="text-[10px] text-muted-foreground ml-auto">200.실적매출원가/매출수량</span>
+                  <span className="text-[10px] text-muted-foreground ml-auto">{selectedItemInfo.in100 ? "100 리포트 (매출액−매출총이익)/수량" : "200 리포트 실적매출원가/수량"}</span>
                 </div>
                 {isBelowCost && (
                   <div className="mt-1 text-red-700 dark:text-red-400 font-semibold flex items-center gap-1">
@@ -1504,7 +1519,7 @@ export function OffsetEffectTab({
                 : cvpSummary.weightedUnitPrice;
               const newPrice = basePrice * (1 + priceChangePct / 100);
               const diff = newPrice - basePrice;
-              const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.actualUnitCost || 0);
+              const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.in100 ? (selectedItemInfo?.unitCost100 || 0) : (selectedItemInfo?.actualUnitCost || 0));
               const simMargin = uc > 0 ? newPrice - uc : 0;
               return basePrice > 0 ? (
                 <div className="flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
@@ -1561,7 +1576,7 @@ export function OffsetEffectTab({
                     const bp = sel?.quantity ? sel.revenue / sel.quantity : cvpSummary.weightedUnitPrice;
                     const np = bp * (1 + priceChangeDirect / 100);
                     const d = np - bp;
-                    const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.actualUnitCost || 0);
+                    const uc = adjustedCostInfo?.adjustedUnitCost ?? (selectedItemInfo?.in100 ? (selectedItemInfo?.unitCost100 || 0) : (selectedItemInfo?.actualUnitCost || 0));
                     const sm = uc > 0 ? np - uc : 0;
                     return bp > 0 ? (
                       <div className="col-span-2 flex flex-wrap items-center gap-2 text-xs bg-slate-50 dark:bg-slate-900/40 rounded px-3 py-1.5">
@@ -1594,7 +1609,7 @@ export function OffsetEffectTab({
           {/* 원가 변동 슬라이더 — 입력 모드 무관하게 항상 표시 */}
           <details className="mt-1">
             <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-              ⚙️ 원가 변동 시뮬레이션 (선택사항 — 0%면 현재 원가 유지)
+              ⚙️ 원가 변동 시뮬레이션 (대상 품목에만 적용 — 0%면 현재 원가 유지)
               {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
                 <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">적용 중</span>
               )}
