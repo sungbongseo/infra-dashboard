@@ -34,7 +34,7 @@ import {
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { calcCapacityUtilization } from "@/lib/analysis/lowPriceVerification";
-import { calcHypothesisVerdict } from "@/lib/analysis/offsetEffect";
+import { calcHypothesisVerdict, calcComprehensiveVerdict, calcCustomerPortfolioOffset } from "@/lib/analysis/offsetEffect";
 
 interface OffsetEffectTabProps {
   filteredCustItemDetail: CustomerItemDetailRecord[];
@@ -1914,6 +1914,105 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
             </div>
           );
         })()}
+
+        {/* ═══ 4a+4b 종합 판정 카드 ═══ */}
+        {(() => {
+          const comp = calcComprehensiveVerdict(
+            totalSim, filteredItemProfitability,
+            targetItem, volumeIncreasePct,
+            inputMode === "absolute" ? priceChangeDirect : priceChangePct,
+          );
+          const portfolio = calcCustomerPortfolioOffset(cvpItems, targetItem, targetCustomer);
+
+          if (comp.comprehensiveResult === "unavailable" && portfolio.totalCustomers === 0) return null;
+          if (totalSim.hypothesisResult === "neutral") return null; // 슬라이더 미조작 시 표시 안함
+
+          return (
+            <div className="mt-4 space-y-3">
+              {/* 종합 판정 카드 */}
+              {comp.comprehensiveResult !== "unavailable" && (
+                <div className="rounded-lg border-2 border-indigo-200 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-950/20 p-4">
+                  <h4 className="text-sm font-bold mb-3 flex items-center gap-2">
+                    <span className="text-base">🔗</span>
+                    종합 판정: 다른 품목 효과 포함
+                  </h4>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    <div className={`text-center p-2 rounded border ${comp.singleItemResult === "positive" ? "border-green-300 bg-green-50 dark:bg-green-950/20" : "border-red-300 bg-red-50 dark:bg-red-950/20"}`}>
+                      <div className="text-[10px] text-muted-foreground">4a 단독</div>
+                      <div className="text-xs font-bold">(대상품목)</div>
+                      <div className={`text-sm font-bold mt-1 ${comp.singleItemEffect >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                        {formatCurrency(comp.singleItemEffect)}
+                      </div>
+                    </div>
+                    <div className={`text-center p-2 rounded border ${(comp.poolOthersGain ?? 0) > 0 ? "border-green-300 bg-green-50 dark:bg-green-950/20" : "border-gray-300 bg-gray-50 dark:bg-gray-950/20"}`}>
+                      <div className="text-[10px] text-muted-foreground">4b 풀 덤</div>
+                      <div className="text-xs font-bold">(다른품목 원가절감)</div>
+                      <div className={`text-sm font-bold mt-1 ${(comp.poolOthersGain ?? 0) > 0 ? "text-green-700 dark:text-green-400" : "text-gray-500"}`}>
+                        {comp.poolOthersGain !== null ? formatCurrency(comp.poolOthersGain) : "N/A"}
+                      </div>
+                    </div>
+                    <div className={`text-center p-2 rounded border-2 ${comp.comprehensiveResult === "positive" ? "border-green-500 bg-green-50 dark:bg-green-950/30" : comp.comprehensiveResult === "negative" ? "border-red-500 bg-red-50 dark:bg-red-950/30" : "border-gray-500 bg-gray-50 dark:bg-gray-950/30"}`}>
+                      <div className="text-[10px] text-muted-foreground">종합</div>
+                      <div className="text-xs font-bold">(방향성 참고)</div>
+                      <div className={`text-sm font-bold mt-1 ${comp.comprehensiveNet !== null && comp.comprehensiveNet >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                        {comp.comprehensiveNet !== null ? formatCurrency(comp.comprehensiveNet) : "N/A"}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs leading-relaxed text-muted-foreground">{comp.interpretation}</p>
+                  {comp.poolName && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      풀: {comp.poolLevel} = {comp.poolName} | ⚠️ 4a(100 보고서)와 4b(200 보고서)는 데이터 범위가 달라 정확한 합산이 아닙니다. 방향성 참고용입니다.
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* 거래처 포트폴리오 참고 */}
+              {targetItem && portfolio.totalCustomers > 0 && (
+                <details className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/30 dark:bg-amber-950/10">
+                  <summary className="cursor-pointer p-3 text-sm font-semibold hover:bg-amber-100/30 dark:hover:bg-amber-900/20 rounded-lg flex items-center gap-2">
+                    <span>👥</span>
+                    거래처 포트폴리오 참고 — {portfolio.positiveCount}/{portfolio.totalCustomers}개 거래처가 전체 마진 양수
+                  </summary>
+                  <div className="px-3 pb-3">
+                    <p className="text-xs text-muted-foreground mb-2">
+                      대상 품목을 구매하는 거래처의 전체 구매 포트폴리오(다른 품목 포함) 마진 합산.
+                      &ldquo;이 거래처를 잃으면 이만큼의 마진을 포기하는 것&rdquo; — 기회비용 관점.
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr className="border-b text-left">
+                            <th className="p-1.5">거래처</th>
+                            <th className="p-1.5 text-right">대상 품목 CM</th>
+                            <th className="p-1.5 text-right">다른 품목 CM</th>
+                            <th className="p-1.5 text-right">합계</th>
+                            <th className="p-1.5 text-center">판정</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {portfolio.customers.slice(0, 10).map((c) => (
+                            <tr key={c.customer} className="border-b hover:bg-muted/50">
+                              <td className="p-1.5 font-medium">{c.customerName}</td>
+                              <td className={`p-1.5 text-right font-mono ${c.targetItemCM < 0 ? "text-red-600" : "text-green-600"}`}>{formatCurrency(c.targetItemCM)}</td>
+                              <td className={`p-1.5 text-right font-mono ${c.otherItemsCM > 0 ? "text-green-600" : "text-gray-500"}`}>{formatCurrency(c.otherItemsCM)}{c.otherItemCount > 0 && <span className="text-[9px] text-muted-foreground ml-1">({c.otherItemCount}건)</span>}</td>
+                              <td className={`p-1.5 text-right font-mono font-bold ${c.portfolioTotalCM >= 0 ? "text-green-700" : "text-red-700"}`}>{formatCurrency(c.portfolioTotalCM)}</td>
+                              <td className="p-1.5 text-center">{c.isPositive ? "✅" : "❌"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-2">
+                      ⚠️ 기존 실적 기준 참고 정보입니다. 저가 수주가 거래처 관계 유지의 필수 조건이라는 가정이 포함되어 있습니다.
+                    </p>
+                  </div>
+                </details>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* ═══ 시나리오 비교 ═══ */}
@@ -2045,6 +2144,15 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               </div>
             </details>
           </div>
+
+          {/* 4b 판정 배너 — 원가 절감 효과 인과 설명 */}
+          {poolSim && poolSim.otherItemsMarginDelta !== 0 && (
+            <div className={`px-3 py-2 rounded border-l-4 text-xs mb-3 ${poolSim.otherItemsMarginDelta > 0 ? "bg-green-50 dark:bg-green-950/20 border-green-500" : "bg-red-50 dark:bg-red-950/20 border-red-500"}`}>
+              <strong>판정:</strong> 대상 품목 물량 변동 → {poolSim.poolName} 풀 내 {poolSim.simulatedItems.length - 1}개 다른 품목의 단위고정비 {poolSim.otherItemsMarginDelta > 0 ? "감소" : "증가"}.
+              풀 순효과 = 대상 품목 Δ({formatCurrency(poolSim.targetItemMarginDelta)}) + 다른 품목 Δ({formatCurrency(poolSim.otherItemsMarginDelta)}) = {formatCurrency(poolSim.netPoolMarginDelta)}.
+              이 효과는 <strong>모든 거래처에 동일하게 적용</strong>됩니다 (품목 단위 분석).
+            </div>
+          )}
 
           {/* 1분 요약 카드 (P1-5) */}
           <div className="rounded-lg border bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 p-4 mb-4 space-y-3">

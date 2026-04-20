@@ -1262,3 +1262,251 @@ export function calcHypothesisVerdict(
     netDelta: totalSim.netOffsetEffect,
   };
 }
+
+// ─── 종합 판정: 4a + 4b 자동 연동 ───────────────
+
+export interface ComprehensiveVerdict {
+  singleItemEffect: number;
+  singleItemResult: "positive" | "neutral" | "negative";
+  poolEffect: number | null;
+  poolOthersGain: number | null;
+  poolTargetDelta: number | null;
+  poolLevel: string;
+  poolName: string;
+  comprehensiveNet: number | null;
+  comprehensiveResult: "positive" | "neutral" | "negative" | "unavailable";
+  interpretation: string;
+}
+
+/**
+ * 4a + 4b 종합 판정.
+ *
+ * 4a(단일 품목 시뮬)와 4b(풀 배분 덤 효과)를 자동 결합.
+ * targetItem의 대분류를 자동 감지하여 풀 시뮬을 백그라운드 실행.
+ *
+ * ⚠️ 4a(100 보고서)와 4b(200 보고서)는 데이터 범위가 달라
+ * comprehensiveNet은 정확한 합산이 아닌 방향성 참고용.
+ */
+export function calcComprehensiveVerdict(
+  totalSim: TotalViewSimulation,
+  itemProfitability: ItemProfitabilityRecord[] | undefined,
+  targetItem: string | null,
+  volumeIncreasePct: number,
+  priceChangePct: number,
+): ComprehensiveVerdict {
+  const singleItemEffect = totalSim.netOffsetEffect;
+  const singleItemResult = totalSim.hypothesisResult;
+
+  // 200 보고서 없거나 대상 품목 없으면 4b 불가
+  if (!itemProfitability || itemProfitability.length === 0 || !targetItem) {
+    return {
+      singleItemEffect,
+      singleItemResult,
+      poolEffect: null,
+      poolOthersGain: null,
+      poolTargetDelta: null,
+      poolLevel: "",
+      poolName: "",
+      comprehensiveNet: null,
+      comprehensiveResult: "unavailable",
+      interpretation: "200 보고서 데이터가 없어 풀 배분 효과를 계산할 수 없습니다. Step 4a 결과만 참고하세요.",
+    };
+  }
+
+  // targetItem의 대분류 자동 감지
+  // 100 보고서의 품목 코드와 200 보고서의 품목 코드를 매칭
+  const targetCode = targetItem.trim();
+  let poolName = "";
+  for (const r of itemProfitability) {
+    const rawItem = (r.품목 || "").trim();
+    const code = rawItem.match(/^\[([^\]]+)\]/)?.[1] || rawItem;
+    const itemName = rawItem.match(/^\[[^\]]+\]\s*(.+)$/)?.[1] || rawItem;
+    if (code === targetCode || itemName === targetCode || rawItem === targetCode) {
+      poolName = ((r as any).대분류 || "").trim();
+      break;
+    }
+  }
+
+  if (!poolName) {
+    return {
+      singleItemEffect,
+      singleItemResult,
+      poolEffect: null,
+      poolOthersGain: null,
+      poolTargetDelta: null,
+      poolLevel: "",
+      poolName: "",
+      comprehensiveNet: null,
+      comprehensiveResult: "unavailable",
+      interpretation: `대상 품목(${targetItem})의 대분류를 200 보고서에서 찾을 수 없습니다.`,
+    };
+  }
+
+  // 자동 풀 시뮬 실행
+  const pool = calcItemPool(itemProfitability, "대분류", poolName);
+  if (pool.items.length === 0) {
+    return {
+      singleItemEffect,
+      singleItemResult,
+      poolEffect: null,
+      poolOthersGain: null,
+      poolTargetDelta: null,
+      poolLevel: "대분류",
+      poolName,
+      comprehensiveNet: null,
+      comprehensiveResult: "unavailable",
+      interpretation: `${poolName} 풀에 품목이 없습니다.`,
+    };
+  }
+
+  // 풀 내 targetItem 매칭 (코드 정규화)
+  const poolTargetCode = pool.items.find(it => {
+    const c = it.item.trim();
+    return c === targetCode || it.itemName === targetCode;
+  })?.item || null;
+
+  const poolSim = calcPoolSimulation(
+    pool.items, pool.poolFixedCost,
+    poolTargetCode, volumeIncreasePct, priceChangePct,
+    "revenue", "대분류", poolName,
+  );
+
+  const poolOthersGain = poolSim.otherItemsMarginDelta;
+  const poolTargetDelta = poolSim.targetItemMarginDelta;
+  const poolEffect = poolSim.netPoolMarginDelta;
+
+  // 종합: 4a 단독 효과 + 4b 다른 품목 덤 효과 (방향성 참고)
+  const comprehensiveNet = singleItemEffect + poolOthersGain;
+  const comprehensiveResult: ComprehensiveVerdict["comprehensiveResult"] =
+    comprehensiveNet > 0 ? "positive" : comprehensiveNet === 0 ? "neutral" : "negative";
+
+  // 해석 텍스트
+  const formatAmt = (v: number) => {
+    const abs = Math.abs(v);
+    const sign = v >= 0 ? "+" : "";
+    if (abs >= 1e8) return `${sign}${(v / 1e8).toFixed(1)}억원`;
+    if (abs >= 1e4) return `${sign}${Math.round(v / 1e4).toLocaleString()}만원`;
+    return `${sign}${Math.round(v).toLocaleString()}원`;
+  };
+
+  let interpretation: string;
+  if (singleItemEffect < 0 && poolOthersGain > 0) {
+    if (comprehensiveNet >= 0) {
+      interpretation = `대상 품목 단독은 ${formatAmt(singleItemEffect)} 손실이나, ${poolName} 풀 내 다른 품목 원가 절감 ${formatAmt(poolOthersGain)}으로 상쇄. 풀 관점 실질 순효과 ${formatAmt(comprehensiveNet)}.`;
+    } else {
+      interpretation = `대상 품목 ${formatAmt(singleItemEffect)} 손실 중, ${poolName} 풀 덤 효과 ${formatAmt(poolOthersGain)}이 일부 상쇄하나 부족. 풀 관점 순효과 ${formatAmt(comprehensiveNet)}.`;
+    }
+  } else if (singleItemEffect >= 0) {
+    interpretation = `대상 품목 단독으로도 ${formatAmt(singleItemEffect)} 이득. 풀 덤 효과 ${formatAmt(poolOthersGain)} 추가.`;
+  } else {
+    interpretation = `대상 품목 ${formatAmt(singleItemEffect)} 손실. 풀 덤 효과도 ${formatAmt(poolOthersGain)}으로 미미.`;
+  }
+
+  return {
+    singleItemEffect,
+    singleItemResult,
+    poolEffect,
+    poolOthersGain,
+    poolTargetDelta,
+    poolLevel: "대분류",
+    poolName,
+    comprehensiveNet,
+    comprehensiveResult,
+    interpretation,
+  };
+}
+
+// ─── 거래처 포트폴리오 순효과 ───────────────────
+
+export interface CustomerPortfolioOffset {
+  customer: string;
+  customerName: string;
+  targetItemCM: number;
+  otherItemsCM: number;
+  otherItemCount: number;
+  portfolioTotalCM: number;
+  isPositive: boolean;
+}
+
+export interface PortfolioSummary {
+  totalCustomers: number;
+  positiveCount: number;
+  negativeCount: number;
+  totalTargetCM: number;
+  totalOtherCM: number;
+  totalPortfolioCM: number;
+  customers: CustomerPortfolioOffset[];
+}
+
+/**
+ * 거래처 포트폴리오 순효과.
+ *
+ * 대상 품목을 구매하는 거래처의 전체 구매 포트폴리오(다른 품목 포함) 마진을 합산.
+ * "이 거래처를 잃으면 이만큼의 마진을 포기하는 것" — 기회비용 관점.
+ *
+ * ⚠️ 기존 실적 기준. 저가 수주가 거래처 유지의 필수 조건이라는 가정 포함.
+ */
+export function calcCustomerPortfolioOffset(
+  cvpItems: CVPItem[],
+  targetItem: string | null,
+  targetCustomer: string | null,
+): PortfolioSummary {
+  if (!targetItem) {
+    return { totalCustomers: 0, positiveCount: 0, negativeCount: 0, totalTargetCM: 0, totalOtherCM: 0, totalPortfolioCM: 0, customers: [] };
+  }
+
+  // 대상 품목을 구매하는 거래처 식별
+  const targetCustomers = new Set<string>();
+  for (const c of cvpItems) {
+    if (c.item === targetItem) {
+      if (targetCustomer === null || c.customer === targetCustomer) {
+        targetCustomers.add(c.customer);
+      }
+    }
+  }
+
+  // 거래처별 포트폴리오 집계
+  const custMap = new Map<string, { name: string; targetCM: number; otherCM: number; otherCount: number }>();
+  for (const c of cvpItems) {
+    if (!targetCustomers.has(c.customer)) continue;
+    const prev = custMap.get(c.customer);
+    const isTarget = c.item === targetItem;
+    if (!prev) {
+      custMap.set(c.customer, {
+        name: c.customerName,
+        targetCM: isTarget ? c.totalContributionMargin : 0,
+        otherCM: isTarget ? 0 : c.totalContributionMargin,
+        otherCount: isTarget ? 0 : 1,
+      });
+    } else {
+      if (isTarget) {
+        prev.targetCM += c.totalContributionMargin;
+      } else {
+        prev.otherCM += c.totalContributionMargin;
+        prev.otherCount++;
+      }
+    }
+  }
+
+  const customers: CustomerPortfolioOffset[] = Array.from(custMap.entries())
+    .map(([customer, data]) => ({
+      customer,
+      customerName: data.name,
+      targetItemCM: data.targetCM,
+      otherItemsCM: data.otherCM,
+      otherItemCount: data.otherCount,
+      portfolioTotalCM: data.targetCM + data.otherCM,
+      isPositive: data.targetCM + data.otherCM > 0,
+    }))
+    .sort((a, b) => b.portfolioTotalCM - a.portfolioTotalCM);
+
+  return {
+    totalCustomers: customers.length,
+    positiveCount: customers.filter(c => c.isPositive).length,
+    negativeCount: customers.filter(c => !c.isPositive).length,
+    totalTargetCM: customers.reduce((s, c) => s + c.targetItemCM, 0),
+    totalOtherCM: customers.reduce((s, c) => s + c.otherItemsCM, 0),
+    totalPortfolioCM: customers.reduce((s, c) => s + c.portfolioTotalCM, 0),
+    customers,
+  };
+}
