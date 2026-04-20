@@ -34,6 +34,7 @@ import {
 } from "@/lib/analysis/planAchievement";
 import { calcOrgBreakeven, calcOrgBreakevenFromTeam, calcBreakevenChart, calcWeightedBep } from "@/lib/analysis/breakeven";
 import { calcMarginErosion } from "@/lib/analysis/detailedProfitAnalysis";
+import { extractManufacturingFixedCost, calcCustomerItemCVP } from "@/lib/analysis/offsetEffect";
 import {
   calcItemCostSummary,
   calcCostCategoryVariance,
@@ -70,12 +71,14 @@ const PortfolioTab = lazy(() => import("./tabs/PortfolioTab").then(m => ({ defau
 const PricingSimTab = lazy(() => import("./tabs/PricingSimTab").then(m => ({ default: m.PricingSimTab })));
 const OffsetEffectTab = lazy(() => import("./tabs/OffsetEffectTab").then(m => ({ default: m.OffsetEffectTab })));
 const CostTrueVarianceTab = lazy(() => import("./tabs/CostTrueVarianceTab").then(m => ({ default: m.CostTrueVarianceTab })));
+const LowPriceVerifyTab = lazy(() => import("./tabs/LowPriceVerifyTab").then(m => ({ default: m.LowPriceVerifyTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
   { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity", "offset"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
   { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "costTrueVariance", "portfolio", "pricingSim"] },
+  { id: "hypothesis", label: "가설 검증", tabs: ["lowPriceVerify"] },
 ];
 
 export default function ProfitabilityPage() {
@@ -505,6 +508,16 @@ export default function ProfitabilityPage() {
     [rawItemProfit]
   );
 
+  // ─── CVP 호이스팅 (OffsetEffectTab + LowPriceVerifyTab 공유) ──────────
+  const totalFixedCost = useMemo(
+    () => extractManufacturingFixedCost((filteredItemProfitability ?? []) as any),
+    [filteredItemProfitability]
+  );
+  const { items: cvpItems, summary: cvpSummary } = useMemo(
+    () => calcCustomerItemCVP(filteredCustItemDetail, totalFixedCost, filteredItemProfitability),
+    [filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
+  );
+
   // 품목→대분류 매핑 (단가 시뮬레이션용): 200 보고서 + salesList에서 구축
   const pricingCategoryMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -794,6 +807,11 @@ export default function ProfitabilityPage() {
               filteredItemProfitability={filteredItemProfitability}
               rawItemProfitability={rawItemProfit}
               isDateFiltered={isDateFilterActive}
+              cvpItems={cvpItems}
+              cvpSummary={cvpSummary}
+              totalFixedCost={totalFixedCost}
+              manufacturingCost={manufacturingCost}
+              onNavigate={(tab: string) => setActiveTab(tab)}
             />
           </ErrorBoundary>
           </Suspense>
@@ -900,6 +918,24 @@ export default function ProfitabilityPage() {
               filteredItemProfitability={filteredItemProfitability}
               categoryMap={pricingCategoryMap}
               isDateFiltered={isDateFilterActive}
+            />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="lowPriceVerify" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <LowPriceVerifyTab
+              cvpItems={cvpItems}
+              cvpSummary={cvpSummary}
+              totalFixedCost={totalFixedCost}
+              filteredCustItemDetail={filteredCustItemDetail}
+              filteredItemProfitability={filteredItemProfitability}
+              rawItemProfitability={rawItemProfit}
+              manufacturingCost={manufacturingCost}
+              isDateFiltered={isDateFilterActive}
+              onNavigate={(tab: string) => setActiveTab(tab)}
             />
           </ErrorBoundary>
           </Suspense>

@@ -1221,3 +1221,44 @@ export function calcSensitivityGrid(
     };
   });
 }
+
+// ─── 가설 판정 헬퍼 ─────────────────────────────
+
+export interface HypothesisVerdict {
+  verdict: "valid" | "invalid" | "partial";
+  label: string;
+  netDelta: number;
+}
+
+/**
+ * 시뮬레이션 결과 기반 가설 판정.
+ * OffsetEffectTab Step 4a 상단 배지에 사용.
+ *
+ * - valid: 이익 증가 + Capacity 안전
+ * - invalid: 이익 감소
+ * - partial: 이익 증가하나 Capacity 초과 위험
+ */
+export function calcHypothesisVerdict(
+  totalSim: TotalViewSimulation,
+  capacityCheck?: { alertLevel: string },
+): HypothesisVerdict {
+  if (totalSim.netOffsetEffect <= 0) {
+    return {
+      verdict: "invalid",
+      label: "단가 하락 손실이 물량 이익을 초과 → 저가수주 확대 불리",
+      netDelta: totalSim.netOffsetEffect,
+    };
+  }
+  if (capacityCheck && capacityCheck.alertLevel === "critical") {
+    return {
+      verdict: "partial",
+      label: "이익 증가하나 Capacity 초과 위험 → 고정비 Step-up 발생 가능",
+      netDelta: totalSim.netOffsetEffect,
+    };
+  }
+  return {
+    verdict: "valid",
+    label: "저가수주 확대 시 이익 증가 → 가설 유효",
+    netDelta: totalSim.netOffsetEffect,
+  };
+}

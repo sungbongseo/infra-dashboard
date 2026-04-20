@@ -29,15 +29,24 @@ import {
   type PoolLevel,
   type FixedCostAllocation,
   type CVPItem,
+  type CVPSummary,
   calcSensitivityGrid,
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
+import { calcCapacityUtilization } from "@/lib/analysis/lowPriceVerification";
+import { calcHypothesisVerdict } from "@/lib/analysis/offsetEffect";
 
 interface OffsetEffectTabProps {
   filteredCustItemDetail: CustomerItemDetailRecord[];
   filteredItemProfitability?: ItemProfitabilityRecord[];
   rawItemProfitability?: ItemProfitabilityRecord[];
   isDateFiltered?: boolean;
+  // v2: page.tsx에서 호이스팅된 CVP (optional — 없으면 내부 계산 fallback)
+  cvpItems?: CVPItem[];
+  cvpSummary?: CVPSummary;
+  totalFixedCost?: number;
+  manufacturingCost?: import("@/types").ManufacturingCostRecord[];
+  onNavigate?: (tab: string) => void;
 }
 
 // M6: 다크 모드 대비 개선 — 밝기 40→55%로 올려 dark 배경에서 가독성 확보
@@ -55,12 +64,14 @@ const QUADRANT_LABELS = {
   dog: "Dog (저매출·저마진) 쥐약",
 };
 
-export function OffsetEffectTab({
-  filteredCustItemDetail,
-  filteredItemProfitability,
-  rawItemProfitability,
-  isDateFiltered,
-}: OffsetEffectTabProps) {
+export function OffsetEffectTab(props: OffsetEffectTabProps) {
+  const {
+    filteredCustItemDetail,
+    filteredItemProfitability,
+    rawItemProfitability,
+    isDateFiltered,
+    onNavigate,
+  } = props;
   // 시나리오 상태
   const [targetCustomer, setTargetCustomer] = useState<string | null>(null);
   const [targetItem, setTargetItem] = useState<string | null>(null);
@@ -125,17 +136,50 @@ export function OffsetEffectTab({
     return calcGroupCVP(filteredItemProfitability, cat, unit);
   }, [cvpGroupKey, filteredItemProfitability]);
 
-  // 전사 고정비 (제조 고정비)
+  // 전사 고정비 (제조 고정비) — props 우선, 없으면 내부 계산 (fallback)
   const totalFixedCost = useMemo(
-    () => extractManufacturingFixedCost((filteredItemProfitability ?? []) as any),
-    [filteredItemProfitability]
+    () => props.totalFixedCost ?? extractManufacturingFixedCost((filteredItemProfitability ?? []) as any),
+    [props.totalFixedCost, filteredItemProfitability]
   );
 
-  // CVP 계산 (Step 1~3)
+  // CVP 계산 (Step 1~3) — props 우선, 없으면 내부 계산 (fallback)
   const { items: cvpItems, summary: cvpSummary } = useMemo(
-    () => calcCustomerItemCVP(filteredCustItemDetail, totalFixedCost, filteredItemProfitability),
-    [filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
+    () => props.cvpItems && props.cvpSummary
+      ? { items: props.cvpItems, summary: props.cvpSummary }
+      : calcCustomerItemCVP(filteredCustItemDetail, totalFixedCost, filteredItemProfitability),
+    [props.cvpItems, props.cvpSummary, filteredCustItemDetail, totalFixedCost, filteredItemProfitability]
   );
+
+  // Capacity 추정 (제조원가 + 판매 실적 기반, F2 오버레이용)
+  const capacityMap = useMemo(() => {
+    if (!props.manufacturingCost || !rawItemProfitability) return new Map<string, number>();
+    const cap = calcCapacityUtilization(props.manufacturingCost, rawItemProfitability ?? []);
+    const map = new Map<string, number>();
+    for (const item of cap.items) {
+      map.set(item.item, item.estimatedMonthlyCapacity);
+    }
+    return map;
+  }, [props.manufacturingCost, rawItemProfitability]);
+
+  // 선택된 그룹의 총 Capacity (그룹 내 품목 Capacity 합산)
+  const groupCapacity = useMemo(() => {
+    if (cvpGroupKey === "__all__" || !filteredItemProfitability || capacityMap.size === 0) return null;
+    const [cat, unit] = cvpGroupKey.split("|");
+    let total = 0;
+    let found = false;
+    for (const r of filteredItemProfitability) {
+      const rCat = ((r as any).대분류 || "").trim() || "(미분류)";
+      const rUnit = ((r as any).기준단위 || "").trim();
+      if (rCat === cat && rUnit === unit) {
+        const code = ((r.품목 || "").match(/^\[([^\]]+)\]/) || [])[1];
+        if (code) {
+          const cap = capacityMap.get(code);
+          if (cap) { total += cap; found = true; }
+        }
+      }
+    }
+    return found ? total : null;
+  }, [cvpGroupKey, filteredItemProfitability, capacityMap]);
 
   // 데이터 기간 라벨 (100 보고서의 매출연월 기준)
   const dataPeriodLabel = useMemo(() => {
@@ -700,6 +744,11 @@ export function OffsetEffectTab({
         ].map((s) => (
           <a key={s.id} href={`#${s.id}`} className="px-2.5 py-1 rounded text-[11px] border hover:bg-muted transition-colors">{s.label}</a>
         ))}
+        {onNavigate && (
+          <button onClick={() => onNavigate("lowPriceVerify")} className="ml-auto px-2.5 py-1 rounded text-[11px] border border-purple-300 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 transition-colors">
+            가설 검증 탭 →
+          </button>
+        )}
       </div>
 
       {/* ═══ Layer 1: 전역 방법론 패널 (데이터 출처 & 계산 로직) ═══ */}
@@ -990,6 +1039,10 @@ export function OffsetEffectTab({
               )}
               <ReferenceLine x={Math.round(selectedGroup.totalQuantity)} stroke="hsl(30,90%,50%)" strokeDasharray="4 4" strokeWidth={2}
                 label={{ value: `현재 (${Math.round(selectedGroup.totalQuantity).toLocaleString()}${selectedGroup.unit})`, fontSize: 10, fill: "hsl(30,90%,50%)", position: "top" }} />
+              {groupCapacity && groupCapacity > 0 && (
+                <ReferenceLine x={Math.round(groupCapacity)} stroke="#ef4444" strokeDasharray="5 3" strokeWidth={2}
+                  label={{ value: `Capacity (${Math.round(groupCapacity).toLocaleString()}${selectedGroup.unit}) ⚠`, fontSize: 9, fill: "#ef4444", position: "insideTopRight" }} />
+              )}
             </ComposedChart>
             ) : (
             /* === 전사 금액 기반 영업이익 직선 === */
@@ -1826,10 +1879,19 @@ export function OffsetEffectTab({
           </ChartContainer>
         </ChartCard>
 
-        {/* A4: 가설 검증 메시지 — 3단계 (성립/중립/반증) */}
+        {/* A4: 가설 검증 메시지 — calcHypothesisVerdict() 연동 + Capacity 체크 */}
         {(() => {
+          // Capacity 기반 판정 (가설 검증 탭 F5와 동일 로직)
+          const capCheck = capacityMap.size > 0 && totalSim.newTotalQuantity > 0
+            ? { alertLevel: (totalSim.newTotalQuantity / totalSim.baseTotalQuantity > 1.15 && capacityMap.size > 0) ? "caution" : "safe" }
+            : undefined;
+          const verdict = calcHypothesisVerdict(totalSim, capCheck);
           const r = totalSim.hypothesisResult;
-          const cfg = r === "positive"
+          const cfg = verdict.verdict === "partial"
+            ? { bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-300", Icon: AlertTriangle, iconCls: "text-amber-600",
+                title: `⚠ ${verdict.label} — 상계 효과 +${formatCurrency(totalSim.netOffsetEffect)}`,
+                desc: "이익은 증가하나 물량 증가폭이 커서 현재 설비 Capacity 초과 가능성 있음. 추가 설비 · 2교대 도입 시 고정비 Step-up이 발생하여 가설 전제가 무너질 수 있습니다." }
+            : r === "positive"
             ? { bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-300", Icon: CheckCircle2, iconCls: "text-emerald-600",
                 title: `✓ 박리다매 가설 성립 — 상계 효과 +${formatCurrency(totalSim.netOffsetEffect)}`,
                 desc: "물량 증가로 인한 공헌이익 증가가 단가 인하 손실을 상쇄하여 전사 영업이익이 개선됩니다. 단, 고정비 총액은 현재 설비 캐파 내 생산을 전제로 불변 가정입니다." }
