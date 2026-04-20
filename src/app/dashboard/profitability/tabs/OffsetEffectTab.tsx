@@ -785,7 +785,13 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               className="w-full text-xs border rounded px-2 py-1.5 bg-background"
               placeholder="예: 2000"
               value={qdAdditionalQty || ""}
-              onChange={(e) => setQdAdditionalQty(Number(e.target.value) || 0)}
+              onChange={(e) => {
+                const v = Number(e.target.value) || 0;
+                setQdAdditionalQty(v);
+                // 기존 Step 4a 상태 동기화
+                setInputMode("absolute");
+                setVolumeAbsolute(v);
+              }}
             />
           </div>
           <div>
@@ -798,7 +804,16 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               className="w-full text-xs border rounded px-2 py-1.5 bg-background"
               placeholder={currentItemUnitPrice > 0 ? `현재: ${Math.round(currentItemUnitPrice).toLocaleString()}` : "단가 입력"}
               value={qdProposedPrice || ""}
-              onChange={(e) => setQdProposedPrice(Number(e.target.value) || 0)}
+              onChange={(e) => {
+                const v = Number(e.target.value) || 0;
+                setQdProposedPrice(v);
+                // 기존 Step 4a 상태 동기화: 제안 단가 → 가격 변동률 자동 계산
+                if (currentItemUnitPrice > 0 && v > 0) {
+                  const pct = ((v / currentItemUnitPrice) - 1) * 100;
+                  setPriceChangePct(Math.round(pct * 10) / 10);
+                  setPriceChangeDirect(Math.round(pct * 10) / 10);
+                }
+              }}
             />
           </div>
         </div>
