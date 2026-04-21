@@ -1313,17 +1313,38 @@ export function calcComprehensiveVerdict(
     };
   }
 
-  // targetItem의 대분류 자동 감지
+  // [H1] targetItem의 대분류 자동 감지 — 3단계 fallback 매칭
   // 100 보고서의 품목 코드와 200 보고서의 품목 코드를 매칭
   const targetCode = targetItem.trim();
   let poolName = "";
+  // Stage 1: exact code match
   for (const r of itemProfitability) {
     const rawItem = (r.품목 || "").trim();
     const code = rawItem.match(/^\[([^\]]+)\]/)?.[1] || rawItem;
-    const itemName = rawItem.match(/^\[[^\]]+\]\s*(.+)$/)?.[1] || rawItem;
-    if (code === targetCode || itemName === targetCode || rawItem === targetCode) {
+    if (code === targetCode || rawItem === targetCode) {
       poolName = ((r as any).대분류 || "").trim();
       break;
+    }
+  }
+  // Stage 2: contains match (100 보고서 코드가 200 품목 필드에 포함, 또는 반대)
+  if (!poolName) {
+    for (const r of itemProfitability) {
+      const rawItem = (r.품목 || "").trim();
+      const code200 = rawItem.match(/^\[([^\]]+)\]/)?.[1] || "";
+      if ((code200 && targetCode.includes(code200)) || (targetCode && rawItem.includes(targetCode))) {
+        poolName = ((r as any).대분류 || "").trim();
+        break;
+      }
+    }
+  }
+  // Stage 3: itemName substring match
+  if (!poolName) {
+    for (const r of itemProfitability) {
+      const itemName = (r.품목 || "").replace(/^\[[^\]]+\]\s*/, "").trim();
+      if (itemName && itemName.length >= 3 && targetCode.includes(itemName)) {
+        poolName = ((r as any).대분류 || "").trim();
+        break;
+      }
     }
   }
 
@@ -1578,7 +1599,29 @@ export function calcQuickVerdict(
   const totalQty = targetRows.reduce((s, c) => s + c.quantity, 0);
   const totalRev = targetRows.reduce((s, c) => s + c.revenue, 0);
   const currentUnitPrice = totalQty > 0 ? totalRev / totalQty : 0;
-  const priceChangePct = currentUnitPrice > 0 ? ((proposedUnitPrice / currentUnitPrice) - 1) * 100 : 0;
+
+  // [C2] 기존 매출 데이터 없는 품목 가드
+  if (currentUnitPrice <= 0) {
+    return {
+      verdict: "conditional",
+      verdictLabel: "기존 매출 데이터 없음 — 단가 비교 불가",
+      singleItemEffect: 0,
+      poolOthersGain: null,
+      portfolioOtherCM: 0,
+      poolName: "",
+      reasons: [
+        "이 품목은 기존 매출 실적이 없어 현재 단가를 알 수 없습니다.",
+        "상세 분석(Step 4a)에서 직접 슬라이더로 시뮬레이션하세요.",
+      ],
+      minRequiredVolume: null,
+      isVolumeEnough: false,
+      currentUnitPrice: 0,
+      proposedUnitPrice,
+      priceChangePct: 0,
+    };
+  }
+
+  const priceChangePct = ((proposedUnitPrice / currentUnitPrice) - 1) * 100;
 
   // 1. 4a: 단일 품목 시뮬
   const sim4a = calcTotalViewSimulation({
@@ -1599,29 +1642,44 @@ export function calcQuickVerdict(
 
   // 4. 감도: 최소 필요 수량 역산 (이진 탐색)
   let minRequiredVolume: number | null = null;
-  if (sim4a.netOffsetEffect < 0 && currentUnitPrice > 0) {
-    let lo = 0, hi = additionalQuantity * 5;
-    for (let i = 0; i < 20; i++) {
-      const mid = Math.round((lo + hi) / 2);
-      const test = calcTotalViewSimulation({
+  if (sim4a.netOffsetEffect < 0) {
+    // [C1] 단위공헌이익 ≤ 0이면 BEP 물리적 도달 불가
+    const avgUnitVC = targetRows.length > 0
+      ? targetRows.reduce((s, c) => s + c.unitVariableCost, 0) / targetRows.length
+      : 0;
+    const proposedUnitCM = proposedUnitPrice - avgUnitVC;
+
+    if (proposedUnitCM <= 0) {
+      minRequiredVolume = null; // BEP 불가: 팔수록 손해
+    } else {
+      let lo = 0, hi = additionalQuantity * 5;
+      for (let i = 0; i < 20; i++) {
+        const mid = Math.round((lo + hi) / 2);
+        const test = calcTotalViewSimulation({
+          items: cvpItems, totalFixedCost, targetCustomer, targetItem,
+          volumeIncreasePct: 0, priceChangePct, volumeAbsolute: mid,
+        });
+        if (test.netOffsetEffect >= 0) hi = mid;
+        else lo = mid;
+      }
+      const finalVol = Math.ceil((lo + hi) / 2);
+      const verify = calcTotalViewSimulation({
         items: cvpItems, totalFixedCost, targetCustomer, targetItem,
-        volumeIncreasePct: 0, priceChangePct, volumeAbsolute: mid,
+        volumeIncreasePct: 0, priceChangePct, volumeAbsolute: finalVol,
       });
-      if (test.netOffsetEffect >= 0) hi = mid;
-      else lo = mid;
+      minRequiredVolume = verify.netOffsetEffect >= 0 ? finalVol : null;
     }
-    const finalVol = Math.ceil((lo + hi) / 2);
-    const verify = calcTotalViewSimulation({
-      items: cvpItems, totalFixedCost, targetCustomer, targetItem,
-      volumeIncreasePct: 0, priceChangePct, volumeAbsolute: finalVol,
-    });
-    minRequiredVolume = verify.netOffsetEffect >= 0 ? finalVol : null;
   }
-  const isVolumeEnough = minRequiredVolume !== null ? additionalQuantity >= minRequiredVolume : sim4a.netOffsetEffect >= 0;
+  // [M4] sim4a 이미 이득이면 BEP 무의미
+  const isVolumeEnough = minRequiredVolume !== null
+    ? additionalQuantity >= minRequiredVolume
+    : sim4a.netOffsetEffect >= 0;
 
   // 5. 판정
-  const poolGain = comp.poolOthersGain ?? 0;
-  const comprehensiveNet = sim4a.netOffsetEffect + poolGain;
+  // [H4] poolOthersGain null 처리: 200 보고서 없으면 풀 효과를 0으로 가정하지 않음
+  const poolAvailable = comp.comprehensiveResult !== "unavailable";
+  const poolGain = poolAvailable ? (comp.poolOthersGain ?? 0) : 0;
+  const comprehensiveNet = poolAvailable ? sim4a.netOffsetEffect + poolGain : null;
   const portfolioCM = portfolio.totalPortfolioCM;
 
   const fmtAmt = (v: number) => {
@@ -1640,33 +1698,41 @@ export function calcQuickVerdict(
     verdict = "approve";
     verdictLabel = "이 저가수주는 진행 가능합니다";
     reasons.push(`이 품목 단독으로도 ${fmtAmt(sim4a.netOffsetEffect)} 이익 증가.`);
-    if (poolGain > 0) reasons.push(`추가로 같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}.`);
-  } else if (comprehensiveNet >= 0 || portfolioCM > 0) {
+    if (poolAvailable && poolGain > 0) reasons.push(`추가로 같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}.`);
+  } else if ((poolAvailable && comprehensiveNet !== null && comprehensiveNet >= 0) || portfolioCM > 0) {
+    // [M3] 조건부 판정: 어떤 조건이 충족되었는지 명시
     verdict = "conditional";
     verdictLabel = "조건부 진행 가능 — 아래 주의사항 확인";
     reasons.push(`이 품목 단독은 ${fmtAmt(sim4a.netOffsetEffect)} 손실.`);
-    if (comprehensiveNet >= 0) {
-      reasons.push(`같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}으로 상쇄 가능.`);
+    if (poolAvailable && comprehensiveNet !== null && comprehensiveNet >= 0) {
+      reasons.push(`같은 풀(${comp.poolName}) 다른 품목 원가 절감 ${fmtAmt(poolGain)}으로 상쇄 → 풀 관점 이득.`);
+    } else if (poolAvailable && poolGain > 0) {
+      reasons.push(`풀 원가 절감 ${fmtAmt(poolGain)} 일부 상쇄하나 부족.`);
     }
-    if (portfolioCM > 0 && targetCustomer) {
-      reasons.push(`이 거래처 전체 포트폴리오 마진은 ${fmtAmt(portfolioCM)} (기존 실적 기준).`);
-    } else if (portfolioCM > 0) {
-      reasons.push(`대상 품목 거래처들의 포트폴리오 마진 합계 ${fmtAmt(portfolioCM)}.`);
+    if (portfolioCM > 0) {
+      reasons.push(`${targetCustomer ? "이 거래처" : "대상 품목 거래처들"}의 다른 품목 마진 ${fmtAmt(portfolioCM)} — 거래 관계 유지 가치.`);
+    }
+    if (!poolAvailable) {
+      reasons.push(`(200 보고서 미업로드로 풀 원가절감 효과 미확인)`);
     }
     if (minRequiredVolume !== null && !isVolumeEnough) {
-      reasons.push(`단독 손익분기: 최소 ${minRequiredVolume.toLocaleString()}개 필요 (현재 ${additionalQuantity.toLocaleString()}개 부족).`);
+      reasons.push(`단독 손익분기: 최소 ${minRequiredVolume.toLocaleString()}개 필요.`);
+    } else if (minRequiredVolume === null && sim4a.netOffsetEffect < 0) {
+      reasons.push(`이 단가로는 물량을 아무리 늘려도 단독 손익분기 불가 (단위공헌이익 ≤ 0).`);
     }
   } else {
     verdict = "reject";
     verdictLabel = "이 저가수주는 손실입니다";
     reasons.push(`이 품목 단독 ${fmtAmt(sim4a.netOffsetEffect)} 손실.`);
-    if (poolGain <= 0) {
+    if (!poolAvailable) {
+      reasons.push(`풀 원가절감 효과 미확인 (200 보고서 업로드 필요).`);
+    } else if (poolGain <= 0) {
       reasons.push(`풀 내 다른 품목 원가 절감 효과도 미미 (${fmtAmt(poolGain)}).`);
     } else {
-      reasons.push(`풀 원가 절감 ${fmtAmt(poolGain)}으로도 상쇄 부족. 종합 ${fmtAmt(comprehensiveNet)}.`);
+      reasons.push(`풀 원가 절감 ${fmtAmt(poolGain)}으로도 상쇄 부족. 종합 ${fmtAmt(comprehensiveNet ?? sim4a.netOffsetEffect)}.`);
     }
     if (minRequiredVolume === null) {
-      reasons.push(`이 단가로는 물량을 아무리 늘려도 손익분기 도달 불가.`);
+      reasons.push(`이 단가로는 물량을 아무리 늘려도 단독 손익분기 도달 불가.`);
     }
   }
 
@@ -1674,7 +1740,7 @@ export function calcQuickVerdict(
     verdict,
     verdictLabel,
     singleItemEffect: sim4a.netOffsetEffect,
-    poolOthersGain: comp.poolOthersGain,
+    poolOthersGain: poolAvailable ? comp.poolOthersGain : null,
     portfolioOtherCM: portfolioCM,
     poolName: comp.poolName,
     reasons,

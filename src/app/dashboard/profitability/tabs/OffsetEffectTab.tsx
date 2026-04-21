@@ -130,6 +130,24 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
   const [qdAdditionalQty, setQdAdditionalQty] = useState<number>(0);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
 
+  // [C3+M2] Step 4a → Quick Card 역방향 동기화
+  useEffect(() => {
+    if (inputMode === "absolute" && volumeAbsolute > 0 && volumeAbsolute !== qdAdditionalQty) {
+      setQdAdditionalQty(volumeAbsolute);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [volumeAbsolute, inputMode]);
+
+  useEffect(() => {
+    if (priceChangePct !== 0 && currentItemUnitPrice > 0) {
+      const newPrice = Math.round(currentItemUnitPrice * (1 + priceChangePct / 100));
+      if (newPrice !== qdProposedPrice && newPrice > 0) {
+        setQdProposedPrice(newPrice);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceChangePct]);
+
   const unitGroups = useMemo(
     () => filteredItemProfitability ? getUnitGroups(filteredItemProfitability) : [],
     [filteredItemProfitability]
@@ -755,6 +773,11 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                 const v = e.target.value || null;
                 setTargetItem(v);
                 setQdProposedPrice(0); // 품목 바뀌면 단가 리셋
+                // [M1] 새 품목을 구매하지 않는 거래처면 리셋
+                if (targetCustomer && v) {
+                  const customerBuysItem = cvpItems.some(c => c.item === v && c.customer === targetCustomer);
+                  if (!customerBuysItem) setTargetCustomer(null);
+                }
               }}
             >
               <option value="">선택...</option>
@@ -842,9 +865,11 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               <div className={`text-center p-2 rounded border ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "border-green-300 bg-green-50/50 dark:bg-green-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
                 <div className="text-[10px] text-muted-foreground">풀 원가절감 덤</div>
                 <div className={`text-sm font-bold ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "text-green-700 dark:text-green-400" : "text-gray-500"}`}>
-                  {quickVerdict.poolOthersGain !== null ? formatCurrency(quickVerdict.poolOthersGain) : "—"}
+                  {quickVerdict.poolOthersGain !== null ? formatCurrency(quickVerdict.poolOthersGain) : <span className="text-gray-400">미확인</span>}
                 </div>
-                {quickVerdict.poolName && <div className="text-[9px] text-muted-foreground">{quickVerdict.poolName}</div>}
+                {quickVerdict.poolOthersGain === null
+                  ? <div className="text-[9px] text-amber-600">200 보고서 필요</div>
+                  : quickVerdict.poolName && <div className="text-[9px] text-muted-foreground">{quickVerdict.poolName}</div>}
               </div>
               <div className={`text-center p-2 rounded border ${quickVerdict.portfolioOtherCM > 0 ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
                 <div className="text-[10px] text-muted-foreground">거래처 포트폴리오</div>
@@ -2166,6 +2191,13 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                       풀: {comp.poolLevel} = {comp.poolName} | ⚠️ 4a(100 보고서)와 4b(200 보고서)는 데이터 범위가 달라 정확한 합산이 아닙니다. 방향성 참고용입니다.
                     </p>
                   )}
+                  {/* [H3] 판정 모순 경고 */}
+                  {quickVerdict.verdict === "approve" && comp.comprehensiveResult === "negative" && (
+                    <div className="mt-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-950 border-l-4 border-amber-500 text-[10px] rounded">
+                      <strong>참고:</strong> 판단기는 &ldquo;진행 가능&rdquo;이나 종합판정은 &ldquo;부정적&rdquo;입니다.
+                      이유: 판단기는 전사 영업이익 관점(고정비 총액 불변), 종합판정은 풀 내 고정비 재배분 관점입니다.
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -2193,7 +2225,7 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                           </tr>
                         </thead>
                         <tbody>
-                          {portfolio.customers.slice(0, 10).map((c) => (
+                          {portfolio.customers.filter(c => c.otherItemCount > 0).slice(0, 10).map((c) => (
                             <tr key={c.customer} className="border-b hover:bg-muted/50">
                               <td className="p-1.5 font-medium">{c.customerName}</td>
                               <td className={`p-1.5 text-right font-mono ${c.targetItemCM < 0 ? "text-red-600" : "text-green-600"}`}>{formatCurrency(c.targetItemCM)}</td>
@@ -2205,6 +2237,12 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                         </tbody>
                       </table>
                     </div>
+                    {/* [H2] 단일 품목 거래처 카운트 */}
+                    {portfolio.customers.filter(c => c.otherItemCount === 0).length > 0 && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        + {portfolio.customers.filter(c => c.otherItemCount === 0).length}개 거래처는 이 품목만 구매 (포트폴리오 효과 없음)
+                      </p>
+                    )}
                     <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-2">
                       ⚠️ 기존 실적 기준 참고 정보입니다. 저가 수주가 거래처 관계 유지의 필수 조건이라는 가정이 포함되어 있습니다.
                     </p>
