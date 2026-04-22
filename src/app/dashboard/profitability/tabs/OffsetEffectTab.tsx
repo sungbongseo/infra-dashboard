@@ -12,6 +12,7 @@ import {
   PieChart, Pie,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TrendingUp, AlertTriangle, DollarSign, Package, CheckCircle2, XCircle, Info } from "lucide-react";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS, safeDivide } from "@/lib/utils";
@@ -958,6 +959,12 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
             <div className="flex items-center gap-2 mb-2">
               <span className="text-2xl">{qdIcon}</span>
               <span className="text-base font-bold">{quickVerdict.verdictLabel}</span>
+              <VerdictInfo
+                title="저가수주 판정 기준"
+                formula={"✅ 진행 가능: 단독 효과 ≥ 0 OR 풀+포트폴리오가 손실을 충분히 상쇄\n❌ 거부: 3가지 관점 모두 음수\n⚠️ 조건부: 일부 조건에서만 이득"}
+                description={"3가지 관점을 종합한 저가수주 의사결정:\n① 대상 품목 단독의 이익 증감 (4a)\n② 같은 대분류 다른 품목의 덤 효과 (4b)\n③ 거래처 관계 유지 가치 (포트폴리오)\n\n단독 숫자만 보면 놓칠 수 있는\n'풀 전체 효과'와 '거래처 관계 가치'까지\n함께 평가합니다."}
+                note={"단가 변동률은 현재 단가 대비 제안 단가의 차이입니다.\n음수(-)면 인하, 양수(+)면 인상."}
+              />
               {quickVerdict.priceChangePct !== 0 && (
                 <span className="text-xs text-muted-foreground ml-2">
                   (단가 {quickVerdict.priceChangePct > 0 ? "+" : ""}{safeFixed(quickVerdict.priceChangePct, 1)}%)
@@ -967,14 +974,33 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
 
             {/* 3가지 관점 카드 */}
             <div className="grid grid-cols-3 gap-2 mb-3">
+              {/* ① 대상 품목 단독 */}
               <div className={`text-center p-2 rounded border ${quickVerdict.singleItemEffect >= 0 ? "border-green-300 bg-green-50/50 dark:bg-green-950/20" : "border-red-300 bg-red-50/50 dark:bg-red-950/20"}`}>
-                <div className="text-[10px] text-muted-foreground">대상 품목 단독</div>
+                <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                  <span>대상 품목 단독</span>
+                  <VerdictInfo
+                    title="대상 품목 단독 효과 (4a)"
+                    formula={"① 단가 인하 손실\n  = 기존수량 × (기존단가 − 제안단가)\n\n② 추가수량 공헌이익\n  = 추가수량 × (제안단가 − 단위 변동비)\n\n순효과 = ② − ①"}
+                    description={"이 품목만 따로 봤을 때의 이익 증감입니다.\n\n단가를 내리면 기존 고객한테서 덜 받지만(①),\n대신 새로 파는 수량에서 공헌이익이 들어옵니다(②).\n\n양수(+) → 이 저가수주 자체로도 이득\n음수(−) → 이 품목 단독으로는 손해"}
+                    note={"출처: 100 보고서 (거래처×품목 실적).\n단독 손실이어도 아래 '풀 덤 효과'나\n'거래처 관계 가치'로 전체 판정은\n달라질 수 있습니다."}
+                  />
+                </div>
                 <div className={`text-sm font-bold ${quickVerdict.singleItemEffect >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
                   {formatCurrency(quickVerdict.singleItemEffect)}
                 </div>
               </div>
+
+              {/* ② 풀 원가절감 덤 */}
               <div className={`text-center p-2 rounded border ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "border-green-300 bg-green-50/50 dark:bg-green-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
-                <div className="text-[10px] text-muted-foreground">풀 원가절감 덤</div>
+                <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                  <span>풀 원가절감 덤</span>
+                  <VerdictInfo
+                    title="풀 원가절감 덤 효과 (4b)"
+                    formula={"같은 대분류(풀) 내 다른 품목들의\n[시나리오 장부상 마진 − 기준 장부상 마진] 합계.\n\n대상 품목 판매량 ↑\n  → 풀 전체 매출 비중 변화\n  → 다른 품목의 '1개당 고정비'↓\n  → 장부상 마진 ↑"}
+                    description={"같은 공장에서 생산되는 품목(같은 대분류)들은\n고정비를 매출 비중에 따라 나눠서 장부에 실립니다.\n\n대상 품목을 더 많이 팔면\n→ 그 품목의 매출 비중이 올라가고\n→ 나머지 품목들의 '몫'이 줄어들어\n→ 다른 품목들의 단위 고정비가 내려갑니다.\n\n즉, 대상 품목을 밀어주면\n같은 대분류 다른 품목도 '덤'으로 장부상 마진이 좋아짐."}
+                    note={"출처: 200 보고서 (품목별 수익성 회계).\n200 보고서가 없으면 '미확인'으로 표시.\n장부상 재배분 효과이므로 실제 현금과는\n다를 수 있습니다."}
+                  />
+                </div>
                 <div className={`text-sm font-bold ${(quickVerdict.poolOthersGain ?? 0) > 0 ? "text-green-700 dark:text-green-400" : "text-gray-500"}`}>
                   {quickVerdict.poolOthersGain !== null ? formatCurrency(quickVerdict.poolOthersGain) : <span className="text-gray-400">미확인</span>}
                 </div>
@@ -982,12 +1008,24 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                   ? <div className="text-[9px] text-amber-600">200 보고서 필요</div>
                   : quickVerdict.poolName && <div className="text-[9px] text-muted-foreground">{quickVerdict.poolName}</div>}
               </div>
-              <div className={`text-center p-2 rounded border ${quickVerdict.portfolioOtherCM > 0 ? "border-blue-300 bg-blue-50/50 dark:bg-blue-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
-                <div className="text-[10px] text-muted-foreground">거래처 포트폴리오</div>
+
+              {/* ③ 거래처 포트폴리오 — 성격 구분 필요 */}
+              <div className={`text-center p-2 rounded border-dashed border-2 ${quickVerdict.portfolioOtherCM > 0 ? "border-blue-400 bg-blue-50/50 dark:bg-blue-950/20" : "border-gray-300 bg-gray-50/50 dark:bg-gray-950/20"}`}>
+                <div className="text-[10px] text-muted-foreground flex items-center justify-center gap-1">
+                  <span>거래처 포트폴리오</span>
+                  <VerdictInfo
+                    title="거래처 포트폴리오 (관계 유지 가치)"
+                    formula={"Σ (대상 품목 구매 거래처의 다른 품목 공헌이익)\n\n— 기존 실적 합계\n— 시나리오 '효과'가 아님"}
+                    description={"이 숫자는 '새로 생길 이익'이 아닙니다.\n\n대상 품목을 사고 있는 거래처들이\n다른 품목에서 '지금까지' 만들어온\n공헌이익의 합계입니다.\n\n만약 저가수주를 거절해서\n이 거래처가 떠난다면,\n이만큼의 다른 품목 마진도 함께 포기하는 셈.\n\n즉, 거래처 유지의 '기회비용 규모'를 보여줍니다.\n\n크면 클수록 → 저가수주로라도 거래처 유지할 유인 ↑"}
+                    note={"⚠️ 단독·풀 효과와 단순 합산하지 마세요!\n성격이 완전히 다른 '맥락 정보'입니다.\n4a·4b는 시나리오 변화량(Δ),\n이 값은 기존 실적 총량입니다."}
+                  />
+                </div>
                 <div className={`text-sm font-bold ${quickVerdict.portfolioOtherCM > 0 ? "text-blue-700 dark:text-blue-400" : "text-gray-500"}`}>
                   {formatCurrency(quickVerdict.portfolioOtherCM)}
                 </div>
-                <div className="text-[9px] text-muted-foreground">기존 실적 기준</div>
+                <div className="text-[9px] mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-100/80 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 font-medium">
+                  참고값 · 기존 실적
+                </div>
               </div>
             </div>
 
@@ -1000,11 +1038,18 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
 
             {/* 감도: 최소 필요 수량 */}
             {quickVerdict.minRequiredVolume !== null && (
-              <div className={`text-xs mt-2 px-2 py-1 rounded ${quickVerdict.isVolumeEnough ? "bg-green-100/50 dark:bg-green-900/20" : "bg-amber-100/50 dark:bg-amber-900/20"}`}>
-                감도: 단독 손익분기 최소 <strong>{quickVerdict.minRequiredVolume.toLocaleString()}</strong>개
-                {quickVerdict.isVolumeEnough
-                  ? ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 충분)`
-                  : ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 부족)`}
+              <div className={`text-xs mt-2 px-2 py-1 rounded flex items-center gap-1.5 ${quickVerdict.isVolumeEnough ? "bg-green-100/50 dark:bg-green-900/20" : "bg-amber-100/50 dark:bg-amber-900/20"}`}>
+                <span>
+                  감도: 단독 손익분기 최소 <strong>{quickVerdict.minRequiredVolume.toLocaleString()}</strong>개
+                  {quickVerdict.isVolumeEnough
+                    ? ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 충분)`
+                    : ` (입력 ${qdAdditionalQty.toLocaleString()}개 → 부족)`}
+                </span>
+                <VerdictInfo
+                  title="단독 손익분기 최소 수량"
+                  formula={"최소 수량 = 단가 인하 총손실 ÷ 단위 공헌이익\n\n= 기존수량 × (기존단가 − 제안단가)\n  ÷ (제안단가 − 단위 변동비)"}
+                  description={"이 수량만큼 추가로 팔아야\n'대상 품목 단독'으로 본전이 됩니다.\n\n입력한 추가 수량이\n  이 숫자 이상 → '단독으로도 이득' 충족\n  이 숫자 미만 → 풀 덤 효과나\n    거래처 관계 가치의 도움이 필요"}
+                />
               </div>
             )}
 
@@ -2987,5 +3032,58 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
         </div>{/* end details content */}
       </details>
     </div>
+  );
+}
+
+/**
+ * 저가수주 판단기용 컴팩트 Info 툴팁.
+ * 카드 제목 옆에 작은 Info 아이콘을 배치하고, hover 시 계산식·해석·주의를 팝오버로 표시.
+ * 초보자 가독성을 위해 AnalysisTooltip 대비 (1) 폰트 작음, (2) note(주의) 섹션 추가.
+ */
+function VerdictInfo({
+  title,
+  formula,
+  description,
+  note,
+}: {
+  title: string;
+  formula?: string;
+  description?: string;
+  note?: string;
+}) {
+  return (
+    <Tooltip delayDuration={0}>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={`${title} 설명 보기`}
+          className="inline-flex items-center justify-center shrink-0"
+          onClick={(e) => e.preventDefault()}
+        >
+          <Info className="h-3 w-3 text-muted-foreground/60 hover:text-primary transition-colors cursor-help" />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" sideOffset={6} className="max-w-[320px] md:max-w-sm p-3 z-[70]">
+        <p className="text-xs font-semibold mb-2">{title}</p>
+        {formula && (
+          <div className="mb-2">
+            <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">📐 계산방법</p>
+            <p className="text-[11px] font-mono bg-muted/60 rounded px-1.5 py-1 leading-snug whitespace-pre-line">{formula}</p>
+          </div>
+        )}
+        {description && (
+          <div className="mb-2">
+            <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">📖 해석방법</p>
+            <p className="text-[11px] leading-snug whitespace-pre-line">{description}</p>
+          </div>
+        )}
+        {note && (
+          <div className="pt-1.5 border-t border-muted">
+            <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-0.5">⚠️ 주의</p>
+            <p className="text-[11px] leading-snug whitespace-pre-line text-amber-800 dark:text-amber-300">{note}</p>
+          </div>
+        )}
+      </TooltipContent>
+    </Tooltip>
   );
 }
