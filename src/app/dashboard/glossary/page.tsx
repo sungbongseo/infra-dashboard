@@ -144,11 +144,21 @@ export default function GlossaryPage() {
                   const text =
                     level === "beginner" ? entry.beginner :
                     level === "expert" ? entry.expert : entry.intermediate;
+                  // NOTE: div + role="button"으로 외곽 래핑 — 내부에 button(관련 지표 링크)이 있어서
+                  // HTML 스펙상 <button> 중첩 금지 위반 방지 (하이드레이션 에러 해결).
                   return (
-                    <button
+                    <div
                       key={entry.id}
+                      role="button"
+                      tabIndex={0}
                       onClick={() => setExpandedId(expanded ? null : entry.id)}
-                      className={`text-left rounded-lg border p-3 transition-colors ${expanded ? "bg-primary/5 border-primary/30" : "bg-background hover:bg-muted/40"}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setExpandedId(expanded ? null : entry.id);
+                        }
+                      }}
+                      className={`text-left rounded-lg border p-3 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40 ${expanded ? "bg-primary/5 border-primary/30" : "bg-background hover:bg-muted/40"}`}
                     >
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <h3 className="text-sm font-semibold">{entry.name}</h3>
@@ -201,7 +211,7 @@ export default function GlossaryPage() {
                           )}
                         </div>
                       )}
-                    </button>
+                    </div>
                   );
                 })}
               </div>
