@@ -3068,8 +3068,8 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
 
 /**
  * 저가수주 판단기용 컴팩트 Info 툴팁.
- * 카드 제목 옆에 작은 Info 아이콘을 배치하고, hover 시 계산식·해석·주의를 팝오버로 표시.
- * 초보자 가독성을 위해 AnalysisTooltip 대비 (1) 폰트 작음, (2) note(주의) 섹션 추가.
+ * @deprecated Phase 3에서 MetricInfo variant="compact"로 내부 위임.
+ * 기존 호출부는 유지(호환성), 새 코드는 <MetricInfo variant="compact"> 직접 사용 권장.
  */
 function VerdictInfo({
   title,
@@ -3083,38 +3083,12 @@ function VerdictInfo({
   note?: string;
 }) {
   return (
-    <Tooltip delayDuration={0}>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-label={`${title} 설명 보기`}
-          className="inline-flex items-center justify-center shrink-0"
-          onClick={(e) => e.preventDefault()}
-        >
-          <Info className="h-3 w-3 text-muted-foreground/60 hover:text-primary transition-colors cursor-help" />
-        </button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" sideOffset={6} className="max-w-[320px] md:max-w-sm p-3 z-[70]">
-        <p className="text-xs font-semibold mb-2">{title}</p>
-        {formula && (
-          <div className="mb-2">
-            <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">📐 계산방법</p>
-            <p className="text-[11px] font-mono bg-muted/60 rounded px-1.5 py-1 leading-snug whitespace-pre-line">{formula}</p>
-          </div>
-        )}
-        {description && (
-          <div className="mb-2">
-            <p className="text-[10px] font-semibold text-muted-foreground mb-0.5">📖 해석방법</p>
-            <p className="text-[11px] leading-snug whitespace-pre-line">{description}</p>
-          </div>
-        )}
-        {note && (
-          <div className="pt-1.5 border-t border-muted">
-            <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mb-0.5">⚠️ 주의</p>
-            <p className="text-[11px] leading-snug whitespace-pre-line text-amber-800 dark:text-amber-300">{note}</p>
-          </div>
-        )}
-      </TooltipContent>
-    </Tooltip>
+    <MetricInfo
+      variant="compact"
+      title={title}
+      formula={formula}
+      intermediate={description}
+      note={note}
+    />
   );
 }

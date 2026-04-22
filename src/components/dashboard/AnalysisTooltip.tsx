@@ -1,7 +1,14 @@
 "use client";
 
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Info } from "lucide-react";
+/**
+ * AnalysisTooltip — KpiCard/ChartCard 헤더용 heavy tooltip.
+ *
+ * v2 (Phase 3): 내부를 MetricInfo variant="heavy"로 위임.
+ * Public API(title/formula/description/benchmark/reason)는 그대로 유지해 423 인라인
+ * 호출부가 깨지지 않도록 보장. 새 코드는 <MetricInfo id="..." variant="heavy"> 권장.
+ */
+
+import { MetricInfo } from "./MetricInfo";
 
 interface AnalysisTooltipProps {
   title: string;
@@ -14,43 +21,21 @@ interface AnalysisTooltipProps {
 export function AnalysisTooltip({ title, formula, description, benchmark, reason }: AnalysisTooltipProps) {
   const hasContent = formula || description || benchmark || reason;
 
+  // note 필드에 reason을 노출 (AnalysisTooltip 기존 "분석 필요 이유"와 의미적 연결)
+  // benchmark는 intermediate 본문 하단에 이어 붙여 MetricInfo에 전달
+  const combinedIntermediate = [description, benchmark ? `\n\n📏 분석 기준: ${benchmark}` : ""].filter(Boolean).join("");
+
   return (
     <div className="flex items-center gap-1.5">
       <span className="text-sm font-semibold">{title}</span>
       {hasContent && (
-        <Tooltip delayDuration={0}>
-          <TooltipTrigger asChild>
-            <button type="button" className="inline-flex items-center justify-center">
-              <Info className="h-4 w-4 text-muted-foreground/70 hover:text-primary transition-colors cursor-help" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" sideOffset={8} className="max-w-xs md:max-w-sm p-4 z-[60]">
-            {formula && (
-              <div className="mb-3">
-                <p className="text-[11px] font-semibold text-muted-foreground mb-1">📐 계산방법</p>
-                <p className="font-mono text-xs bg-muted/50 rounded px-2 py-1.5 leading-relaxed whitespace-pre-line">{formula}</p>
-              </div>
-            )}
-            {description && (
-              <div className="mb-3">
-                <p className="text-[11px] font-semibold text-muted-foreground mb-1">📖 해석방법</p>
-                <p className="text-xs leading-relaxed">{description}</p>
-              </div>
-            )}
-            {benchmark && (
-              <div className={reason ? "mb-3" : "pt-2 border-t"}>
-                <p className="text-[11px] font-semibold text-muted-foreground mb-1">📏 분석기준</p>
-                <p className="text-xs leading-relaxed">{benchmark}</p>
-              </div>
-            )}
-            {reason && (
-              <div className="pt-2 border-t">
-                <p className="text-[11px] font-semibold text-muted-foreground mb-1">💡 분석 필요 이유</p>
-                <p className="text-xs leading-relaxed">{reason}</p>
-              </div>
-            )}
-          </TooltipContent>
-        </Tooltip>
+        <MetricInfo
+          variant="heavy"
+          title={title}
+          formula={formula}
+          intermediate={combinedIntermediate || undefined}
+          note={reason}
+        />
       )}
     </div>
   );

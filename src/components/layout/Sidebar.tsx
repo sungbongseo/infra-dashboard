@@ -15,6 +15,7 @@ import {
   Database,
   ChevronLeft,
   Building2,
+  BookOpen,
 } from "lucide-react";
 import { useUIStore } from "@/stores/uiStore";
 
@@ -26,6 +27,7 @@ const navItems = [
   { id: "receivables", label: "미수금 관리", icon: CreditCard, href: "/dashboard/receivables" },
   { id: "profiles", label: "영업사원 성과", icon: Users, href: "/dashboard/profiles" },
   { id: "data", label: "데이터 관리", icon: Database, href: "/dashboard/data" },
+  { id: "glossary", label: "용어 사전", icon: BookOpen, href: "/dashboard/glossary" },
 ];
 
 export function Sidebar() {
