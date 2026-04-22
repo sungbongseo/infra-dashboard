@@ -35,6 +35,48 @@ Excel files (drag-and-drop) → FileUploader.tsx
   → alertStore evaluates KPI thresholds → AlertPanel notifications
 ```
 
+### Metric Tooltip System (src/lib/metrics/ + src/components/dashboard/MetricInfo.tsx)
+
+세계 최고 수준 툴팁 시스템 — 모든 대시보드 지표의 설명을 단일 소스(Single Source of Truth)에서 관리.
+
+**Architecture**:
+```
+glossary.ts (MetricId union + GLOSSARY object)
+  ├── glossary-profitability.ts (16 entries: Step 4a 슬라이더/프리셋/워터폴 5단계 + PricingSim 4종)
+  ├── glossary-sales.ts (4 entries: RFM R/F/M/Segment)
+  └── glossary-orders.ts (3 entries: O2C 전환율/수금률/재고 소진)
+       ↓ 참조
+<MetricInfo id="..." variant="inline|compact|heavy" currentValue={...} />
+       ↑ 위임
+AnalysisTooltip (public API 보존) / VerdictInfo (@deprecated, 레거시 호환) / KpiCard (metricId prop fallback)
+```
+
+**Components**:
+- `MetricInfo`: 3 variants × 2 stages × 3 학습자 레벨의 통합 툴팁
+  - variant: `inline` (슬라이더/컬럼 헤더) / `compact` (숫자 옆) / `heavy` (KpiCard/ChartCard)
+  - Stage 1 (hover): 요약 + "자세히 보기" → Stage 2 (click): 초/중/전문가 탭 전환
+  - Context-aware: `currentValue` prop으로 `contextBranches` 자동 매칭 (부호/임계별 추가 문구)
+  - Cross-reference: `relatedIds` → 관련 지표 링크 표시
+- `AnalysisTooltip`: public API(title/formula/description/benchmark/reason) 불변. 내부는 `<MetricInfo variant="heavy">` 위임
+- `KpiCard`: `metricId?: MetricId` prop 추가. 미지정 시 기존 inline prop fallback. glossary entry가 있으면 description←intermediate, formula, benchmark, reason←sourceNote 자동 매핑
+- `/dashboard/glossary`: 전체 지표 사전 페이지 (카테고리별 그리드 + 검색 + 3-레벨 탭 + 상호 네비게이션)
+
+**Beginner Mode** (uiStore.beginnerMode):
+- Header 🎓 GraduationCap 토글 — localStorage persist
+- ON 시 MetricInfo의 기본 설명이 trigger 옆 인라인 표시 (hover 없이도 보임, lg 이상)
+- 기본값 OFF (숙련 사용자 중심)
+
+**Adding new metrics**:
+1. 해당 카테고리 파일(`glossary-<category>.ts`)에 엔트리 추가 — id는 snake_case
+2. 루트 `glossary.ts`는 자동 병합 (spread) — 수정 불필요
+3. 사용처에서 `<MetricInfo id="..." />` 또는 `<KpiCard metricId="..." />`
+4. `name`, `formula`, `beginner`, `intermediate`, `expert`는 필수. `commonMistakes`/`contextBranches`/`relatedIds`는 선택
+5. beginner 레이어는 수식 기호·영어 약어 금지, 비유 1개 + 60자 이내
+
+**Formula Inventory** (docs/formula-inventory.csv):
+- `scripts/extract-formula.mjs`로 423개 KpiCard 인라인 formula 추출 가능
+- Phase 4+ 점진 이관: CSV dedupe → glossary 엔트리 추가 → `metricId` prop 주입
+
 ### Zustand Stores (src/stores/)
 
 - **dataStore**: All parsed data (sales, orders, collections, orgProfit, teamContribution, profitabilityAnalysis, receivableAging Map, orgCustomerProfit, hqCustomerItemProfit, customerItemDetail, itemCostDetail, itemProfitability), uploaded file list, org filter (orgNames Set). Primary store with IndexedDB persistence via Dexie.
