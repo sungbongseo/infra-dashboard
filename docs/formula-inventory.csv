@@ -1,0 +1,246 @@
+file,line,title,suggestedMetricId,formula,benchmark,description,reason
+/src/app/dashboard/data/page.tsx,229,유효 행 수,유효_행_수,,,,
+/src/app/dashboard/data/page.tsx,237,파일 수,파일_수,,,,
+/src/app/dashboard/data/page.tsx,246,조직 수,조직_수,,,,
+/src/app/dashboard/data/page.tsx,254,마지막 업로드,마지막_업로드,,,,
+/src/app/dashboard/orders/tabs/ConversionTab.tsx,80,수주완료율(건수기준),수주완료율건수기준,,,,
+/src/app/dashboard/orders/tabs/ConversionTab.tsx,90,수주 취소율,수주_취소율,,,,
+/src/app/dashboard/orders/tabs/ConversionTab.tsx,100,진행 중 수주,진행_중_수주,,,,
+/src/app/dashboard/orders/tabs/ConversionTab.tsx,110,건당 평균 수주액,건당_평균_수주액,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,375,총 기말재고,총_기말재고,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,382,평균 회전율,평균_회전율,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,390,장기재고,장기재고,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,398,수량 DIO,수량_dio,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,406,사장재고,사장재고,,,,
+/src/app/dashboard/orders/tabs/InventoryTab.tsx,414,과잉재고,과잉재고,,,,
+/src/app/dashboard/orders/tabs/PipelineTab.tsx,63,수주에서 매출 전환율,수주에서_매출_전환율,,,,
+/src/app/dashboard/orders/tabs/PipelineTab.tsx,73,순수 수금율 (선수금 제외),순수_수금율_선수금_제외,,,,
+/src/app/dashboard/orders/tabs/PipelineTab.tsx,83,미수잔액,미수잔액,,,,
+/src/app/dashboard/orders/tabs/PipelineTab.tsx,93,실제 자금 필요,실제_자금_필요,,,,
+/src/app/dashboard/orders/tabs/StatusTab.tsx,76,총 수주액,총_수주액,,,,
+/src/app/dashboard/orders/tabs/StatusTab.tsx,86,기간 내 매출/수주 비율,기간_내_매출수주_비율,,,,
+/src/app/dashboard/orders/tabs/StatusTab.tsx,96,기간 내 수주-매출 갭,기간_내_수주매출_갭,,,,
+/src/app/dashboard/orders/tabs/StatusTab.tsx,106,수주 건수,수주_건수,,,,
+/src/app/dashboard/page.tsx,289,총 매출액,총_매출액,,,,
+/src/app/dashboard/page.tsx,290,영업이익율,영업이익율,,,,
+/src/app/dashboard/page.tsx,291,수금율,수금율,,,,
+/src/app/dashboard/page.tsx,292,계획 달성율,계획_달성율,,,,
+/src/app/dashboard/page.tsx,302,Win Rate,win_rate,,,,
+/src/app/dashboard/page.tsx,303,평균 영업주기,평균_영업주기,,,,
+/src/app/dashboard/page.tsx,304,Sales Velocity,sales_velocity,,,,
+/src/app/dashboard/page.tsx,305,수금 리드타임,수금_리드타임,,,,
+/src/app/dashboard/profiles/tabs/CostTab.tsx,82,공헌이익율,공헌이익율,공헌이익율 = (매출액 - 변동비) ÷ 매출액 × 100,"30% 이상 우수, 20~30% 보통, 20% 미만 개선 필요","변동비(원재료비, 외주비, 상품매입비 등)를 차감한 후 고정비 회수와 이익에 기여하는 비율입니다.","영업사원별 공헌이익율로 고정비 회수 능력을 평가하고, 수익성 개선이 필요한 담당자를 식별합니다."
+/src/app/dashboard/profiles/tabs/CostTab.tsx,91,영업이익율,영업이익율,영업이익율 = (매출액 - 매출원가 - 판관비) ÷ 매출액 × 100,"10% 이상 양호, 5~10% 보통, 5% 미만 비용 구조 점검 필요",모든 영업 비용을 차감한 순수 영업 수익성입니다. 담당자의 실질 이익 창출 능력을 나타냅니다.,"담당자별 실질 수익 창출 능력을 측정하여, 매출은 높으나 이익이 낮은 담당자의 비용 구조를 점검합니다."
+/src/app/dashboard/profiles/tabs/CostTab.tsx,100,제조변동비율,제조변동비율,제조변동비율 = 제조변동비 ÷ 매출액 × 100,조직 평균 대비 5%p 이상 높으면 원가 절감 검토 필요,"매출 대비 제조변동비(원재료, 외주 등) 비중입니다. 높을수록 매출 원가 부담이 크다는 의미입니다.","제조변동비 비율로 원가 부담 수준을 파악하여, 원가 절감 또는 가격 전략 조정의 근거를 확보합니다."
+/src/app/dashboard/profiles/tabs/CostTab.tsx,109,판관고정비율,판관고정비율,판관고정비율 = 판관고정비 ÷ 매출액 × 100,1인당 급여가 업계 중위수 대비 ±10% 이내이면 적정,"매출 대비 고정비(감가상각비, 경비, 노무비) 비중입니다. 1인당 급여 수준이 업계 대비 높으면 비용 효율이 낮고, 너무 낮으면 인재 유출 위험이 있습니다.","고정비 비율로 매출 규모 대비 인건비·경비 부담을 평가하여, 인력 구조 최적화 방향을 도출합니다."
+/src/app/dashboard/profiles/tabs/ProductTab.tsx,73,취급 품목 수,취급_품목_수,담당자가 매출을 발생시킨 고유 품목 수 집계,"취급 제품이 5종 이하이면 리스크 집중, 다양할수록 안정적",{`${productPortfolio.totalProductGroups},품목 다양성을 파악하여 특정 제품 의존도를 줄이고 포트폴리오 분산을 유도합니다.
+/src/app/dashboard/profiles/tabs/ProductTab.tsx,82,품목 집중도 (HHI),품목_집중도_hhi,"HHI = Σ(품목별 매출 비중²) × 10000\n0에 가까울수록 분산, 10000에 가까울수록 집중","2500 초과 = 고집중(위험), 1500~2500 = 적정, 1500 미만 = 분산(안정)","{`HHI(허핀달-허쉬만 지수)로 품목 매출 집중도를 측정합니다. 현재 ${safe(productPortfolio.productConcentrationHHI, 0)}",품목 집중도를 측정하여 특정 제품 매출 급감 시 리스크를 사전에 관리합니다.
+/src/app/dashboard/profiles/tabs/ProductTab.tsx,91,가중평균 마진,가중평균_마진,가중평균 마진 = Σ(품목별 매출총이익) ÷ Σ(품목별 매출액) × 100,"25% 이상 양호, 15~25% 보통, 15% 미만 원가·가격 전략 재검토",품목별 매출 규모를 반영한 가중 평균 매출총이익율입니다. 단순 평균보다 실질적인 수익성을 나타냅니다.,"가중평균 마진으로 실질 수익성을 파악하여, 저마진 제품의 가격 조정 또는 고마진 제품 확대를 결정합니다."
+/src/app/dashboard/profiles/tabs/ProductTab.tsx,100,"{`Top: ${productPortfolio.topProducts[0]?.productName || ""-""}",,매출액 기준 가장 큰 비중을 차지하는 품목,"단일 품목 비중 50% 이상이면 의존도 과다, 30% 이하가 바람직","{`매출 비중 ${safe((productPortfolio.topProducts[0]?.sharePercent ?? 0), 1)}","주력 품목을 파악하여 수급 리스크를 관리하고, 대체 품목 육성 전략을 수립합니다."
+/src/app/dashboard/profiles/tabs/RankingTab.tsx,70,활성 거래처 수,활성_거래처_수,매출이 발생한 고유 거래처 수 집계,거래처 수가 팀 평균의 1.5배 이상이면 관리 부하 점검 필요,해당 영업사원이 매출을 발생시킨 거래처의 수입니다.,"거래처 수를 파악하여 적정 관리 범위인지 판단하고, 과부하 시 재배분을 검토합니다."
+/src/app/dashboard/profiles/tabs/RankingTab.tsx,79,취급 품목 수,취급_품목_수,해당 영업사원이 매출을 발생시킨 고유 품목 수,"10종 이상이면 다품목 전문, 5종 이하이면 특화형 영업",영업사원이 판매한 고유 품목의 수입니다. 다양한 품목을 취급할수록 전문성이 넓습니다.,"품목 다양성을 파악하여 크로스셀링 역량을 평가하고, 교육 필요 품목을 파악합니다."
+/src/app/dashboard/profiles/tabs/RankingTab.tsx,88,공헌이익율,공헌이익율,공헌이익율 = (매출액 - 변동비) ÷ 매출액 × 100,"40% 이상 우수, 20~40% 보통, 20% 미만 개선 필요","매출에서 변동비를 차감한 비율로, 고정비 회수 및 이익 기여도를 나타냅니다.",영업사원의 수익 기여도를 측정하여 고수익 영업 패턴을 파악하고 조직에 확산합니다.
+/src/app/dashboard/profiles/tabs/TrendTab.tsx,73,월평균 매출,월평균_매출,월평균 매출 = Σ(월별 매출액) ÷ 매출 발생 월수,조직 내 매출 상위 20%와 비교하여 성장 잠재력 판단,선택된 기간 내 월별 매출의 단순 평균입니다. 담당자의 평균적인 매출 규모를 나타냅니다.,"영업사원별 월평균 매출로 안정적인 매출 기반을 평가하고, 성장 잠재력을 판단합니다."
+/src/app/dashboard/profiles/tabs/TrendTab.tsx,82,월평균 수주,월평균_수주,월평균 수주 = Σ(월별 수주액) ÷ 수주 발생 월수,"월평균 수주 ≥ 월평균 매출이면 성장 중, 미달이면 파이프라인 점검 필요",월별 수주의 평균값입니다. 수주가 매출보다 높으면 파이프라인이 건전하다는 의미입니다.,"수주 평균치로 영업사원의 파이프라인 확보 능력을 평가하고, 매출 대비 수주 부족 시 영업 활동 강화를 유도합니다."
+/src/app/dashboard/profiles/tabs/TrendTab.tsx,91,MoM 매출 성장률,mom_매출_성장률,MoM 성장률 = (당월 매출 - 전월 매출) ÷ |전월 매출| × 100,"MoM +5% 이상이면 성장세, 0~5%이면 안정, 마이너스이면 하락세","MoM(Month-over-Month)은 전월 대비 매출 증감을 백분율로 나타냅니다. 양수면 전월보다 매출이 증가했고, 음수면 감소했다는 의미입니다.","월간 매출 추세를 파악하여 성과 개선/하락을 조기에 감지하고, 즉시 코칭·지원 여부를 결정합니다."
+/src/app/dashboard/profiles/tabs/TrendTab.tsx,111,동월 YoY 성장률,동월_yoy_성장률,YoY 성장률 = (당월 매출 - 전년 동월 매출) ÷ |전년 동월 매출| × 100,"YoY +10% 이상이면 고성장, 0~10%이면 안정적, 마이너스이면 역성장","전년 동월과 비교한 매출 성장률입니다. 양수면 작년보다 성장, 음수면 역성장입니다.",전년 동월 대비 성장률로 계절성을 제거한 순수 성장을 측정합니다.
+/src/app/dashboard/profitability/tabs/BreakevenTab.tsx,149,손익분기점(BEP) 매출,손익분기점bep_매출,BEP 매출 = 고정비 ÷ (1 - 변동비율),"실제 매출이 BEP 매출보다 높으면 이익 구간, 낮으면 손실 구간입니다",{`손익분기점(Break-Even Point) 매출액입니다. 이 금액 이상을 팔아야 비로소 이익이 발생합니다. BEP가 낮을수록 적은 매출로도 이익을 낼 수 있는 안정적인 구조입니다.${unachievableCount > 0 ? ` (달성 불가 조직: ${unachievableCount},"손익분기점을 파악하여 최소 필요 매출 수준을 확인하고, 경기 하락이나 주요 거래처 이탈 시 사업 존속 가능성을 사전에 판단합니다"
+/src/app/dashboard/profitability/tabs/BreakevenTab.tsx,150,안전한계율,안전한계율,안전한계율(%) = (실적매출 − BEP매출) ÷ 실적매출 × 100,"20% 이상이면 안전, 10% 미만이면 매출 감소 시 적자 전환 위험이 높습니다",현재 매출이 손익분기점보다 얼마나 여유가 있는지를 보여주는 비율입니다. 높을수록 매출이 다소 감소해도 이익을 유지할 수 있어 경영이 안전합니다.,"안전한계율을 통해 매출이 얼마나 줄어도 적자로 전환되지 않는지를 파악하고, 경기 불확실성에 대비한 버퍼 수준을 관리합니다"
+/src/app/dashboard/profitability/tabs/BreakevenTab.tsx,151,공헌이익률,공헌이익률,공헌이익률 = (매출 - 변동비) ÷ 매출 × 100,공헌이익률이 높을수록 손익분기점이 낮아져 수익 구조가 안정적입니다,"매출 100원당 고정비(임차료, 인건비 등)를 회수하는 데 기여하는 금액의 비율입니다. 공헌이익률이 높을수록 고정비를 빨리 회수하고 이익을 낼 수 있습니다.",공헌이익률이 높은 제품/조직에 자원을 집중하면 고정비 회수 속도를 높이고 손익분기점을 낮출 수 있습니다
+/src/app/dashboard/profitability/tabs/BreakevenTab.tsx,152,분석 조직 수,분석_조직_수,손익 데이터에서 변동비/고정비 분리가 가능한 조직 수,전체 조직 대비 분석 가능 조직이 80% 이상이면 데이터 커버리지 양호,"{`손익분기점(BEP) 분석이 가능한 조직 수입니다. 데이터 소스: ${bepFromTeam ? ""팀원별 공헌이익(401)"" : ""조직별 손익(303)""}","BEP 분석 가능한 조직 수를 파악하여 데이터 커버리지가 충분한지 확인하고, 누락된 조직의 데이터를 보완하는 근거를 제공합니다"
+/src/app/dashboard/profitability/tabs/BreakevenTab.tsx,154,전사 가중 BEP,전사_가중_bep,,,,
+/src/app/dashboard/profitability/tabs/ContribTab.tsx,135,분석 인원,분석_인원,,,,
+/src/app/dashboard/profitability/tabs/ContribTab.tsx,145,1인당 평균 공헌이익,1인당_평균_공헌이익,1인당 평균 공헌이익 = 전체 공헌이익 합계 ÷ 분석 인원 수,"인당 공헌이익이 양수면 고정비 회수에 기여, 음수면 해당 인력의 수익성 점검 필요",전체 공헌이익을 담당자 수로 나눈 평균입니다.,"인당 수익 기여도를 통해 인력 효율성을 객관적으로 평가하고, 인센티브 설계 및 인력 투자 대비 수익률(ROI)을 산출합니다"
+/src/app/dashboard/profitability/tabs/ContribTab.tsx,154,최고 성과자,최고_성과자,공헌이익 기준 내림차순 정렬 시 1위 담당자의 공헌이익,최고 성과자 1인의 비중이 전체의 30% 이상이면 인력 의존도 리스크,{contribRanking.length > 0 ? `${contribRanking[0].org},"최고 성과자의 기여도를 파악하여 핵심 인재 이탈 리스크를 사전 관리하고, 성공 패턴을 다른 영업 담당자에게 전파하는 데 활용합니다"
+/src/app/dashboard/profitability/tabs/ContribTab.tsx,163,평균 공헌이익율,평균_공헌이익율,전체 공헌이익 합계 ÷ 전체 매출액 합계 × 100 (가중평균),"20% 이상 양호, 음수이면 변동비가 매출보다 큰 적자 상태","{`전체 매출 ${contribTotals.sales > 0 ? ""대비"" : ""이 0이므로""}","가중평균 공헌이익율을 통해 영업 조직 전체의 실질적 변동비 관리 수준을 진단하고, 고정비 회수 속도를 가늠할 수 있습니다"
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,305,총 판매 품목,총_판매_품목,,,,
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,312,3-Way 매칭,3way_매칭,,,,
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,319,상품 (매입가),상품_매입가,,,,
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,326,⚠️ 제품 미생산,_제품_미생산,,,,
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,333,표준 미등록,표준_미등록,,,,
+/src/app/dashboard/profitability/tabs/CostTrueVarianceTab.tsx,340,매핑 실패,매핑_실패,,,,
+/src/app/dashboard/profitability/tabs/CostVarianceTab.tsx,170,총 원가 차이,총_원가_차이,,,,
+/src/app/dashboard/profitability/tabs/CostVarianceTab.tsx,180,원가 효율,원가_효율,,,,
+/src/app/dashboard/profitability/tabs/CostVarianceTab.tsx,190,예산 초과 항목 수,예산_초과_항목_수,,,,
+/src/app/dashboard/profitability/tabs/CostVarianceTab.tsx,200,최대 초과 금액,최대_초과_금액,,,,
+/src/app/dashboard/profitability/tabs/CustItemTab.tsx,48,A등급 품목,a등급_품목,,,,
+/src/app/dashboard/profitability/tabs/CustItemTab.tsx,58,B등급 품목,b등급_품목,,,,
+/src/app/dashboard/profitability/tabs/CustItemTab.tsx,68,C등급 품목,c등급_품목,,,,
+/src/app/dashboard/profitability/tabs/CustItemTab.tsx,78,총 거래처,총_거래처,,,,
+/src/app/dashboard/profitability/tabs/CustomerRiskMatrixTab.tsx,131,핵심 유지 (Star),핵심_유지_star,,,,
+/src/app/dashboard/profitability/tabs/CustomerRiskMatrixTab.tsx,141,수금 관리 (Risk),수금_관리_risk,,,,
+/src/app/dashboard/profitability/tabs/CustomerRiskMatrixTab.tsx,151,마진 개선 (Improve),마진_개선_improve,,,,
+/src/app/dashboard/profitability/tabs/CustomerRiskMatrixTab.tsx,161,거래 축소 (Exit),거래_축소_exit,,,,
+/src/app/dashboard/profitability/tabs/CustProfitTab.tsx,95,거래처 수,거래처_수,,,,
+/src/app/dashboard/profitability/tabs/CustProfitTab.tsx,105,HHI 집중도,hhi_집중도,,,,
+/src/app/dashboard/profitability/tabs/CustProfitTab.tsx,115,Top 5 매출 비중,top_5_매출_비중,Top 5 매출 비중 = 매출 상위 5개 거래처 매출 합계 ÷ 전체 매출 × 100,"50% 미만이면 양호한 분산, 70% 이상이면 거래처 다변화 전략 필요",상위 5개 거래처가 전체 매출에서 차지하는 비중입니다. 50% 이상이면 특정 거래처 의존도가 높습니다.,"상위 5개 거래처의 매출 비중을 통해 핵심 거래처 관리 전략의 중요도를 파악하고, 이들의 이탈 시 매출 감소 규모를 사전에 추정합니다"
+/src/app/dashboard/profitability/tabs/CustProfitTab.tsx,124,Top 10 매출 비중,top_10_매출_비중,Top 10 매출 비중 = 매출 상위 10개 거래처 매출 합계 ÷ 전체 매출 × 100,80% 이상이면 상위 거래처 의존도가 매우 높아 리스크 관리 필수,상위 10개 거래처가 전체 매출에서 차지하는 비중입니다.,"상위 10개 거래처 비중이 높을수록 소수 거래처 의존 리스크가 크므로, 중·하위 거래처 육성과 신규 거래 개척의 시급성을 판단합니다"
+/src/app/dashboard/profitability/tabs/DetailedProfitTab.tsx,92,{`A등급 ${DIMENSION_LABELS[dimension]},,,,,
+/src/app/dashboard/profitability/tabs/DetailedProfitTab.tsx,102,{`B등급 ${DIMENSION_LABELS[dimension]},,,,,
+/src/app/dashboard/profitability/tabs/DetailedProfitTab.tsx,112,{`C등급 ${DIMENSION_LABELS[dimension]},,,,,
+/src/app/dashboard/profitability/tabs/DetailedProfitTab.tsx,122,제품군 수,제품군_수,,,,
+/src/app/dashboard/profitability/tabs/ItemCostTab.tsx,209,분석 품목 수,분석_품목_수,,,,
+/src/app/dashboard/profitability/tabs/ItemCostTab.tsx,219,평균 매출총이익율,평균_매출총이익율,,,,
+/src/app/dashboard/profitability/tabs/ItemCostTab.tsx,229,평균 공헌이익율,평균_공헌이익율,,,,
+/src/app/dashboard/profitability/tabs/ItemCostTab.tsx,239,최대 원가 항목,최대_원가_항목,,,,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,326,전체 품목,전체_품목,,,,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,327,양호 (CM≥10%),양호_cm10,,,고정비 회수 기여,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,328,경계 (0~10%),경계_010,,,Marginal 영역,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,329,적자 (CM<0%),적자_cm0,,,팔수록 손해,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,330,위험 매출,위험_매출,,,Red 품목 매출 합계,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,439,평균 가동률,평균_가동률,,,,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,440,초과 위험,초과_위험,,,가동률 >90%,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,441,주의,주의,,,가동률 70~90%,
+/src/app/dashboard/profitability/tabs/LowPriceVerifyTab.tsx,442,안전,안전,,,가동률 <70%,
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,1264,총매출,총매출,,,,
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,1272,총원가,총원가,,,,
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,1280,영업이익,영업이익,,,,
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,1288,공헌이익률,공헌이익률,,,,
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2216,기존 영업이익,기존_영업이익,Σ[100.매출액·실적] − Σ[100.변동비] − Σ[200.제조고정비],시뮬레이션의 기준선,시나리오 적용 전 전사 영업이익,변화 전 영업이익을 명확히 표시
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2223,"{totalSim.priceEffect >= 0 ? ""가격 효과 (이득)"" : ""가격 효과 (손실)""}",,Σ(기존수량 × (신규단가 − 기존단가)) · 대상 품목만,"가격 인상=양수, 인하=음수",대상 품목의 가격 변동에 의한 매출 변화,가격 변동의 직접 효과
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2230,"{(() => {
+              const combined = totalSim.costEffect + totalSim.volumeEffect;
+              return combined >= 0 ? ""원가+물량 효과 (이득)"" : ""원가+물량 효과 (손실)"";}",,{`원가: Σ(기존수량 × (기존변동비 − 조정변동비)) = ${formatCurrency(totalSim.costEffect)},"원가 인상=음수, 물량 증가=양수",{`원가 효과 ${formatCurrency(totalSim.costEffect)},원가 변동과 물량 변동의 합산 효과
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2241,최종 영업이익,최종_영업이익,기존 영업이익 + 가격효과 + 원가효과 + 물량효과 · 항등식: net ≡ price + cost + volume,기존 이익 대비 개선되면 가설 성립,"{`순효과 ${totalSim.netOffsetEffect >= 0 ? ""+"" : """"}",시뮬레이션 후 전사 영업이익
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2785,① 대상 품목 본인,_대상_품목_본인,대상 품목의 [시나리오 장부상 마진 − 기준 장부상 마진] · 장부상 마진 = [200.매출액] − [200.변동비] − 배분고정비(200),음수여도 괜찮음 — 물량 증가로 다른 품목들에게 덤을 주는 역할이므로,"저가수주를 받은 품목 본인의 장부상 마진 변화. 단가 인하 손실이 있으면 보통 음수, 순수 물량 증가면 양수가 될 수도 있음.",저가수주의 직접 비용/효과를 장부에서 확인
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2792,② 다른 품목들 (덤 효과),_다른_품목들_덤_효과,Σ(풀 내 대상 외 품목의 장부상 마진 변화) · 대상 물량 증가 시 매출/수량 비중 재배분으로 [200.제조고정비]의 품목별 '몫'이 줄어듦,양수면 덤 효과 성립 — 다른 품목 담당 동료에게도 도움,"{`풀 내 나머지 ${Math.max(poolItems.length - 1, 0)}",박리다매 가설의 '교차 보조 효과'를 장부에서 확인
+/src/app/dashboard/profitability/tabs/OffsetEffectTab.tsx,2799,③ 제품군 전체 (① + ②),_제품군_전체_,① + ② = 풀(대분류/중분류/품목계정그룹) 내 모든 품목의 장부상 마진 변화 합계 · 풀 [200.제조고정비] 총액 불변,"음수면 가설 반증(제품군 전체 악화), 양수면 성립",{`선택한 제품군(${poolName},제품군 단위에서 시나리오가 유리한지 판단
+/src/app/dashboard/profitability/tabs/PnlTab.tsx,42,매출총이익,매출총이익,,,,
+/src/app/dashboard/profitability/tabs/PnlTab.tsx,52,매출총이익율,매출총이익율,,,,
+/src/app/dashboard/profitability/tabs/PnlTab.tsx,62,영업이익율,영업이익율,영업이익율(%) = 영업이익 ÷ 매출액 × 100,"제조업 평균 5~10%, 10% 이상이면 양호한 수익 구조","매출에서 원가와 판매관리비(인건비, 임차료 등)까지 모두 뺀 후 남는 이익의 비율입니다. 회사의 본업(영업활동)이 실제로 얼마나 돈을 버는지 보여주는 핵심 수익성 지표입니다.","영업이익율은 사업의 지속 가능성을 판단하는 핵심 지표이며, 경쟁사 대비 수익 구조의 건전성을 평가하는 데 필수적입니다"
+/src/app/dashboard/profitability/tabs/PnlTab.tsx,71,공헌이익,공헌이익,,,,
+/src/app/dashboard/profitability/tabs/PortfolioTab.tsx,303,집중 (FOCUS),집중_focus,,,,
+/src/app/dashboard/profitability/tabs/PortfolioTab.tsx,311,유지 (MAINTAIN),유지_maintain,,,,
+/src/app/dashboard/profitability/tabs/PortfolioTab.tsx,319,최적화 (OPTIMIZE),최적화_optimize,,,,
+/src/app/dashboard/profitability/tabs/PortfolioTab.tsx,327,단종 검토,단종_검토,,,,
+/src/app/dashboard/profitability/tabs/PricingSimTab.tsx,214,가중평균 필요 인상률,가중평균_필요_인상률,,,,
+/src/app/dashboard/profitability/tabs/PricingSimTab.tsx,224,미인상 시 이익 감소,미인상_시_이익_감소,,,,
+/src/app/dashboard/profitability/tabs/PricingSimTab.tsx,234,고위험 품목 (10%↑),고위험_품목_10,,,,
+/src/app/dashboard/profitability/tabs/PricingSimTab.tsx,244,재료비 비중,재료비_비중,,,,
+/src/app/dashboard/profitability/tabs/ProductTab.tsx,103,분석 품목 수,분석_품목_수,,,,
+/src/app/dashboard/profitability/tabs/ProductTab.tsx,113,최고 수익 품목,최고_수익_품목,,,,
+/src/app/dashboard/profitability/tabs/ProductTab.tsx,123,가중평균 매출총이익율,가중평균_매출총이익율,가중평균 매출총이익율(%) = 전체 매출총이익 합계 ÷ 전체 매출액 합계 × 100,"제조업 평균 20~30%, 30% 이상이면 양호한 제품 포트폴리오",매출 규모가 큰 품목의 이익율이 더 많이 반영된 평균 이익율입니다. 단순 평균보다 실제 수익 구조를 더 정확하게 보여줍니다.,"가중평균 이익율을 통해 전체 제품 포트폴리오의 실질적 수익성을 진단하고, 제품 믹스 전략의 효과를 정량적으로 평가합니다"
+/src/app/dashboard/profitability/tabs/SensitivityTab.tsx,145,기준 매출액,기준_매출액,현재 매출액 = 선택된 조직의 매출 합계 (변동 없는 현재 상태),이 금액이 0원이면 시나리오 비교가 불가능합니다. 손익 데이터를 먼저 업로드해 주세요.,"아래 표와 차트에서 '만약 가격이 10% 오르면?' 같은 가정을 할 때, 비교의 출발점이 되는 금액입니다.","'지금 매출이 이 정도인데, 가격을 올리거나 물량을 늘리면 얼마나 달라질까?'를 알기 위한 출발점입니다."
+/src/app/dashboard/profitability/tabs/SensitivityTab.tsx,154,기준 매출총이익,기준_매출총이익,매출총이익 = 매출액 − 매출원가 (제품을 팔고 원가를 빼고 남는 이익),매출총이익률 20% 이상이면 가격 인하 여력이 있는 구조입니다,"가격을 올리면 이익이 그대로 늘어나지만, 물량을 늘리면 원가도 함께 올라가서 이익은 덜 늘어납니다. 즉 같은 10% 변동이라도 가격 쪽이 이익에 더 큰 영향을 줍니다.","가격 인하를 검토할 때 '얼마나 깎아도 이익이 남을까?', 물량 확대를 검토할 때 '원가 증가를 감당할 수 있을까?'를 미리 확인합니다."
+/src/app/dashboard/profitability/tabs/SensitivityTab.tsx,163,기준 영업이익,기준_영업이익,영업이익 = 매출총이익 − 판관비 (인건비·경비 등을 빼고 남는 최종 이익),영업이익이 적자라면 아래 시나리오 표에서 파란 테두리(현재)에서 녹색 영역까지의 거리를 확인하세요.,인건비·경비 같은 판관비는 매출이 늘어도 크게 안 변합니다. 그래서 매출이 조금만 올라도 영업이익은 그보다 더 크게 좋아집니다. 반대로 매출이 줄면 영업이익은 더 크게 나빠집니다.,"매출이 변하면 영업이익이 얼마나 크게 변하는지 미리 알아야, 가격 협상이나 물량 계획에서 목표를 정확히 세울 수 있습니다."
+/src/app/dashboard/profitability/tabs/StandardCostTab.tsx,110,원가 초과 품목,원가_초과_품목,,,,
+/src/app/dashboard/profitability/tabs/StandardCostTab.tsx,120,원가 절감 품목,원가_절감_품목,,,,
+/src/app/dashboard/profitability/tabs/StandardCostTab.tsx,130,전체 평균 차이율,전체_평균_차이율,,,,
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,209,매출 달성율,매출_달성율,,,,
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,219,매출 차이,매출_차이,,,,
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,229,매출총이익 달성율,매출총이익_달성율,매출총이익 달성율 = 매출총이익 실적 ÷ 매출총이익 계획 × 100,매출 달성율과 함께 비교하여 매출총이익 달성율이 더 낮다면 원가율 악화 신호,"{`계획 매출총이익 ${formatCurrency(planSummary.totalGPPlan, true)}",매출총이익 달성율을 매출 달성율과 비교하여 수익의 질적 변화를 진단합니다
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,238,GP 이익율 변동,gp_이익율_변동,,,,
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,248,영업이익 달성율,영업이익_달성율,,,,
+/src/app/dashboard/profitability/tabs/VarianceTab.tsx,258,OP 이익율 변동,op_이익율_변동,,,,
+/src/app/dashboard/profitability/tabs/WhatIfTab.tsx,111,시나리오 매출,시나리오_매출,시나리오 매출 = 기준 매출 × (1 + 매출 변동률),기준 대비 증감률 ±10% 이내가 현실적인 시나리오 범위입니다,위에서 설정한 매출 변동률을 적용했을 때의 예상 매출액입니다. 기준(Base) 매출 대비 증감 화살표로 변화를 확인할 수 있습니다.,매출 변동 시나리오별 예상 금액을 확인하여 영업 목표 설정과 자원 배분 계획의 근거를 마련합니다
+/src/app/dashboard/profitability/tabs/WhatIfTab.tsx,112,시나리오 영업이익,시나리오_영업이익,시나리오 영업이익 = 시나리오 매출 - 시나리오 원가 - 시나리오 판관비,"시나리오 영업이익이 양수면 수익성 유지, 음수 전환 시 비용 구조 재검토 필요","매출, 원가율, 판관비를 모두 변동시켰을 때의 예상 영업이익입니다. 기준 대비 얼마나 이익이 늘거나 줄어드는지 보여줍니다.",복합 변수 변동 시 영업이익의 변화를 사전에 시뮬레이션하여 의사결정의 재무적 영향을 검증합니다
+/src/app/dashboard/profitability/tabs/WhatIfTab.tsx,113,시나리오 영업이익율,시나리오_영업이익율,시나리오 영업이익율(%) = 시나리오 영업이익 ÷ 시나리오 매출 × 100,"영업이익율 5% 이상 유지가 최소 목표, 10% 이상이면 양호한 수익 구조",시나리오 적용 후 예상되는 영업이익율입니다. 기준 대비 이익율 변화를 통해 수익 구조 변화를 확인할 수 있습니다.,시나리오별 이익율 변화를 비교하여 수익 구조가 어느 수준까지 유지되는지 한계점을 파악합니다
+/src/app/dashboard/profitability/tabs/WhatIfTab.tsx,114,분석 조직 수,분석_조직_수,손익 데이터가 있는 조직 중 시나리오 변수 적용이 가능한 조직 수,전체 조직이 모두 포함되어야 정확한 시나리오 비교가 가능합니다,시나리오 분석 대상이 되는 조직의 수입니다.,분석 대상 범위를 확인하여 시나리오 결과의 신뢰성과 대표성을 판단합니다
+/src/app/dashboard/receivables/tabs/CollectionDelayTab.tsx,82,평균 수금 소요일,평균_수금_소요일,,,,
+/src/app/dashboard/receivables/tabs/CollectionDelayTab.tsx,92,수금 지연 거래처,수금_지연_거래처,,,,
+/src/app/dashboard/receivables/tabs/CollectionDelayTab.tsx,102,전체 수금률,전체_수금률,,,,
+/src/app/dashboard/receivables/tabs/CollectionDelayTab.tsx,112,평균 지연일,평균_지연일,,,,
+/src/app/dashboard/receivables/tabs/CreditTab.tsx,57,총 여신한도,총_여신한도,,,,
+/src/app/dashboard/receivables/tabs/CreditTab.tsx,67,총 사용액,총_사용액,,,,
+/src/app/dashboard/receivables/tabs/CreditTab.tsx,77,평균 사용률,평균_사용률,,,,
+/src/app/dashboard/receivables/tabs/CreditTab.tsx,87,한도초과 거래처,한도초과_거래처,,,,
+/src/app/dashboard/receivables/tabs/DetailTab.tsx,187,출고-장부 괴리 총액,출고장부_괴리_총액,,,,
+/src/app/dashboard/receivables/tabs/DetailTab.tsx,197,외화 미수금 비중,외화_미수금_비중,,,,
+/src/app/dashboard/receivables/tabs/DetailTab.tsx,207,분석 거래처 수,분석_거래처_수,,,,
+/src/app/dashboard/receivables/tabs/DetailTab.tsx,217,가중평균 채권연령,가중평균_채권연령,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,278,평균 DSO(매출채권 회수기간),평균_dso매출채권_회수기간,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,289,평균 CCC(현금순환주기),평균_ccc현금순환주기,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,302,평균 DPO(매입채무 지급기간),평균_dpo매입채무_지급기간,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,312,분석 조직 수,분석_조직_수,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,510,분석 품목 수,분석_품목_수,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,518,평균 재고회전율 (제품),평균_재고회전율_제품,,,,
+/src/app/dashboard/receivables/tabs/DsoTab.tsx,527,사장재고 품목,사장재고_품목,,,,
+/src/app/dashboard/receivables/tabs/LongTermTab.tsx,207,장기 미수 총액,장기_미수_총액,,,,
+/src/app/dashboard/receivables/tabs/LongTermTab.tsx,217,장기 미수 비중,장기_미수_비중,,,,
+/src/app/dashboard/receivables/tabs/LongTermTab.tsx,227,대손충당금 추정액,대손충당금_추정액,,,,
+/src/app/dashboard/receivables/tabs/LongTermTab.tsx,237,장기 미수 거래처,장기_미수_거래처,,,,
+/src/app/dashboard/receivables/tabs/PersonInsightTab.tsx,174,분석 대상 담당자,분석_대상_담당자,,,,
+/src/app/dashboard/receivables/tabs/PersonInsightTab.tsx,184,1인당 평균 거래처,1인당_평균_거래처,,,,
+/src/app/dashboard/receivables/tabs/PersonInsightTab.tsx,194,고위험 보유 담당자,고위험_보유_담당자,,,,
+/src/app/dashboard/receivables/tabs/PersonInsightTab.tsx,204,미수금 과집중 담당자,미수금_과집중_담당자,,,,
+/src/app/dashboard/receivables/tabs/PrepaymentTab.tsx,94,총 선수금,총_선수금,,,,
+/src/app/dashboard/receivables/tabs/PrepaymentTab.tsx,104,장부 선수금,장부_선수금,,,,
+/src/app/dashboard/receivables/tabs/PrepaymentTab.tsx,114,매출 대비 비중,매출_대비_비중,,,,
+/src/app/dashboard/receivables/tabs/PrepaymentTab.tsx,124,해당 조직 수,해당_조직_수,,,,
+/src/app/dashboard/receivables/tabs/RiskTab.tsx,125,담당자 수,담당자_수,,,,
+/src/app/dashboard/receivables/tabs/RiskTab.tsx,135,주의 거래처,주의_거래처,연체비율(61일+) 20~50% 또는 61일 이상 미수금 5천만원 초과인 거래처 수,주의 거래처가 전체의 10% 이상이면 연체 관리 프로세스 강화 필요,아직 고위험은 아니지만 관심이 필요한 거래처 수입니다. 방치하면 고위험으로 악화될 수 있으므로 선제적인 관리가 중요합니다.,주의 등급 거래처를 조기에 포착하여 고위험으로 악화되기 전에 선제적 회수 활동을 전개합니다.
+/src/app/dashboard/receivables/tabs/RiskTab.tsx,144,고위험 거래처,고위험_거래처,,,,
+/src/app/dashboard/receivables/tabs/RiskTab.tsx,154,리스크 평가 대상,리스크_평가_대상,미수금 연체 데이터에서 거래처별 리스크 등급을 산정한 전체 대상 수,전체 거래처 대비 평가 대상 비율이 높을수록 채권 관리 범위가 넓다는 의미,미수금 연체 상황에 따라 리스크 등급(양호/주의/고위험)이 분류된 전체 거래처 수입니다.,리스크 평가 커버리지를 확인하여 관리 사각지대 없이 전체 거래처의 채권 건전성을 통제합니다.
+/src/app/dashboard/receivables/tabs/StatusTab.tsx,72,총 미수금,총_미수금,,,,
+/src/app/dashboard/receivables/tabs/StatusTab.tsx,84,61일 이상 연체 미수,61일_이상_연체_미수,,,,
+/src/app/dashboard/receivables/tabs/StatusTab.tsx,96,연체비율,연체비율,연체비율(%) = 61일 이상 미수금(3개월차~6개월 초과) ÷ 총 미수금 × 100,"20% 미만이면 양호, 30% 이상이면 위험 수준입니다","전체 미수금 중에서 61일(3개월차) 이상 체류한 채권이 차지하는 비율입니다. SAP FI-AR 표준 연체 기준이며, 이 비율이 높으면 채권 건전성이 낮다는 의미이므로 회수 전략 점검이 필요합니다.","연체비율은 채권 포트폴리오 건전성의 핵심 지표로, 비율 추이를 통해 수금 프로세스 효율성을 평가합니다."
+/src/app/dashboard/receivables/tabs/StatusTab.tsx,107,고위험 거래처,고위험_거래처,,,,
+/src/app/dashboard/sales/page.tsx,208,총 매출액,총_매출액,,,,
+/src/app/dashboard/sales/page.tsx,218,거래처 수,거래처_수,,,,
+/src/app/dashboard/sales/page.tsx,228,건당 평균,건당_평균,,,,
+/src/app/dashboard/sales/page.tsx,238,Top1 거래처 비중,top1_거래처_비중,,,,
+/src/app/dashboard/sales/page.tsx,248,Top5 비중,top5_비중,,,,
+/src/app/dashboard/sales/page.tsx,258,HHI 지수,hhi_지수,,,,
+/src/app/dashboard/sales/tabs/AnomalyTab.tsx,112,이상치 건수,이상치_건수,,,,
+/src/app/dashboard/sales/tabs/AnomalyTab.tsx,122,이상치 비율,이상치_비율,,,,
+/src/app/dashboard/sales/tabs/AnomalyTab.tsx,132,매출 하한 기준,매출_하한_기준,,,,
+/src/app/dashboard/sales/tabs/AnomalyTab.tsx,142,매출 상한 기준,매출_상한_기준,,,,
+/src/app/dashboard/sales/tabs/ChurnTab.tsx,114,전체 거래처,전체_거래처,,,,
+/src/app/dashboard/sales/tabs/ChurnTab.tsx,124,활동 감소 거래처,활동_감소_거래처,,,,
+/src/app/dashboard/sales/tabs/ChurnTab.tsx,134,위험 매출 비중,위험_매출_비중,,,,
+/src/app/dashboard/sales/tabs/ChurnTab.tsx,144,활동 중단 거래처,활동_중단_거래처,,,,
+/src/app/dashboard/sales/tabs/ClvTab.tsx,141,총 CLV(고객생애가치),총_clv고객생애가치,,,,
+/src/app/dashboard/sales/tabs/ClvTab.tsx,151,평균 CLV(고객생애가치),평균_clv고객생애가치,,,,
+/src/app/dashboard/sales/tabs/ClvTab.tsx,161,Top 고객 CLV,top_고객_clv,,,,
+/src/app/dashboard/sales/tabs/ClvTab.tsx,171,분석 고객 수,분석_고객_수,,,,
+/src/app/dashboard/sales/tabs/CohortTab.tsx,124,코호트 수,코호트_수,,,,
+/src/app/dashboard/sales/tabs/CohortTab.tsx,134,P1 평균 재구매율,p1_평균_재구매율,,,,
+/src/app/dashboard/sales/tabs/CohortTab.tsx,144,최대 코호트 규모,최대_코호트_규모,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,182,총 매출,총_매출,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,189,수금율,수금율,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,197,거래 건수,거래_건수,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,204,미수 잔액,미수_잔액,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,287,매출총이익,매출총이익,303 조직별 거래처별 손익 데이터,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,293,매출총이익률,매출총이익률,,20% 이상 양호,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,299,영업이익,영업이익,,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,304,영업이익률,영업이익률,,5% 이상 양호,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,315,총 수주액,총_수주액,해당 거래처 수주 합계,,,
+/src/app/dashboard/sales/tabs/Customer360Tab.tsx,321,수주 건수,수주_건수,수주 전표 건수,,,
+/src/app/dashboard/sales/tabs/DecompositionTab.tsx,116,추세 방향,추세_방향,전반기 평균 추세 vs 후반기 평균 추세 비교 (±5% 기준),상승 추세 유지가 건전한 성장의 기본,{`현재 매출 추세가 ${TREND_LABELS[decomposition.trendDirection]},"매출의 장기적 성장/하락 방향을 파악하여 일시적 변동과 구조적 추세를 구분하고, 전략적 의사결정의 기본 방향을 설정합니다."
+/src/app/dashboard/sales/tabs/DecompositionTab.tsx,126,계절성 강도,계절성_강도,,,,
+/src/app/dashboard/sales/tabs/DecompositionTab.tsx,136,분석 데이터 수,분석_데이터_수,,,,
+/src/app/dashboard/sales/tabs/FxTab.tsx,112,해외매출 비중,해외매출_비중,,,,
+/src/app/dashboard/sales/tabs/FxTab.tsx,122,해외매출액,해외매출액,,,,
+/src/app/dashboard/sales/tabs/FxTab.tsx,132,거래 통화 수,거래_통화_수,,,,
+/src/app/dashboard/sales/tabs/FxTab.tsx,142,FX 효과,fx_효과,,,,
+/src/app/dashboard/sales/tabs/ItemTab.tsx,564,분석 품목 수,분석_품목_수,,,,
+/src/app/dashboard/sales/tabs/ItemTab.tsx,568,평균 단가편차율,평균_단가편차율,,,,
+/src/app/dashboard/sales/tabs/ItemTab.tsx,573,단가편차 20%+ 품목,단가편차_20_품목,,,,
+/src/app/dashboard/sales/tabs/MigrationTab.tsx,105,최근월 등급 하락,최근월_등급_하락,,,,
+/src/app/dashboard/sales/tabs/MigrationTab.tsx,114,전체 기간 하락 누계,전체_기간_하락_누계,,,,
+/src/app/dashboard/sales/tabs/OrgScorecardTab.tsx,70,최우수 조직,최우수_조직,,,,
+/src/app/dashboard/sales/tabs/OrgScorecardTab.tsx,78,평균 종합점수,평균_종합점수,,,,
+/src/app/dashboard/sales/tabs/OrgScorecardTab.tsx,85,평균 수익성,평균_수익성,,,,
+/src/app/dashboard/sales/tabs/OrgScorecardTab.tsx,92,평균 수금효율,평균_수금효율,,,,
+/src/app/dashboard/sales/tabs/ProductGroupTab.tsx,154,그룹 수,그룹_수,{`${currentOption.label},10~30개 수준이면 적정한 포트폴리오 다각화,,
+/src/app/dashboard/sales/tabs/ProductGroupTab.tsx,161,매출 집중도 (HHI),매출_집중도_hhi,"HHI = Σ(그룹별 매출 비중²) × 10,000","1,500 이하: 분산, 1,500~2,500: 보통, 2,500 초과: 높은 집중",{concentration.interpretation},
+/src/app/dashboard/sales/tabs/ProductGroupTab.tsx,169,상위 3개 비중,상위_3개_비중,상위 3개 그룹 매출 합계 / 전체 매출 × 100,"60% 이하면 분산 양호, 80% 초과면 의존도 주의",,
+/src/app/dashboard/sales/tabs/ProductGroupTab.tsx,176,가중평균 매출총이익률,가중평균_매출총이익률,전체 매출총이익 / 전체 매출액 × 100,"20% 이상 양호, 10% 미만 원가 재검토",,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,69,총 매출액,총_매출액,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,88,총 수주액,총_수주액,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,100,수주잔고,수주잔고,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,111,수금율 (총),수금율_총,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,126,수금율 (순수),수금율_순수,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,140,미수금 합계,미수금_합계,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,153,영업이익율,영업이익율,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,164,매출 계획 달성율,매출_계획_달성율,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,174,수주 건수,수주_건수,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,189,예측 정확도,예측_정확도,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,199,수금 효율성,수금_효율성,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,209,영업레버리지,영업레버리지,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,219,공헌이익율,공헌이익율,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,229,매출총이익율,매출총이익율,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,244,Win Rate,win_rate,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,254,평균 영업주기,평균_영업주기,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,265,Sales Velocity,sales_velocity,,,,
+/src/app/dashboard/tabs/CoreKpiTab.tsx,275,수금 리드타임,수금_리드타임,,,,

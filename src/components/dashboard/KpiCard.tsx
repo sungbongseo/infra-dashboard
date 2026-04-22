@@ -8,6 +8,7 @@ import { formatCurrency, formatPercent, formatNumber, calcChangeRate, getChangeC
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import { tryGetMetricEntry, type MetricId } from "@/lib/metrics/glossary";
 
 interface KpiCardProps {
   title: string;
@@ -24,6 +25,8 @@ interface KpiCardProps {
   onClick?: () => void;
   /** true: 하락=빨강 (매출/이익 등), false: 하락=초록 (비용/DSO 등) */
   trendPositive?: boolean;
+  /** glossary.ts의 지표 id. 지정 시 formula/description/benchmark/reason 자동 조회 (명시 prop이 우선) */
+  metricId?: MetricId;
 }
 
 export function KpiCard({
@@ -32,15 +35,22 @@ export function KpiCard({
   previousValue,
   sparklineData,
   format,
-  description,
-  formula,
-  benchmark,
-  reason,
+  description: descriptionProp,
+  formula: formulaProp,
+  benchmark: benchmarkProp,
+  reason: reasonProp,
   icon,
   compact = true,
   onClick,
   trendPositive = true,
+  metricId,
 }: KpiCardProps) {
+  // Glossary fallback — prop 미지정 시 metricId로 조회
+  const glossaryEntry = metricId ? tryGetMetricEntry(metricId) : undefined;
+  const description = descriptionProp ?? glossaryEntry?.intermediate;
+  const formula = formulaProp ?? glossaryEntry?.formula;
+  const benchmark = benchmarkProp ?? glossaryEntry?.benchmark;
+  const reason = reasonProp ?? glossaryEntry?.sourceNote;
   const gradientId = useId();
   const changeRate = previousValue !== undefined ? calcChangeRate(value, previousValue) : null;
   const hasTooltip = description || formula || benchmark || reason;
