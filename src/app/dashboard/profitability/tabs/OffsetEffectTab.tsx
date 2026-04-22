@@ -83,22 +83,30 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
   const [poolName, setPoolName] = useState<string>("");
   const [allocationBasis, setAllocationBasis] = useState<FixedCostAllocation>("revenue");
 
-  // 품목/거래처 검색 Combobox
+  // 품목/거래처 검색 Combobox (Step 4a 슬라이더 + 저가수주 판단기 공용 바깥 클릭 처리)
   const [itemSearch, setItemSearch] = useState("");
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
   const [custSearch, setCustSearch] = useState("");
   const [custPickerOpen, setCustPickerOpen] = useState(false);
+  // 판단기 품목/거래처 검색 combobox (useEffect 의존성이라 앞쪽 선언 필요)
+  const [qdItemSearchOpen, setQdItemSearchOpen] = useState(false);
+  const [qdItemSearchText, setQdItemSearchText] = useState("");
+  const [qdCustSearchOpen, setQdCustSearchOpen] = useState(false);
+  const [qdCustSearchText, setQdCustSearchText] = useState("");
 
   // Combobox 바깥 클릭 닫기
   useEffect(() => {
-    if (!itemPickerOpen && !custPickerOpen) return;
+    if (!itemPickerOpen && !custPickerOpen && !qdItemSearchOpen && !qdCustSearchOpen) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (!t.closest("[data-combobox]")) { setItemPickerOpen(false); setCustPickerOpen(false); }
+      if (!t.closest("[data-combobox]")) {
+        setItemPickerOpen(false); setCustPickerOpen(false);
+        setQdItemSearchOpen(false); setQdCustSearchOpen(false);
+      }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [itemPickerOpen, custPickerOpen]);
+  }, [itemPickerOpen, custPickerOpen, qdItemSearchOpen, qdCustSearchOpen]);
 
   // 원가 변동 슬라이더
   const [costRawMaterialPct, setCostRawMaterialPct] = useState(0);
@@ -506,22 +514,48 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     [totalSim, poolSim]
   );
 
-  // 검색 필터된 품목/거래처 리스트
+  // 검색 필터된 품목/거래처 리스트 (Step 4a 슬라이더용)
+  // itemList/customerList 자체가 이미 상위 300건으로 제한되어 있어 전체 노출 안전
   const filteredItemList = useMemo(() => {
     const q = itemSearch.trim().toLowerCase();
-    if (!q) return itemList.slice(0, 50);
+    if (!q) return itemList;
     return itemList.filter(i =>
       i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)
-    ).slice(0, 50);
+    );
   }, [itemList, itemSearch]);
 
   const filteredCustList = useMemo(() => {
     const q = custSearch.trim().toLowerCase();
-    if (!q) return customerList.slice(0, 50);
+    if (!q) return customerList;
     return customerList.filter(c =>
       c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
-    ).slice(0, 50);
+    );
   }, [customerList, custSearch]);
+
+  // 검색 필터된 품목/거래처 리스트 (저가수주 판단기용)
+  const qdFilteredItemList = useMemo(() => {
+    const q = qdItemSearchText.trim().toLowerCase();
+    if (!q) return itemList;
+    return itemList.filter(i =>
+      i.name.toLowerCase().includes(q) || i.code.toLowerCase().includes(q)
+    );
+  }, [itemList, qdItemSearchText]);
+
+  const qdCustCandidates = useMemo(() => {
+    // 대상 품목 선택 시 해당 품목 구매 거래처만 후보로 제한
+    if (!targetItem) return customerList;
+    return customerList.filter(c =>
+      cvpItems.some(cv => cv.item === targetItem && cv.customer === c.code)
+    );
+  }, [customerList, targetItem, cvpItems]);
+
+  const qdFilteredCustList = useMemo(() => {
+    const q = qdCustSearchText.trim().toLowerCase();
+    if (!q) return qdCustCandidates;
+    return qdCustCandidates.filter(c =>
+      c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    );
+  }, [qdCustCandidates, qdCustSearchText]);
 
   // 파이 차트 데이터 (정상 vs 출혈)
   // 파이차트: 정상(공헌이익 > 0) vs 출혈(공헌이익 ≤ 0) 분류
@@ -707,15 +741,6 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     };
   }, [poolSim, poolImpactTable]);
 
-  // 품목 리스트 (판단기 드롭다운용)
-  const itemOptions = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const c of cvpItems) {
-      if (!map.has(c.item)) map.set(c.item, c.itemName || c.item);
-    }
-    return Array.from(map.entries()).map(([value, label]) => ({ value, label }));
-  }, [cvpItems]);
-
   // 저가수주 판단기 결과
   const quickVerdict = useMemo(
     () => calcQuickVerdict(
@@ -764,39 +789,125 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
 
         {/* 입력 4개 */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div>
+          {/* 품목 검색 combobox */}
+          <div className="relative" data-combobox>
             <label className="text-[10px] font-semibold text-muted-foreground block mb-1">대상 품목</label>
-            <select
-              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
-              value={targetItem || ""}
-              onChange={(e) => {
-                const v = e.target.value || null;
-                setTargetItem(v);
-                setQdProposedPrice(0); // 품목 바뀌면 단가 리셋
-                // [M1] 새 품목을 구매하지 않는 거래처면 리셋
-                if (targetCustomer && v) {
-                  const customerBuysItem = cvpItems.some(c => c.item === v && c.customer === targetCustomer);
-                  if (!customerBuysItem) setTargetCustomer(null);
-                }
-              }}
+            <button
+              type="button"
+              onClick={() => { setQdItemSearchOpen(!qdItemSearchOpen); setQdCustSearchOpen(false); }}
+              className="w-full text-left text-xs border rounded px-2 py-1.5 bg-background hover:bg-muted/50 truncate"
             >
-              <option value="">선택...</option>
-              {itemOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
+              {targetItem
+                ? (itemList.find(i => i.code === targetItem)?.name || targetItem)
+                : <span className="text-muted-foreground">품목 검색...</span>}
+            </button>
+            {qdItemSearchOpen && (
+              <div className="absolute z-50 mt-1 w-full min-w-[280px] border rounded bg-background shadow-xl max-h-72 flex flex-col">
+                <div className="p-1.5 border-b">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={qdItemSearchText}
+                    onChange={(e) => setQdItemSearchText(e.target.value)}
+                    placeholder="품목명 또는 코드로 검색..."
+                    className="w-full text-xs border rounded px-2 py-1 bg-background"
+                  />
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  {qdFilteredItemList.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-3 text-xs">검색 결과 없음</p>
+                  ) : (
+                    qdFilteredItemList.map(i => (
+                      <button
+                        key={i.code}
+                        type="button"
+                        onClick={() => {
+                          setTargetItem(i.code);
+                          setQdProposedPrice(0);
+                          setQdItemSearchOpen(false);
+                          setQdItemSearchText("");
+                          if (targetCustomer) {
+                            const customerBuysItem = cvpItems.some(c => c.item === i.code && c.customer === targetCustomer);
+                            if (!customerBuysItem) setTargetCustomer(null);
+                          }
+                        }}
+                        className={`w-full text-left px-2 py-1.5 text-xs hover:bg-muted/70 flex items-center justify-between gap-2 ${targetItem === i.code ? "bg-blue-50 dark:bg-blue-900/30 font-semibold" : ""}`}
+                      >
+                        <span className="truncate">{i.name}</span>
+                        <span className="text-[9px] text-muted-foreground shrink-0">{formatCurrency(i.revenue, true)}</span>
+                      </button>
+                    ))
+                  )}
+                </div>
+                <div className="px-2 py-1 border-t text-[9px] text-muted-foreground flex items-center justify-between gap-2">
+                  <span>
+                    {qdItemSearchText
+                      ? `검색 결과 ${qdFilteredItemList.length}건 / 전체 ${itemList.length}건`
+                      : `전체 ${itemList.length}건 표시`}
+                  </span>
+                  {targetItem && (
+                    <button type="button" onClick={() => { setTargetItem(null); setQdItemSearchOpen(false); setQdItemSearchText(""); }} className="text-red-500 hover:underline shrink-0">선택 해제</button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <div>
+          {/* 거래처 검색 combobox */}
+          <div className="relative" data-combobox>
             <label className="text-[10px] font-semibold text-muted-foreground block mb-1">거래처 (선택)</label>
-            <select
-              className="w-full text-xs border rounded px-2 py-1.5 bg-background"
-              value={targetCustomer || ""}
-              onChange={(e) => setTargetCustomer(e.target.value || null)}
+            <button
+              type="button"
+              onClick={() => { setQdCustSearchOpen(!qdCustSearchOpen); setQdItemSearchOpen(false); }}
+              className="w-full text-left text-xs border rounded px-2 py-1.5 bg-background hover:bg-muted/50 truncate"
             >
-              <option value="">전체 거래처</option>
-              {cvpItems
-                .filter(c => !targetItem || c.item === targetItem)
-                .reduce((acc, c) => { if (!acc.find(a => a.customer === c.customer)) acc.push(c); return acc; }, [] as CVPItem[])
-                .map(c => <option key={c.customer} value={c.customer}>{c.customerName}</option>)}
-            </select>
+              {targetCustomer
+                ? (customerList.find(c => c.code === targetCustomer)?.name || targetCustomer)
+                : <span className="text-muted-foreground">전체 거래처</span>}
+            </button>
+            {qdCustSearchOpen && (
+              <div className="absolute z-50 mt-1 w-full min-w-[280px] border rounded bg-background shadow-xl max-h-72 flex flex-col">
+                <div className="p-1.5 border-b">
+                  <input
+                    type="text"
+                    autoFocus
+                    value={qdCustSearchText}
+                    onChange={(e) => setQdCustSearchText(e.target.value)}
+                    placeholder="거래처명으로 검색..."
+                    className="w-full text-xs border rounded px-2 py-1 bg-background"
+                  />
+                </div>
+                <div className="overflow-y-auto flex-1">
+                  <button
+                    type="button"
+                    onClick={() => { setTargetCustomer(null); setQdCustSearchOpen(false); setQdCustSearchText(""); }}
+                    className={`w-full text-left px-2 py-1.5 text-xs hover:bg-muted/70 ${!targetCustomer ? "bg-blue-50 dark:bg-blue-900/30 font-semibold" : ""}`}
+                  >
+                    전체 거래처
+                  </button>
+                  {qdFilteredCustList.map(c => (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => { setTargetCustomer(c.code); setQdCustSearchOpen(false); setQdCustSearchText(""); }}
+                      className={`w-full text-left px-2 py-1.5 text-xs hover:bg-muted/70 flex items-center justify-between gap-2 ${targetCustomer === c.code ? "bg-blue-50 dark:bg-blue-900/30 font-semibold" : ""}`}
+                    >
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-[9px] text-muted-foreground shrink-0">{formatCurrency(c.revenue, true)}</span>
+                    </button>
+                  ))}
+                  {qdFilteredCustList.length === 0 && (
+                    <p className="text-center text-muted-foreground py-3 text-xs">검색 결과 없음</p>
+                  )}
+                </div>
+                <div className="px-2 py-1 border-t text-[9px] text-muted-foreground">
+                  {qdCustSearchText
+                    ? `검색 결과 ${qdFilteredCustList.length}건 / 후보 ${qdCustCandidates.length}건`
+                    : targetItem
+                      ? `${itemList.find(i => i.code === targetItem)?.name || targetItem} 구매 거래처 ${qdCustCandidates.length}건`
+                      : `전체 ${customerList.length}건 표시`}
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-[10px] font-semibold text-muted-foreground block mb-1">
@@ -1578,7 +1689,9 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                       )}
                     </div>
                     <div className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
-                      {custSearch ? `${filteredCustList.length}건 매칭` : `전체 ${customerList.length}건 중 상위 50건`}
+                      {custSearch
+                        ? `검색 결과 ${filteredCustList.length}건 / 전체 ${customerList.length}건`
+                        : `전체 ${customerList.length}건 표시`}
                     </div>
                   </div>
                 )}
@@ -1625,7 +1738,9 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                       )}
                     </div>
                     <div className="border-t px-3 py-1.5 text-[11px] text-muted-foreground">
-                      {itemSearch ? `${filteredItemList.length}건 매칭` : `전체 ${itemList.length}건 중 상위 50건`}
+                      {itemSearch
+                        ? `검색 결과 ${filteredItemList.length}건 / 전체 ${itemList.length}건`
+                        : `전체 ${itemList.length}건 표시`}
                     </div>
                   </div>
                 )}
