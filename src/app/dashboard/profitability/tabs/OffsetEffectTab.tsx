@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { MetricInfo } from "@/components/dashboard/MetricInfo";
 import { TrendingUp, AlertTriangle, DollarSign, Package, CheckCircle2, XCircle, Info } from "lucide-react";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS, safeDivide } from "@/lib/utils";
@@ -1928,7 +1929,10 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
           {inputMode === "percent" || !targetItem ? (<>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="flex items-center gap-2">
-                <span className="text-xs min-w-[90px]">물량 증감:</span>
+                <span className="text-xs min-w-[90px] flex items-center gap-1">
+                  물량 증감:
+                  <MetricInfo id="volume_slider_4a" variant="inline" currentValue={volumeIncreasePct} />
+                </span>
                 <input
                   type="range" min={-50} max={100} step={0.5}
                   value={volumeIncreasePct}
@@ -1940,7 +1944,10 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                 <span className="text-xs">%</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs min-w-[90px]">단가 조정:</span>
+                <span className="text-xs min-w-[90px] flex items-center gap-1">
+                  단가 조정:
+                  <MetricInfo id="price_slider_4a" variant="inline" currentValue={priceChangePct} />
+                </span>
                 <input
                   type="range" min={-30} max={30} step={0.5}
                   value={priceChangePct}
@@ -2049,6 +2056,9 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
           <details className="mt-1">
             <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
               ⚙️ 원가 변동 시뮬레이션 (대상 품목에만 적용 — 0%면 현재 원가 유지)
+              <span className="inline-flex items-center align-middle ml-1">
+                <MetricInfo id="cost_slider_4a" variant="inline" />
+              </span>
               {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
                 <span className="ml-2 px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold">적용 중</span>
               )}
@@ -2114,12 +2124,25 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
           </details>
 
           {/* 프리셋 */}
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-[10px] text-muted-foreground mr-1">시나리오 프리셋:</span>
             <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(0); setPriceChangePct(0); setVolumeAbsolute(0); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">초기화</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(30); setPriceChangePct(-10); setPriceChangeDirect(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(50); setPriceChangePct(-15); setPriceChangeDirect(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); setPriceChangeDirect(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
-            <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); setPriceChangeDirect(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
+            <span className="inline-flex items-center gap-0.5">
+              <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(30); setPriceChangePct(-10); setPriceChangeDirect(-10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🎯 적극적 (+30%/-10%)</button>
+              <MetricInfo id="preset_active" variant="inline" />
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(50); setPriceChangePct(-15); setPriceChangeDirect(-15); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">⚡ 공격적 (+50%/-15%)</button>
+              <MetricInfo id="preset_aggressive" variant="inline" />
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(20); setPriceChangePct(-5); setPriceChangeDirect(-5); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">🛡️ 방어적 (+20%/-5%)</button>
+              <MetricInfo id="preset_defensive" variant="inline" />
+            </span>
+            <span className="inline-flex items-center gap-0.5">
+              <button onClick={() => { setInputMode("percent"); setVolumeIncreasePct(-10); setPriceChangePct(10); setPriceChangeDirect(10); }} className="px-2 py-1 rounded text-[10px] border hover:bg-muted">📈 단가 인상 (-10%/+10%)</button>
+              <MetricInfo id="preset_price_up" variant="inline" />
+            </span>
           </div>
 
           {/* 월별 단가·원가 추이 */}
@@ -2181,6 +2204,14 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
         </div>
 
         {/* 실시간 KPI — 3-way 분해 */}
+        <div className="flex items-center gap-2 mb-2 mt-1">
+          <h4 className="text-sm font-semibold">실시간 KPI — 3-way 분해</h4>
+          <MetricInfo
+            id="final_operating_profit_4a"
+            variant="heavy"
+            triggerSuffix={<span className="text-[10px] text-primary">지표 4개 설명</span>}
+          />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
           <KpiCard
             title="기존 영업이익" value={totalSim.baseOperatingProfit} format="currency"

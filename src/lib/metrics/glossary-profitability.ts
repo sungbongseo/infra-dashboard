@@ -104,73 +104,76 @@ export const profitabilityMetrics = {
   // ─────────────────────────────────────────────────────────────
   // Step 4a 프리셋 4개
   // ─────────────────────────────────────────────────────────────
-  preset_aggressive_cut: {
-    id: "preset_aggressive_cut",
-    name: "프리셋: 공격적 인하",
+  preset_active: {
+    id: "preset_active",
+    name: "프리셋: 적극적 (+30%/-10%)",
     category: "profitability",
     unit: "ratio",
-    formula: "단가 −10% + 물량 +30% (원가 불변)",
+    formula: "물량 +30% + 단가 −10% (원가 불변)",
     beginner:
-      "🏷️ 가격을 확 내려서 많이 팔아보는 시나리오.\n" +
-      "할인 세일로 고객을 끌어 모으는 전략.",
+      "🎯 가격을 살짝 내려 수량을 크게 늘리는 균형 잡힌 시나리오.\n" +
+      "단골 할인으로 판매량을 30% 끌어올리는 전략.",
     intermediate:
-      "공격적 박리다매 시나리오. 단가를 10% 내리고 물량을 30% 늘렸을 때 전체 영업이익이 어떻게 변하는지 즉시 계산합니다.\n" +
-      "단위 공헌이익이 높은(마진 건실한) 품목일수록 이 시나리오에서 유리합니다.",
+      "중간 강도의 박리다매 시나리오. 단가 10% 인하, 수량 30% 증가를 동시 적용합니다.\n" +
+      "수요 탄력성이 양호한(가격에 민감하지만 절대 이탈은 없는) 시장에서 효과적.",
     expert:
-      "프리셋 클릭 시 volumeIncreasePct=30, priceChangePct=-10, 원가 슬라이더 0으로 설정. 프리셋 적용 후 개별 슬라이더로 미세 조정 가능. Step 4a의 항등식(net ≡ price + cost + volume)이 그대로 유지됨.",
-    relatedIds: ["volume_slider_4a", "price_slider_4a", "preset_moderate", "preset_price_up"],
+      "volumeIncreasePct=30, priceChangePct=-10. 가격탄력성 약 -3 가정. Step 4a 항등식 유지. 단위 공헌이익이 판가의 20% 이상인 품목에서 유리.",
+    relatedIds: ["volume_slider_4a", "price_slider_4a", "preset_aggressive", "preset_defensive"],
     source: ["computed"],
   },
 
-  preset_moderate: {
-    id: "preset_moderate",
-    name: "프리셋: 중립",
+  preset_aggressive: {
+    id: "preset_aggressive",
+    name: "프리셋: 공격적 (+50%/-15%)",
     category: "profitability",
     unit: "ratio",
-    formula: "단가 0% + 물량 +10% (원가 불변)",
+    formula: "물량 +50% + 단가 −15% (원가 불변)",
     beginner:
-      "🏁 가격은 그대로, 물량만 살짝 늘려보는 시나리오.\n" +
-      "안전하게 성장할 때의 시뮬레이션.",
+      "⚡ 가격을 크게 내려 시장 점유율을 빠르게 뺏는 공세 시나리오.\n" +
+      "대규모 세일로 경쟁사 고객을 끌어오는 전략.",
     intermediate:
-      "물량만 10% 증가시키는 보수적 시나리오. 고정비 희석 효과(단위 고정비 감소)를 관찰하기 좋습니다.",
-    expert: "priceChangePct=0, volumeIncreasePct=10. 기존 마진율이 유지되므로 증가된 수량의 단위 공헌이익만큼 영업이익이 선형 증가.",
-    relatedIds: ["volume_slider_4a", "preset_aggressive_cut"],
+      "가장 공격적인 박리다매. 단가 15% 인하로 수량 50% 증가를 노리는 시나리오.\n" +
+      "공장 캐파 여유가 있고 단위 공헌이익이 매우 높은 품목에서만 이익 개선 가능.",
+    expert:
+      "volumeIncreasePct=50, priceChangePct=-15. 매출 증가는 +27.5%(=1.5×0.85−1). 공장 캐파 초과 가능성·고정비 증설 위험 병행 확인 필요. 단위 공헌이익이 판가의 30% 미만이면 이익 악화 가능.",
+    relatedIds: ["volume_slider_4a", "price_slider_4a", "preset_active", "preset_price_up"],
+    source: ["computed"],
+  },
+
+  preset_defensive: {
+    id: "preset_defensive",
+    name: "프리셋: 방어적 (+20%/-5%)",
+    category: "profitability",
+    unit: "ratio",
+    formula: "물량 +20% + 단가 −5% (원가 불변)",
+    beginner:
+      "🛡️ 가격을 아주 조금 내려 안전하게 수량을 늘리는 보수적 시나리오.\n" +
+      "소폭 할인으로 이탈 방지와 점유율 유지를 동시에.",
+    intermediate:
+      "소폭 할인(5%)으로 수량 20% 증가를 목표. 마진 손실이 작아 안전한 실험 시나리오로 활용.\n" +
+      "경기 불확실 구간에서 점진 확장 시 적합.",
+    expert:
+      "volumeIncreasePct=20, priceChangePct=-5. 매출은 +14%(=1.2×0.95−1). 단위 공헌이익이 양호하면 대부분 이익 개선. 초기 테스트용 보수 프리셋.",
+    relatedIds: ["volume_slider_4a", "price_slider_4a", "preset_active"],
     source: ["computed"],
   },
 
   preset_price_up: {
     id: "preset_price_up",
-    name: "프리셋: 단가 인상",
+    name: "프리셋: 단가 인상 (-10%/+10%)",
     category: "profitability",
     unit: "ratio",
-    formula: "단가 +5% + 물량 −5% (원가 불변)",
+    formula: "물량 −10% + 단가 +10% (원가 불변)",
     beginner:
-      "💰 가격을 조금 올리면서 일부 고객은 이탈하는 시나리오.\n" +
-      "마진 우선 전략.",
+      "📈 가격을 올리고 일부 고객 이탈을 감수하는 마진 우선 시나리오.\n" +
+      "원가가 올랐을 때 수익성 방어 전략.",
     intermediate:
-      "5% 단가 인상 시 가격 저항으로 물량이 5% 감소한다고 가정하는 보수적 인상 시나리오.\n" +
-      "수요 탄력성이 낮은 독점/차별화 품목이라면 물량 감소가 더 작을 수 있음.",
-    expert: "priceChangePct=+5, volumeIncreasePct=-5. 가격탄력성 -1 가정(인상률 = 물량감소율). 실제로는 품목별 탄력성을 별도 조사해야 정확.",
-    relatedIds: ["price_slider_4a", "price_increase_required"],
-    source: ["computed"],
-  },
-
-  preset_cost_shock: {
-    id: "preset_cost_shock",
-    name: "프리셋: 원가 쇼크",
-    category: "profitability",
-    unit: "ratio",
-    formula: "원자재 +15% + 노무 +5% + 외주 +10% (단가·물량 불변)",
-    beginner:
-      "⛽ 원재료값이 확 올랐을 때 이익이 얼마나 줄어드는지 보는 시나리오.\n" +
-      "가격 인상 없이 버틴다면?",
-    intermediate:
-      "원가 변동이 판가에 전가되지 못할 때의 최악 시나리오. 원자재 15%, 노무 5%, 외주 10% 동시 상승.\n" +
-      "이 시나리오에서의 영업이익 감소폭을 참고해, 얼마나 시급하게 단가 인상 협상이 필요한지 가늠합니다.",
+      "10% 단가 인상에 10% 물량 감소(가격탄력성 -1)를 가정. 매출은 소폭 감소(−1%)지만 마진은 개선.\n" +
+      "독점·차별화된 품목이거나 원가 상승기에 적합.",
     expert:
-      "costRawMaterialPct=15, costLaborPct=5, costOutsourcingPct=10. 품목별 3-버킷 비중이 다르므로 실제 품목 영향은 차이가 큼. 필요 단가 인상률(price_increase_required) 탭과 연계 확인 권장.",
-    relatedIds: ["cost_slider_4a", "price_increase_required"],
-    source: ["501"],
+      "volumeIncreasePct=-10, priceChangePct=+10. 매출 변동 ≈ -1%(=0.9×1.1−1). 실제 가격탄력성은 품목별로 크게 다르므로 별도 수요 조사 권장. 필요 단가 인상률(price_increase_required)과 함께 판단.",
+    relatedIds: ["price_slider_4a", "price_increase_required", "preset_aggressive"],
+    source: ["computed"],
   },
 
   // ─────────────────────────────────────────────────────────────
