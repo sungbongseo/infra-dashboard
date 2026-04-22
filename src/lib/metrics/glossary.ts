@@ -103,13 +103,17 @@ export interface MetricEntry {
 }
 
 import { profitabilityMetrics } from "./glossary-profitability";
+import { salesMetrics } from "./glossary-sales";
+import { ordersMetrics } from "./glossary-orders";
 
 /**
  * 전체 glossary. 카테고리 파일이 추가되면 이 객체에 spread로 병합.
- * Phase 2+에서 overview/sales/orders/receivables/profiles 파일이 생성되면 동일 패턴으로 확장.
+ * Phase 2+에서 overview/receivables/profiles 파일이 생성되면 동일 패턴으로 확장.
  */
 export const GLOSSARY = {
   ...profitabilityMetrics,
+  ...salesMetrics,
+  ...ordersMetrics,
 } as const satisfies Record<string, MetricEntry>;
 
 /** glossary 엔트리 키 유니온 — 타입 안전한 metricId 참조 */

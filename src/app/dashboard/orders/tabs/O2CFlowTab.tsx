@@ -2,6 +2,7 @@
 
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { MetricInfo } from "@/components/dashboard/MetricInfo";
 import { formatCurrency, formatPercent, CHART_COLORS } from "@/lib/utils";
 import type { O2CPipelineResult } from "@/lib/analysis/pipeline";
 
@@ -97,6 +98,23 @@ function O2CFlowDiagram({ stages, salesToCollectionRate, prepaymentAmount, gross
 
   return (
     <div className="py-4">
+      {/* 섹션 헤더 */}
+      <div className="flex items-center gap-2 mb-3">
+        <h4 className="text-sm font-semibold">O2C 파이프라인 5단계</h4>
+        <MetricInfo
+          id="o2c_order_to_sales_rate"
+          variant="heavy"
+          currentValue={convRate}
+          triggerSuffix={<span className="text-[10px] text-primary">전환율 해설</span>}
+        />
+        <MetricInfo
+          id="o2c_collection_rate"
+          variant="heavy"
+          currentValue={collRate}
+          triggerSuffix={<span className="text-[10px] text-primary">수금률 해설</span>}
+        />
+      </div>
+
       {/* 요약 카드 */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         {[

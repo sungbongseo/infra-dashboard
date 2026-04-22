@@ -10,6 +10,7 @@ import {
   Tooltip as RechartsTooltip, Cell, Legend,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, BAR_RADIUS_RIGHT, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
+import { MetricInfo } from "@/components/dashboard/MetricInfo";
 import { TrendingUp, AlertTriangle, DollarSign, Percent, BarChart3, Users } from "lucide-react";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE, safeFixed, RISK_COLORS } from "@/lib/utils";
 import {
@@ -166,6 +167,7 @@ export function PricingSimTab({
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-semibold flex items-center gap-2">
             <TrendingUp className="h-4 w-4" /> 원가 항목별 상승률 설정
+            <MetricInfo id="price_increase_required" variant="heavy" />
           </h3>
           <div className="flex gap-1.5 flex-wrap">
             {PRESET_SCENARIOS.map((p) => (
@@ -194,6 +196,17 @@ export function PricingSimTab({
             </div>
           ))}
         </div>
+      </div>
+
+      {/* KPI 카드 — 섹션 헤더 */}
+      <div className="flex items-center gap-2">
+        <h3 className="text-sm font-semibold">핵심 지표 4종</h3>
+        <MetricInfo
+          id="price_increase_required"
+          variant="heavy"
+          currentValue={summary.avgPriceIncrease}
+          triggerSuffix={<span className="text-[10px] text-primary">지표 4개 해설</span>}
+        />
       </div>
 
       {/* KPI 카드 */}

@@ -21,6 +21,7 @@ import { ChartCard } from "@/components/dashboard/ChartCard";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_RIGHT } from "@/components/charts";
 import { EmptyState } from "@/components/dashboard/EmptyState";
+import { MetricInfo } from "@/components/dashboard/MetricInfo";
 import { formatCurrency, CHART_COLORS, TOOLTIP_STYLE } from "@/lib/utils";
 import { calcRfmAnalysis, RFM_SEGMENT_ACTIONS } from "@/lib/analysis/rfm";
 import type { RfmScore, RfmSegmentSummary } from "@/lib/analysis/rfm";
@@ -116,7 +117,17 @@ export function RfmTab({ filteredSales, isDateFiltered }: RfmTabProps) {
       )}
       {/* RFM 세그먼트별 실행 가이드 */}
       <div className="bg-muted/50 rounded-lg p-4 text-sm space-y-2">
-        <p className="font-medium">세그먼트별 핵심 액션 가이드</p>
+        <p className="font-medium flex items-center gap-2">
+          세그먼트별 핵심 액션 가이드
+          <MetricInfo id="rfm_segment" variant="heavy" />
+        </p>
+        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">R (최근성) <MetricInfo id="rfm_recency" variant="inline" /></span>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1">F (빈도) <MetricInfo id="rfm_frequency" variant="inline" /></span>
+          <span>·</span>
+          <span className="inline-flex items-center gap-1">M (금액) <MetricInfo id="rfm_monetary" variant="inline" /></span>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 text-muted-foreground">
           <div>
             <span className="font-medium" style={{ color: RFM_COLORS.VIP }}>Champions (R↑F↑M↑)</span>

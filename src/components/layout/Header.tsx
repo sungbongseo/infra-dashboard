@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
-import { Moon, Sun, Menu, Presentation } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Moon, Sun, Menu, Presentation, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUIStore } from "@/stores/uiStore";
 import { useDataStore } from "@/stores/dataStore";
@@ -21,7 +21,15 @@ function formatTimeAgo(date: Date): string {
 export function Header() {
   const { darkMode, toggleDarkMode, toggleSidebar, sidebarOpen } = useUIStore();
   const setPresentationMode = useUIStore((s) => s.setPresentationMode);
+  const beginnerMode = useUIStore((s) => s.beginnerMode);
+  const setBeginnerMode = useUIStore((s) => s.setBeginnerMode);
+  const hydrateBeginnerMode = useUIStore((s) => s.hydrateBeginnerMode);
   const { uploadedFiles } = useDataStore();
+
+  // localStorage에서 beginnerMode 초기화 (클라이언트 마운트 시 1회)
+  useEffect(() => {
+    hydrateBeginnerMode();
+  }, [hydrateBeginnerMode]);
 
   const readyCount = uploadedFiles.filter((f) => f.status === "ready").length;
 
@@ -66,6 +74,16 @@ export function Header() {
           title="발표 모드"
         >
           <Presentation className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setBeginnerMode(!beginnerMode)}
+          aria-label={beginnerMode ? "초보자 모드 끄기" : "초보자 모드 켜기 (설명 항상 펼침)"}
+          title={beginnerMode ? "초보자 모드 ON — 툴팁 설명 항상 펼침" : "초보자 모드"}
+          className={beginnerMode ? "text-primary" : ""}
+        >
+          <GraduationCap className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="icon" onClick={toggleDarkMode} aria-label={darkMode ? "라이트 모드로 전환" : "다크 모드로 전환"}>
           {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}

@@ -24,6 +24,7 @@
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import { useUIStore } from "@/stores/uiStore";
 import {
   getMetricEntry,
   resolveContextBranch,
@@ -113,6 +114,7 @@ export function MetricInfo({
 }: MetricInfoProps) {
   const [stage, setStage] = useState<"quick" | "detail">("quick");
   const [level, setLevel] = useState<MetricInfoLevel>(defaultLevel);
+  const beginnerMode = useUIStore((s) => s.beginnerMode);
 
   // glossary 참조 우선, 없으면 props fallback
   const entry: Partial<MetricEntry> = id
@@ -146,6 +148,9 @@ export function MetricInfo({
 
   const cfg = VARIANT_CONFIG[variant];
 
+  // Beginner Mode: trigger 옆에 기본 설명 인라인 렌더 (hover 없이도 보임)
+  const beginnerInlineText = beginnerMode ? (beginner ?? intermediate) : undefined;
+
   // 레벨별 본문 문자열 선택
   const layerText = level === "beginner"
     ? beginner ?? intermediate ?? ""
@@ -172,6 +177,11 @@ export function MetricInfo({
             className={`${cfg.iconClass} text-muted-foreground/60 hover:text-primary transition-colors cursor-help`}
           />
           {triggerSuffix}
+          {beginnerInlineText && (
+            <span className="text-[10px] text-muted-foreground max-w-[200px] truncate leading-tight ml-1 hidden lg:inline-block">
+              💡 {beginnerInlineText.split("\n")[0].replace(/^[^\w가-힣]+/, "").trim()}
+            </span>
+          )}
         </button>
       </TooltipTrigger>
       <TooltipContent side={side} sideOffset={6} className={cfg.contentClass}>
