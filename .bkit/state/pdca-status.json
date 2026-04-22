@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-22T07:35:16.692161Z",
+  "lastUpdated": "2026-04-22T07:56:36.430Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -301,7 +301,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-22T06:34:07.029Z",
-        "lastUpdated": "2026-04-22T06:34:07.029Z"
+        "lastUpdated": "2026-04-22T07:56:36.428Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\glossary\\page.tsx"
     },
@@ -334,7 +334,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-22T06:38:12.385Z"
+    "lastActivity": "2026-04-22T07:56:36.430Z"
   },
   "history": [
     {
@@ -13306,6 +13306,12 @@
     {
       "timestamp": "2026-04-22T06:38:12.384Z",
       "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-22T07:56:36.428Z",
+      "feature": "glossary",
       "phase": "do",
       "action": "updated"
     }
