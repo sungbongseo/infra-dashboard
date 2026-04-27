@@ -9,7 +9,7 @@ import {
   Tooltip as RechartsTooltip, Cell, Legend,
   ComposedChart, Line, ReferenceLine,
   ScatterChart, Scatter, ZAxis,
-  PieChart, Pie,
+  PieChart, Pie, ResponsiveContainer,
 } from "recharts";
 import { ChartContainer, GRID_PROPS, BAR_RADIUS_TOP, ANIMATION_CONFIG, truncateLabel } from "@/components/charts";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -36,7 +36,26 @@ import {
 } from "@/lib/analysis/offsetEffect";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { calcCapacityUtilization } from "@/lib/analysis/lowPriceVerification";
-import { calcHypothesisVerdict, calcComprehensiveVerdict, calcCustomerPortfolioOffset, calcQuickVerdict, type QuickVerdict } from "@/lib/analysis/offsetEffect";
+import { calcHypothesisVerdict, calcComprehensiveVerdict, calcCustomerPortfolioOffset, calcQuickVerdict, type QuickVerdict, calcMonteCarloVerdict, type MonteCarloVerdict } from "@/lib/analysis/offsetEffect";
+import { FALLBACK_CV as FALLBACK_CV_UI } from "@/lib/analysis/monteCarlo";
+import { suggestItemCapacity, calcCapacityAlert, type CapacityConfig } from "@/lib/analysis/capacity";
+import { estimatePED, pedSummaryLabel, applyPED, type PEDResult } from "@/lib/analysis/priceElasticity";
+import { calcCustomerLTVImpact, buildLTVMap, buildChurnMap, ltvConfidenceLabel, riskLevelLabel, type CustomerLTVImpact } from "@/lib/analysis/customerLTV";
+import { calcAllPresets, presetLabel, type CompetitorScenario, type PresetComparison } from "@/lib/analysis/competitorResponse";
+import { calcTimeSeriesSimulation, summarizeBEP, DEFAULT_LEARNING_RATE, DEFAULT_LAG_MONTHS, type TimeSeriesSimulationResult } from "@/lib/analysis/timeSeriesSimulation";
+import {
+  calcCannibalizationMatrix,
+  applyCannibalCorrection,
+  buildCategoryMap,
+  cannibalIntensityLabel,
+  PRESETS as CANNIBAL_PRESETS,
+  type CannibalizationResult,
+  type CannibalCorrectionResult,
+  type CannibalScenario,
+} from "@/lib/analysis/cannibalization";
+import { calcClv } from "@/lib/analysis/clv";
+import { predictChurn } from "@/lib/analysis/churnPrediction";
+import { useDataStore } from "@/stores/dataStore";
 
 interface OffsetEffectTabProps {
   filteredCustItemDetail: CustomerItemDetailRecord[];
@@ -139,6 +158,7 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
   const [qdProposedPrice, setQdProposedPrice] = useState<number>(0);
   const [qdAdditionalQty, setQdAdditionalQty] = useState<number>(0);
   const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false);
+  const detailRef = useRef<HTMLDetailsElement>(null);
 
   // [C3+M2] Step 4a → Quick Card 역방향 동기화
   useEffect(() => {
@@ -471,12 +491,18 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     const adjustedUnitVC = unitVC * adjFactor;
     const adjustedUnitCost = adjustedUnitVC + unitFC;
     const costDiff = adjustedUnitCost - uc;
+    // v2 WS3: 조정 후 판매단가 + 단위공헌이익 (박리다매 엔진 실체)
+    const baseUnitPrice = safeDivide(selectedItemInfo.revenue, selectedItemInfo.quantity);
+    const adjustedUnitPrice = baseUnitPrice * (1 + priceChangePct / 100);
+    const adjustedUnitCM = adjustedUnitPrice - adjustedUnitVC;
+    const adjustedUnitMargin = adjustedUnitPrice - adjustedUnitCost;
     return {
       originalUnitCost: uc, adjustedUnitCost, costDiff,
       costChangePctTotal: safeDivide(costDiff, uc) * 100,
       vcRatio, unitVC, unitFC, adjustedUnitVC, hasRatioData: !!ratios,
+      baseUnitPrice, adjustedUnitPrice, adjustedUnitCM, adjustedUnitMargin,
     };
-  }, [selectedItemInfo, costRawMaterialPct, costLaborPct, costOutsourcingPct, vcCostRatioMap]);
+  }, [selectedItemInfo, costRawMaterialPct, costLaborPct, costOutsourcingPct, vcCostRatioMap, priceChangePct]);
 
   const simItems = useMemo(
     () => syntheticCvpItem ? [...cvpItems, syntheticCvpItem] : cvpItems,
@@ -743,15 +769,196 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
     };
   }, [poolSim, poolImpactTable]);
 
-  // 저가수주 판단기 결과
+  // 저가수주 판단기 결과 — Step 4a 원가 슬라이더(costChangePct) + 200 보고서 원가구성비율 반영
   const quickVerdict = useMemo(
     () => calcQuickVerdict(
       cvpItems, totalFixedCost, filteredItemProfitability,
       targetItem, targetCustomer,
       qdProposedPrice, qdAdditionalQty,
+      costChangePct, vcCostRatioMap,
     ),
-    [cvpItems, totalFixedCost, filteredItemProfitability, targetItem, targetCustomer, qdProposedPrice, qdAdditionalQty]
+    [cvpItems, totalFixedCost, filteredItemProfitability, targetItem, targetCustomer, qdProposedPrice, qdAdditionalQty, costChangePct, vcCostRatioMap]
   );
+
+  // v2 WS2: 캐파 Step-up 경고
+  const inventoryMovementMap = useDataStore(s => s.inventoryMovement);
+  const allInventoryRecords = useMemo(() => Array.from(inventoryMovementMap.values()).flat(), [inventoryMovementMap]);
+  // 사용자 수동 조정값 (Map<itemCode, partial<CapacityConfig>>)
+  const [capacityOverrides, setCapacityOverrides] = useState<Map<string, Partial<CapacityConfig>>>(new Map());
+  const capacityInfo = useMemo(() => {
+    if (!targetItem) return null;
+    const suggestion = suggestItemCapacity(allInventoryRecords, targetItem);
+    if (!suggestion) return null;
+    const override = capacityOverrides.get(targetItem) ?? {};
+    const config: CapacityConfig = {
+      itemCode: targetItem,
+      factory: suggestion.factory,
+      monthlyCapacity: override.monthlyCapacity ?? suggestion.suggested,
+      stepUpFixedCost: override.stepUpFixedCost ?? 50_000_000, // 기본 5,000만원 / 신규 라인
+      stepUpGranularity: override.stepUpGranularity ?? Math.max(1, Math.round(suggestion.monthlyMax * 0.5)),
+    };
+    // baseQty는 현재 판매수량(cvpItems 기준) 재사용
+    const rows = cvpItems.filter(c => c.item === targetItem);
+    const baseQty = rows.reduce((s, c) => s + Math.max(c.quantity, 0), 0);
+    const alert = calcCapacityAlert(baseQty, qdAdditionalQty, config);
+    return { suggestion, config, baseQty, alert };
+  }, [targetItem, allInventoryRecords, capacityOverrides, cvpItems, qdAdditionalQty]);
+
+  // v2 WS4: PED 자동 적용 토글 + 계수 override
+  const [pedEnabled, setPedEnabled] = useState(false);
+  const [pedOverride, setPedOverride] = useState<Map<string, number>>(new Map());
+  const pedResult = useMemo<PEDResult | null>(() => {
+    if (!targetItem || !props.rawItemProfitability || props.rawItemProfitability.length === 0) return null;
+    return estimatePED(props.rawItemProfitability, targetItem);
+  }, [targetItem, props.rawItemProfitability]);
+  const effectivePED = useMemo(() => {
+    if (!pedResult) return undefined;
+    const override = targetItem ? pedOverride.get(targetItem) : undefined;
+    return override !== undefined ? override : pedResult.ped;
+  }, [pedResult, pedOverride, targetItem]);
+
+  // v2 WS5: 거래처 LTV 효과 — sales/orgProfit 활용
+  const salesList = useDataStore(s => s.salesList);
+  const orgProfit = useDataStore(s => s.orgProfit);
+  const ltvMap = useMemo(() => {
+    if (salesList.length === 0) return new Map();
+    return buildLTVMap(calcClv(salesList, orgProfit));
+  }, [salesList, orgProfit]);
+  const churnMap = useMemo(() => {
+    if (salesList.length === 0) return new Map();
+    return buildChurnMap(predictChurn(salesList).customers);
+  }, [salesList]);
+  const ltvImpact = useMemo<CustomerLTVImpact | null>(() => {
+    if (!targetCustomer || qdProposedPrice <= 0) return null;
+    return calcCustomerLTVImpact({
+      customer: targetCustomer,
+      priceChangePct: quickVerdict.priceChangePct,
+      ltvMap, churnMap,
+    });
+  }, [targetCustomer, qdProposedPrice, quickVerdict.priceChangePct, ltvMap, churnMap]);
+
+  // v2 WS7: 12개월 시간 차원 시뮬레이션
+  const [tsEnabled, setTsEnabled] = useState(false);
+  const [learningRate, setLearningRate] = useState(DEFAULT_LEARNING_RATE);
+  const [lagMonths, setLagMonths] = useState(DEFAULT_LAG_MONTHS);
+  const tsResult = useMemo<TimeSeriesSimulationResult | null>(() => {
+    if (!tsEnabled || !targetItem || qdProposedPrice <= 0) return null;
+    const rows = cvpItems.filter(c => c.item === targetItem);
+    if (rows.length === 0) return null;
+    const baseQty = rows.reduce((s, c) => s + Math.max(c.quantity, 0), 0);
+    if (baseQty <= 0) return null;
+    const baseQtyAvg = baseQty; // 월별 평균 추정 (filter된 기간 == 월별 합계 가정)
+    const totalVC = rows.reduce((s, c) => s + c.variableCost, 0);
+    const initialUnitVC = baseQty > 0 ? totalVC / baseQty : 0;
+    // costChangePct 통합 (원재료/노무/외주 합산 근사)
+    const totalCostChangePct = (costRawMaterialPct + costLaborPct + costOutsourcingPct) / 3;
+    return calcTimeSeriesSimulation({
+      baseQtyAvg, newUnitPrice: qdProposedPrice, initialUnitVC,
+      totalCostChangePct, learningRate, lagMonths,
+    });
+  }, [tsEnabled, targetItem, qdProposedPrice, cvpItems, costRawMaterialPct, costLaborPct, costOutsourcingPct, learningRate, lagMonths]);
+
+  // v2 WS8: 카니발라이제이션 (자기잠식 + 포트폴리오 순효과)
+  const customerItemDetail = useDataStore(s => s.customerItemDetail);
+  const [cannibalEnabled, setCannibalEnabled] = useState(false);
+  const [cannibalScenario, setCannibalScenario] = useState<CannibalScenario>("medium");
+  const [cannibalMultiplier, setCannibalMultiplier] = useState<number>(CANNIBAL_PRESETS.medium.multiplier);
+
+  // 카니발 매트릭스 — Top-15 품목, 14M 시계열 기반 (heavy compute, enabled 시만)
+  const cannibalResult = useMemo<CannibalizationResult | null>(() => {
+    if (!cannibalEnabled || !customerItemDetail || customerItemDetail.length === 0) return null;
+    const categoryMap = buildCategoryMap(customerItemDetail);
+    return calcCannibalizationMatrix({ data: customerItemDetail, itemCategoryMap: categoryMap });
+  }, [cannibalEnabled, customerItemDetail]);
+
+  // 현재 의사결정에 카니발 보정 적용
+  const cannibalCorrection = useMemo<CannibalCorrectionResult | null>(() => {
+    if (!cannibalEnabled || !cannibalResult || !targetItem || qdProposedPrice <= 0) return null;
+    if (cannibalResult.matrix.length === 0) return null;
+
+    // 단독 효과 = quickVerdict.singleItemEffect (4a sim4a.netOffsetEffect)
+    const aloneEffect = quickVerdict.singleItemEffect ?? 0;
+
+    // baseSalesMap: customerItemDetail 기준 품목별 총 매출
+    const baseSalesMap = new Map<string, number>();
+    const itemNameMap = new Map<string, string>();
+    for (const r of customerItemDetail) {
+      const item = r.품목 || "";
+      if (!item) continue;
+      const sales = r.매출액?.실적 || 0;
+      baseSalesMap.set(item, (baseSalesMap.get(item) || 0) + sales);
+      if (r.품목명) itemNameMap.set(item, r.품목명);
+    }
+    const baseSalesTarget = baseSalesMap.get(targetItem) || 0;
+    if (baseSalesTarget <= 0) return null;
+
+    return applyCannibalCorrection({
+      matrix: cannibalResult.matrix,
+      targetItem,
+      aloneEffect,
+      baseSalesTarget,
+      baseSalesMap,
+      itemNameMap,
+      multiplier: cannibalMultiplier,
+    });
+  }, [cannibalEnabled, cannibalResult, targetItem, qdProposedPrice, quickVerdict.singleItemEffect, customerItemDetail, cannibalMultiplier]);
+
+  // v2 WS6: 경쟁사 반응 시나리오
+  const [competitorEnabled, setCompetitorEnabled] = useState(false);
+  const competitorPresets = useMemo<PresetComparison | null>(() => {
+    if (!competitorEnabled || !targetItem || qdProposedPrice <= 0) return null;
+    const rows = cvpItems.filter(c => c.item === targetItem);
+    if (rows.length === 0) return null;
+    const baseQty = rows.reduce((s, c) => s + Math.max(c.quantity, 0), 0);
+    const totalRev = rows.reduce((s, c) => s + c.revenue, 0);
+    const basePrice = baseQty > 0 ? totalRev / baseQty : 0;
+    if (basePrice <= 0 || baseQty <= 0) return null;
+    return calcAllPresets({
+      basePrice, newPrice: qdProposedPrice, baseQty,
+      ped: effectivePED ?? -1.0,
+    });
+  }, [competitorEnabled, targetItem, qdProposedPrice, cvpItems, effectivePED]);
+
+  // v2 WS1: Monte Carlo 토글 + 결과 (기본 OFF — 성능 보호 + 점진 롤아웃)
+  const [mcEnabled, setMcEnabled] = useState(false);
+  const mcVerdict = useMemo<MonteCarloVerdict | null>(() => {
+    if (!mcEnabled || !targetItem || qdProposedPrice <= 0 || qdAdditionalQty <= 0) return null;
+    return calcMonteCarloVerdict({
+      cvpItems, totalFixedCost,
+      targetItem, targetCustomer,
+      proposedUnitPrice: qdProposedPrice,
+      additionalQuantity: qdAdditionalQty,
+      vcCostRatioMap,
+      costMean: costChangePct ?? { rawMaterial: 0, labor: 0, outsourcing: 0 },
+      iterations: 5000, // 초기 5k (UX 응답성 우선). 사용자 확인 후 10k로 상향 가능
+      seed: 42, // 결정론적 재현 (UI 재렌더시 동일 결과)
+    });
+  }, [mcEnabled, cvpItems, totalFixedCost, targetItem, targetCustomer, qdProposedPrice, qdAdditionalQty, vcCostRatioMap, costChangePct]);
+
+  // v2 WS3: 판단기용 단위공헌이익 — 원가 변동 없을 때도 노출되는 박리다매 엔진 실체
+  const quickCMInfo = useMemo(() => {
+    if (!targetItem || qdProposedPrice <= 0) return null;
+    const rows = cvpItems.filter(c => c.item === targetItem && (targetCustomer === null || c.customer === targetCustomer));
+    if (rows.length === 0) return null;
+    // 수량 가중평균 단위변동비 (산술평균은 대량 거래처 편향 위험)
+    const totalQty = rows.reduce((s, c) => s + Math.max(c.quantity, 0), 0);
+    const avgUVC = totalQty > 0
+      ? rows.reduce((s, c) => s + c.unitVariableCost * Math.max(c.quantity, 0), 0) / totalQty
+      : rows.reduce((s, c) => s + c.unitVariableCost, 0) / rows.length;
+    // 원가 변동(Step 4a 슬라이더) 반영
+    let adjustedUVC = avgUVC;
+    const hasCostChange = costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0;
+    if (hasCostChange) {
+      const ratios = vcCostRatioMap?.get(targetItem);
+      const rawR = ratios?.rawMaterialRatio ?? 0.5;
+      const labR = ratios?.laborRatio ?? 0.1;
+      const outR = ratios?.outsourcingRatio ?? 0.1;
+      const otherR = Math.max(0, 1 - rawR - labR - outR);
+      adjustedUVC = avgUVC * (rawR * (1 + costRawMaterialPct / 100) + labR * (1 + costLaborPct / 100) + outR * (1 + costOutsourcingPct / 100) + otherR);
+    }
+    const unitCM = qdProposedPrice - adjustedUVC;
+    return { avgUVC, adjustedUVC, unitCM, hasCostChange };
+  }, [targetItem, targetCustomer, cvpItems, qdProposedPrice, costRawMaterialPct, costLaborPct, costOutsourcingPct, vcCostRatioMap]);
 
   // 품목 선택 시 현재 단가 자동 표시
   const currentItemUnitPrice = useMemo(() => {
@@ -971,6 +1178,26 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                   (단가 {quickVerdict.priceChangePct > 0 ? "+" : ""}{safeFixed(quickVerdict.priceChangePct, 1)}%)
                 </span>
               )}
+              {(costRawMaterialPct !== 0 || costLaborPct !== 0 || costOutsourcingPct !== 0) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDetailedAnalysis(true);
+                    // 다음 프레임에 스크롤 (details가 open 된 뒤 레이아웃 반영)
+                    requestAnimationFrame(() => {
+                      detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    });
+                  }}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-900/60 transition flex items-center gap-1 ml-1"
+                  title="클릭: Step 4a 원가 슬라이더로 이동"
+                >
+                  <span className="font-semibold">원가 반영 중:</span>
+                  {costRawMaterialPct !== 0 && <span>원재료 {costRawMaterialPct > 0 ? "+" : ""}{costRawMaterialPct}%</span>}
+                  {costLaborPct !== 0 && <span>{costRawMaterialPct !== 0 ? "· " : ""}노무 {costLaborPct > 0 ? "+" : ""}{costLaborPct}%</span>}
+                  {costOutsourcingPct !== 0 && <span>{(costRawMaterialPct !== 0 || costLaborPct !== 0) ? "· " : ""}외주 {costOutsourcingPct > 0 ? "+" : ""}{costOutsourcingPct}%</span>}
+                  <span className="text-[9px] opacity-70 ml-0.5">↗</span>
+                </button>
+              )}
             </div>
 
             {/* 3가지 관점 카드 */}
@@ -1030,11 +1257,592 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               </div>
             </div>
 
+            {/* v2 WS7: 12개월 시간 차원 시뮬레이션 */}
+            {targetItem && qdProposedPrice > 0 && (
+              <div className="mb-2 p-2.5 rounded-lg border-2 border-cyan-300 dark:border-cyan-700 bg-gradient-to-br from-cyan-50/60 to-sky-50/60 dark:from-cyan-950/30 dark:to-sky-950/20">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={tsEnabled}
+                      onChange={(e) => setTsEnabled(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-cyan-600"
+                    />
+                    🕒 12개월 시간 차원 시뮬
+                  </label>
+                  {tsEnabled && (
+                    <div className="text-[10px] flex items-center gap-2 flex-wrap">
+                      <label className="inline-flex items-center gap-1">
+                        학습률:
+                        <input type="number" step={0.05} min={0.5} max={1.0}
+                          className="w-14 border rounded px-1 py-0.5 bg-background text-[10px]"
+                          value={learningRate}
+                          onChange={(e) => setLearningRate(Math.max(0.5, Math.min(1.0, Number(e.target.value) || 1.0)))}
+                        />
+                      </label>
+                      <label className="inline-flex items-center gap-1">
+                        원가 lag:
+                        <input type="number" step={1} min={0} max={12}
+                          className="w-12 border rounded px-1 py-0.5 bg-background text-[10px]"
+                          value={lagMonths}
+                          onChange={(e) => setLagMonths(Math.max(0, Math.min(12, Math.round(Number(e.target.value) || 0))))}
+                        />
+                        M
+                      </label>
+                    </div>
+                  )}
+                </div>
+                {tsEnabled && tsResult && tsResult.months.length > 0 && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">12개월 NPV</div>
+                        <div className={`font-mono font-bold text-sm ${tsResult.totalNPV >= 0 ? "text-cyan-700 dark:text-cyan-300" : "text-red-700 dark:text-red-400"}`}>
+                          {tsResult.totalNPV >= 0 ? "+" : ""}{formatCurrency(tsResult.totalNPV)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">손익분기 시점</div>
+                        <div className={`font-mono font-bold text-sm ${tsResult.bepMonth ? "text-cyan-700 dark:text-cyan-300" : "text-red-700 dark:text-red-400"}`}>
+                          {summarizeBEP(tsResult.bepMonth)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">학습곡선 평균 절감</div>
+                        <div className="font-mono font-bold text-sm text-cyan-700 dark:text-cyan-300">
+                          {safeFixed(tsResult.averageLearningSavings * 100, 1)}%
+                        </div>
+                      </div>
+                    </div>
+                    {/* 12개월 미니 sparkline (월별 누적 NPV) */}
+                    <div className="h-16 mb-1">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={tsResult.months} margin={{ top: 4, right: 4, left: 4, bottom: 4 }}>
+                          <Bar dataKey="profit" fill="hsl(187, 71%, 55%)" radius={[2, 2, 0, 0]} />
+                          <Line type="monotone" dataKey="npvCumulative" stroke="hsl(217, 91%, 60%)" strokeWidth={2} dot={false} />
+                          <XAxis dataKey="monthLabel" tick={{ fontSize: 9 }} interval={1} />
+                          <YAxis tick={{ fontSize: 9 }} width={40} tickFormatter={(v) => formatCurrency(v, true)} />
+                          <RechartsTooltip {...TOOLTIP_STYLE} formatter={(v: any) => formatCurrency(Number(v))} />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground leading-snug">
+                      💡 청록 막대 = 월별 손익, 파랑 라인 = 누적 NPV. 학습곡선 {(learningRate * 100).toFixed(0)}% (누적 2배 시 단위VC -{((1 - learningRate) * 100).toFixed(0)}%) · 원가 lag {lagMonths}M.
+                      {tsResult.notes.length > 0 && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400" title={tsResult.notes.join("\n")}>
+                          ⚠ {tsResult.notes[0]}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* v2 WS8: 카니발라이제이션 (자기잠식 + 포트폴리오 순효과) */}
+            {targetItem && qdProposedPrice > 0 && (
+              <div className="mb-2 p-2.5 rounded-lg border-2 border-violet-300 dark:border-violet-700 bg-gradient-to-br from-violet-50/60 to-purple-50/60 dark:from-violet-950/30 dark:to-purple-950/20">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={cannibalEnabled}
+                      onChange={(e) => setCannibalEnabled(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-violet-600"
+                    />
+                    🔄 카니발라이제이션 (포트폴리오 보정)
+                  </label>
+                  {cannibalEnabled && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {(["weak", "medium", "strong"] as const).map(scn => (
+                        <button
+                          key={scn}
+                          onClick={() => {
+                            setCannibalScenario(scn);
+                            setCannibalMultiplier(CANNIBAL_PRESETS[scn].multiplier);
+                          }}
+                          className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
+                            cannibalScenario === scn
+                              ? "bg-violet-600 text-white border-violet-700"
+                              : "bg-background border-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40"
+                          }`}
+                          title={CANNIBAL_PRESETS[scn].description}
+                        >
+                          {CANNIBAL_PRESETS[scn].label}
+                        </button>
+                      ))}
+                      <input
+                        type="range" min={0} max={2} step={0.1}
+                        value={cannibalMultiplier}
+                        onChange={(e) => {
+                          setCannibalMultiplier(Number(e.target.value));
+                          setCannibalScenario("custom");
+                        }}
+                        className="w-20 accent-violet-600"
+                        title={`잠식 강도 ${(cannibalMultiplier * 100).toFixed(0)}%`}
+                      />
+                      <span className="text-[10px] font-mono text-violet-700 dark:text-violet-300 w-8">
+                        {(cannibalMultiplier * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {cannibalEnabled && cannibalCorrection && cannibalResult && (
+                  <>
+                    {/* 잠식 매트릭스 heatmap (Top-N × Top-N, violet 그라데이션) */}
+                    {cannibalResult.matrix.length > 0 && cannibalResult.topItemsByRevenue.length >= 2 && (() => {
+                      const items = cannibalResult.topItemsByRevenue;
+                      const matrixLookup = new Map<string, typeof cannibalResult.matrix[number]>();
+                      cannibalResult.matrix.forEach(c => matrixLookup.set(`${c.itemA}__${c.itemB}`, c));
+                      // 셀 색상: cannibalRate 기준 violet 그라데이션 (양의 상관 = 회색 보완재)
+                      const cellBg = (rate: number, corr: number) => {
+                        if (corr >= 0) return "bg-gray-100 dark:bg-gray-800";
+                        if (rate >= 0.6) return "bg-violet-700 dark:bg-violet-500";
+                        if (rate >= 0.4) return "bg-violet-500 dark:bg-violet-600";
+                        if (rate >= 0.2) return "bg-violet-300 dark:bg-violet-700";
+                        if (rate >= 0.05) return "bg-violet-100 dark:bg-violet-900";
+                        return "bg-violet-50/40 dark:bg-violet-950/40";
+                      };
+                      const truncCode = (s: string) => s.length > 6 ? s.slice(0, 6) : s;
+                      return (
+                        <div className="mb-2">
+                          <div className="text-[10px] font-semibold text-muted-foreground mb-0.5">
+                            🗺️ 잠식 매트릭스 (행=잠식 대상 / 열=잠식 유발) · Top-{items.length} 품목
+                          </div>
+                          <div className="overflow-x-auto rounded border border-violet-200/50 dark:border-violet-800/50 bg-background/40 p-1.5">
+                            <table className="text-[8px] border-collapse" role="grid" aria-label="잠식 매트릭스">
+                              <thead>
+                                <tr>
+                                  <th className="w-12 sticky left-0 bg-background/80"></th>
+                                  {items.map(col => (
+                                    <th key={col.item} className="px-0.5 font-mono text-violet-700 dark:text-violet-300 align-bottom" title={col.itemName}>
+                                      <div className="rotate-[-45deg] origin-bottom-left whitespace-nowrap" style={{ width: 14, height: 28 }}>
+                                        {truncCode(col.item)}
+                                      </div>
+                                    </th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {items.map(row => (
+                                  <tr key={row.item}>
+                                    <td className="px-1 py-0 font-mono text-[8px] text-violet-700 dark:text-violet-300 sticky left-0 bg-background/80 truncate max-w-[60px]" title={row.itemName}>
+                                      {truncCode(row.item)}
+                                    </td>
+                                    {items.map(col => {
+                                      if (row.item === col.item) {
+                                        return <td key={col.item} className="w-3.5 h-3.5 bg-muted/30" title="대각선 (자기 자신)" />;
+                                      }
+                                      const cell = matrixLookup.get(`${row.item}__${col.item}`);
+                                      if (!cell) {
+                                        return <td key={col.item} className="w-3.5 h-3.5 bg-muted/10" title="샘플 < 4M (분석 제외)" />;
+                                      }
+                                      const tooltip = `${cell.itemAName} ← ${cell.itemBName}\nρ=${cell.correlation.toFixed(2)} · c=${(cell.cannibalRate*100).toFixed(1)}%\n신뢰도 ${cell.confidenceLevel} · ${cell.customerCount}개 거래처${cell.sameCategory ? "\n같은 대분류" : ""}`;
+                                      return (
+                                        <td
+                                          key={col.item}
+                                          className={`w-3.5 h-3.5 ${cellBg(cell.cannibalRate, cell.correlation)} ${cell.sameCategory ? "ring-1 ring-violet-400/60 dark:ring-violet-300/40" : ""}`}
+                                          title={tooltip}
+                                        />
+                                      );
+                                    })}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="text-[9px] text-muted-foreground mt-0.5 flex items-center gap-2 flex-wrap">
+                            <span>색상 강도 = c 계수 (0~1)</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 bg-violet-50/40" /> 0</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 bg-violet-300" /> 0.2</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 bg-violet-500" /> 0.4</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 bg-violet-700" /> 0.6+</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 bg-gray-100 dark:bg-gray-800" /> 보완재 (ρ≥0)</span>
+                            <span className="inline-flex items-center gap-0.5"><span className="w-2.5 h-2.5 ring-1 ring-violet-400" /> 같은 대분류</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                    {/* △ 비교: 단독 vs 자기잠식 vs 포트폴리오 순 */}
+                    <div className="grid grid-cols-3 gap-2 text-xs mb-2">
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">단독 효과</div>
+                        <div className={`font-mono font-bold text-sm ${cannibalCorrection.aloneEffect >= 0 ? "text-emerald-700 dark:text-emerald-300" : "text-red-700 dark:text-red-400"}`}>
+                          {cannibalCorrection.aloneEffect >= 0 ? "+" : ""}{formatCurrency(cannibalCorrection.aloneEffect)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">자기잠식 손실</div>
+                        <div className="font-mono font-bold text-sm text-amber-700 dark:text-amber-400">
+                          {formatCurrency(cannibalCorrection.cannibalLoss)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded border-2 border-violet-400 bg-violet-50/80 dark:bg-violet-950/40 text-center">
+                        <div className="text-[10px] text-violet-700 dark:text-violet-300 font-semibold">포트폴리오 순효과</div>
+                        <div className={`font-mono font-bold text-sm ${cannibalCorrection.portfolioNet >= 0 ? "text-violet-700 dark:text-violet-200" : "text-red-700 dark:text-red-400"}`}>
+                          {cannibalCorrection.portfolioNet >= 0 ? "+" : ""}{formatCurrency(cannibalCorrection.portfolioNet)}
+                        </div>
+                      </div>
+                    </div>
+                    {/* Top-N 잠식 품목 리스트 */}
+                    {cannibalCorrection.cannibalizedTopN.length > 0 && (
+                      <div className="mb-2">
+                        <div className="text-[10px] font-semibold text-muted-foreground mb-0.5">⚠️ 잠식되는 Top-{cannibalCorrection.cannibalizedTopN.length} 품목</div>
+                        <div className="space-y-0.5">
+                          {cannibalCorrection.cannibalizedTopN.map((it, idx) => (
+                            <div key={it.item} className="flex items-center justify-between text-[10px] px-1.5 py-0.5 rounded bg-background/40 border border-violet-200/40 dark:border-violet-800/40">
+                              <span className="font-mono text-violet-700 dark:text-violet-300">{idx + 1}.</span>
+                              <span className="flex-1 mx-1 truncate" title={it.itemName}>{it.itemName}</span>
+                              <span className="font-mono text-amber-700 dark:text-amber-400">{formatCurrency(it.expectedLoss)}</span>
+                              <span className="ml-1.5 text-[9px] text-muted-foreground">c={(it.cannibalRate * 100).toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground leading-snug">
+                      💡 보라 = 포트폴리오 순효과 (단독 효과 + 자기잠식 합산). {cannibalIntensityLabel(cannibalMultiplier)} 시나리오 · 매트릭스 {cannibalResult.matrix.length}쌍 분석
+                      {cannibalResult.notes.length > 0 && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400" title={cannibalResult.notes.join("\n")}>
+                          ⚠ {cannibalResult.notes[0]}
+                        </span>
+                      )}
+                      <div className="mt-0.5 italic">⚠️ 상관 ≠ 인과: 의사결정 보조 도구로 활용. 실제 영향은 영업 현장 검증 필요.</div>
+                    </div>
+                  </>
+                )}
+                {cannibalEnabled && !cannibalCorrection && (
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400">
+                    ⚠ 카니발 매트릭스 데이터 부족 (customerItemDetail 14M 시계열 필요) 또는 대상 품목 매출 0
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* v2 WS6: 경쟁사 반응 시나리오 (시장 균형 차원) */}
+            {targetItem && qdProposedPrice > 0 && quickVerdict.priceChangePct < 0 && (
+              <div className="mb-2 p-2.5 rounded-lg border-2 border-rose-300 dark:border-rose-700 bg-gradient-to-br from-rose-50/60 to-orange-50/60 dark:from-rose-950/30 dark:to-orange-950/20">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1.5">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={competitorEnabled}
+                      onChange={(e) => setCompetitorEnabled(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-rose-600"
+                    />
+                    🎯 시장 반응 시나리오 (경쟁사 보복 가정)
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-normal">PED {(effectivePED ?? -1).toFixed(2)} · 점유율 30% 가정 · 점유율 반응 0.2</span>
+                </div>
+                {competitorEnabled && competitorPresets && (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      {(["alone", "partial", "full"] as const).map(scenario => {
+                        const r = competitorPresets[scenario];
+                        const isAlone = scenario === "alone";
+                        return (
+                          <div key={scenario} className={`p-1.5 rounded border text-center ${
+                            isAlone ? "border-rose-300 bg-background/60" :
+                            scenario === "partial" ? "border-orange-300 bg-orange-50/40 dark:bg-orange-950/20" :
+                            "border-red-400 bg-red-50/40 dark:bg-red-950/20"
+                          }`}>
+                            <div className="text-[10px] font-semibold text-muted-foreground">{presetLabel(scenario)}</div>
+                            <div className={`font-mono font-bold text-sm ${r.revenueChangePct >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                              매출 {r.revenueChangePct >= 0 ? "+" : ""}{safeFixed(r.revenueChangePct, 1)}%
+                            </div>
+                            <div className="text-[9px] text-muted-foreground">
+                              수량 {r.qtyChangePct >= 0 ? "+" : ""}{safeFixed(r.qtyChangePct, 1)}% · 점유율 {safeFixed(r.newShare * 100, 1)}%
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                      💡 단독 vs 100% 보복 매출 차이 <b className="text-rose-700 dark:text-rose-300">{safeFixed(competitorPresets.alone.revenueChangePct - competitorPresets.full.revenueChangePct, 1)}%p</b> — 경쟁사 보복 시 점유율 보전 효과 사라져 결과 반전 가능. 이 모델은 가설입니다 (실제 경쟁사 반응 데이터 부재).
+                    </div>
+                  </>
+                )}
+                {competitorEnabled && !competitorPresets && (
+                  <div className="text-[10px] text-muted-foreground italic">대상 품목·제안단가 입력 후 표시됩니다.</div>
+                )}
+              </div>
+            )}
+
+            {/* v2 WS5: 거래처 LTV 효과 (4번째 차원 — 거래처 평생 가치) */}
+            {ltvImpact && targetCustomer && quickVerdict.priceChangePct < 0 && (
+              <div className="mb-2 p-2.5 rounded-lg border-2 border-violet-300 dark:border-violet-700 bg-gradient-to-br from-violet-50/60 to-fuchsia-50/60 dark:from-violet-950/30 dark:to-fuchsia-950/20">
+                <div className="flex items-center justify-between gap-2 flex-wrap mb-1">
+                  <div className="text-xs font-semibold inline-flex items-center gap-1 text-violet-800 dark:text-violet-200">
+                    💎 거래처 LTV 효과
+                    <span className="text-[10px] font-normal text-muted-foreground ml-1">(평생 가치 관점)</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                    ltvImpact.confidence === "normal" ? "bg-violet-100 dark:bg-violet-900/40 text-violet-700 dark:text-violet-200" :
+                    ltvImpact.confidence === "low" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" :
+                    "bg-gray-100 dark:bg-gray-900/40 text-gray-600 dark:text-gray-300"
+                  }`}>
+                    {ltvConfidenceLabel(ltvImpact.confidence)}
+                  </span>
+                </div>
+                {ltvImpact.confidence !== "insufficient" ? (
+                  <>
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">거래처 LTV</div>
+                        <div className="font-mono font-bold text-sm text-violet-700 dark:text-violet-300">
+                          {formatCurrency(ltvImpact.baseLTV)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 rounded border bg-background/60 text-center">
+                        <div className="text-[10px] text-muted-foreground">이탈 위험</div>
+                        <div className="font-mono font-bold text-sm">
+                          {ltvImpact.churnScore.toFixed(0)}<span className="text-[10px] text-muted-foreground">/100</span>
+                        </div>
+                        <div className="text-[9px] text-muted-foreground">{riskLevelLabel(ltvImpact.riskLevel)}</div>
+                      </div>
+                      <div className="p-1.5 rounded border-2 border-violet-400 dark:border-violet-600 bg-violet-50/50 dark:bg-violet-950/30 text-center">
+                        <div className="text-[10px] text-muted-foreground">수용 시 보전</div>
+                        <div className={`font-mono font-bold text-sm ${ltvImpact.acceptImpact > 0 ? "text-violet-700 dark:text-violet-300" : "text-gray-400"}`}>
+                          {ltvImpact.acceptImpact > 0 ? "+" : ""}{formatCurrency(ltvImpact.acceptImpact)}
+                        </div>
+                        <div className="text-[9px] text-muted-foreground">거절 시: {formatCurrency(ltvImpact.rejectImpact)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                      💡 저가수주 수용 → 만족도 ↑ → 이탈 확률 약 {(ltvImpact.churnReductionPct * 100).toFixed(1)}% 감소 → 평생 가치 보전
+                      {ltvImpact.notes.length > 0 && (
+                        <span className="ml-1 text-amber-600 dark:text-amber-400" title={ltvImpact.notes.join("\n")}>
+                          · ⚠ {ltvImpact.notes[0]}
+                        </span>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-[11px] text-muted-foreground italic">
+                    매출/이탈 이력 데이터 부족 — 매출리스트 업로드 후 재계산
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* v2 WS4: PED (가격 탄력성) 자동 적용 */}
+            {pedResult && (
+              <div className="mb-2 p-2 rounded border border-purple-200 dark:border-purple-800 bg-purple-50/40 dark:bg-purple-950/20">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <label className="inline-flex items-center gap-2 text-xs font-semibold cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={pedEnabled}
+                      onChange={(e) => setPedEnabled(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-purple-600"
+                    />
+                    💼 PED 자동 적용
+                  </label>
+                  <span className="text-[10px] text-purple-700 dark:text-purple-300 font-mono">
+                    {pedSummaryLabel(pedResult)}
+                  </span>
+                </div>
+                {pedEnabled && effectivePED !== undefined && (
+                  <div className="mt-1 text-[10px] text-muted-foreground flex flex-wrap items-center gap-2">
+                    <span>
+                      판가 {quickVerdict.priceChangePct >= 0 ? "+" : ""}{safeFixed(quickVerdict.priceChangePct, 1)}% → 수량 자동 예상: <b className="text-purple-700 dark:text-purple-300">{safeFixed((Math.pow(1 + quickVerdict.priceChangePct / 100, effectivePED) - 1) * 100, 1)}%</b>
+                    </span>
+                    <span>·</span>
+                    <label className="inline-flex items-center gap-1">
+                      수동 PED:
+                      <input
+                        type="number" step={0.1}
+                        className="w-16 border rounded px-1 py-0.5 bg-background text-[10px]"
+                        value={effectivePED}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (Number.isFinite(v) && targetItem) {
+                            setPedOverride(m => new Map(m).set(targetItem, v));
+                          }
+                        }}
+                      />
+                    </label>
+                    {pedResult.notes.length > 0 && (
+                      <span className="text-amber-700 dark:text-amber-400" title={pedResult.notes.join("\n")}>
+                        ⚠ {pedResult.notes[0]}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* v2 WS3: 단위공헌이익 — 박리다매 엔진의 실체를 항상 노출 */}
+            {quickCMInfo && (
+              <div className="mb-2 p-2 rounded border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
+                <span className="inline-flex items-center gap-1 font-semibold text-blue-700 dark:text-blue-300">
+                  💡 단위공헌이익
+                  <MetricInfo id="unit_contribution_margin" variant="inline" currentValue={quickCMInfo.unitCM} />
+                </span>
+                <span className={`font-mono font-bold text-sm ${quickCMInfo.unitCM >= 0 ? "text-blue-700 dark:text-blue-300" : "text-red-600 dark:text-red-400"}`}>
+                  {quickCMInfo.unitCM >= 0 ? "+" : ""}{formatCurrency(quickCMInfo.unitCM)}/단위
+                </span>
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  = 제안단가 {formatCurrency(qdProposedPrice)} − {quickCMInfo.hasCostChange ? "조정" : ""} 변동비 {formatCurrency(quickCMInfo.adjustedUVC)}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  · 추가 {qdAdditionalQty > 0 ? qdAdditionalQty.toLocaleString() : "N"}개 판매 시 물량 기여: <span className="font-semibold text-blue-700 dark:text-blue-300">{formatCurrency(quickCMInfo.unitCM * Math.max(qdAdditionalQty, 0))}</span>
+                </span>
+              </div>
+            )}
+
             {/* 이유 */}
             <div className="space-y-1 mb-2">
               {quickVerdict.reasons.map((r, i) => (
                 <p key={i} className="text-xs leading-relaxed">{r}</p>
               ))}
+            </div>
+
+            {/* v2 WS2: 캐파 Step-up 경고 (수불현황 기반 자동 제안) */}
+            {capacityInfo && (
+              <div className="mb-3 p-2.5 rounded-lg border bg-background/60 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-[11px] font-semibold inline-flex items-center gap-1">
+                    🏭 생산 캐파 분석
+                    {capacityInfo.suggestion.factory && (
+                      <span className="text-[10px] text-muted-foreground font-normal">({capacityInfo.suggestion.factory} 공장 · 최근 {capacityInfo.suggestion.samples}개월 관측)</span>
+                    )}
+                  </div>
+                  <div className={`text-[10px] px-1.5 py-0.5 rounded font-semibold ${
+                    capacityInfo.alert.breachLevel === "severe" ? "bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300" :
+                    capacityInfo.alert.breachLevel === "warning" ? "bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300" :
+                    capacityInfo.alert.breachLevel === "caution" ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300" :
+                    "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300"
+                  }`}>
+                    {safeFixed(capacityInfo.alert.usagePct * 100, 1)}% 사용
+                  </div>
+                </div>
+                {/* Gauge bar */}
+                <div className="relative h-2 bg-muted/60 rounded-full overflow-hidden">
+                  <div
+                    className={`absolute left-0 top-0 h-full transition-all ${
+                      capacityInfo.alert.breachLevel === "severe" ? "bg-red-500" :
+                      capacityInfo.alert.breachLevel === "warning" ? "bg-orange-500" :
+                      capacityInfo.alert.breachLevel === "caution" ? "bg-amber-500" :
+                      "bg-green-500"
+                    }`}
+                    style={{ width: `${Math.min(100, capacityInfo.alert.usagePct * 100)}%` }}
+                  />
+                  {/* 80% 및 100% 기준선 */}
+                  <div className="absolute top-0 h-full w-px bg-foreground/30" style={{ left: "80%" }} />
+                  <div className="absolute top-0 h-full w-px bg-foreground/50" style={{ left: "100%" }} />
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  현재 {capacityInfo.baseQty.toLocaleString()} + 추가 {qdAdditionalQty.toLocaleString()} = <b>{(capacityInfo.baseQty + qdAdditionalQty).toLocaleString()}</b> / 캐파 <b>{capacityInfo.config.monthlyCapacity.toLocaleString()}</b>
+                  <span className="ml-2 text-muted-foreground/70">
+                    (자동 제안: 과거 월별 max {capacityInfo.suggestion.monthlyMax.toLocaleString()} × 110%)
+                  </span>
+                </div>
+                {/* Breach 경고 배너 */}
+                {capacityInfo.alert.breachLevel !== "ok" && (
+                  <div className={`text-[11px] font-medium pl-1 border-l-2 ${
+                    capacityInfo.alert.breachLevel === "severe" ? "border-red-500 text-red-700 dark:text-red-300" :
+                    capacityInfo.alert.breachLevel === "warning" ? "border-orange-500 text-orange-700 dark:text-orange-300" :
+                    "border-amber-500 text-amber-700 dark:text-amber-300"
+                  }`}>
+                    {capacityInfo.alert.message}
+                  </div>
+                )}
+                {capacityInfo.alert.breachLevel === "severe" && capacityInfo.alert.additionalFixedCost > 0 && (
+                  <div className="text-[10px] text-red-600 dark:text-red-400 leading-snug">
+                    🚨 <b>숨겨진 투자비 경고</b>: 저가수주 판정에 반영되지 않은 월 고정비 <b>{formatCurrency(capacityInfo.alert.additionalFixedCost)}</b>이(가) 실제 실행 시 발생합니다. 판정 결과를 반드시 재평가하세요.
+                  </div>
+                )}
+                {/* 수동 조정 */}
+                <details className="text-[10px] mt-1">
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground">⚙️ 캐파 / Step-up 조정</summary>
+                  <div className="mt-1.5 grid grid-cols-3 gap-2">
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground">월 캐파</span>
+                      <input type="number" className="border rounded px-1.5 py-0.5 bg-background"
+                        value={capacityInfo.config.monthlyCapacity}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) || 0;
+                          setCapacityOverrides(m => new Map(m).set(targetItem!, { ...(m.get(targetItem!) ?? {}), monthlyCapacity: v }));
+                        }} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground">라인당 월고정비</span>
+                      <input type="number" className="border rounded px-1.5 py-0.5 bg-background"
+                        value={capacityInfo.config.stepUpFixedCost}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) || 0;
+                          setCapacityOverrides(m => new Map(m).set(targetItem!, { ...(m.get(targetItem!) ?? {}), stepUpFixedCost: v }));
+                        }} />
+                    </label>
+                    <label className="flex flex-col gap-0.5">
+                      <span className="text-muted-foreground">라인당 증산능력</span>
+                      <input type="number" className="border rounded px-1.5 py-0.5 bg-background"
+                        value={capacityInfo.config.stepUpGranularity}
+                        onChange={(e) => {
+                          const v = Number(e.target.value) || 1;
+                          setCapacityOverrides(m => new Map(m).set(targetItem!, { ...(m.get(targetItem!) ?? {}), stepUpGranularity: v }));
+                        }} />
+                    </label>
+                  </div>
+                </details>
+              </div>
+            )}
+
+            {/* v2 WS1: Monte Carlo 불확실성 분석 */}
+            <div className="mt-3 pt-2 border-t border-indigo-200/60 dark:border-indigo-800/60">
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <label className="inline-flex items-center gap-2 text-[11px] font-semibold cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={mcEnabled}
+                    onChange={(e) => setMcEnabled(e.target.checked)}
+                    className="h-3.5 w-3.5 accent-indigo-600"
+                  />
+                  🎲 Monte Carlo 불확실성 분석 (5,000회)
+                </label>
+                {mcVerdict && (
+                  <span className="text-[10px] text-muted-foreground">
+                    실측 σ 기반 · 원재료 {safeFixed(FALLBACK_CV_UI.rawMaterial * 100, 1)}%, 노무 {safeFixed(FALLBACK_CV_UI.labor * 100, 1)}%, 외주 {safeFixed(FALLBACK_CV_UI.outsourcing * 100, 1)}%
+                  </span>
+                )}
+              </div>
+              {mcEnabled && mcVerdict && mcVerdict.iterations > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                  <div className="p-1.5 rounded border bg-background/60 text-center">
+                    <div className="text-[10px] text-muted-foreground">평균 기대값</div>
+                    <div className={`font-mono font-bold text-sm ${mcVerdict.mean >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+                      {mcVerdict.mean >= 0 ? "+" : ""}{formatCurrency(mcVerdict.mean)}
+                    </div>
+                  </div>
+                  <div className="p-1.5 rounded border bg-background/60 text-center">
+                    <div className="text-[10px] text-muted-foreground">95% 신뢰구간</div>
+                    <div className="font-mono text-[11px] font-semibold">
+                      {formatCurrency(mcVerdict.p5)}<br/>~ {formatCurrency(mcVerdict.p95)}
+                    </div>
+                  </div>
+                  <div className={`p-1.5 rounded border text-center ${mcVerdict.lossProbability <= 0.1 ? "border-green-300 bg-green-50/40 dark:bg-green-950/20" : mcVerdict.lossProbability <= 0.3 ? "border-amber-300 bg-amber-50/40 dark:bg-amber-950/20" : "border-red-300 bg-red-50/40 dark:bg-red-950/20"}`}>
+                    <div className="text-[10px] text-muted-foreground">손실 확률</div>
+                    <div className={`font-mono font-bold text-sm ${mcVerdict.lossProbability <= 0.1 ? "text-green-700 dark:text-green-400" : mcVerdict.lossProbability <= 0.3 ? "text-amber-700 dark:text-amber-400" : "text-red-700 dark:text-red-400"}`}>
+                      {safeFixed(mcVerdict.lossProbability * 100, 1)}%
+                    </div>
+                  </div>
+                  <div className="p-1.5 rounded border bg-background/60 text-center">
+                    <div className="text-[10px] text-muted-foreground">표준편차 σ</div>
+                    <div className="font-mono text-[11px] font-semibold">{formatCurrency(mcVerdict.stddev)}</div>
+                    <div className="text-[9px] text-muted-foreground">{mcVerdict.iterations.toLocaleString()}회 시뮬</div>
+                  </div>
+                </div>
+              )}
+              {mcEnabled && mcVerdict && mcVerdict.iterations > 0 && (
+                <div className="mt-1.5 text-[10px] text-muted-foreground leading-snug">
+                  💡 결과 해석: 평균 기대값이 양수여도 <b>손실 확률</b>이 높으면 실제 실행 시 적자 가능성 有. 95% CI 폭이 넓을수록 불확실성이 크며, 판가/원가 변동성이 큰 품목일수록 폭이 확장됩니다.
+                  {mcVerdict.usedFallback && " (200 보고서 없어 전사 평균 폴백 σ 사용 중)"}
+                </div>
+              )}
+              {mcEnabled && (!mcVerdict || mcVerdict.iterations === 0) && (
+                <div className="text-[10px] text-muted-foreground italic">품목·수량·제안단가를 모두 입력하면 MC 시뮬이 실행됩니다.</div>
+              )}
             </div>
 
             {/* 감도: 최소 필요 수량 */}
@@ -1069,7 +1877,7 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
       </div>
 
       {/* ═══ 상세 분석 (기존 Step 1~5) ═══ */}
-      <details open={showDetailedAnalysis} onToggle={(e) => setShowDetailedAnalysis((e.target as HTMLDetailsElement).open)}>
+      <details ref={detailRef} open={showDetailedAnalysis} onToggle={(e) => setShowDetailedAnalysis((e.target as HTMLDetailsElement).open)}>
         <summary className="cursor-pointer font-semibold text-sm p-3 border rounded-lg hover:bg-muted/50 transition-colors flex items-center gap-2">
           <span className="text-base">{showDetailedAnalysis ? "▼" : "▶"}</span>
           상세 분석 보기 (Step 1~5 전체)
@@ -1227,6 +2035,7 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
               <li>Step 4b 풀: <code>src/lib/analysis/offsetEffect.ts#calcItemPool</code></li>
               <li>Step 4b 시뮬: <code>src/lib/analysis/offsetEffect.ts#calcPoolSimulation</code></li>
               <li>Step 5 무결성: <code>src/lib/analysis/offsetEffect.ts#verifyIntegrity</code></li>
+              <li>저가수주 판단기 원가 반영: <code>src/lib/analysis/offsetEffect.ts#calcQuickVerdict</code> ← costChangePct/vcCostRatioMap forward</li>
             </ul>
           </section>
         </div>
@@ -2119,6 +2928,29 @@ export function OffsetEffectTab(props: OffsetEffectTabProps) {
                   <span>고정비: {formatCurrency(adjustedCostInfo.unitFC)} (불변)</span>
                   {!adjustedCostInfo.hasRatioData && <span className="text-amber-600 dark:text-amber-400">* 200 보고서 원가 비율 없음 — 추정 비율 사용</span>}
                 </div>
+                {/* v2 WS3: 조정 후 단위공헌이익 — 박리다매 엔진의 실체 */}
+                {adjustedCostInfo.baseUnitPrice > 0 && (
+                  <div className="pt-1.5 mt-0.5 border-t border-amber-200/60 dark:border-amber-800/60 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px]">
+                    <span className="inline-flex items-center gap-1 font-semibold text-blue-700 dark:text-blue-300">
+                      조정 후 단위공헌이익
+                      <MetricInfo id="unit_contribution_margin" variant="inline" currentValue={adjustedCostInfo.adjustedUnitCM} />
+                    </span>
+                    <span className={`font-mono font-bold ${adjustedCostInfo.adjustedUnitCM >= 0 ? "text-blue-700 dark:text-blue-300" : "text-red-600 dark:text-red-400"}`}>
+                      {adjustedCostInfo.adjustedUnitCM >= 0 ? "+" : ""}{formatCurrency(adjustedCostInfo.adjustedUnitCM)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      = 조정 판매단가 {formatCurrency(adjustedCostInfo.adjustedUnitPrice)} − 조정 변동비 {formatCurrency(adjustedCostInfo.adjustedUnitVC)}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      💡 추가 1개 판매 시 실제 이익 증가분 (고정비 제외)
+                    </span>
+                    {adjustedCostInfo.adjustedUnitMargin < 0 && adjustedCostInfo.adjustedUnitCM > 0 && (
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 font-semibold">
+                        박리다매 여지 존재 (단위마진 음수, 공헌이익 양수)
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </details>

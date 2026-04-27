@@ -25,6 +25,7 @@ import type {
   ItemProfitabilityRecord,
 } from "@/types";
 import { safeDivide } from "@/lib/utils";
+import { mulberry32, sampleNormal, sampleTriangular, summarize, FALLBACK_CV } from "./monteCarlo";
 
 // ─── Types ────────────────────────────────────────────
 
@@ -105,6 +106,10 @@ export interface TotalViewSimulation {
   hypothesisValid: boolean;
   // A4: 3단계 판정 (positive/neutral/negative)
   hypothesisResult: "positive" | "neutral" | "negative";
+  // v2 WS8: 카니발라이제이션 보정 (옵셔널, cannibalCorrection 입력 시만 채움)
+  cannibalLoss?: number;          // 자기잠식 손실 (음수)
+  portfolioNet?: number;          // = netOffsetEffect + cannibalLoss
+  cannibalMultiplier?: number;    // 적용된 잠식 강도 (0.5 / 1.0 / 1.5 / 사용자)
 }
 
 // Step 4b: 배분 관점 시뮬레이션
@@ -488,6 +493,19 @@ export interface TotalSimInput {
   volumeAbsolute?: number;
   costChangePct?: CostChangePct;
   vcCostRatioMap?: Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>;
+  /** v2 WS4: PED 자동 적용 — 판가 변동 시 수량 변동을 PED 계수로 자동 계산 */
+  usePED?: boolean;
+  /** v2 WS4: PED 계수 (기본 -1.0, 비탄력 -0.5 ~ 탄력 -2.0) */
+  pedCoeff?: number;
+  /** v2 WS8: 카니발 보정 (포트폴리오 순효과 = netOffsetEffect + cannibalLoss) */
+  cannibalCorrection?: {
+    /** 카니발 매트릭스 (calcCannibalizationMatrix 결과의 matrix 필드) */
+    matrix: Array<{ itemA: string; itemB: string; cannibalRate: number; itemAName?: string }>;
+    /** 잠식 강도 multiplier (0.5/1.0/1.5/사용자, 기본 1.0) */
+    multiplier: number;
+    /** 다른 품목들의 기준 매출 Map<품목코드, 매출> */
+    baseSalesMap: Map<string, number>;
+  };
 }
 
 /**
@@ -503,7 +521,7 @@ export interface TotalSimInput {
  * @assumption 고정비 총액 불변 (설비 캐파 내 생산)
  */
 export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulation {
-  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, volumeAbsolute, costChangePct, vcCostRatioMap } = input;
+  const { items, totalFixedCost, targetCustomer, targetItem, volumeIncreasePct, priceChangePct, costChangePct, vcCostRatioMap, usePED, pedCoeff } = input;
   const costAdj = costChangePct ?? { rawMaterial: 0, labor: 0, outsourcing: 0 };
   const hasCostChange = costAdj.rawMaterial !== 0 || costAdj.labor !== 0 || costAdj.outsourcing !== 0;
 
@@ -518,6 +536,17 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
     const itemMatch = targetItem === null || it.item === targetItem;
     return custMatch && itemMatch;
   };
+
+  // v2 WS4: PED 자동 볼륨 — 판가 변동에 따른 수량 변동 자동 계산 (사용자 volumeAbsolute override 우선)
+  let volumeAbsolute = input.volumeAbsolute;
+  if (usePED && pedCoeff !== undefined && priceChangePct !== 0 && volumeAbsolute === undefined) {
+    const targetQty = items.filter(isTarget).reduce((s, it) => s + it.quantity, 0);
+    const priceRatio = 1 + priceChangePct / 100;
+    if (targetQty > 0 && priceRatio > 0) {
+      const newQty = targetQty * Math.pow(priceRatio, pedCoeff);
+      volumeAbsolute = newQty - targetQty;
+    }
+  }
 
   let newTotalRevenue = 0;
   let newTotalVariableCost = 0;
@@ -595,6 +624,39 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
   const newAvgUnitFixedCost = safeDivide(totalFixedCost, newTotalQuantity);
   const netOffsetEffect = newOperatingProfit - baseOperatingProfit;
 
+  // v2 WS8: 카니발 보정 후처리 (옵셔널)
+  let cannibalLoss: number | undefined;
+  let portfolioNet: number | undefined;
+  let cannibalMultiplier: number | undefined;
+  if (input.cannibalCorrection && targetItem) {
+    const { matrix, multiplier, baseSalesMap } = input.cannibalCorrection;
+    const m = Math.max(0, multiplier);
+    cannibalMultiplier = m;
+    // target 품목 기준 매출 (회귀 분석 분모)
+    const targetBase = items
+      .filter(it => it.item === targetItem)
+      .reduce((s, it) => s + it.revenue, 0);
+    const aloneRevenueDelta = newTotalRevenue - baseTotalRevenue;  // 매출 변화량
+    if (targetBase > 0) {
+      const effectRatio = aloneRevenueDelta / targetBase;
+      // target 품목이 잠식하는 다른 품목들 (matrix에서 itemB === targetItem)
+      const targetCells = matrix.filter(c => c.itemB === targetItem && c.itemA !== targetItem);
+      let lossSum = 0;
+      for (const cell of targetCells) {
+        const baseSalesOther = baseSalesMap.get(cell.itemA) || 0;
+        if (baseSalesOther <= 0) continue;
+        const adjustedRate = cell.cannibalRate * m;
+        // 매출 잠식 → 영업이익 잠식 환산: 단순화하여 매출 잠식의 70%를 이익 잠식으로 간주
+        // (변동비 30% 가정 — 정확한 변동비는 품목별로 다르나 보수적 추정)
+        const salesLoss = -adjustedRate * effectRatio * baseSalesOther;
+        const profitLoss = salesLoss * 0.7;
+        lossSum += profitLoss;
+      }
+      cannibalLoss = lossSum;
+      portfolioNet = netOffsetEffect + lossSum;
+    }
+  }
+
   return {
     baseTotalRevenue,
     baseTotalVariableCost,
@@ -621,6 +683,10 @@ export function calcTotalViewSimulation(input: TotalSimInput): TotalViewSimulati
     hypothesisValid: netOffsetEffect > 0,
     // A4: 3단계 판정
     hypothesisResult: netOffsetEffect > 0 ? "positive" : netOffsetEffect === 0 ? "neutral" : "negative",
+    // v2 WS8: 카니발 보정 (옵셔널)
+    cannibalLoss,
+    portfolioNet,
+    cannibalMultiplier,
   };
 }
 
@@ -1576,6 +1642,8 @@ export function calcQuickVerdict(
   targetCustomer: string | null,
   proposedUnitPrice: number,
   additionalQuantity: number,
+  costChangePct?: CostChangePct,
+  vcCostRatioMap?: Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>,
 ): QuickVerdict {
   if (!targetItem || additionalQuantity <= 0) {
     return {
@@ -1623,7 +1691,7 @@ export function calcQuickVerdict(
 
   const priceChangePct = ((proposedUnitPrice / currentUnitPrice) - 1) * 100;
 
-  // 1. 4a: 단일 품목 시뮬
+  // 1. 4a: 단일 품목 시뮬 (원가 변동 + 품목별 원가구성비율 forward)
   const sim4a = calcTotalViewSimulation({
     items: cvpItems,
     totalFixedCost,
@@ -1632,6 +1700,8 @@ export function calcQuickVerdict(
     volumeIncreasePct: 0,
     priceChangePct,
     volumeAbsolute: additionalQuantity,
+    costChangePct,
+    vcCostRatioMap,
   });
 
   // 2. 4a+4b 종합 판정
@@ -1658,6 +1728,7 @@ export function calcQuickVerdict(
         const test = calcTotalViewSimulation({
           items: cvpItems, totalFixedCost, targetCustomer, targetItem,
           volumeIncreasePct: 0, priceChangePct, volumeAbsolute: mid,
+          costChangePct, vcCostRatioMap,
         });
         if (test.netOffsetEffect >= 0) hi = mid;
         else lo = mid;
@@ -1666,6 +1737,7 @@ export function calcQuickVerdict(
       const verify = calcTotalViewSimulation({
         items: cvpItems, totalFixedCost, targetCustomer, targetItem,
         volumeIncreasePct: 0, priceChangePct, volumeAbsolute: finalVol,
+        costChangePct, vcCostRatioMap,
       });
       minRequiredVolume = verify.netOffsetEffect >= 0 ? finalVol : null;
     }
@@ -1749,5 +1821,133 @@ export function calcQuickVerdict(
     currentUnitPrice,
     proposedUnitPrice,
     priceChangePct,
+  };
+}
+
+// ─── v2 WS1: Monte Carlo 불확실성 엔진 ─────────────────────
+
+/**
+ * 저가수주 판단에 Monte Carlo 시뮬레이션 적용 —
+ * 점추정값을 "평균 / 95% CI / 손실확률"로 전환.
+ *
+ * @source v2.1 Data Validation (2026-04-23) 실측 기반 σ
+ * @design
+ *   - 입력 분포 4종: 원재료 인상률, 노무 인상률, 외주 인상률, 물량 실현률
+ *   - 판가/추가수량은 사용자 입력 '기대값'이므로 분포 부여 안함 (의사결정 변수)
+ *   - 각 iteration마다 calcTotalViewSimulation을 호출하여 netOffsetEffect 1값 추출
+ *   - 10,000회 반복 후 summarize()로 통계 집계
+ *
+ * @performance
+ *   - 메인 스레드 실행. 10k × 단순 CVP 계산 ≈ 0.5~1.5초 예상
+ *   - Web Worker 이관은 성능 이슈 발생 시 별도 사이클 (WS1-B)
+ */
+export interface MonteCarloVerdictInput {
+  cvpItems: CVPItem[];
+  totalFixedCost: number;
+  targetItem: string | null;
+  targetCustomer: string | null;
+  proposedUnitPrice: number;
+  additionalQuantity: number;
+  /** 품목별 원가 구성비 (200 보고서) */
+  vcCostRatioMap?: Map<string, { rawMaterialRatio: number; laborRatio: number; outsourcingRatio: number }>;
+  /** 원가 인상 슬라이더 평균값 (기대값으로 사용) */
+  costMean?: { rawMaterial: number; labor: number; outsourcing: number };
+  /** 원가 σ (불확실성). 지정 없으면 v2.1 실측 폴백 사용 */
+  costSigma?: { rawMaterial: number; labor: number; outsourcing: number };
+  /** 물량 실현률 삼각분포 (min, mode, max). 기본 (0.6, 1.0, 1.1) */
+  volumeRealization?: { min: number; mode: number; max: number };
+  iterations?: number;
+  seed?: number;
+}
+
+export interface MonteCarloVerdict {
+  iterations: number;
+  mean: number;
+  median: number;
+  stddev: number;
+  p5: number;
+  p95: number;
+  lossProbability: number;
+  positiveProb: number;
+  histogram: Array<{ lo: number; hi: number; count: number }>;
+  /** 실측 σ 추정 실패 시 폴백 사용 경고 */
+  usedFallback: boolean;
+  /** Point estimate (참조용) — costMean만 적용한 결정론 값 */
+  pointEstimate: number;
+}
+
+export function calcMonteCarloVerdict(input: MonteCarloVerdictInput): MonteCarloVerdict {
+  const {
+    cvpItems, totalFixedCost, targetItem, targetCustomer,
+    proposedUnitPrice, additionalQuantity, vcCostRatioMap,
+    costMean = { rawMaterial: 0, labor: 0, outsourcing: 0 },
+    costSigma = {
+      rawMaterial: FALLBACK_CV.rawMaterial * 100,
+      labor: FALLBACK_CV.labor * 100,
+      outsourcing: FALLBACK_CV.outsourcing * 100,
+    },
+    volumeRealization = { min: 0.6, mode: 1.0, max: 1.1 },
+    iterations = 10_000,
+    seed = Date.now(),
+  } = input;
+
+  // 현재 단가 조회 (priceChangePct 계산에 필요)
+  const targetRows = cvpItems.filter(c => c.item === targetItem && (targetCustomer === null || c.customer === targetCustomer));
+  const totalQty = targetRows.reduce((s, c) => s + c.quantity, 0);
+  const totalRev = targetRows.reduce((s, c) => s + c.revenue, 0);
+  const currentUnitPrice = totalQty > 0 ? totalRev / totalQty : 0;
+  if (!targetItem || additionalQuantity <= 0 || currentUnitPrice <= 0) {
+    return {
+      iterations: 0, mean: 0, median: 0, stddev: 0, p5: 0, p95: 0,
+      lossProbability: 0, positiveProb: 0, histogram: [],
+      usedFallback: false, pointEstimate: 0,
+    };
+  }
+  const priceChangePct = ((proposedUnitPrice / currentUnitPrice) - 1) * 100;
+
+  // 메인 시뮬 루프
+  const rng = mulberry32(seed);
+  const results: number[] = [];
+  for (let i = 0; i < iterations; i++) {
+    const cRaw = sampleNormal(costMean.rawMaterial, costSigma.rawMaterial, rng);
+    const cLab = sampleNormal(costMean.labor, costSigma.labor, rng);
+    const cOut = sampleNormal(costMean.outsourcing, costSigma.outsourcing, rng);
+    const volRealize = sampleTriangular(volumeRealization.min, volumeRealization.mode, volumeRealization.max, rng);
+    const effectiveAddedQty = additionalQuantity * volRealize;
+    const sim = calcTotalViewSimulation({
+      items: cvpItems,
+      totalFixedCost,
+      targetCustomer,
+      targetItem,
+      volumeIncreasePct: 0,
+      priceChangePct,
+      volumeAbsolute: effectiveAddedQty,
+      costChangePct: { rawMaterial: cRaw, labor: cLab, outsourcing: cOut },
+      vcCostRatioMap,
+    });
+    results.push(sim.netOffsetEffect);
+  }
+  const summary = summarize(results);
+
+  // Point estimate (costMean + volumeRealization.mode 결정론)
+  const pointSim = calcTotalViewSimulation({
+    items: cvpItems, totalFixedCost, targetCustomer, targetItem,
+    volumeIncreasePct: 0, priceChangePct,
+    volumeAbsolute: additionalQuantity * volumeRealization.mode,
+    costChangePct: costMean, vcCostRatioMap,
+  });
+
+  return {
+    iterations: summary.iterations,
+    mean: summary.mean,
+    median: summary.median,
+    stddev: summary.stddev,
+    p5: summary.p5,
+    p95: summary.p95,
+    lossProbability: summary.lossProbability,
+    positiveProb: summary.positiveProb,
+    histogram: summary.histogram,
+    usedFallback: !vcCostRatioMap,
+    pointEstimate: pointSim.netOffsetEffect,
   };
 }
