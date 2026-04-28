@@ -1,6 +1,7 @@
 "use client";
 
 import { lazy, Suspense, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { useDataStore } from "@/stores/dataStore";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { KpiSkeleton, PageSkeleton } from "@/components/dashboard/LoadingSkeleton";
@@ -26,8 +27,10 @@ const LongTermTab = lazy(() => import("./tabs/LongTermTab").then(m => ({ default
 const CollectionDelayTab = lazy(() => import("./tabs/CollectionDelayTab").then(m => ({ default: m.CollectionDelayTab })));
 const NegotiationPriorityTab = lazy(() => import("./tabs/NegotiationPriorityTab").then(m => ({ default: m.NegotiationPriorityTab })));
 
-export default function ReceivablesPage() {
+function ReceivablesPageContent() {
   const isLoading = useDataStore((s) => s.isLoading);
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get("tab") || "status";
   const { filteredInventoryMap } = useFilteredInventory();
   const { filteredRecords: allRecords, filteredAgingMap } = useFilteredReceivables();
   const { filteredSales } = useFilteredSales();
@@ -97,7 +100,7 @@ export default function ReceivablesPage() {
         />
       </div>
 
-      <Tabs defaultValue="status" onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
+      <Tabs defaultValue={initialTab} onValueChange={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="space-y-4">
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="status">미수금 현황</TabsTrigger>
           <TabsTrigger value="risk">리스크 관리</TabsTrigger>
@@ -239,5 +242,14 @@ export default function ReceivablesPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// useSearchParams는 Suspense boundary 필수 (Next.js 14+)
+export default function ReceivablesPage() {
+  return (
+    <Suspense fallback={<PageSkeleton />}>
+      <ReceivablesPageContent />
+    </Suspense>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import Fuse from "fuse.js";
 import { useDataStore } from "@/stores/dataStore";
 import { useFilterStore } from "@/stores/filterStore";
 import type { ComparisonPreset } from "@/stores/filterStore";
@@ -42,11 +43,32 @@ export function GlobalFilterBar() {
     return Array.from(names).sort();
   }, [salesList]);
 
+  // P2: Fuse.js fuzzy 검색 (오타·한글 자모·영문 변형 매칭)
+  // 예: "건진케미칼" → "건진케미컬", "대성이엔씨" → "대성이앤씨 주식회사"
+  const fuse = useMemo(
+    () => new Fuse(customerList, {
+      threshold: 0.3,           // 0=exact, 1=anything (0.3 = 적당한 fuzzy)
+      distance: 100,
+      minMatchCharLength: 2,
+      includeScore: true,
+      ignoreLocation: true,     // 검색어 위치 무관 (포함되면 매칭)
+    }),
+    [customerList]
+  );
+
   const filteredCustomerList = useMemo(() => {
-    if (!custSearch.trim()) return customerList;
-    const q = custSearch.trim().toLowerCase();
-    return customerList.filter((c) => c.toLowerCase().includes(q));
-  }, [customerList, custSearch]);
+    const q = custSearch.trim();
+    if (!q) return customerList;
+
+    // contains 매칭 우선 (정확도 높음)
+    const containsMatch = customerList.filter((c) =>
+      c.toLowerCase().includes(q.toLowerCase())
+    );
+    if (containsMatch.length > 0) return containsMatch;
+
+    // contains 0건이면 fuzzy fallback (오타/변형 처리)
+    return fuse.search(q).map((r) => r.item);
+  }, [customerList, custSearch, fuse]);
 
   const [compPopoverOpen, setCompPopoverOpen] = useState(false);
 

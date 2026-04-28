@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-28T23:11:45.458Z",
+  "lastUpdated": "2026-04-28T23:23:37.116Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -136,9 +136,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:39:59.845Z",
-        "lastUpdated": "2026-04-28T22:43:42.801Z"
+        "lastUpdated": "2026-04-28T23:19:52.189Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\components\\dashboard\\PdfBulkExportButton.tsx"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\components\\dashboard\\GlobalFilterBar.tsx"
     },
     "data": {
       "phase": "do",
@@ -162,7 +162,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:51:28.485Z",
-        "lastUpdated": "2026-04-28T10:57:30.944Z"
+        "lastUpdated": "2026-04-28T23:23:37.115Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\receivables\\page.tsx"
     },
@@ -348,7 +348,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-28T23:11:45.458Z"
+    "lastActivity": "2026-04-28T23:23:37.116Z"
   },
   "history": [
     {
@@ -14082,6 +14082,78 @@
     {
       "timestamp": "2026-04-28T23:11:45.456Z",
       "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:16:56.904Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:17:09.438Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:17:18.784Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:17:47.567Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:17:56.803Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:18:07.463Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:19:38.341Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:19:52.189Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:21:48.324Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:23:04.025Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:23:13.116Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:23:37.115Z",
+      "feature": "receivables",
       "phase": "do",
       "action": "updated"
     }
