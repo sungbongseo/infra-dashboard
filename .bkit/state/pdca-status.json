@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-28T23:23:37.116Z",
+  "lastUpdated": "2026-04-28T23:30:39.180Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -335,9 +335,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-27T02:56:51.501Z",
-        "lastUpdated": "2026-04-28T23:00:32.527Z"
+        "lastUpdated": "2026-04-28T23:30:39.179Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\customer-visit-ribbon.py"
+      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\dry-run-composite-risk.py"
     }
   },
   "pipeline": {
@@ -348,7 +348,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-28T23:23:37.116Z"
+    "lastActivity": "2026-04-28T23:30:39.180Z"
   },
   "history": [
     {
@@ -14154,6 +14154,18 @@
     {
       "timestamp": "2026-04-28T23:23:37.115Z",
       "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:29:50.483Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:30:39.179Z",
+      "feature": "scripts",
       "phase": "do",
       "action": "updated"
     }
