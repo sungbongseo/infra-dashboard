@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
 import { ExportButton } from "@/components/dashboard/ExportButton";
 import { useFilterStore } from "@/stores/filterStore";
-import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections, useFilteredInventory } from "@/lib/hooks/useFilteredData";
+import { useFilteredReceivables, useFilteredSales, useFilteredTeamContribution, useFilteredCollections, useFilteredInventory, useFilteredCustomerItemDetail } from "@/lib/hooks/useFilteredData";
 
 const StatusTab = lazy(() => import("./tabs/StatusTab").then(m => ({ default: m.StatusTab })));
 const RiskTab = lazy(() => import("./tabs/RiskTab").then(m => ({ default: m.RiskTab })));
@@ -24,6 +24,7 @@ const PersonInsightTab = lazy(() => import("./tabs/PersonInsightTab").then(m => 
 const DetailTab = lazy(() => import("./tabs/DetailTab").then(m => ({ default: m.DetailTab })));
 const LongTermTab = lazy(() => import("./tabs/LongTermTab").then(m => ({ default: m.LongTermTab })));
 const CollectionDelayTab = lazy(() => import("./tabs/CollectionDelayTab").then(m => ({ default: m.CollectionDelayTab })));
+const NegotiationPriorityTab = lazy(() => import("./tabs/NegotiationPriorityTab").then(m => ({ default: m.NegotiationPriorityTab })));
 
 export default function ReceivablesPage() {
   const isLoading = useDataStore((s) => s.isLoading);
@@ -32,6 +33,7 @@ export default function ReceivablesPage() {
   const { filteredSales } = useFilteredSales();
   const { filteredTeamContrib } = useFilteredTeamContribution();
   const { filteredCollections } = useFilteredCollections();
+  const { customerItemDetail: rawCustomerItemDetail } = useFilteredCustomerItemDetail();
   const dateRange = useFilterStore((s) => s.dateRange);
   const isDateFiltered = !!(dateRange?.from && dateRange?.to);
 
@@ -106,6 +108,9 @@ export default function ReceivablesPage() {
           <TabsTrigger value="prepayment">선수금<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
           <TabsTrigger value="person-insight">담당자 인사이트</TabsTrigger>
           <TabsTrigger value="collection-delay" disabled={filteredSales.length === 0 || filteredCollections.length === 0}>수금지연<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span></TabsTrigger>
+          <TabsTrigger value="negotiation" className="bg-violet-100/40 dark:bg-violet-950/30 data-[state=active]:bg-violet-500 data-[state=active]:text-white">
+            🚨 협상 우선순위<span className="ml-1 text-[10px] text-violet-600 dark:text-violet-400 font-normal">자동 도출</span>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="status" className="space-y-6">
@@ -217,6 +222,17 @@ export default function ReceivablesPage() {
               filteredSales={filteredSales}
               filteredCollections={filteredCollections}
               isDateFiltered={isDateFiltered}
+            />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="negotiation" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <NegotiationPriorityTab
+              agingMap={filteredAgingMap}
+              customerItemDetail={rawCustomerItemDetail}
             />
           </ErrorBoundary>
           </Suspense>

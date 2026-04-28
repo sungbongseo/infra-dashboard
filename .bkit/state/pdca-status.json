@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-27T03:00:02.519Z",
+  "lastUpdated": "2026-04-28T22:46:28.249Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -57,9 +57,9 @@
       "archivedAt": "2026-03-23T12:00:00.000Z",
       "archivedTo": "docs/archive/2026-03/analysis/",
       "phaseNumber": 3,
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\offsetEffect.ts",
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\customerCompositeRisk.ts",
       "timestamps": {
-        "lastUpdated": "2026-04-27T01:16:55.337Z"
+        "lastUpdated": "2026-04-28T22:46:28.248Z"
       }
     },
     "인프라 대시보드": {
@@ -84,9 +84,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:04.073Z",
-        "lastUpdated": "2026-04-27T01:37:05.174Z"
+        "lastUpdated": "2026-04-28T22:46:02.856Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\tabs\\OffsetEffectTab.tsx"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\receivables\\tabs\\NegotiationPriorityTab.tsx"
     },
     "sales": {
       "phase": "do",
@@ -136,9 +136,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:39:59.845Z",
-        "lastUpdated": "2026-04-22T06:38:12.384Z"
+        "lastUpdated": "2026-04-28T22:43:42.801Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\components\\dashboard\\KpiCard.tsx"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\components\\dashboard\\PdfBulkExportButton.tsx"
     },
     "data": {
       "phase": "do",
@@ -162,7 +162,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:51:28.485Z",
-        "lastUpdated": "2026-04-01T09:54:56.473Z"
+        "lastUpdated": "2026-04-28T10:57:30.944Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\receivables\\page.tsx"
     },
@@ -335,9 +335,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-27T02:56:51.501Z",
-        "lastUpdated": "2026-04-27T03:00:02.517Z"
+        "lastUpdated": "2026-04-28T00:50:01.903Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\dry-run-cannibalization.py"
+      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\customer-visit-analysis.py"
     }
   },
   "pipeline": {
@@ -348,7 +348,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-27T03:00:02.519Z"
+    "lastActivity": "2026-04-28T22:46:28.249Z"
   },
   "history": [
     {
@@ -13836,6 +13836,192 @@
     {
       "timestamp": "2026-04-27T03:00:02.517Z",
       "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T00:46:34.933Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T00:48:04.460Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T00:48:43.270Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T00:50:01.903Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:45:38.379Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:47:04.575Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:47:59.800Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:48:14.416Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:48:25.497Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:48:34.718Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:48:45.210Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:48:53.280Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:49:09.404Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:49:25.174Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:50:14.467Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:51:09.769Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:53:03.799Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:53:50.539Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:54:24.231Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:56:41.792Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:56:59.314Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:57:09.106Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:57:19.587Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:57:30.944Z",
+      "feature": "receivables",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T10:58:52.005Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:43:42.801Z",
+      "feature": "dashboard",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:44:21.025Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:45:54.043Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:46:02.856Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:46:10.106Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T22:46:28.248Z",
+      "feature": "analysis",
       "phase": "do",
       "action": "updated"
     }
