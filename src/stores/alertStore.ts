@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { CustomerCompositeRisk } from "@/lib/analysis/customerCompositeRisk";
 
 export interface AlertRule {
   id: string;
@@ -21,6 +22,12 @@ export interface Alert {
   message: string;
   timestamp: Date;
   dismissed: boolean;
+  // P1: 거래처별 알림 추가 컨텍스트 (옵셔널)
+  customerCode?: string;
+  customerName?: string;
+  category?: CustomerCompositeRisk["category"];
+  /** AlertPanel 클릭 시 deep link (예: "/dashboard/receivables?tab=negotiation") */
+  deepLink?: string;
 }
 
 interface KpiInput {
@@ -49,6 +56,8 @@ interface AlertState {
   alertHistory: AlertHistoryEntry[];
   skippedMetrics: SkippedMetric[];
   evaluate: (kpis: KpiInput, dso?: number, creditUsageRate?: number, receivableExtras?: { overdueRatio?: number; longTermRatio?: number; weightedAgingDays?: number }) => void;
+  /** P1: 거래처별 위험 알림 평가 (Composite Risk Score 기반) */
+  evaluateCustomerRisks: (risks: CustomerCompositeRisk[], threshold?: number) => void;
   dismissAlert: (id: string) => void;
   dismissAll: () => void;
   activeAlertCount: () => number;
@@ -282,6 +291,69 @@ export const useAlertStore = create<AlertState>((set, get) => ({
     );
 
     set({ alerts: [...dismissed, ...newAlerts], skippedMetrics: uniqueSkipped });
+  },
+
+  /**
+   * P1: 거래처별 위험 알림 자동 생성.
+   * 위험점수 ≥ threshold(기본 70)인 거래처에 대해 alert 생성.
+   * AlertPanel 클릭 시 협상 우선순위 탭으로 이동 (deepLink).
+   */
+  evaluateCustomerRisks: (risks, threshold = 70) => {
+    const { alerts: existingAlerts } = get();
+    const dismissedCustCodes = new Set(
+      existingAlerts.filter(a => a.dismissed && a.customerCode).map(a => a.customerCode)
+    );
+    const dismissed = existingAlerts.filter(a => a.dismissed);
+
+    // 비-거래처 알림은 보존 (기존 KPI/DSO 등)
+    const nonCustomerAlerts = existingAlerts.filter(a => !a.customerCode);
+
+    // 위험점수 ≥ threshold만 추출
+    const targetRisks = risks.filter(r => r.riskScore >= threshold);
+
+    const customerAlerts: Alert[] = [];
+    for (const r of targetRisks) {
+      // 사용자가 이전에 dismiss한 거래처는 제외
+      if (dismissedCustCodes.has(r.거래처코드)) continue;
+
+      const isTerminate = r.category === "거래중단";
+      const severity: Alert["severity"] = isTerminate || r.riskScore >= 80 ? "critical" : "warning";
+      const emoji = isTerminate ? "🚨🚨" : "🚨";
+
+      // 핵심 메트릭 1줄 요약
+      const m = r.metrics;
+      const tags: string[] = [];
+      if (m.totalReceivable >= 100_000_000) tags.push(`미수 ${(m.totalReceivable / 1e8).toFixed(1)}억`);
+      if (m.creditUsageRate >= 0.8) tags.push(`한도 ${(m.creditUsageRate * 100).toFixed(0)}%`);
+      if (m.deficitMonthCount >= 6) tags.push(`적자 ${m.deficitMonthCount}M`);
+      if (m.longOverdueRatio >= 0.3) tags.push(`장기연체 ${(m.longOverdueRatio * 100).toFixed(0)}%`);
+      const tagText = tags.length > 0 ? ` · ${tags.join(" · ")}` : "";
+
+      customerAlerts.push({
+        id: `alert-customer-${r.거래처코드}-${Date.now()}`,
+        ruleId: `customer-risk-${r.거래처코드}`,
+        ruleName: `거래처 위험 (${r.category})`,
+        metric: "customerRiskScore",
+        currentValue: r.riskScore,
+        threshold,
+        severity,
+        message: `${emoji} ${r.거래처명} 위험점수 ${r.riskScore} · ${r.category}${tagText}`,
+        timestamp: new Date(),
+        dismissed: false,
+        customerCode: r.거래처코드,
+        customerName: r.거래처명,
+        category: r.category,
+        deepLink: "/dashboard/receivables?tab=negotiation",
+      });
+    }
+
+    // 히스토리에 추가
+    for (const alert of customerAlerts) {
+      get().addToHistory({ id: alert.id, title: alert.ruleName, severity: alert.severity });
+    }
+
+    // 기존 비-거래처 alerts + dismissed 보존 + 신규 거래처 alerts
+    set({ alerts: [...nonCustomerAlerts, ...dismissed.filter(a => a.customerCode), ...customerAlerts] });
   },
 
   dismissAlert: (id) => {

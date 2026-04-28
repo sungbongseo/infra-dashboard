@@ -1,4 +1,7 @@
 import type { Insight } from "./insightGenerator";
+import type { CustomerCompositeRisk } from "./customerCompositeRisk";
+import type { NegotiationMemo } from "./negotiationMemoGenerator";
+import { generateNegotiationMemo } from "./negotiationMemoGenerator";
 import { safeDivide } from "@/lib/utils";
 
 // ─── Interfaces ───────────────────────────────────────────────
@@ -42,6 +45,22 @@ export interface ExecutiveOnePager {
   topOpportunities: ExecutiveItem[];
   recommendedActions: ExecutiveItem[];
   monthOverMonth: ExecutiveMoM[];
+  /** P1: 위험 거래처 Top 5 섹션 (옵셔널, customerRisks 입력 시만 채움) */
+  topRiskCustomers?: RiskCustomerSummary[];
+}
+
+/** P1: 협상 우선순위 Top N 거래처 요약 (Executive 보고서용) */
+export interface RiskCustomerSummary {
+  rank: number;
+  거래처명: string;
+  거래처코드: string;
+  riskScore: number;
+  category: CustomerCompositeRisk["category"];
+  oneLineSummary: string;          // memo.oneLineSummary 활용
+  topPressurePoint: string;        // 최상위 압박 근거 1개
+  topAction: string;               // 1순위 권장 액션
+  미수: number;
+  창출이익13M: number;             // 누적 영업이익 (음수면 적자)
 }
 
 export interface ExecutiveKpi {
@@ -75,6 +94,8 @@ export interface ExecutiveReportInput extends ReportInput {
   avgSalesCycle?: number;
   salesVelocity?: number;
   insights?: Insight[];
+  /** P1: 거래처별 위험 점수 (NegotiationPriorityTab 데이터 재사용) */
+  customerRisks?: CustomerCompositeRisk[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────
@@ -399,6 +420,11 @@ export function generateExecutiveOnePager(input: ExecutiveReportInput, period: s
   // 5. Month-over-Month comparison
   const monthOverMonth = deriveMoM(input);
 
+  // P1-2: 6. Top Risk Customers (옵셔널, customerRisks 입력 시만)
+  const topRiskCustomers = input.customerRisks
+    ? buildRiskCustomersSection(input.customerRisks, 5)
+    : undefined;
+
   return {
     period,
     generatedAt: new Date().toISOString().slice(0, 10),
@@ -407,5 +433,83 @@ export function generateExecutiveOnePager(input: ExecutiveReportInput, period: s
     topOpportunities: topOpportunities.slice(0, 3),
     recommendedActions: recommendedActions.slice(0, 3),
     monthOverMonth,
+    topRiskCustomers,
+  };
+}
+
+// ─── P1-2: 위험 거래처 Top N 섹션 ─────────────────────────────
+
+/**
+ * Composite Risk Score ≥ 60인 거래처를 Top N으로 정렬하고
+ * 각 거래처의 핵심 압박 근거 + 액션을 자동 추출.
+ *
+ * Executive 1-Pager의 "이번 분기 협상 우선순위 N선" 섹션 또는
+ * 월간 보고서의 위험 거래처 요약 자동화에 사용.
+ */
+export function buildRiskCustomersSection(
+  risks: CustomerCompositeRisk[],
+  topN: number = 5,
+  minScore: number = 60,
+): RiskCustomerSummary[] {
+  // 점수 임계 + 정렬 + Top N
+  const filtered = risks
+    .filter(r => r.riskScore >= minScore)
+    .sort((a, b) => b.riskScore - a.riskScore)
+    .slice(0, topN);
+
+  return filtered.map((r, i) => {
+    const memo: NegotiationMemo = generateNegotiationMemo(r);
+    return {
+      rank: i + 1,
+      거래처명: r.거래처명,
+      거래처코드: r.거래처코드,
+      riskScore: r.riskScore,
+      category: r.category,
+      oneLineSummary: memo.oneLineSummary,
+      topPressurePoint: memo.pressurePoints[0] || "데이터 부족",
+      topAction: memo.recommendedActions[0]?.action || "추가 분석 필요",
+      미수: r.metrics.totalReceivable,
+      창출이익13M: r.metrics.totalProfit13M,
+    };
+  });
+}
+
+/**
+ * 월간 보고서용 ReportSection 생성 (위험 거래처 섹션).
+ * generateMonthlyReport에 추가 통합 가능.
+ */
+export function buildRiskCustomersReportSection(
+  risks: CustomerCompositeRisk[],
+  topN: number = 5,
+): ReportSection | null {
+  const summaries = buildRiskCustomersSection(risks, topN);
+  if (summaries.length === 0) return null;
+
+  const lines: string[] = [
+    `🚨 위험 거래처 Top ${summaries.length} (협상 우선순위)`,
+    "",
+  ];
+  for (const s of summaries) {
+    lines.push(`${s.rank}. ${s.거래처명} (${s.거래처코드}) — 점수 ${s.riskScore} · ${s.category}`);
+    lines.push(`   📋 ${s.topPressurePoint}`);
+    lines.push(`   🎯 ${s.topAction}`);
+    lines.push("");
+  }
+
+  // 카테고리별 카운트
+  const byCategory = summaries.reduce((acc, s) => {
+    acc[s.category] = (acc[s.category] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const catText = Object.entries(byCategory)
+    .map(([cat, n]) => `${cat} ${n}건`)
+    .join(" · ");
+  lines.push(`📊 카테고리 분포: ${catText}`);
+
+  return {
+    title: "협상 우선순위 (자동 도출)",
+    content: lines.join("\n"),
+    type: "risk",
+    priority: "high",
   };
 }

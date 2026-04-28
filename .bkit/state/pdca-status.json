@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-28T22:46:28.249Z",
+  "lastUpdated": "2026-04-28T23:11:45.458Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -57,9 +57,9 @@
       "archivedAt": "2026-03-23T12:00:00.000Z",
       "archivedTo": "docs/archive/2026-03/analysis/",
       "phaseNumber": 3,
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\customerCompositeRisk.ts",
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\autoReport.p1.test.ts",
       "timestamps": {
-        "lastUpdated": "2026-04-28T22:46:28.248Z"
+        "lastUpdated": "2026-04-28T23:11:05.637Z"
       }
     },
     "인프라 대시보드": {
@@ -110,9 +110,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:55.666Z",
-        "lastUpdated": "2026-04-22T06:30:28.094Z"
+        "lastUpdated": "2026-04-28T23:11:45.456Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\stores\\uiStore.ts"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\stores\\alertStore.p1.test.ts"
     },
     "excel": {
       "phase": "do",
@@ -335,9 +335,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-27T02:56:51.501Z",
-        "lastUpdated": "2026-04-28T00:50:01.903Z"
+        "lastUpdated": "2026-04-28T23:00:32.527Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\customer-visit-analysis.py"
+      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\customer-visit-ribbon.py"
     }
   },
   "pipeline": {
@@ -348,7 +348,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-28T22:46:28.249Z"
+    "lastActivity": "2026-04-28T23:11:45.458Z"
   },
   "history": [
     {
@@ -14022,6 +14022,66 @@
     {
       "timestamp": "2026-04-28T22:46:28.248Z",
       "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:00:32.527Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:07:51.628Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:08:09.427Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:08:31.732Z",
+      "feature": "stores",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:09:06.953Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:09:22.101Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:09:33.407Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:09:56.705Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:11:05.637Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-28T23:11:45.456Z",
+      "feature": "stores",
       "phase": "do",
       "action": "updated"
     }
