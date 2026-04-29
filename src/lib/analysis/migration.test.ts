@@ -27,17 +27,73 @@ describe("calcCustomerMigration", () => {
     expect(result.summaries).toHaveLength(0);
   });
 
-  it("detects churned customers (active → N)", () => {
+  it("detects churned customers (active → N after 3+ consecutive empty months)", () => {
+    // B2B 보정 (migration.ts:198-219): 연속 3개월 미만 공백은 이전 등급 유지
+    // → 진짜 churn 감지하려면 3개월 연속 공백 필요
     const sales = [
       makeSale("C001", "2024-01-15", 1000),
-      // C001 has no sales in February → churned
+      // C001: 2/3/4월 모두 공백 → 4월에 consecutiveZero=3 도달 → N으로 전환
       makeSale("C002", "2024-01-15", 500),
       makeSale("C002", "2024-02-15", 500),
+      makeSale("C002", "2024-03-15", 500),
+      makeSale("C002", "2024-04-15", 500),
     ];
 
     const result = calcCustomerMigration(sales);
-    expect(result.summaries).toHaveLength(1);
-    expect(result.summaries[0].churned).toBeGreaterThanOrEqual(1);
+    expect(result.summaries.length).toBeGreaterThanOrEqual(3); // 1→2, 2→3, 3→4
+    // 마지막 transition (3→4)에서 C001이 churn으로 잡힘
+    const lastSummary = result.summaries[result.summaries.length - 1];
+    expect(lastSummary.churned).toBeGreaterThanOrEqual(1);
+  });
+
+  it("B2B 보정: 1개월 공백은 이전 등급 유지 (not churn)", () => {
+    const sales = [
+      makeSale("C001", "2024-01-15", 1000),
+      // C001: 2월 공백 (1개월만)
+      makeSale("C001", "2024-03-15", 1000),
+      makeSale("C002", "2024-01-15", 500),
+      makeSale("C002", "2024-02-15", 500),
+      makeSale("C002", "2024-03-15", 500),
+    ];
+
+    const result = calcCustomerMigration(sales);
+    // 1→2 transition: C001은 1개월 공백이므로 등급 유지 → churn=0
+    const firstTransition = result.summaries[0];
+    expect(firstTransition.churned).toBe(0);
+  });
+
+  it("B2B 보정: 2개월 공백도 이전 등급 유지 (not churn)", () => {
+    const sales = [
+      makeSale("C001", "2024-01-15", 1000),
+      // C001: 2/3월 연속 공백 (2개월) — 4월 재개 시점에서 보면 churn 아님
+      makeSale("C001", "2024-04-15", 1000),
+      makeSale("C002", "2024-01-15", 500),
+      makeSale("C002", "2024-02-15", 500),
+      makeSale("C002", "2024-03-15", 500),
+      makeSale("C002", "2024-04-15", 500),
+    ];
+
+    const result = calcCustomerMigration(sales);
+    // 모든 transition에서 C001 churn 미감지 (consecutiveZero<3 유지)
+    for (const summary of result.summaries) {
+      expect(summary.churned).toBe(0);
+    }
+  });
+
+  it("B2B 보정: 3개월 연속 공백 시 N으로 전환 (churn 감지)", () => {
+    const sales = [
+      makeSale("C001", "2024-01-15", 1000),
+      // C001: 2/3/4월 연속 공백 (3개월) → 4월에 N 전환
+      makeSale("C002", "2024-01-15", 500),
+      makeSale("C002", "2024-02-15", 500),
+      makeSale("C002", "2024-03-15", 500),
+      makeSale("C002", "2024-04-15", 500),
+    ];
+
+    const result = calcCustomerMigration(sales);
+    // 3→4 transition에서 C001이 처음으로 N으로 전환 → churn 감지
+    const lastSummary = result.summaries[result.summaries.length - 1];
+    expect(lastSummary.churned).toBeGreaterThanOrEqual(1);
   });
 
   it("detects new customers (N → active)", () => {
