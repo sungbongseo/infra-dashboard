@@ -841,7 +841,13 @@ function parseSheetData(
         warnings.push(`거래처별품목별손익: 매출연월 ${filledCount}건 forward fill 적용 (SAP 반복값 생략 패턴)`);
       }
       if (stillEmpty > 0) {
-        warnings.push(`거래처별품목별손익: 매출연월 ${stillEmpty}건 채우기 실패 — 기간 분석에서 제외됨`);
+        // Phase A-5 M-03: 첫 그룹의 매출연월이 빈 값이면 forward fill 불가
+        // → 사용자에게 명확한 경고 + 영향 거래처 수 표시
+        warnings.push(
+          `🚨 거래처별품목별손익: 매출연월 ${stillEmpty}건 채우기 실패 ` +
+          `— 기간 필터(filterByDateRange) 시 제외되어 매출/손익 누락 발생. ` +
+          `시트 첫 행에 매출연월이 비어있는지 확인 필요`
+        );
       }
       skippedRows = r.skipped;
       break;
@@ -940,9 +946,18 @@ function parseSheetData(
           if (nextItemOrig === "" && nextUnit === "KG" && curUnit !== "KG") {
             // KG 행 기반으로 병합 — 숫자 필드는 KG 우선, 0이면 non-KG 보충
             const merged = { ...next };
-            // 텍스트 필드: cur(non-KG)에서 보충
+            // 텍스트 필드: cur(non-KG)에서 보충 (Phase A-5 M-02: 카테고리 필드 추가)
             if (!merged.품목 || merged.품목.trim() === "") merged.품목 = cur.품목;
             if (!merged.품목계정그룹 || merged.품목계정그룹.trim() === "") merged.품목계정그룹 = cur.품목계정그룹;
+            // 카테고리 필드 보충 (KG 행이 카테고리 비어있을 수 있음)
+            const textKeys = ["대분류", "중분류", "소분류", "판매사업부", "영업조직팀"] as const;
+            for (const key of textKeys) {
+              const mergedVal = String((merged as any)[key] || "").trim();
+              const curVal = String((cur as any)[key] || "").trim();
+              if (mergedVal === "" && curVal !== "") {
+                (merged as any)[key] = (cur as any)[key];
+              }
+            }
             // 핵심 수치: KG 값이 0이면 non-KG 값 사용
             const numericKeys = ["매출수량", "매출액", "매출총이익", "영업이익", "실적매출원가",
               "매출단가", "표준매출원가", "매출원가율", "매출총이익율", "영업이익율",
@@ -1033,6 +1048,7 @@ function parseSheetData(
     }
     case "inventoryMovement": {
       const factory = getFactoryName(fileName);
+      // Phase A-5 M-04: filterEmptyFirstCol=false 명시 (No 컬럼이 비어도 데이터 행 보존)
       const rIM = safeParseRows<InventoryMovementRecord>(rawData, 1, (row) => ({
         factory,
         no: num(row[0]),
@@ -1052,7 +1068,7 @@ function parseSheetData(
         입고: num(row[14]),
         출고: num(row[15]),
         기말: num(row[16]),
-      }), warnings, "품목별수불현황");
+      }), warnings, "품목별수불현황", false);
       parsed = rIM.parsed;
       skippedRows = rIM.skipped;
       break;

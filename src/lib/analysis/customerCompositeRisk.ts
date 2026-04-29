@@ -29,6 +29,7 @@
 
 import type { ReceivableAgingRecord, CustomerItemDetailRecord } from "@/types";
 import { safeDivide } from "@/lib/utils";
+import { buildCustomerMasterMap, lookupCustomerCode } from "@/lib/excel/customerMasterMap";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -506,51 +507,53 @@ export function calcCustomerCompositeRisks(
   // 2. 거래처별 손익 그룹화
   const customerSales = groupByCustomer(customerItemDetail);
 
-  // 3. 모든 거래처 코드 통합 (미수 + 100)
+  // 3. 거래처 마스터 매핑 빌드 (Phase A-1: customerMasterMap 모듈 활용)
+  //    - aging의 [판매처코드, 판매처명] 으로 양방향 매핑 빌드
+  //    - 안전 fuzzy 매칭 (4자+ prefix/suffix 일치)
+  const masterMap = buildCustomerMasterMap(agingMap);
+
+  // 4. 모든 거래처 코드 통합 (미수 + 100)
   const allCustomerCodes = new Set<string>();
   for (const k of Array.from(mergedAging.keys())) allCustomerCodes.add(k);
 
-  // 100 데이터의 매출거래처는 코드일 수도 이름일 수도 있음 — 이름으로 보이면 fuzzy 매칭 시도
-  const customerNameToCode = new Map<string, string>();
-  for (const [code, m] of Array.from(mergedAging.entries())) {
-    if (m.판매처명) customerNameToCode.set(m.판매처명, code);
+  // 100 데이터 키를 마스터 lookup으로 코드로 정규화 후 Set에 추가 (중복 방지)
+  // 정확 매칭 → 정규화 매칭 → 안전 fuzzy 4단계
+  const salesKeyToCode = new Map<string, string>();
+  for (const k of Array.from(customerSales.keys())) {
+    const normalizedCode = lookupCustomerCode(k, masterMap);
+    if (normalizedCode) {
+      salesKeyToCode.set(k, normalizedCode);
+      allCustomerCodes.add(normalizedCode);
+    } else {
+      // aging에 없는 100-only 거래처 — 원본 키 그대로
+      allCustomerCodes.add(k);
+    }
   }
 
-  // 100 데이터 키를 aging 코드로 정규화한 후 Set에 추가 (중복 방지)
-  for (const k of Array.from(customerSales.keys())) {
-    // 1) 정확 매칭: 100의 키가 aging 판매처명과 정확히 일치
-    let normalized = customerNameToCode.get(k);
+  // 5. 각 거래처별 점수 계산
+  const results: CustomerCompositeRisk[] = [];
 
-    // 2) 부분 일치 fallback: "대성이앤씨" ↔ "대성이앤씨 주식회사"
-    if (!normalized) {
-      for (const m of Array.from(mergedAging.values())) {
-        if (m.판매처명 && (k.includes(m.판매처명) || m.판매처명.includes(k))) {
-          normalized = m.판매처;
-          customerNameToCode.set(k, normalized); // 캐시 (개별 매칭 단계에서도 재사용)
+  for (const code of Array.from(allCustomerCodes)) {
+    // 미수 매칭
+    const aging = mergedAging.get(code);
+
+    // 손익 매칭 (이미 정규화된 salesKeyToCode 활용)
+    let salesRecords = customerSales.get(code);
+    if (!salesRecords) {
+      // code는 aging 판매처코드 → 100 데이터의 거래처명으로 reverse lookup
+      for (const [salesKey, mappedCode] of Array.from(salesKeyToCode.entries())) {
+        if (mappedCode === code) {
+          salesRecords = customerSales.get(salesKey);
           break;
         }
       }
     }
-
-    // 정규화 가능하면 코드를, 아니면 원본 키를 추가 (aging에 없는 100-only 거래처)
-    allCustomerCodes.add(normalized || k);
-  }
-
-  // 4. 각 거래처별 점수 계산
-  const results: CustomerCompositeRisk[] = [];
-
-  for (const code of Array.from(allCustomerCodes)) {
-    // 미수 매칭 (코드 우선, 이름으로도 fallback)
-    const aging = mergedAging.get(code)
-      || (customerNameToCode.get(code) ? mergedAging.get(customerNameToCode.get(code)!) : undefined);
-
-    // 손익 매칭 (100 데이터의 매출거래처 = aging의 판매처명일 가능성)
-    let salesRecords = customerSales.get(code);
     if (!salesRecords && aging?.판매처명) {
+      // 마지막 fallback: 판매처명 직접 lookup (정규화 캐시 못 잡은 케이스)
       salesRecords = customerSales.get(aging.판매처명);
     }
     if (!salesRecords && aging) {
-      // 부분 일치 시도 (대성이앤씨 ↔ 대성이앤씨 주식회사)
+      // 최후 부분 일치 (lookupCustomerCode에서 이미 처리되지만 안전 보장)
       for (const [salesKey, recs] of Array.from(customerSales.entries())) {
         if (salesKey.includes(aging.판매처명) || aging.판매처명.includes(salesKey)) {
           salesRecords = recs;
