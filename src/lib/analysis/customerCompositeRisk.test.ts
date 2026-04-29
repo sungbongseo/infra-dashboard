@@ -239,6 +239,94 @@ describe("여러 사무소 분산 거래처 통합", () => {
   });
 });
 
+// ─── 거래처 코드 정규화 + Dedup 테스트 (이슈 1 회귀 방지) ──
+
+describe("거래처 코드 정규화 + Dedup", () => {
+  it("aging에만 있는 거래처 → 1건", () => {
+    const agingMap = new Map([
+      ["건자재", [aging("C100002775", "리본TS", 138_828_895, 64_016_960, 200_000_000)]],
+    ]);
+    const result = calcCustomerCompositeRisks({
+      agingMap,
+      customerItemDetail: [],
+    });
+    const ribbons = result.filter(r => r.거래처명 === "리본TS");
+    expect(ribbons).toHaveLength(1);
+  });
+
+  it("100 손익에만 있는 거래처 → 1건 (aging 없음)", () => {
+    const customerItemDetail: CustomerItemDetailRecord[] = [
+      rec("신규거래처", "신규거래처", "P001", "테스트품목", "202512", 50_000_000, 5_000_000),
+    ];
+    const result = calcCustomerCompositeRisks({
+      agingMap: new Map(),
+      customerItemDetail,
+    });
+    const news = result.filter(r => r.거래처명 === "신규거래처");
+    expect(news).toHaveLength(1);
+    expect(news[0].metrics.totalReceivable).toBe(0); // aging 없음
+  });
+
+  it("코드(aging) + 이름(100) 동시 등장 시 1건으로 dedup (리본TS 케이스)", () => {
+    // aging 키 = 코드 "C100002775"
+    const agingMap = new Map([
+      ["건자재", [aging("C100002775", "리본TS", 138_828_895, 64_016_960, 200_000_000)]],
+    ]);
+    // 100 데이터의 매출거래처 = 이름 "리본TS"
+    const customerItemDetail: CustomerItemDetailRecord[] = [
+      rec("리본TS", "리본TS", "P001", "KP-NT 우레탄", "202511", 48_720_000, 50_000),
+      rec("리본TS", "리본TS", "P001", "KP-NT 우레탄", "202512", 6_130_000, 100_000),
+    ];
+
+    const result = calcCustomerCompositeRisks({ agingMap, customerItemDetail });
+
+    // dedup 검증: 리본TS 1건만
+    const ribbons = result.filter(r => r.거래처명 === "리본TS" || r.거래처코드 === "C100002775");
+    expect(ribbons).toHaveLength(1);
+    expect(ribbons[0].거래처코드).toBe("C100002775"); // aging 코드 우선
+    expect(ribbons[0].metrics.totalReceivable).toBe(138_828_895);
+    expect(ribbons[0].metrics.totalProfit13M).toBeGreaterThan(0); // 흑자 합계
+  });
+
+  it("부분 일치 거래처 (대성이앤씨 vs 대성이앤씨 주식회사) → 1건", () => {
+    // aging 판매처명 = "대성이앤씨 주식회사"
+    const agingMap = new Map([
+      ["건자재", [aging("C100002940", "대성이앤씨 주식회사", 571_000_000, 13_680_000, 600_000_000)]],
+    ]);
+    // 100 데이터 매출거래처 = "대성이앤씨" (단축형)
+    const customerItemDetail: CustomerItemDetailRecord[] = [
+      rec("대성이앤씨", "대성이앤씨", "P001", "Black Top Seal", "202511", 100_000_000, -3_000_000),
+    ];
+
+    const result = calcCustomerCompositeRisks({ agingMap, customerItemDetail });
+
+    // 부분 일치로 1건만
+    const daesungs = result.filter(r => r.거래처명.includes("대성"));
+    expect(daesungs).toHaveLength(1);
+    expect(daesungs[0].metrics.totalReceivable).toBe(571_000_000);
+    expect(daesungs[0].metrics.totalProfit13M).toBe(-3_000_000); // 100 데이터 매칭됨
+  });
+
+  it("같은 코드에 multiple aging 행 (일성: 김승욱 + 이승현) → 1건 합산", () => {
+    // 같은 사무소(건자재) 안에 같은 코드 2행 (다른 담당자)
+    const agingMap = new Map([
+      ["건자재", [
+        aging("C100015638", "일성", 180_093_015, 93_212_265, 220_000_000, "건자재팀", "김승욱"),
+        aging("C100015638", "일성", 0, 0, 0, "건자재팀", "이승현"), // 빈 담당자 행
+      ]],
+    ]);
+    const result = calcCustomerCompositeRisks({
+      agingMap,
+      customerItemDetail: [],
+    });
+    const ilseongs = result.filter(r => r.거래처명 === "일성");
+    expect(ilseongs).toHaveLength(1);
+    // mergeAgingByCustomer가 같은 코드를 합산
+    expect(ilseongs[0].metrics.totalReceivable).toBe(180_093_015);
+    expect(ilseongs[0].metrics.creditLimit).toBe(220_000_000); // 첫 행 한도 + 두 번째 0
+  });
+});
+
 // ─── 점수 임계 테스트 ──────────────────────────────
 
 describe("rankTopRiskCustomers", () => {

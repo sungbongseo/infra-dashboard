@@ -17,7 +17,7 @@ import openpyxl
 from collections import defaultdict
 from itertools import combinations
 
-DATA_DIR = "기타/업로드자료"
+DATA_DIR = "업로드자료"  # 대시보드와 동일 truth (이전 "기타/업로드자료"는 archive)
 
 # ─── 1. 미수채권 통합 ────────────────────────────
 print("=" * 80)

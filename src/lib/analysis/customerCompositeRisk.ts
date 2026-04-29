@@ -516,8 +516,25 @@ export function calcCustomerCompositeRisks(
     if (m.판매처명) customerNameToCode.set(m.판매처명, code);
   }
 
-  // 100 데이터에서 거래처 키 추출 (이름 또는 코드)
-  for (const k of Array.from(customerSales.keys())) allCustomerCodes.add(k);
+  // 100 데이터 키를 aging 코드로 정규화한 후 Set에 추가 (중복 방지)
+  for (const k of Array.from(customerSales.keys())) {
+    // 1) 정확 매칭: 100의 키가 aging 판매처명과 정확히 일치
+    let normalized = customerNameToCode.get(k);
+
+    // 2) 부분 일치 fallback: "대성이앤씨" ↔ "대성이앤씨 주식회사"
+    if (!normalized) {
+      for (const m of Array.from(mergedAging.values())) {
+        if (m.판매처명 && (k.includes(m.판매처명) || m.판매처명.includes(k))) {
+          normalized = m.판매처;
+          customerNameToCode.set(k, normalized); // 캐시 (개별 매칭 단계에서도 재사용)
+          break;
+        }
+      }
+    }
+
+    // 정규화 가능하면 코드를, 아니면 원본 키를 추가 (aging에 없는 100-only 거래처)
+    allCustomerCodes.add(normalized || k);
+  }
 
   // 4. 각 거래처별 점수 계산
   const results: CustomerCompositeRisk[] = [];

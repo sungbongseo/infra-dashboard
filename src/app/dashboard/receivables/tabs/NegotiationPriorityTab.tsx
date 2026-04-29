@@ -125,13 +125,15 @@ function CustomerRiskCard({
           </div>
         </div>
         <div className="bg-background/40 rounded p-1.5">
-          <div className="text-[10px] text-muted-foreground">13M 적자</div>
+          <div className="text-[10px] text-muted-foreground">
+            {m.totalProfit13M < 0 ? "13M 적자" : "13M 영업이익"}
+          </div>
           <div className={`font-mono font-semibold ${m.totalProfit13M < 0 ? "text-red-600 dark:text-red-400" : "text-green-600"}`}>
-            {m.totalProfit13M >= 0 ? "+" : ""}{formatCurrency(m.totalProfit13M)}
+            {formatCurrency(m.totalProfit13M)}
           </div>
         </div>
         <div className="bg-background/40 rounded p-1.5">
-          <div className="text-[10px] text-muted-foreground">장기연체</div>
+          <div className="text-[10px] text-muted-foreground">장기연체 (6M+)</div>
           <div className={`font-mono font-semibold ${m.longOverdueRatio >= 0.3 ? "text-red-600 dark:text-red-400" : ""}`}>
             {formatCurrency(m.longOverdueAmount)} ({(m.longOverdueRatio * 100).toFixed(0)}%)
           </div>
