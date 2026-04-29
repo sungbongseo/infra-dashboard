@@ -148,7 +148,8 @@ function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
   warnings?: string[],
   fileType?: string
 ): T[] {
-  // 1차: 순방향 fill-down (기존 로직)
+  // 1차: 순방향 fill-down (위→아래)
+  let firstPassFilled = 0;
   let currentOrg = "";
   for (const rec of records) {
     const org = rec.영업조직팀.trim();
@@ -156,10 +157,15 @@ function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
       currentOrg = org;
     } else if (org === "" && currentOrg !== "") {
       rec.영업조직팀 = currentOrg;
+      firstPassFilled++;
     }
   }
 
-  // 2차: 역방향 fill-down (역순 병합 대응) — 소계 경계에서 중단
+  // 2차: 역방향 fill-down (Phase A-3 C-04: cross-section 안전성 강화)
+  //   - 소계 경계에서 currentOrg 리셋 (기존 동작)
+  //   - 추가: 빈 행 *바로 위*가 소계면 채우기 거부 (다른 섹션 소속 가능성)
+  let secondPassFilled = 0;
+  let secondPassSkippedAtBoundary = 0;
   currentOrg = "";
   for (let i = records.length - 1; i >= 0; i--) {
     const rec = records[i];
@@ -167,15 +173,41 @@ function fillDownHierarchicalOrg<T extends { 영업조직팀: string }>(
     if (org !== "" && !isTotalRow(org)) {
       currentOrg = org;
     } else if (isTotalRow(org)) {
-      // 소계행을 만나면 역방향 전파 중단 (조직 경계)
-      currentOrg = "";
+      currentOrg = ""; // 섹션 경계
     } else if (org === "" && currentOrg !== "") {
-      rec.영업조직팀 = currentOrg;
+      // Cross-section 위험 검사: 이 빈 행 바로 위(첫 비어있지 않은 행)가 소계인가?
+      let prevNonEmptyIsTotal = false;
+      for (let j = i - 1; j >= 0; j--) {
+        const upper = records[j].영업조직팀.trim();
+        if (upper !== "") {
+          prevNonEmptyIsTotal = isTotalRow(upper);
+          break;
+        }
+      }
+      if (prevNonEmptyIsTotal) {
+        // 위가 소계 → 이 빈 행은 다른 섹션 소속 가능성 → 채우기 거부 (데이터 무결성 보호)
+        secondPassSkippedAtBoundary++;
+      } else {
+        rec.영업조직팀 = currentOrg;
+        secondPassFilled++;
+      }
     }
   }
 
-  // 빈 조직명 검증 (fill-down 후에도 빈 값이 있으면 경고)
+  // Phase A-3 C-04: fill-down 통계 + 안전 거부 카운트 warning
   if (warnings && fileType) {
+    if (secondPassFilled > 0) {
+      warnings.push(
+        `[${fileType}] 영업조직팀 역방향 fill-down 적용 ${secondPassFilled}건 ` +
+        `(순방향에서 채우지 못한 빈 행 — 데이터 검증 권장)`
+      );
+    }
+    if (secondPassSkippedAtBoundary > 0) {
+      warnings.push(
+        `[${fileType}] 🚨 영업조직팀 ${secondPassSkippedAtBoundary}건 cross-section 경계에서 채우기 거부 ` +
+        `(소계 행 직후 빈 행 → 다른 섹션 소속 가능성, 데이터 무결성 보호)`
+      );
+    }
     validateOrgField(records, "영업조직팀", warnings, fileType);
   }
 
@@ -381,7 +413,60 @@ function parseItemProfitabilityRow(row: unknown[]): ItemProfitabilityRecord {
   };
 }
 
+/**
+ * Aging 합계 컬럼 위치 동적 인식 (Phase A-2, C-03 해결).
+ *
+ * Aging 보고서의 합계 영역(col 27-29)은 sub-header 순서가 가변적일 수 있음:
+ *   - 케이스 A: (출고금액, 거래금액, 장부금액) → col 27/28/29
+ *   - 케이스 B: (출고금액, 장부금액, 거래금액) → col 27/28/29 (다른 순서)
+ *
+ * row 1 (sub-header)을 검사하여 실제 매핑을 결정.
+ * 인식 실패 시 기존 default (27=출고/28=거래/29=장부) fallback + warning.
+ */
+function detectAgingSummaryColumns(
+  headerRow1: unknown[],
+  warnings: string[],
+): { shipCol: number; ledgerCol: number; txnCol: number } {
+  const candidateCols = [27, 28, 29];
+  // 기존 default (대다수 보고서에서 검증됨)
+  const defaults = { shipCol: 27, ledgerCol: 29, txnCol: 28 };
+
+  if (!headerRow1 || headerRow1.length < 30) {
+    return defaults;
+  }
+
+  const detected = { shipCol: -1, ledgerCol: -1, txnCol: -1 };
+  for (const col of candidateCols) {
+    const label = String(headerRow1[col] || "").trim();
+    if (label.includes("출고")) detected.shipCol = col;
+    else if (label.includes("장부")) detected.ledgerCol = col;
+    else if (label.includes("거래")) detected.txnCol = col;
+  }
+
+  // 3개 모두 인식 시 동적 매핑, 아니면 default
+  if (detected.shipCol >= 0 && detected.ledgerCol >= 0 && detected.txnCol >= 0) {
+    if (
+      detected.shipCol !== defaults.shipCol ||
+      detected.ledgerCol !== defaults.ledgerCol ||
+      detected.txnCol !== defaults.txnCol
+    ) {
+      warnings.push(
+        `[receivableAging] 합계 sub-header 순서 변경 감지 (출고=${detected.shipCol}, 장부=${detected.ledgerCol}, 거래=${detected.txnCol}) — 동적 매핑 적용`
+      );
+    }
+    return detected;
+  }
+
+  warnings.push(
+    `[receivableAging] 합계 sub-header 텍스트 인식 실패 (col 27-29: ${candidateCols.map(c => headerRow1[c]).join(" / ")}) — 기존 default(출고=27/거래=28/장부=29) 적용`
+  );
+  return defaults;
+}
+
 function parseReceivableAging(data: unknown[][], warnings: string[]): ReceivableAgingRecord[] {
+  // Phase A-2 C-03: 합계 sub-header 동적 인식 (row 1 검사)
+  const summaryCols = detectAgingSummaryColumns(data[1] || [], warnings);
+
   const { parsed } = safeParseRows<ReceivableAgingRecord>(
     data, 2,
     (row) => {
@@ -405,11 +490,11 @@ function parseReceivableAging(data: unknown[][], warnings: string[]): Receivable
         month5: parseAgingAmounts(row, 18),
         month6: parseAgingAmounts(row, 21),
         overdue: parseAgingAmounts(row, 24),
-        // 합계 구간은 sub-header 순서가 다름: 출고금액, 거래금액, 장부금액
+        // Phase A-2 C-03: detectAgingSummaryColumns 동적 매핑 사용
         합계: {
-          출고금액: num(row[27]),
-          장부금액: num(row[29]),
-          거래금액: num(row[28]),
+          출고금액: num(row[summaryCols.shipCol]),
+          장부금액: num(row[summaryCols.ledgerCol]),
+          거래금액: num(row[summaryCols.txnCol]),
         },
         여신한도: num(row[30]),
       };
