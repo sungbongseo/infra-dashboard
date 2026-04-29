@@ -411,7 +411,8 @@ describe("offsetEffect", () => {
       const steps = calcWaterfallSteps(sim);
       expect(steps).toHaveLength(4);
       expect(steps[0].name).toBe("기존 영업이익");
-      expect(steps[1].name).toMatch(/단가 효과/);
+      // 라벨 호환: "단가 효과" (legacy) 또는 "가격 효과" (현재) 둘 다 매칭
+      expect(steps[1].name).toMatch(/(단가|가격) 효과/);
       expect(steps[2].name).toMatch(/물량 효과/);
       expect(steps[3].name).toBe("최종 영업이익");
     });
