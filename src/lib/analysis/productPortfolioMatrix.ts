@@ -48,6 +48,8 @@ export interface BCGMatrixEntry {
   isPareto80: boolean;    // 매출 누적 80% 이내?
   /** 원가 0원 + 매출>0 + 마진 90%+ → 회계 미계상 의심 */
   hasMissingCost: boolean;
+  /** 매출원가 < 0 → 회계 분개 누적 (환입/조정) — 매출총이익율 100% 초과 발생 */
+  hasNegativeCost: boolean;
 
   // 메타
   monthCount: number;     // 거래월 수 (Dynamic 적용 가능 여부)
@@ -102,6 +104,7 @@ export interface PortfolioMatrixResult {
     arithmeticMarginExOutlier: number; // outlier 제외 산술 평균
     outlierCount: number;              // 전체 |마진|>100% 품목 수
     missingCostCount: number;          // 원가 미계상 품목 수 (마진 90%+ + 원가 0)
+    negativeCostCount: number;         // 음수 원가 품목 수 (환입/조정 누적)
     excludedZeroSales: number;   // 제외된 0 매출 행 수
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
@@ -331,7 +334,9 @@ export function calcPortfolioMatrix(
 
       // 회계 미계상 의심: 매출>0, 원가=0, 마진율 90%+ (실측 4건 모두 해당)
       const hasMissingCost = agg.totalCost === 0 && sales > 0 && marginRate >= 90;
-      // 매출총이익 계산 (= 매출 - 매출원가). 음수 가능 (원가 > 매출)
+      // 음수 원가 (회계 분개 누적) — 환입/조정으로 net 음수 → 매출총이익율 >100%
+      const hasNegativeCost = agg.totalCost < 0;
+      // 매출총이익 계산 (= 매출 - 매출원가). 원가 음수 시 매출총이익 > 매출 가능
       const grossProfit = sales - agg.totalCost;
       const grossMarginRate = safeDivide(grossProfit, sales) * 100;
 
@@ -342,6 +347,7 @@ export function calcPortfolioMatrix(
         quadrant: "dog", // 임시 — 임계 산출 후 재분류
         isPareto80: false,
         hasMissingCost,
+        hasNegativeCost,
         monthCount,
         prevSales, prevProfit, prevMargin, currSales, currProfit, currMargin,
         trendDirection,
@@ -419,6 +425,7 @@ export function calcPortfolioMatrix(
   let overallExOutlierCount = 0;
   let overallOutlierCount = 0;
   let overallMissingCost = 0;
+  let overallNegativeCost = 0;
   for (const m of Object.values(matrices)) {
     overallSales += m.totalSales;
     overallProfit += m.totalProfit;
@@ -432,6 +439,7 @@ export function calcPortfolioMatrix(
         overallOutlierCount++;
       }
       if (e.hasMissingCost) overallMissingCost++;
+      if (e.hasNegativeCost) overallNegativeCost++;
     }
   }
 
@@ -445,6 +453,7 @@ export function calcPortfolioMatrix(
       arithmeticMarginExOutlier: overallExOutlierCount > 0 ? overallExOutlierSum / overallExOutlierCount : 0,
       outlierCount: overallOutlierCount,
       missingCostCount: overallMissingCost,
+      negativeCostCount: overallNegativeCost,
       excludedZeroSales,
       excludedReturns,
       insufficientDataItems,

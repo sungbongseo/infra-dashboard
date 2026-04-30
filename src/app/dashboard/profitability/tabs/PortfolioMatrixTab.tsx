@@ -150,7 +150,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                   )}
                   {overallSummary.missingCostCount > 0 && (
                     <div className="text-red-700 dark:text-red-400">
-                      🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요. 차트 hover 시 품목명/원가 확인 가능
+                      🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요
+                    </div>
+                  )}
+                  {overallSummary.negativeCostCount > 0 && (
+                    <div className="text-red-700 dark:text-red-400">
+                      🚨 <strong>음수 원가 {overallSummary.negativeCostCount}건</strong> (환입·조정 분개 누적 결과 — 매출총이익율 100% 초과 발생) — 회계팀 확인 필요. hover 시 상세
                     </div>
                   )}
                 </div>
@@ -272,12 +277,21 @@ function PortfolioTooltip({ active, payload }: any) {
       )}
 
       {/* 데이터 품질 warning */}
+      {d.hasNegativeCost && (
+        <div className="pt-1 border-t border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/40 rounded -mx-1 px-2 py-1 text-[10px] text-red-800 dark:text-red-300 space-y-0.5">
+          <div>🚨 <strong>매출원가 음수</strong> ({formatCurrency(d.cost)}) — 회계 분개 누적 결과</div>
+          <div className="text-[9px] opacity-80">
+            기간/조직 필터 적용 시 환입·조정 분개가 출고 원가를 초과한 경우.
+            매출총이익율 100% 초과 (={safeFixed(d.grossMarginRate, 1)}%) — 정상 비즈니스 마진 ❌. 회계팀 확인 필요
+          </div>
+        </div>
+      )}
       {d.hasMissingCost && (
         <div className="pt-1 border-t border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 rounded -mx-1 px-2 py-1 text-[10px] text-amber-800 dark:text-amber-300">
           🚨 <strong>원가 미계상 가능성</strong> — 매출 있고 원가 0원 + 마진 90%+. 회계 시스템 확인 필요
         </div>
       )}
-      {d.isOutlier && !d.hasMissingCost && (
+      {d.isOutlier && !d.hasMissingCost && !d.hasNegativeCost && (
         <div className="pt-1 border-t border-border/40 text-[10px] text-amber-700 dark:text-amber-400">
           ⚠ outlier — 매출 작거나 원가 변동 큰 품목. 의사결정 시 매출 가중 평균 우선
         </div>
@@ -324,6 +338,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       grossProfit: e.grossProfit,
       grossMarginRate: e.grossMarginRate,
       hasMissingCost: e.hasMissingCost,
+      hasNegativeCost: e.hasNegativeCost,
       operatingProfit: e.operatingProfit,
       monthCount: e.monthCount,
       trendDirection: e.trendDirection,
@@ -331,6 +346,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   });
   const outlierCount = chartData.filter(d => d.isOutlier).length;
   const missingCostCount = chartData.filter(d => d.hasMissingCost).length;
+  const negativeCostCount = chartData.filter(d => d.hasNegativeCost).length;
 
   return (
     <div
@@ -427,6 +443,12 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
           <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
             <Info className="h-3 w-3 shrink-0" />
             <span>🚨 원가 미계상 의심 {missingCostCount}건 (마진 90%+ + 원가 0원) — hover 시 품목 확인</span>
+          </div>
+        )}
+        {negativeCostCount > 0 && (
+          <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
+            <Info className="h-3 w-3 shrink-0" />
+            <span>🚨 음수 원가 {negativeCostCount}건 (환입·조정 분개 누적, 매출총이익율 100% 초과) — hover 시 상세</span>
           </div>
         )}
         {/* 사분면별 미니 통계 — hover 시 BCG 사분면 정의 표시 */}

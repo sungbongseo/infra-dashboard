@@ -308,6 +308,46 @@ describe("calcPortfolioMatrix — 사분면 통계", () => {
   });
 });
 
+describe("calcPortfolioMatrix — 음수 원가 식별 (hasNegativeCost)", () => {
+  it("매출원가 < 0 → hasNegativeCost=true + 매출총이익율 100% 초과", () => {
+    // 사용자 화면 케이스 시뮬: 매출 5,310,000 / 원가 -6,119,344 / 영업이익 9,765,048
+    const r = makeRec("제품", "일반매출", "P001", "음수원가품목", 5310000, 9765048);
+    r.실적매출원가 = { 계획: 0, 실적: -6119344, 차이: 0 };
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+
+    expect(e.hasNegativeCost).toBe(true);
+    expect(e.cost).toBe(-6119344);
+    // 매출총이익 = 매출 - 원가 = 5,310,000 - (-6,119,344) = 11,429,344
+    expect(e.grossProfit).toBe(11429344);
+    // 매출총이익율 = 11,429,344 / 5,310,000 × 100 = 215.24%
+    expect(e.grossMarginRate).toBeCloseTo(215.24, 1);
+    // 영업이익율 = 9,765,048 / 5,310,000 × 100 = 183.90%
+    expect(e.marginRate).toBeCloseTo(183.90, 1);
+    // outlier (|마진|>100%)
+    expect(Math.abs(e.marginRate) > 100).toBe(true);
+  });
+
+  it("정상 원가 (양수) → hasNegativeCost=false", () => {
+    const r = makeRec("제품", "일반매출", "P001", "정상", 10000, 1000);
+    const result = calcPortfolioMatrix([r]);
+    expect(result.matrices["내수×제품"].entries[0].hasNegativeCost).toBe(false);
+  });
+
+  it("overallSummary.negativeCostCount = 모든 segment 음수원가 합", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    const r1 = makeRec("제품", "일반매출", "P001", "음수1", 1000, 500);
+    r1.실적매출원가 = { 계획: 0, 실적: -200, 차이: 0 };
+    data.push(r1);
+    const r2 = makeRec("상품", "해외매출", "P002", "음수2", 5000, 3000);
+    r2.실적매출원가 = { 계획: 0, 실적: -100, 차이: 0 };
+    data.push(r2);
+
+    const result = calcPortfolioMatrix(data);
+    expect(result.overallSummary.negativeCostCount).toBe(2);
+  });
+});
+
 describe("calcPortfolioMatrix — 매출총이익 + 매출총이익율 명확화", () => {
   it("매출총이익 = 매출 - 매출원가, 매출총이익율 정확", () => {
     const r = makeRec("제품", "일반매출", "P001", "정상", 10000, 1000);
