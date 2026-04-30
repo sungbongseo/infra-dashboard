@@ -114,21 +114,29 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
               <KpiBox label="총 매출 (제품+상품)" value={formatCurrency(overallSummary.totalSales)} />
               <KpiBox label="총 영업이익" value={formatCurrency(overallSummary.totalProfit)}
                 positive={overallSummary.totalProfit >= 0} />
-              <KpiBox label="가중 마진" value={`${safeFixed(overallSummary.weightedMarginRate, 2)}%`}
-                tooltip="Σ영업이익 / Σ매출 — 정확한 전체 평균"
+              <KpiBox label="가중 마진 (정확)" value={`${safeFixed(overallSummary.weightedMarginRate, 2)}%`}
+                tooltip="Σ영업이익 / Σ매출 — 회사 진짜 평균. outlier 영향 X. (bcg_weighted_margin)"
                 highlight />
-              <KpiBox label="산술 평균 (참고)" value={`${safeFixed(overallSummary.arithmeticMarginRate, 2)}%`}
-                tooltip={`산술 평균 — 매출 작은 outlier 영향 받음 (가중 ${safeFixed(overallSummary.weightedMarginRate, 2)}%와 비교)`} />
+              <KpiBox label={`산술 평균 (outlier 제외)`}
+                value={`${safeFixed(overallSummary.arithmeticMarginExOutlier, 2)}%`}
+                tooltip={`outlier ${overallSummary.outlierCount}건 (|마진|>100%) 제외 산술. 원본 산술: ${safeFixed(overallSummary.arithmeticMarginRate, 2)}%. (bcg_arithmetic_margin)`} />
             </div>
 
             {/* 데이터 품질 정보 */}
-            {(overallSummary.excludedZeroSales > 0 || overallSummary.excludedReturns > 0 || overallSummary.insufficientDataItems > 0) && (
+            {(overallSummary.excludedZeroSales > 0 || overallSummary.excludedReturns > 0 || overallSummary.insufficientDataItems > 0 || overallSummary.outlierCount > 0) && (
               <div className="text-[11px] text-muted-foreground bg-muted/50 rounded p-2 flex items-start gap-1.5">
                 <Info className="h-3 w-3 mt-0.5 shrink-0" />
-                <div>
-                  {overallSummary.excludedZeroSales > 0 && <span>0 매출 {overallSummary.excludedZeroSales}건 제외 · </span>}
-                  {overallSummary.excludedReturns > 0 && <span>반품매출 {overallSummary.excludedReturns}건 제외 · </span>}
-                  {overallSummary.insufficientDataItems > 0 && <span>거래월 6개 미만 {overallSummary.insufficientDataItems}건 (Dynamic 화살표 미적용)</span>}
+                <div className="space-y-0.5">
+                  <div>
+                    {overallSummary.excludedZeroSales > 0 && <span>0 매출 {overallSummary.excludedZeroSales}건 제외 · </span>}
+                    {overallSummary.excludedReturns > 0 && <span>반품매출 {overallSummary.excludedReturns}건 제외 · </span>}
+                    {overallSummary.insufficientDataItems > 0 && <span>거래월 6개 미만 {overallSummary.insufficientDataItems}건 (Dynamic 미적용)</span>}
+                  </div>
+                  {overallSummary.outlierCount > 0 && (
+                    <div className="text-amber-700 dark:text-amber-400">
+                      ⚠ outlier {overallSummary.outlierCount}건 (|마진|&gt;100%, 매출 작은 품목) — 차트 Y축 [-50%, 100%] 클램핑됨, 실제 값은 hover 확인
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -197,13 +205,23 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   }
 
   // Recharts Scatter용 변환
-  const chartData = entries.map(e => ({
-    x: e.sales,
-    y: e.marginRate,
-    name: e.itemName,
-    quadrant: e.quadrant,
-    isPareto80: e.isPareto80,
-  }));
+  // Y축 클램핑 [-50, 100] — outlier 1% (|마진|>100%) 처리
+  const Y_MIN = -50;
+  const Y_MAX = 100;
+  const chartData = entries.map(e => {
+    const isOutlier = e.marginRate > Y_MAX || e.marginRate < Y_MIN;
+    return {
+      x: e.sales,
+      // 클램핑된 표시 값 (실제 marginRate는 별도)
+      y: Math.max(Y_MIN, Math.min(Y_MAX, e.marginRate)),
+      yActual: e.marginRate,
+      name: e.itemName,
+      quadrant: e.quadrant,
+      isPareto80: e.isPareto80,
+      isOutlier,
+    };
+  });
+  const outlierCount = chartData.filter(d => d.isOutlier).length;
 
   return (
     <div
@@ -224,30 +242,67 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             />
             <YAxis
               type="number" dataKey="y" name="마진율"
+              domain={[Y_MIN, Y_MAX]}
               tickFormatter={(v) => `${v.toFixed(0)}%`}
               tick={{ fontSize: 10 }}
-              label={{ value: "마진율 (%)", angle: -90, position: "insideLeft", fontSize: 11 }}
+              label={{ value: "마진율 (%) [-50~100]", angle: -90, position: "insideLeft", fontSize: 11 }}
             />
             <RechartsTooltip
               cursor={{ strokeDasharray: "3 3" }}
-              formatter={(v: any, n: any) => {
+              formatter={(v: any, n: any, p: any) => {
                 if (n === "x") return [formatCurrency(Number(v)), "매출"];
-                if (n === "y") return [`${safeFixed(Number(v), 1)}%`, "마진율"];
+                if (n === "y") {
+                  const actual = p?.payload?.yActual ?? Number(v);
+                  const isOL = p?.payload?.isOutlier;
+                  return [
+                    isOL ? `${safeFixed(actual, 1)}% ⚠ outlier` : `${safeFixed(actual, 1)}%`,
+                    "마진율",
+                  ];
+                }
                 return [v, n];
               }}
               labelFormatter={(_, p: any) => p?.[0]?.payload?.name || ""}
             />
             <ReferenceLine x={thresholds.salesThreshold} stroke="hsl(0,0%,50%)" strokeDasharray="3 3" />
             <ReferenceLine y={thresholds.marginThreshold} stroke="hsl(0,0%,50%)" strokeDasharray="3 3" />
-            <Scatter data={chartData} fill="hsl(221.2, 83.2%, 53.3%)">
-              {chartData.map((d, i) => (
-                <Cell
-                  key={i}
-                  fill={QUADRANT_COLORS[d.quadrant as Quadrant]}
-                  stroke={d.isPareto80 ? "hsl(0, 0%, 0%)" : "transparent"}
-                  strokeWidth={d.isPareto80 ? 1.5 : 0}
-                />
-              ))}
+            <Scatter
+              data={chartData}
+              fill="hsl(221.2, 83.2%, 53.3%)"
+              shape={(props: any) => {
+                // 사분면별 SVG 모양: Star=별 / Cash Cow=원 / Problem Child=다이아 / Dog=역삼각
+                const { cx, cy, payload } = props;
+                if (cx == null || cy == null) return <g />;
+                const q = payload.quadrant as Quadrant;
+                const isOL = payload.isOutlier;
+                const isPareto = payload.isPareto80;
+                const fill = QUADRANT_COLORS[q];
+                const stroke = isOL ? "hsl(0, 0%, 10%)" : (isPareto ? "hsl(0, 0%, 0%)" : "transparent");
+                const strokeWidth = isOL ? 2 : (isPareto ? 1.5 : 0);
+                const size = 5;
+                if (q === "star") {
+                  // 별 모양 (5각 별 path)
+                  const outer = 7;
+                  const inner = 3;
+                  const points: string[] = [];
+                  for (let i = 0; i < 10; i++) {
+                    const angle = (Math.PI / 5) * i - Math.PI / 2;
+                    const r = i % 2 === 0 ? outer : inner;
+                    points.push(`${cx + r * Math.cos(angle)},${cy + r * Math.sin(angle)}`);
+                  }
+                  return <polygon points={points.join(" ")} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+                }
+                if (q === "cash_cow") {
+                  return <circle cx={cx} cy={cy} r={size} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+                }
+                if (q === "problem_child") {
+                  // 다이아몬드 (회전 사각형)
+                  return <polygon points={`${cx},${cy - size - 1} ${cx + size + 1},${cy} ${cx},${cy + size + 1} ${cx - size - 1},${cy}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+                }
+                // dog → 역삼각형
+                return <polygon points={`${cx - size - 1},${cy - size + 1} ${cx + size + 1},${cy - size + 1} ${cx},${cy + size + 1}`} fill={fill} stroke={stroke} strokeWidth={strokeWidth} />;
+              }}
+            >
+              {/* shape 함수가 모양 + 색상 + outline 모두 처리하므로 Cell 미사용 */}
               <LabelList
                 dataKey="name"
                 position="top"
@@ -264,6 +319,13 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             </Scatter>
           </ScatterChart>
         </ChartContainer>
+        {/* outlier warning */}
+        {outlierCount > 0 && (
+          <div className="px-3 pb-1 text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
+            <Info className="h-3 w-3 shrink-0" />
+            <span>outlier {outlierCount}건 (|마진|&gt;{Y_MAX}% 또는 &lt;{Y_MIN}%) — 경계 라인에 표시 + 검은 outline. 실제 값은 hover 시 확인</span>
+          </div>
+        )}
         {/* 사분면별 미니 통계 */}
         <div className="grid grid-cols-4 gap-1 px-3 pb-2 text-[10px]">
           {(["star", "cash_cow", "problem_child", "dog"] as Quadrant[]).map(q => (

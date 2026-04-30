@@ -308,6 +308,45 @@ describe("calcPortfolioMatrix — 사분면 통계", () => {
   });
 });
 
+describe("calcPortfolioMatrix — Outlier 제외 산술 평균 (B-Improve-4)", () => {
+  it("|마진|>100% outlier 식별 + 제외 산술 평균 정확", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "정상1", 1000, 100),    // 10%
+      makeRec("제품", "일반매출", "P002", "정상2", 2000, 100),    // 5%
+      makeRec("제품", "일반매출", "P003", "정상3", 1500, 150),    // 10%
+      makeRec("제품", "일반매출", "P004", "outlier", 100, -3000), // -3000% (|>100%|)
+    ];
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    // outlier 제외 산술: (10 + 5 + 10) / 3 = 8.33%
+    expect(m.arithmeticMarginExOutlier).toBeCloseTo(8.33, 1);
+    expect(m.outlierCount).toBe(1);
+    // 원본 산술: outlier 포함 → 크게 왜곡
+    expect(m.arithmeticMarginRate).toBeLessThan(-500);
+  });
+
+  it("outlier 0건 시 원본 산술 = 제외 산술", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "정상1", 1000, 50),
+      makeRec("제품", "일반매출", "P002", "정상2", 2000, 100),
+    ];
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    expect(m.outlierCount).toBe(0);
+    expect(m.arithmeticMarginRate).toBeCloseTo(m.arithmeticMarginExOutlier, 5);
+  });
+
+  it("overallSummary.outlierCount = 모든 segment outlier 합", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "정상", 1000, 50),
+      makeRec("제품", "일반매출", "P002", "outlier1", 100, -300),  // -300%
+      makeRec("상품", "일반매출", "P003", "outlier2", 50, -200),   // -400%
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.overallSummary.outlierCount).toBe(2);
+  });
+});
+
 describe("getQuadrantKoreanName & Action (UI 헬퍼)", () => {
   it("4 사분면 한글 + 액션", () => {
     expect(getQuadrantKoreanName("star")).toContain("스타");

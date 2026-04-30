@@ -105,6 +105,7 @@ export interface MetricEntry {
 import { profitabilityMetrics } from "./glossary-profitability";
 import { salesMetrics } from "./glossary-sales";
 import { ordersMetrics } from "./glossary-orders";
+import { portfolioMetrics } from "./glossary-portfolio";
 
 /**
  * 전체 glossary. 카테고리 파일이 추가되면 이 객체에 spread로 병합.
@@ -114,6 +115,7 @@ export const GLOSSARY = {
   ...profitabilityMetrics,
   ...salesMetrics,
   ...ordersMetrics,
+  ...portfolioMetrics,  // BCG 매트릭스 13 엔트리 (Phase B-Improve-3)
 } as const satisfies Record<string, MetricEntry>;
 
 /** glossary 엔트리 키 유니온 — 타입 안전한 metricId 참조 */

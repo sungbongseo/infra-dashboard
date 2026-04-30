@@ -71,8 +71,10 @@ export interface SegmentMatrix {
   // 가중 통계
   totalSales: number;
   totalProfit: number;
-  weightedMarginRate: number;   // = totalProfit / totalSales
-  arithmeticMarginRate: number; // 비교용 (산술 평균)
+  weightedMarginRate: number;        // = totalProfit / totalSales (정확)
+  arithmeticMarginRate: number;      // 산술 평균 (outlier 영향 큼)
+  arithmeticMarginExOutlier: number; // outlier 제외 산술 (|마진|≤100%)
+  outlierCount: number;              // |마진|>100% 품목 수
 
   // 사분면별 요약
   quadrantStats: Record<Quadrant, QuadrantStats>;
@@ -92,11 +94,16 @@ export interface PortfolioMatrixResult {
     totalProfit: number;
     weightedMarginRate: number;
     arithmeticMarginRate: number;
+    arithmeticMarginExOutlier: number; // outlier 제외 산술 평균
+    outlierCount: number;              // 전체 |마진|>100% 품목 수
     excludedZeroSales: number;   // 제외된 0 매출 행 수
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
   };
 }
+
+/** Outlier 임계 — 산술 평균 계산 시 |마진| > 이 값 인 품목 제외 */
+export const OUTLIER_MARGIN_THRESHOLD = 100;
 
 export interface PortfolioMatrixOptions {
   /** X축 (매출) 임계 모드 */
@@ -330,6 +337,12 @@ export function calcPortfolioMatrix(
     const arithmeticMarginRate = segEntries.length > 0
       ? segEntries.reduce((s, e) => s + e.marginRate, 0) / segEntries.length
       : 0;
+    // outlier 제외 산술 평균 (|마진|≤100%)
+    const nonOutliers = segEntries.filter(e => Math.abs(e.marginRate) <= OUTLIER_MARGIN_THRESHOLD);
+    const arithmeticMarginExOutlier = nonOutliers.length > 0
+      ? nonOutliers.reduce((s, e) => s + e.marginRate, 0) / nonOutliers.length
+      : 0;
+    const outlierCount = segEntries.length - nonOutliers.length;
 
     const salesThreshold = computeSalesThreshold(segEntries, salesThresholdMode, weightedMarginRate);
     const marginThreshold = computeMarginThreshold(segEntries, marginThresholdMode, weightedMarginRate);
@@ -373,22 +386,32 @@ export function calcPortfolioMatrix(
       entries: segEntries,
       totalSales, totalProfit,
       weightedMarginRate, arithmeticMarginRate,
+      arithmeticMarginExOutlier, outlierCount,
       quadrantStats,
       thresholds: { salesThreshold, marginThreshold, salesP75 },
     };
   }
 
-  // 7. 전체 요약
+  // 7. 전체 요약 (outlier 제외 산술도 포함)
   let overallSales = 0;
   let overallProfit = 0;
   let overallArithmeticSum = 0;
   let overallEntryCount = 0;
+  let overallExOutlierSum = 0;
+  let overallExOutlierCount = 0;
+  let overallOutlierCount = 0;
   for (const m of Object.values(matrices)) {
     overallSales += m.totalSales;
     overallProfit += m.totalProfit;
     for (const e of m.entries) {
       overallArithmeticSum += e.marginRate;
       overallEntryCount++;
+      if (Math.abs(e.marginRate) <= OUTLIER_MARGIN_THRESHOLD) {
+        overallExOutlierSum += e.marginRate;
+        overallExOutlierCount++;
+      } else {
+        overallOutlierCount++;
+      }
     }
   }
 
@@ -399,6 +422,8 @@ export function calcPortfolioMatrix(
       totalProfit: overallProfit,
       weightedMarginRate: safeDivide(overallProfit, overallSales) * 100,
       arithmeticMarginRate: overallEntryCount > 0 ? overallArithmeticSum / overallEntryCount : 0,
+      arithmeticMarginExOutlier: overallExOutlierCount > 0 ? overallExOutlierSum / overallExOutlierCount : 0,
+      outlierCount: overallOutlierCount,
       excludedZeroSales,
       excludedReturns,
       insufficientDataItems,
