@@ -308,6 +308,53 @@ describe("calcPortfolioMatrix — 사분면 통계", () => {
   });
 });
 
+describe("calcPortfolioMatrix — 원가 미계상 식별 (hasMissingCost)", () => {
+  it("매출>0 + 원가=0 + 마진≥90% → hasMissingCost=true", () => {
+    const data = [
+      // 정상 품목: 원가 있음
+      makeRec("제품", "일반매출", "P001", "정상", 10000, 100),
+    ];
+    // 원가 미계상 품목 (rec.실적매출원가.실적 = 0이 default)
+    const missingRec = makeRec("제품", "일반매출", "P002", "미계상", 10000, 9500); // 마진 95%
+    missingRec.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    data.push(missingRec);
+
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    const missing = m.entries.find(e => e.itemCode === "P002");
+    expect(missing?.hasMissingCost).toBe(true);
+    expect(missing?.cost).toBe(0);
+
+    const normal = m.entries.find(e => e.itemCode === "P001");
+    // 정상 품목은 makeRec에서 cost = sales - profit = 10000 - 100 = 9900
+    expect(normal?.hasMissingCost).toBe(false);
+  });
+
+  it("마진 80% (90% 미만) + 원가 0 → hasMissingCost=false (판정 임계 미달)", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    const r = makeRec("제품", "일반매출", "P003", "80% 마진", 10000, 8000); // 80%
+    r.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    data.push(r);
+
+    const result = calcPortfolioMatrix(data);
+    const entry = result.matrices["내수×제품"].entries[0];
+    expect(entry.hasMissingCost).toBe(false);
+  });
+
+  it("overallSummary.missingCostCount = 모든 segment 합", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    const r1 = makeRec("제품", "일반매출", "P001", "미계상1", 10000, 9500);
+    r1.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    data.push(r1);
+    const r2 = makeRec("상품", "해외매출", "P002", "미계상2", 5000, 4800);
+    r2.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    data.push(r2);
+
+    const result = calcPortfolioMatrix(data);
+    expect(result.overallSummary.missingCostCount).toBe(2);
+  });
+});
+
 describe("calcPortfolioMatrix — Outlier 제외 산술 평균 (B-Improve-4)", () => {
   it("|마진|>100% outlier 식별 + 제외 산술 평균 정확", () => {
     const data = [

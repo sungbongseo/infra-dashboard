@@ -137,6 +137,11 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                       ⚠ outlier {overallSummary.outlierCount}건 (|마진|&gt;100%, 매출 작은 품목) — 차트 Y축 [-50%, 100%] 클램핑됨, 실제 값은 hover 확인
                     </div>
                   )}
+                  {overallSummary.missingCostCount > 0 && (
+                    <div className="text-red-700 dark:text-red-400">
+                      🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요. 차트 hover 시 품목명/원가 확인 가능
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -187,6 +192,76 @@ function KpiBox({ label, value, positive, highlight, tooltip }: {
   );
 }
 
+// ─── Custom Tooltip — hover 시 풍부한 품목 정보 표시 ─────
+
+function PortfolioTooltip({ active, payload }: any) {
+  if (!active || !payload || payload.length === 0) return null;
+  const d = payload[0]?.payload;
+  if (!d) return null;
+  const q = d.quadrant as Quadrant;
+  return (
+    <div className="bg-background/95 backdrop-blur-sm border rounded-md shadow-lg p-3 text-xs space-y-1.5 max-w-xs">
+      {/* 품목명 + 사분면 */}
+      <div className="flex items-start justify-between gap-2 pb-1.5 border-b border-border/40">
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-sm truncate" title={d.name}>{d.name || d.itemCode}</div>
+          {d.itemCode && d.itemCode !== d.name && (
+            <div className="text-[10px] text-muted-foreground font-mono">{d.itemCode}</div>
+          )}
+          {d.itemCategory && (
+            <div className="text-[10px] text-muted-foreground">📂 {d.itemCategory}</div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 shrink-0" style={{ color: QUADRANT_COLORS[q] }}>
+          {QUADRANT_ICONS[q]}
+          <span className="font-semibold text-[10px]">{getQuadrantKoreanName(q)}</span>
+        </div>
+      </div>
+
+      {/* 핵심 메트릭 */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+        <span className="text-muted-foreground">매출</span>
+        <span className="font-mono text-right">{formatCurrency(d.x)}</span>
+        <span className="text-muted-foreground">영업이익</span>
+        <span className={`font-mono text-right ${d.operatingProfit < 0 ? "text-red-600" : "text-green-600"}`}>
+          {formatCurrency(d.operatingProfit)}
+        </span>
+        <span className="text-muted-foreground">마진율</span>
+        <span className={`font-mono text-right font-semibold ${d.yActual < 0 ? "text-red-600" : "text-green-600"}`}>
+          {safeFixed(d.yActual, 2)}%
+          {d.isOutlier && <span className="ml-1 text-amber-600">⚠ outlier</span>}
+        </span>
+        <span className="text-muted-foreground">매출원가</span>
+        <span className="font-mono text-right">{formatCurrency(d.cost)}</span>
+        <span className="text-muted-foreground">거래월</span>
+        <span className="font-mono text-right">{d.monthCount}개월</span>
+      </div>
+
+      {/* 추세 + Pareto */}
+      {(d.trendDirection !== "insufficient_data" || d.isPareto80) && (
+        <div className="flex items-center gap-2 pt-1 border-t border-border/40 text-[10px]">
+          {d.trendDirection === "improving" && <span className="text-green-600">↗ 추세 개선</span>}
+          {d.trendDirection === "declining" && <span className="text-red-600">↘ 추세 악화</span>}
+          {d.trendDirection === "stable" && <span>→ 추세 안정</span>}
+          {d.isPareto80 && <span className="text-violet-600">⭐ Pareto Top 20% (매출 80% 차지)</span>}
+        </div>
+      )}
+
+      {/* 데이터 품질 warning */}
+      {d.hasMissingCost && (
+        <div className="pt-1 border-t border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 rounded -mx-1 px-2 py-1 text-[10px] text-amber-800 dark:text-amber-300">
+          🚨 <strong>원가 미계상 가능성</strong> — 매출 있고 원가 0원 + 마진 90%+. 회계 시스템 확인 필요
+        </div>
+      )}
+      {d.isOutlier && !d.hasMissingCost && (
+        <div className="pt-1 border-t border-border/40 text-[10px] text-amber-700 dark:text-amber-400">
+          ⚠ outlier — 매출 작거나 원가 변동 큰 품목. 의사결정 시 매출 가중 평균 우선
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   matrix: SegmentMatrix;
   isSelected: boolean;
@@ -216,12 +291,20 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       y: Math.max(Y_MIN, Math.min(Y_MAX, e.marginRate)),
       yActual: e.marginRate,
       name: e.itemName,
+      itemCode: e.itemCode,
+      itemCategory: e.category,
       quadrant: e.quadrant,
       isPareto80: e.isPareto80,
       isOutlier,
+      cost: e.cost,
+      hasMissingCost: e.hasMissingCost,
+      operatingProfit: e.operatingProfit,
+      monthCount: e.monthCount,
+      trendDirection: e.trendDirection,
     };
   });
   const outlierCount = chartData.filter(d => d.isOutlier).length;
+  const missingCostCount = chartData.filter(d => d.hasMissingCost).length;
 
   return (
     <div
@@ -249,19 +332,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             />
             <RechartsTooltip
               cursor={{ strokeDasharray: "3 3" }}
-              formatter={(v: any, n: any, p: any) => {
-                if (n === "x") return [formatCurrency(Number(v)), "매출"];
-                if (n === "y") {
-                  const actual = p?.payload?.yActual ?? Number(v);
-                  const isOL = p?.payload?.isOutlier;
-                  return [
-                    isOL ? `${safeFixed(actual, 1)}% ⚠ outlier` : `${safeFixed(actual, 1)}%`,
-                    "마진율",
-                  ];
-                }
-                return [v, n];
-              }}
-              labelFormatter={(_, p: any) => p?.[0]?.payload?.name || ""}
+              content={<PortfolioTooltip />}
             />
             <ReferenceLine x={thresholds.salesThreshold} stroke="hsl(0,0%,50%)" strokeDasharray="3 3" />
             <ReferenceLine y={thresholds.marginThreshold} stroke="hsl(0,0%,50%)" strokeDasharray="3 3" />
@@ -319,11 +390,17 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             </Scatter>
           </ScatterChart>
         </ChartContainer>
-        {/* outlier warning */}
+        {/* outlier + missing cost warning */}
         {outlierCount > 0 && (
           <div className="px-3 pb-1 text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
             <Info className="h-3 w-3 shrink-0" />
             <span>outlier {outlierCount}건 (|마진|&gt;{Y_MAX}% 또는 &lt;{Y_MIN}%) — 경계 라인에 표시 + 검은 outline. 실제 값은 hover 시 확인</span>
+          </div>
+        )}
+        {missingCostCount > 0 && (
+          <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
+            <Info className="h-3 w-3 shrink-0" />
+            <span>🚨 원가 미계상 의심 {missingCostCount}건 (마진 90%+ + 원가 0원) — hover 시 품목 확인</span>
           </div>
         )}
         {/* 사분면별 미니 통계 */}

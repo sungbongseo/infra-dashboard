@@ -39,10 +39,13 @@ export interface BCGMatrixEntry {
   sales: number;
   operatingProfit: number;
   marginRate: number;     // = profit / sales (가중)
+  cost: number;           // 매출원가 합 (원가 미계상 식별용)
 
   // 분류
   quadrant: Quadrant;
   isPareto80: boolean;    // 매출 누적 80% 이내?
+  /** 원가 0원 + 매출>0 + 마진 90%+ → 회계 미계상 의심 */
+  hasMissingCost: boolean;
 
   // 메타
   monthCount: number;     // 거래월 수 (Dynamic 적용 가능 여부)
@@ -96,6 +99,7 @@ export interface PortfolioMatrixResult {
     arithmeticMarginRate: number;
     arithmeticMarginExOutlier: number; // outlier 제외 산술 평균
     outlierCount: number;              // 전체 |마진|>100% 품목 수
+    missingCostCount: number;          // 원가 미계상 품목 수 (마진 90%+ + 원가 0)
     excludedZeroSales: number;   // 제외된 0 매출 행 수
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
@@ -190,6 +194,7 @@ export function calcPortfolioMatrix(
     itemName: string;
     category: string;
     segment: Segment;
+    totalCost: number;
     monthlyData: Map<string, { sales: number; profit: number }>;
   };
   const itemMap = new Map<string, ItemAgg>(); // key = `${segment}|${itemCode}`
@@ -208,6 +213,7 @@ export function calcPortfolioMatrix(
 
     const sales = rec.매출액?.실적 || 0;
     const profit = rec.영업이익?.실적 || 0;
+    const cost = rec.실적매출원가?.실적 || 0;
 
     // 0 매출 또는 음수 제외
     if (sales <= 0) {
@@ -227,10 +233,12 @@ export function calcPortfolioMatrix(
     if (!agg) {
       agg = {
         itemCode, itemName, category, segment,
+        totalCost: 0,
         monthlyData: new Map(),
       };
       itemMap.set(key, agg);
     }
+    agg.totalCost += cost;
 
     if (month) {
       const m = agg.monthlyData.get(month) || { sales: 0, profit: 0 };
@@ -319,11 +327,15 @@ export function calcPortfolioMatrix(
         }
       }
 
+      // 회계 미계상 의심: 매출>0, 원가=0, 마진율 90%+ (실측 4건 모두 해당)
+      const hasMissingCost = agg.totalCost === 0 && sales > 0 && marginRate >= 90;
+
       segEntries.push({
         segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
-        sales, operatingProfit: profit, marginRate,
+        sales, operatingProfit: profit, marginRate, cost: agg.totalCost,
         quadrant: "dog", // 임시 — 임계 산출 후 재분류
         isPareto80: false,
+        hasMissingCost,
         monthCount,
         prevSales, prevProfit, prevMargin, currSales, currProfit, currMargin,
         trendDirection,
@@ -400,6 +412,7 @@ export function calcPortfolioMatrix(
   let overallExOutlierSum = 0;
   let overallExOutlierCount = 0;
   let overallOutlierCount = 0;
+  let overallMissingCost = 0;
   for (const m of Object.values(matrices)) {
     overallSales += m.totalSales;
     overallProfit += m.totalProfit;
@@ -412,6 +425,7 @@ export function calcPortfolioMatrix(
       } else {
         overallOutlierCount++;
       }
+      if (e.hasMissingCost) overallMissingCost++;
     }
   }
 
@@ -424,6 +438,7 @@ export function calcPortfolioMatrix(
       arithmeticMarginRate: overallEntryCount > 0 ? overallArithmeticSum / overallEntryCount : 0,
       arithmeticMarginExOutlier: overallExOutlierCount > 0 ? overallExOutlierSum / overallExOutlierCount : 0,
       outlierCount: overallOutlierCount,
+      missingCostCount: overallMissingCost,
       excludedZeroSales,
       excludedReturns,
       insufficientDataItems,
