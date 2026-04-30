@@ -899,10 +899,14 @@ function parseSheetData(
         매출총이익율: calcRatioPAD(parsePlanActualDiff(row, 66), parsePlanActualDiff(row, 45)),
         영업이익율: calcRatioPAD(parsePlanActualDiff(row, 75), parsePlanActualDiff(row, 45)),
       }), warnings, "거래처별품목별손익", false);
+      // Phase B-0: 계정구분/매출유형 fill-down 추가 (BCG 매트릭스 분류 정합성 확보)
+      // raw 빈값 비율 — 매출유형 78.5% / 계정구분 7.6% (실측)
       parsed = fillDownMultiLevel(r.parsed, [
         ["영업조직팀"],
         ["매출거래처", "매출거래처명"],
         ["품목", "품목명", "제품군"],
+        ["계정구분"],   // SAP CO-PA 반복값 생략 패턴 대응
+        ["매출유형"],   // 일반매출/해외매출 fill-down (segment 분류)
       ], warnings, "거래처별품목별손익");
       // 매출연월 forward fill — SAP CO-PA export는 같은 거래처/품목 연속 행에서
       // 첫 행에만 매출연월을 표시하고 이후 행은 생략하는 패턴을 사용.

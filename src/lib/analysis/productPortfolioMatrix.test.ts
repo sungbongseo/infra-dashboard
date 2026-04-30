@@ -1,0 +1,341 @@
+import { describe, it, expect } from "vitest";
+import type { CustomerItemDetailRecord } from "@/types";
+import {
+  calcPortfolioMatrix,
+  classifySegmentType,
+  classifyQuadrant,
+  getQuadrantKoreanName,
+  getQuadrantAction,
+} from "./productPortfolioMatrix";
+
+// ─── 헬퍼 ────────────────────────────────────────────
+
+function makeRec(
+  계정구분: string,
+  매출유형: string,
+  품목: string,
+  품목명: string,
+  매출액: number,
+  영업이익: number,
+  매출연월 = "202506",
+): CustomerItemDetailRecord {
+  return {
+    No: 1,
+    영업조직팀: "건자재팀",
+    영업담당사번: "E001",
+    매출거래처: "C001",
+    매출거래처명: "테스트거래처",
+    품목, 품목명,
+    거래처대분류: "", 거래처중분류: "", 거래처소분류: "",
+    제품군: "방수",
+    매출연월,
+    계정구분, 매출유형,
+    품목군: "", 중분류코드: "",
+    공장: "",
+    제품내수매출: { 계획: 0, 실적: 0, 차이: 0 },
+    제품수출매출: { 계획: 0, 실적: 0, 차이: 0 },
+    매출수량: { 계획: 0, 실적: 100, 차이: 0 },
+    환산수량: { 계획: 0, 실적: 100, 차이: 0 },
+    매출액: { 계획: 0, 실적: 매출액, 차이: 0 },
+    실적매출원가: { 계획: 0, 실적: 매출액 - 영업이익, 차이: 0 },
+    상품매입: { 계획: 0, 실적: 0, 차이: 0 },
+    매출총이익: { 계획: 0, 실적: 영업이익, 차이: 0 },
+    판매관리비: { 계획: 0, 실적: 0, 차이: 0 },
+    판관변동_직접판매운반비: { 계획: 0, 실적: 0, 차이: 0 },
+    영업이익: { 계획: 0, 실적: 영업이익, 차이: 0 },
+    매출총이익율: { 계획: 0, 실적: 0, 차이: 0 },
+    영업이익율: { 계획: 0, 실적: 0, 차이: 0 },
+  };
+}
+
+// ─── classifySegmentType ─────────────────────────────
+
+describe("classifySegmentType", () => {
+  it("일반매출 → 내수", () => {
+    expect(classifySegmentType("일반매출")).toBe("내수");
+  });
+
+  it("일반매출(주유소) → 내수", () => {
+    expect(classifySegmentType("일반매출(주유소)")).toBe("내수");
+  });
+
+  it("일반매출(품목라인X) → 내수", () => {
+    expect(classifySegmentType("일반매출(품목라인X)")).toBe("내수");
+  });
+
+  it("자동매출 → 내수", () => {
+    expect(classifySegmentType("자동매출")).toBe("내수");
+  });
+
+  it("해외매출 → 해외", () => {
+    expect(classifySegmentType("해외매출")).toBe("해외");
+  });
+
+  it("반품매출 → 제외", () => {
+    expect(classifySegmentType("반품매출")).toBe("제외");
+  });
+
+  it("빈값 → 내수 (default)", () => {
+    expect(classifySegmentType("")).toBe("내수");
+    expect(classifySegmentType("   ")).toBe("내수");
+  });
+});
+
+// ─── classifyQuadrant ────────────────────────────────
+
+describe("classifyQuadrant", () => {
+  it("Star: 대매출 + 고마진", () => {
+    expect(classifyQuadrant(1000, 10, 500, 5)).toBe("star");
+  });
+
+  it("Cash Cow: 대매출 + 저마진", () => {
+    expect(classifyQuadrant(1000, 2, 500, 5)).toBe("cash_cow");
+  });
+
+  it("Question Mark: 소매출 + 고마진", () => {
+    expect(classifyQuadrant(100, 10, 500, 5)).toBe("problem_child");
+  });
+
+  it("Dog: 소매출 + 저마진", () => {
+    expect(classifyQuadrant(100, 2, 500, 5)).toBe("dog");
+  });
+
+  it("정확히 임계값 → Star (>=)", () => {
+    expect(classifyQuadrant(500, 5, 500, 5)).toBe("star");
+  });
+});
+
+// ─── calcPortfolioMatrix ─────────────────────────────
+
+describe("calcPortfolioMatrix — 빈 데이터 / edge case", () => {
+  it("빈 배열 → 빈 결과", () => {
+    const result = calcPortfolioMatrix([]);
+    expect(result.matrices["내수×제품"].entries).toHaveLength(0);
+    expect(result.overallSummary.totalSales).toBe(0);
+  });
+
+  it("0 매출 행 사전 필터링 (보완 4)", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "품목A", 1000, 100),
+      makeRec("제품", "일반매출", "P002", "품목B", 0, 0), // 0 매출 → 제외
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
+    expect(result.overallSummary.excludedZeroSales).toBe(1);
+  });
+
+  it("반품매출 제외 (보완 5)", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "품목A", 1000, 100),
+      makeRec("제품", "반품매출", "P002", "품목B", -500, -50), // 음수도 sales<=0 필터에 잡힘
+      makeRec("상품", "반품매출", "P003", "품목C", 1000, 100), // 양수지만 반품 → segment 제외
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.overallSummary.excludedReturns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("계정구분 ∉ {제품, 상품} 필터링", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "품목A", 1000, 100),
+      makeRec("원자재", "일반매출", "P002", "품목B", 1000, 100), // 제외
+      makeRec("부재료", "일반매출", "P003", "품목C", 1000, 100), // 제외
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
+  });
+});
+
+describe("calcPortfolioMatrix — 4-way Segment 분류", () => {
+  it("4 segment 모두 분류 + 별도 집계", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "내수제품", 1000, 100),
+      makeRec("상품", "일반매출", "P002", "내수상품", 2000, 50),
+      makeRec("제품", "해외매출", "P003", "해외제품", 1500, 200),
+      makeRec("상품", "해외매출", "P004", "해외상품", 500, 10),
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
+    expect(result.matrices["내수×상품"].entries).toHaveLength(1);
+    expect(result.matrices["해외×제품"].entries).toHaveLength(1);
+    expect(result.matrices["해외×상품"].entries).toHaveLength(1);
+  });
+});
+
+describe("calcPortfolioMatrix — 가중 vs 산술 평균 (보완 3)", () => {
+  it("가중 마진 = 영업이익 합 / 매출액 합", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "큰 매출 저마진", 10000, 100),  // 1%
+      makeRec("제품", "일반매출", "P002", "작은 매출 고마진", 100, 50),   // 50%
+    ];
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    // 가중 마진 = 150 / 10100 = 1.485...%
+    expect(m.weightedMarginRate).toBeCloseTo(1.485, 1);
+    // 산술 평균 = (1 + 50) / 2 = 25.5%
+    expect(m.arithmeticMarginRate).toBeCloseTo(25.5, 1);
+    // 두 값 차이가 큼 (가중이 정확)
+    expect(Math.abs(m.weightedMarginRate - m.arithmeticMarginRate)).toBeGreaterThan(20);
+  });
+});
+
+describe("calcPortfolioMatrix — Pareto 80/20", () => {
+  it("Top 매출 누적 80%까지만 isPareto80=true", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "Top1", 8000, 100),  // 80%
+      makeRec("제품", "일반매출", "P002", "Top2", 1000, 10),   // +10% = 90%
+      makeRec("제품", "일반매출", "P003", "Top3", 1000, 10),   // +10% = 100%
+    ];
+    const result = calcPortfolioMatrix(data, { enablePareto: true });
+    const m = result.matrices["내수×제품"];
+    const top1 = m.entries.find(e => e.itemCode === "P001")!;
+    expect(top1.isPareto80).toBe(true);  // 80% 누적
+  });
+
+  it("enablePareto=false → 모두 false", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "Top1", 8000, 100),
+    ];
+    const result = calcPortfolioMatrix(data, { enablePareto: false });
+    const m = result.matrices["내수×제품"];
+    expect(m.entries[0].isPareto80).toBe(false);
+  });
+});
+
+describe("calcPortfolioMatrix — Dynamic BCG (보완 2)", () => {
+  it("거래월 6개+ → trendDirection 계산", () => {
+    // 같은 품목을 6개월에 걸쳐 매출
+    const data: CustomerItemDetailRecord[] = [];
+    const months = ["202501", "202502", "202503", "202504", "202505", "202506"];
+    for (const m of months) {
+      data.push(makeRec("제품", "일반매출", "P001", "Trend품목", 1000, 100, m));
+    }
+    const result = calcPortfolioMatrix(data, { enableDynamic: true, dynamicMinMonths: 6 });
+    const m = result.matrices["내수×제품"];
+    const entry = m.entries[0];
+    expect(entry.monthCount).toBe(6);
+    expect(["improving", "stable", "declining"]).toContain(entry.trendDirection);
+    expect(entry.prevSales).toBeDefined();
+    expect(entry.currSales).toBeDefined();
+  });
+
+  it("거래월 5개 → insufficient_data (Dynamic 미적용)", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    const months = ["202501", "202502", "202503", "202504", "202505"];
+    for (const m of months) {
+      data.push(makeRec("제품", "일반매출", "P001", "단기 품목", 1000, 100, m));
+    }
+    const result = calcPortfolioMatrix(data, { enableDynamic: true, dynamicMinMonths: 6 });
+    const m = result.matrices["내수×제품"];
+    expect(m.entries[0].trendDirection).toBe("insufficient_data");
+    expect(m.entries[0].prevSales).toBeUndefined();
+    expect(result.overallSummary.insufficientDataItems).toBe(1);
+  });
+
+  it("매출 + 마진 모두 증가 → improving", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    // 1-3월 매출 1000, 마진 5% / 4-6월 매출 2000, 마진 10% (둘 다 증가)
+    for (const m of ["202501", "202502", "202503"]) {
+      data.push(makeRec("제품", "일반매출", "P001", "성장품목", 1000, 50, m));
+    }
+    for (const m of ["202504", "202505", "202506"]) {
+      data.push(makeRec("제품", "일반매출", "P001", "성장품목", 2000, 200, m));
+    }
+    const result = calcPortfolioMatrix(data, { enableDynamic: true, dynamicMinMonths: 6 });
+    expect(result.matrices["내수×제품"].entries[0].trendDirection).toBe("improving");
+  });
+});
+
+describe("calcPortfolioMatrix — 사분면 분류 + 임계", () => {
+  it("median 임계로 4 사분면 분포 균형", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "Star", 10000, 1000),       // 큰매출+고마진
+      makeRec("제품", "일반매출", "P002", "Cash Cow", 8000, 80),     // 큰매출+저마진
+      makeRec("제품", "일반매출", "P003", "Question", 100, 50),      // 작은매출+고마진
+      makeRec("제품", "일반매출", "P004", "Dog", 50, 0),             // 작은매출+저마진
+    ];
+    const result = calcPortfolioMatrix(data, { salesThresholdMode: "median", marginThresholdMode: "median" });
+    const m = result.matrices["내수×제품"];
+    // 4 품목이 4 사분면에 분포
+    expect(m.quadrantStats.star.count + m.quadrantStats.cash_cow.count +
+           m.quadrantStats.problem_child.count + m.quadrantStats.dog.count).toBe(4);
+  });
+
+  it("custom 임계 (number 직접 지정)", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "A", 1000, 100),
+      makeRec("제품", "일반매출", "P002", "B", 500, 50),
+    ];
+    const result = calcPortfolioMatrix(data, { salesThresholdMode: 800, marginThresholdMode: 7 });
+    const m = result.matrices["내수×제품"];
+    const a = m.entries.find(e => e.itemCode === "P001")!;
+    const b = m.entries.find(e => e.itemCode === "P002")!;
+    // A: 1000 >= 800, 10% >= 7% → star
+    expect(a.quadrant).toBe("star");
+    // B: 500 < 800, 10% >= 7% → problem_child
+    expect(b.quadrant).toBe("problem_child");
+  });
+
+  it("zero 임계 (적자 vs 흑자)", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "흑자", 1000, 50),
+      makeRec("제품", "일반매출", "P002", "적자", 1000, -100),
+    ];
+    const result = calcPortfolioMatrix(data, { marginThresholdMode: "zero" });
+    const m = result.matrices["내수×제품"];
+    const blackProf = m.entries.find(e => e.itemCode === "P001")!;
+    const redProf = m.entries.find(e => e.itemCode === "P002")!;
+    // 흑자 (마진 > 0) → star or problem_child
+    expect(["star", "problem_child"]).toContain(blackProf.quadrant);
+    // 적자 (마진 < 0) → cash_cow or dog
+    expect(["cash_cow", "dog"]).toContain(redProf.quadrant);
+  });
+});
+
+describe("calcPortfolioMatrix — 사분면 통계", () => {
+  it("quadrantStats sales/profit 합산 정확", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "Star1", 10000, 1000),
+      makeRec("제품", "일반매출", "P002", "Star2", 12000, 1500),
+      makeRec("제품", "일반매출", "P003", "Dog", 100, -50),
+    ];
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    // 총 매출 = 22100
+    expect(m.totalSales).toBe(22100);
+    // 사분면 매출 비중 합 = 1.0
+    const totalShare = Object.values(m.quadrantStats).reduce((s, q) => s + q.salesShare, 0);
+    expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+});
+
+describe("getQuadrantKoreanName & Action (UI 헬퍼)", () => {
+  it("4 사분면 한글 + 액션", () => {
+    expect(getQuadrantKoreanName("star")).toContain("스타");
+    expect(getQuadrantKoreanName("cash_cow")).toContain("캐시카우");
+    expect(getQuadrantKoreanName("problem_child")).toContain("문제아동");
+    expect(getQuadrantKoreanName("dog")).toContain("낙오자");
+
+    expect(getQuadrantAction("star")).toContain("투자");
+    expect(getQuadrantAction("cash_cow")).toContain("마진");
+    expect(getQuadrantAction("problem_child")).toContain("선별");
+    expect(getQuadrantAction("dog")).toContain("정리");
+  });
+});
+
+describe("calcPortfolioMatrix — 실데이터 시뮬레이션", () => {
+  it("내수×제품 가중 마진 5% 시나리오 (실데이터 베이스)", () => {
+    // 실데이터: 내수×제품 230 품목 / 매출 56.81억 / 영업이익 +2.84억 / 마진 5.0%
+    // 합성: 매출 5,681,000, 영업이익 +284,000 → 마진 5.0%
+    const data: CustomerItemDetailRecord[] = [];
+    for (let i = 0; i < 100; i++) {
+      data.push(makeRec("제품", "일반매출", `P${i}`, `품목${i}`, 56810, i * 10 - 200));
+    }
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    expect(m.entries.length).toBe(100);
+    expect(m.totalSales).toBe(5681000);
+    // 가중 마진 합리적 범위
+    expect(m.weightedMarginRate).toBeGreaterThan(-10);
+    expect(m.weightedMarginRate).toBeLessThan(20);
+  });
+});
