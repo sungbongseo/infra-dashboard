@@ -153,9 +153,13 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                       🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요
                     </div>
                   )}
-                  {overallSummary.negativeCostCount > 0 && (
-                    <div className="text-red-700 dark:text-red-400">
-                      🚨 <strong>음수 원가 {overallSummary.negativeCostCount}건</strong> (환입·조정 분개 누적 결과 — 매출총이익율 100% 초과 발생) — 회계팀 확인 필요. hover 시 상세
+                  {overallSummary.excludedNegativeCostItems > 0 && (
+                    <div className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded p-1.5 -mx-1 space-y-0.5">
+                      <div>🚨 <strong>음수 원가 {overallSummary.excludedNegativeCostItems}건 분석에서 제외</strong> (환입·조정 분개 누적)</div>
+                      <div className="text-[10px] opacity-90">
+                        매출원가 음수는 회계 데이터 이상 — 산식 (매출 - 매출원가)으로 계산하면 매출총이익이 매출보다 커지는 비현실적 결과 발생.
+                        수학상 a − (−b) = a + b는 정확하나 비즈니스 의미 없음 → 차트에서 제외 + 별도 카운트만 표시. 회계팀에서 분개 검토 필요.
+                      </div>
                     </div>
                   )}
                 </div>
@@ -346,7 +350,8 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   });
   const outlierCount = chartData.filter(d => d.isOutlier).length;
   const missingCostCount = chartData.filter(d => d.hasMissingCost).length;
-  const negativeCostCount = chartData.filter(d => d.hasNegativeCost).length;
+  // 음수 원가 품목은 알고리즘에서 자동 제외됨 (수학상 a-(-b)=a+b 정확하나 매출<영업이익 비현실적).
+  // overallSummary.excludedNegativeCostItems로만 카운트되므로 segment 레벨 표시 불필요.
 
   return (
     <div
@@ -443,12 +448,6 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
           <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
             <Info className="h-3 w-3 shrink-0" />
             <span>🚨 원가 미계상 의심 {missingCostCount}건 (마진 90%+ + 원가 0원) — hover 시 품목 확인</span>
-          </div>
-        )}
-        {negativeCostCount > 0 && (
-          <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
-            <Info className="h-3 w-3 shrink-0" />
-            <span>🚨 음수 원가 {negativeCostCount}건 (환입·조정 분개 누적, 매출총이익율 100% 초과) — hover 시 상세</span>
           </div>
         )}
         {/* 사분면별 미니 통계 — hover 시 BCG 사분면 정의 표시 */}

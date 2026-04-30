@@ -104,7 +104,8 @@ export interface PortfolioMatrixResult {
     arithmeticMarginExOutlier: number; // outlier 제외 산술 평균
     outlierCount: number;              // 전체 |마진|>100% 품목 수
     missingCostCount: number;          // 원가 미계상 품목 수 (마진 90%+ + 원가 0)
-    negativeCostCount: number;         // 음수 원가 품목 수 (환입/조정 누적)
+    negativeCostCount: number;         // 음수 원가 품목 수 (환입/조정 누적, 차트에서는 제외됨)
+    excludedNegativeCostItems: number; // 음수 원가로 분석에서 제외된 품목 수
     excludedZeroSales: number;   // 제외된 0 매출 행 수
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
@@ -262,6 +263,7 @@ export function calcPortfolioMatrix(
   // 2. segment별 entries 생성
   const matrices = {} as Record<Segment, SegmentMatrix>;
   let insufficientDataItems = 0;
+  let excludedNegativeCostItems = 0;
 
   for (const segment of ALL_SEGMENTS) {
     const segEntries: BCGMatrixEntry[] = [];
@@ -336,7 +338,15 @@ export function calcPortfolioMatrix(
       const hasMissingCost = agg.totalCost === 0 && sales > 0 && marginRate >= 90;
       // 음수 원가 (회계 분개 누적) — 환입/조정으로 net 음수 → 매출총이익율 >100%
       const hasNegativeCost = agg.totalCost < 0;
-      // 매출총이익 계산 (= 매출 - 매출원가). 원가 음수 시 매출총이익 > 매출 가능
+
+      // 음수 원가는 회계 데이터 이상 (수학적으로는 a - (-b) = a + b 정확하나
+      // 비즈니스 결과 비현실적: 매출 < 영업이익 발생). 차트에서 제외하고 통계만 카운트.
+      if (hasNegativeCost) {
+        excludedNegativeCostItems++;
+        continue; // 차트 entries에 추가 안 함
+      }
+
+      // 매출총이익 계산 (= 매출 - 매출원가). 원가 음수 시 매출총이익 > 매출 가능 (이미 제외됨)
       const grossProfit = sales - agg.totalCost;
       const grossMarginRate = safeDivide(grossProfit, sales) * 100;
 
@@ -454,6 +464,7 @@ export function calcPortfolioMatrix(
       outlierCount: overallOutlierCount,
       missingCostCount: overallMissingCost,
       negativeCostCount: overallNegativeCost,
+      excludedNegativeCostItems,
       excludedZeroSales,
       excludedReturns,
       insufficientDataItems,

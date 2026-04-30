@@ -308,43 +308,73 @@ describe("calcPortfolioMatrix — 사분면 통계", () => {
   });
 });
 
-describe("calcPortfolioMatrix — 음수 원가 식별 (hasNegativeCost)", () => {
-  it("매출원가 < 0 → hasNegativeCost=true + 매출총이익율 100% 초과", () => {
-    // 사용자 화면 케이스 시뮬: 매출 5,310,000 / 원가 -6,119,344 / 영업이익 9,765,048
+describe("calcPortfolioMatrix — 음수 원가 자동 제외 (수학/회계/비즈니스 reconciliation)", () => {
+  it("매출원가 < 0 → 차트에서 자동 제외 (excludedNegativeCostItems 카운트)", () => {
+    // 사용자 화면 케이스: 매출 5,310,000 / 원가 -6,119,344 / 영업이익 9,765,048
+    // 산식 (매출 - 매출원가) = 5,310,000 - (-6,119,344) = 11,429,344
+    // → 매출총이익율 215% (매출보다 큰 이익) — 수학상 a-(-b)=a+b는 정확하나 비즈니스 비현실적
+    // → 환입/조정 분개 누적된 회계 데이터 이상 → 차트에서 제외하고 통계만 카운트
     const r = makeRec("제품", "일반매출", "P001", "음수원가품목", 5310000, 9765048);
     r.실적매출원가 = { 계획: 0, 실적: -6119344, 차이: 0 };
     const result = calcPortfolioMatrix([r]);
-    const e = result.matrices["내수×제품"].entries[0];
 
-    expect(e.hasNegativeCost).toBe(true);
-    expect(e.cost).toBe(-6119344);
-    // 매출총이익 = 매출 - 원가 = 5,310,000 - (-6,119,344) = 11,429,344
-    expect(e.grossProfit).toBe(11429344);
-    // 매출총이익율 = 11,429,344 / 5,310,000 × 100 = 215.24%
-    expect(e.grossMarginRate).toBeCloseTo(215.24, 1);
-    // 영업이익율 = 9,765,048 / 5,310,000 × 100 = 183.90%
-    expect(e.marginRate).toBeCloseTo(183.90, 1);
-    // outlier (|마진|>100%)
-    expect(Math.abs(e.marginRate) > 100).toBe(true);
+    // 차트 entries에서 제외됨
+    expect(result.matrices["내수×제품"].entries).toHaveLength(0);
+    // excludedNegativeCostItems 통계로만 카운트
+    expect(result.overallSummary.excludedNegativeCostItems).toBe(1);
+    // entries에 없으므로 negativeCostCount는 0 (중복 카운트 방지)
+    expect(result.overallSummary.negativeCostCount).toBe(0);
   });
 
-  it("정상 원가 (양수) → hasNegativeCost=false", () => {
+  it("정상 원가 (양수) → 차트에 포함 + hasNegativeCost=false", () => {
     const r = makeRec("제품", "일반매출", "P001", "정상", 10000, 1000);
     const result = calcPortfolioMatrix([r]);
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
     expect(result.matrices["내수×제품"].entries[0].hasNegativeCost).toBe(false);
+    expect(result.overallSummary.excludedNegativeCostItems).toBe(0);
   });
 
-  it("overallSummary.negativeCostCount = 모든 segment 음수원가 합", () => {
+  it("excludedNegativeCostItems = 모든 segment 음수원가 제외 합", () => {
     const data: CustomerItemDetailRecord[] = [];
+    // 음수 원가 2건 (segment 다름)
     const r1 = makeRec("제품", "일반매출", "P001", "음수1", 1000, 500);
     r1.실적매출원가 = { 계획: 0, 실적: -200, 차이: 0 };
     data.push(r1);
     const r2 = makeRec("상품", "해외매출", "P002", "음수2", 5000, 3000);
     r2.실적매출원가 = { 계획: 0, 실적: -100, 차이: 0 };
     data.push(r2);
+    // 정상 1건 (제외되지 않음)
+    data.push(makeRec("제품", "일반매출", "P003", "정상", 1000, 100));
 
     const result = calcPortfolioMatrix(data);
-    expect(result.overallSummary.negativeCostCount).toBe(2);
+    // 음수 원가 2건 자동 제외 통계
+    expect(result.overallSummary.excludedNegativeCostItems).toBe(2);
+    // 차트에는 정상 품목 1건만 (내수×제품)
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
+    // 해외×상품 segment에 있던 음수 원가는 제외 → 빈 segment
+    expect(result.matrices["해외×상품"].entries).toHaveLength(0);
+    // negativeCostCount는 entries 기반이므로 0 (중복 방지)
+    expect(result.overallSummary.negativeCostCount).toBe(0);
+  });
+
+  it("음수 원가 + 정상 원가 혼합 → 정상만 분석, 평균/임계 왜곡 없음", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    // 정상 품목 (마진 10%)
+    data.push(makeRec("제품", "일반매출", "P001", "정상1", 1000, 100));
+    data.push(makeRec("제품", "일반매출", "P002", "정상2", 2000, 200));
+    // 음수 원가 (215% 비현실적 마진 — 제외 안 하면 평균 왜곡)
+    const r3 = makeRec("제품", "일반매출", "P003", "음수원가", 5310000, 9765048);
+    r3.실적매출원가 = { 계획: 0, 실적: -6119344, 차이: 0 };
+    data.push(r3);
+
+    const result = calcPortfolioMatrix(data);
+    const m = result.matrices["내수×제품"];
+    // 음수 원가 제외 → entries 2건만
+    expect(m.entries).toHaveLength(2);
+    // 가중 마진 = 300 / 3000 = 10% (음수 원가 9.76M 제외돼야 정상)
+    expect(m.weightedMarginRate).toBeCloseTo(10, 1);
+    // 산술 평균도 10% (각각 10%)
+    expect(m.arithmeticMarginRate).toBeCloseTo(10, 1);
   });
 });
 
