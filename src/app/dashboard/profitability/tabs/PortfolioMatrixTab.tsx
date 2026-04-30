@@ -9,6 +9,7 @@ import { Star, Shield, AlertTriangle, ShieldAlert, Info } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
+import { MetricInfo } from "@/components/dashboard/MetricInfo";
 import { ChartContainer, GRID_PROPS } from "@/components/charts";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, safeFixed } from "@/lib/utils";
@@ -75,8 +76,8 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
           <CardContent className="p-4 space-y-3">
             {/* 컨트롤 */}
             <div className="flex flex-wrap gap-3 items-center text-sm">
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">매출 임계:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">매출 임계 (X축):</span>
                 <select
                   value={salesMode}
                   onChange={(e) => setSalesMode(e.target.value as any)}
@@ -86,9 +87,10 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                   <option value="p75">P75 (상위 25%)</option>
                   <option value="weighted_avg">평균</option>
                 </select>
+                <MetricInfo id={salesMode === "p75" ? "bcg_threshold_p75" : salesMode === "weighted_avg" ? "bcg_threshold_weighted" : "bcg_threshold_median"} variant="inline" />
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-muted-foreground">마진 임계:</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">영업이익율 임계 (Y축):</span>
                 <select
                   value={marginMode}
                   onChange={(e) => setMarginMode(e.target.value as any)}
@@ -98,28 +100,37 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                   <option value="weighted_avg">전사 가중 평균</option>
                   <option value="zero">0% (적자/흑자)</option>
                 </select>
+                <MetricInfo id={marginMode === "zero" ? "bcg_threshold_zero" : marginMode === "weighted_avg" ? "bcg_threshold_weighted" : "bcg_threshold_median"} variant="inline" />
               </div>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={enableDynamic} onChange={(e) => setEnableDynamic(e.target.checked)} />
                 <span>Dynamic 화살표</span>
+                <MetricInfo id="bcg_dynamic_arrow" variant="inline" />
               </label>
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input type="checkbox" checked={enablePareto} onChange={(e) => setEnablePareto(e.target.checked)} />
                 <span>Pareto 80/20</span>
+                <MetricInfo id="bcg_pareto_80" variant="inline" />
               </label>
             </div>
 
-            {/* 전체 KPI */}
+            {/* 전체 KPI — 모든 마진은 영업이익율 (영업이익 ÷ 매출) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <KpiBox label="총 매출 (제품+상품)" value={formatCurrency(overallSummary.totalSales)} />
+              <KpiBox label="총 매출액 (제품+상품)" value={formatCurrency(overallSummary.totalSales)} />
               <KpiBox label="총 영업이익" value={formatCurrency(overallSummary.totalProfit)}
                 positive={overallSummary.totalProfit >= 0} />
-              <KpiBox label="가중 마진 (정확)" value={`${safeFixed(overallSummary.weightedMarginRate, 2)}%`}
-                tooltip="Σ영업이익 / Σ매출 — 회사 진짜 평균. outlier 영향 X. (bcg_weighted_margin)"
-                highlight />
-              <KpiBox label={`산술 평균 (outlier 제외)`}
+              <KpiBox
+                label="가중 영업이익율 (정확)"
+                value={`${safeFixed(overallSummary.weightedMarginRate, 2)}%`}
+                metricId="bcg_weighted_margin"
+                highlight
+              />
+              <KpiBox
+                label="산술 영업이익율 (outlier 제외)"
                 value={`${safeFixed(overallSummary.arithmeticMarginExOutlier, 2)}%`}
-                tooltip={`outlier ${overallSummary.outlierCount}건 (|마진|>100%) 제외 산술. 원본 산술: ${safeFixed(overallSummary.arithmeticMarginRate, 2)}%. (bcg_arithmetic_margin)`} />
+                metricId="bcg_arithmetic_margin"
+                tooltip={`outlier ${overallSummary.outlierCount}건 (|마진|>100%) 제외. 원본 산술: ${safeFixed(overallSummary.arithmeticMarginRate, 2)}%`}
+              />
             </div>
 
             {/* 데이터 품질 정보 */}
@@ -171,18 +182,23 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
 
 // ─── 보조 컴포넌트 ────────────────────────────────────
 
-function KpiBox({ label, value, positive, highlight, tooltip }: {
+function KpiBox({ label, value, positive, highlight, tooltip, metricId }: {
   label: string; value: string;
   positive?: boolean;
   highlight?: boolean;
   tooltip?: string;
+  /** glossary metricId — 지정 시 라벨 옆에 ⓘ 아이콘 표시 (hover 시 BCG 용어 정의) */
+  metricId?: "bcg_weighted_margin" | "bcg_arithmetic_margin" | "bcg_pareto_80" | "bcg_dynamic_arrow" | "bcg_segment_4way";
 }) {
   return (
     <div
       className={`rounded p-2 ${highlight ? "bg-primary/10 border border-primary/20" : "bg-muted/30"}`}
       title={tooltip}
     >
-      <div className="text-[10px] text-muted-foreground">{label}</div>
+      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+        {label}
+        {metricId && <MetricInfo id={metricId} variant="inline" />}
+      </div>
       <div className={`font-mono font-semibold text-sm ${
         positive === false ? "text-red-600 dark:text-red-400"
         : positive === true ? "text-green-600 dark:text-green-400"
@@ -218,21 +234,29 @@ function PortfolioTooltip({ active, payload }: any) {
         </div>
       </div>
 
-      {/* 핵심 메트릭 */}
+      {/* 핵심 메트릭 — 손익 계산 순서대로 */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-        <span className="text-muted-foreground">매출</span>
+        <span className="text-muted-foreground">매출액 (실적)</span>
         <span className="font-mono text-right">{formatCurrency(d.x)}</span>
+        <span className="text-muted-foreground">매출원가</span>
+        <span className="font-mono text-right">{formatCurrency(d.cost)}</span>
+        <span className="text-muted-foreground">매출총이익</span>
+        <span className={`font-mono text-right ${d.grossProfit < 0 ? "text-red-600" : ""}`}>
+          {formatCurrency(d.grossProfit)}
+        </span>
+        <span className="text-muted-foreground">매출총이익율</span>
+        <span className={`font-mono text-right ${d.grossMarginRate < 0 ? "text-red-600" : ""}`}>
+          {safeFixed(d.grossMarginRate, 1)}%
+        </span>
         <span className="text-muted-foreground">영업이익</span>
         <span className={`font-mono text-right ${d.operatingProfit < 0 ? "text-red-600" : "text-green-600"}`}>
           {formatCurrency(d.operatingProfit)}
         </span>
-        <span className="text-muted-foreground">마진율</span>
+        <span className="text-muted-foreground font-semibold">영업이익율 (Y축)</span>
         <span className={`font-mono text-right font-semibold ${d.yActual < 0 ? "text-red-600" : "text-green-600"}`}>
           {safeFixed(d.yActual, 2)}%
-          {d.isOutlier && <span className="ml-1 text-amber-600">⚠ outlier</span>}
+          {d.isOutlier && <span className="ml-1 text-amber-600 text-[10px]">⚠ outlier</span>}
         </span>
-        <span className="text-muted-foreground">매출원가</span>
-        <span className="font-mono text-right">{formatCurrency(d.cost)}</span>
         <span className="text-muted-foreground">거래월</span>
         <span className="font-mono text-right">{d.monthCount}개월</span>
       </div>
@@ -297,6 +321,8 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       isPareto80: e.isPareto80,
       isOutlier,
       cost: e.cost,
+      grossProfit: e.grossProfit,
+      grossMarginRate: e.grossMarginRate,
       hasMissingCost: e.hasMissingCost,
       operatingProfit: e.operatingProfit,
       monthCount: e.monthCount,
@@ -312,7 +338,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       onClick={onClick}
     >
       <ChartCard
-        title={`${segment} (${entries.length}건) · 매출 ${formatCurrency(totalSales)} · 가중 마진 ${safeFixed(weightedMarginRate, 1)}%`}
+        title={`${segment} (${entries.length}건) · 매출 ${formatCurrency(totalSales)} · 가중 영업이익율 ${safeFixed(weightedMarginRate, 1)}%`}
       >
         <ChartContainer height="h-72">
           <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
@@ -324,11 +350,11 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
               label={{ value: "매출액", position: "insideBottom", offset: -10, fontSize: 11 }}
             />
             <YAxis
-              type="number" dataKey="y" name="마진율"
+              type="number" dataKey="y" name="영업이익율"
               domain={[Y_MIN, Y_MAX]}
               tickFormatter={(v) => `${v.toFixed(0)}%`}
               tick={{ fontSize: 10 }}
-              label={{ value: "마진율 (%) [-50~100]", angle: -90, position: "insideLeft", fontSize: 11 }}
+              label={{ value: "영업이익율 (영업이익÷매출) [-50~100%]", angle: -90, position: "insideLeft", fontSize: 11 }}
             />
             <RechartsTooltip
               cursor={{ strokeDasharray: "3 3" }}
@@ -403,11 +429,15 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             <span>🚨 원가 미계상 의심 {missingCostCount}건 (마진 90%+ + 원가 0원) — hover 시 품목 확인</span>
           </div>
         )}
-        {/* 사분면별 미니 통계 */}
+        {/* 사분면별 미니 통계 — hover 시 BCG 사분면 정의 표시 */}
         <div className="grid grid-cols-4 gap-1 px-3 pb-2 text-[10px]">
           {(["star", "cash_cow", "problem_child", "dog"] as Quadrant[]).map(q => (
             <div key={q} className="flex items-center gap-1 rounded p-1" style={{ backgroundColor: `${QUADRANT_COLORS[q]}20` }}>
               <span style={{ color: QUADRANT_COLORS[q] }}>{QUADRANT_ICONS[q]}</span>
+              <MetricInfo
+                id={q === "star" ? "bcg_star" : q === "cash_cow" ? "bcg_cash_cow" : q === "problem_child" ? "bcg_problem_child" : "bcg_dog"}
+                variant="inline"
+              />
               <span className="font-mono">{quadrantStats[q].count}</span>
               <span className="text-muted-foreground truncate">
                 {(quadrantStats[q].salesShare * 100).toFixed(0)}%

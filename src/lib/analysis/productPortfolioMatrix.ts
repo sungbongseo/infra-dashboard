@@ -35,11 +35,13 @@ export interface BCGMatrixEntry {
   itemName: string;
   category: string;       // 제품군 또는 대분류
 
-  // 현재 시점 메트릭 (12M 통합)
-  sales: number;
-  operatingProfit: number;
-  marginRate: number;     // = profit / sales (가중)
-  cost: number;           // 매출원가 합 (원가 미계상 식별용)
+  // 현재 시점 메트릭 (12M 통합) — 모두 .실적 (Actual)
+  sales: number;            // 매출액.실적
+  operatingProfit: number;  // 영업이익.실적 (= 매출총이익 - 판관비)
+  marginRate: number;       // 영업이익율 (%) = 영업이익 / 매출 × 100
+  cost: number;             // 매출원가.실적 합 (원가 미계상 식별용)
+  grossProfit: number;      // 매출총이익 (= 매출 - 매출원가)
+  grossMarginRate: number;  // 매출총이익율 (%) = 매출총이익 / 매출 × 100
 
   // 분류
   quadrant: Quadrant;
@@ -329,10 +331,14 @@ export function calcPortfolioMatrix(
 
       // 회계 미계상 의심: 매출>0, 원가=0, 마진율 90%+ (실측 4건 모두 해당)
       const hasMissingCost = agg.totalCost === 0 && sales > 0 && marginRate >= 90;
+      // 매출총이익 계산 (= 매출 - 매출원가). 음수 가능 (원가 > 매출)
+      const grossProfit = sales - agg.totalCost;
+      const grossMarginRate = safeDivide(grossProfit, sales) * 100;
 
       segEntries.push({
         segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
         sales, operatingProfit: profit, marginRate, cost: agg.totalCost,
+        grossProfit, grossMarginRate,
         quadrant: "dog", // 임시 — 임계 산출 후 재분류
         isPareto80: false,
         hasMissingCost,

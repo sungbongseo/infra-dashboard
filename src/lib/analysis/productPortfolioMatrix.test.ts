@@ -308,6 +308,30 @@ describe("calcPortfolioMatrix — 사분면 통계", () => {
   });
 });
 
+describe("calcPortfolioMatrix — 매출총이익 + 매출총이익율 명확화", () => {
+  it("매출총이익 = 매출 - 매출원가, 매출총이익율 정확", () => {
+    const r = makeRec("제품", "일반매출", "P001", "정상", 10000, 1000);
+    // makeRec default: 매출원가 = 매출 - 영업이익 = 9000
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.cost).toBe(9000);
+    expect(e.grossProfit).toBe(1000);
+    expect(e.grossMarginRate).toBeCloseTo(10, 1);
+    expect(e.marginRate).toBeCloseTo(10, 1); // 영업이익율
+  });
+
+  it("원가 0 → 매출총이익 = 매출 (매출총이익율 100%)", () => {
+    const r = makeRec("제품", "일반매출", "P001", "원가 0", 10000, 9500);
+    r.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.cost).toBe(0);
+    expect(e.grossProfit).toBe(10000);
+    expect(e.grossMarginRate).toBeCloseTo(100, 1);
+    expect(e.marginRate).toBeCloseTo(95, 1); // 영업이익율 95%
+  });
+});
+
 describe("calcPortfolioMatrix — 원가 미계상 식별 (hasMissingCost)", () => {
   it("매출>0 + 원가=0 + 마진≥90% → hasMissingCost=true", () => {
     const data = [
