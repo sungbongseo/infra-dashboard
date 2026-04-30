@@ -72,10 +72,11 @@ const PricingSimTab = lazy(() => import("./tabs/PricingSimTab").then(m => ({ def
 const OffsetEffectTab = lazy(() => import("./tabs/OffsetEffectTab").then(m => ({ default: m.OffsetEffectTab })));
 const CostTrueVarianceTab = lazy(() => import("./tabs/CostTrueVarianceTab").then(m => ({ default: m.CostTrueVarianceTab })));
 const LowPriceVerifyTab = lazy(() => import("./tabs/LowPriceVerifyTab").then(m => ({ default: m.LowPriceVerifyTab })));
+const PortfolioMatrixTab = lazy(() => import("./tabs/PortfolioMatrixTab").then(m => ({ default: m.PortfolioMatrixTab })));
 
 const PROFIT_TAB_GROUPS: TabGroupDef[] = [
   { id: "basic", label: "기본 분석", tabs: ["pnl", "org", "contrib", "cost", "plan"] },
-  { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "variance", "breakeven", "whatif", "sensitivity", "offset"] },
+  { id: "advanced", label: "심화 분석", tabs: ["product", "risk", "portfolioMatrix", "variance", "breakeven", "whatif", "sensitivity", "offset"] },
   { id: "customer", label: "거래처 분석", tabs: ["custProfit", "custItem", "detailed", "custRiskMatrix", "sgaBreakdown"] },
   { id: "cost", label: "원가 분석", tabs: ["itemCost", "costVariance", "standardCost", "costTrueVariance", "portfolio", "pricingSim"] },
   { id: "hypothesis", label: "가설 검증", tabs: ["lowPriceVerify"] },
@@ -174,6 +175,14 @@ export default function ProfitabilityPage() {
     const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
     const dateFiltered = (!dateRange || !dateRange.from || !dateRange.to) ? orgFiltered : filterByDateRange(orgFiltered, dateRange, "매출연월");
     return aggregateCustomerItemDetail(dateFiltered);
+  }, [customerItemDetail, effectiveOrgNames, dateRange]);
+
+  // ─── customerItemDetail RAW (Phase B-2: Portfolio Matrix Dynamic 지원 — 매출연월 보존) ──
+  const filteredCustItemDetailRaw = useMemo(() => {
+    const orgFiltered = filterByOrg(customerItemDetail, effectiveOrgNames, "영업조직팀");
+    return (!dateRange || !dateRange.from || !dateRange.to)
+      ? orgFiltered
+      : filterByDateRange(orgFiltered, dateRange, "매출연월");
   }, [customerItemDetail, effectiveOrgNames, dateRange]);
 
   const isDateFilterActive = !!(dateRange?.from && dateRange?.to);
@@ -628,6 +637,9 @@ export default function ProfitabilityPage() {
             제품 수익성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
           </TabsTrigger>}
           {visibleTabs.has("risk") && <TabsTrigger value="risk" disabled={filteredOrgProfit.length === 0}>수익성×리스크</TabsTrigger>}
+          {visibleTabs.has("portfolioMatrix") && <TabsTrigger value="portfolioMatrix" disabled={filteredCustItemDetailRaw.length === 0}>
+            🎯 포트폴리오 매트릭스<span className="ml-1 text-[10px] text-violet-500 dark:text-violet-400 font-normal">BCG 4-way</span>
+          </TabsTrigger>}
           {visibleTabs.has("variance") && <TabsTrigger value="variance" disabled={effectiveProfAnalysis.length === 0}>
             계획달성<span className="ml-1 text-[10px] text-blue-500 dark:text-blue-400 font-normal">기간조회</span>
           </TabsTrigger>}
@@ -721,6 +733,16 @@ export default function ProfitabilityPage() {
           <Suspense fallback={<KpiSkeleton />}>
           <ErrorBoundary>
             <RiskTab filteredOrgProfit={filteredOrgProfit} allReceivableRecords={allReceivableRecords} filteredSales={filteredSales} isDateFiltered={isDateFilterActive} />
+          </ErrorBoundary>
+          </Suspense>
+        </TabsContent>
+
+        <TabsContent value="portfolioMatrix" className="space-y-6">
+          <Suspense fallback={<KpiSkeleton />}>
+          <ErrorBoundary>
+            <PortfolioMatrixTab
+              filteredCustomerItemDetail={filteredCustItemDetailRaw}
+            />
           </ErrorBoundary>
           </Suspense>
         </TabsContent>
