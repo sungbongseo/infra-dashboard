@@ -116,9 +116,17 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
 
             {/* 전체 KPI — 모든 마진은 영업이익율 (영업이익 ÷ 매출) */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <KpiBox label="총 매출액 (제품+상품)" value={formatCurrency(overallSummary.totalSales)} />
-              <KpiBox label="총 영업이익" value={formatCurrency(overallSummary.totalProfit)}
-                positive={overallSummary.totalProfit >= 0} />
+              <KpiBox
+                label="총 매출액 (제품+상품)"
+                value={formatCurrency(overallSummary.totalSales)}
+                metricId="bcg_total_sales"
+              />
+              <KpiBox
+                label="총 영업이익"
+                value={formatCurrency(overallSummary.totalProfit)}
+                positive={overallSummary.totalProfit >= 0}
+                metricId="bcg_total_op_profit"
+              />
               <KpiBox
                 label="가중 영업이익율 (정확)"
                 value={`${safeFixed(overallSummary.weightedMarginRate, 2)}%`}
@@ -138,24 +146,44 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
               <div className="text-[11px] text-muted-foreground bg-muted/50 rounded p-2 flex items-start gap-1.5">
                 <Info className="h-3 w-3 mt-0.5 shrink-0" />
                 <div className="space-y-0.5">
-                  <div>
-                    {overallSummary.excludedZeroSales > 0 && <span>0 매출 {overallSummary.excludedZeroSales}건 제외 · </span>}
-                    {overallSummary.excludedReturns > 0 && <span>반품매출 {overallSummary.excludedReturns}건 제외 · </span>}
-                    {overallSummary.insufficientDataItems > 0 && <span>거래월 6개 미만 {overallSummary.insufficientDataItems}건 (Dynamic 미적용)</span>}
+                  <div className="flex flex-wrap gap-x-2 gap-y-0.5 items-center">
+                    {overallSummary.excludedZeroSales > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        0 매출 {overallSummary.excludedZeroSales}건 제외
+                        <MetricInfo id="bcg_excluded_zero_sales" variant="inline" />
+                      </span>
+                    )}
+                    {overallSummary.excludedReturns > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        · 반품매출 {overallSummary.excludedReturns}건 제외
+                        <MetricInfo id="bcg_excluded_returns" variant="inline" />
+                      </span>
+                    )}
+                    {overallSummary.insufficientDataItems > 0 && (
+                      <span className="inline-flex items-center gap-0.5">
+                        · 거래월 6개 미만 {overallSummary.insufficientDataItems}건 (Dynamic 미적용)
+                        <MetricInfo id="bcg_insufficient_data" variant="inline" />
+                      </span>
+                    )}
                   </div>
                   {overallSummary.outlierCount > 0 && (
-                    <div className="text-amber-700 dark:text-amber-400">
-                      ⚠ outlier {overallSummary.outlierCount}건 (|마진|&gt;100%, 매출 작은 품목) — 차트 Y축 [-50%, 100%] 클램핑됨, 실제 값은 hover 확인
+                    <div className="text-amber-700 dark:text-amber-400 inline-flex items-start gap-0.5">
+                      <span>⚠ outlier {overallSummary.outlierCount}건 (|마진|&gt;100%, 매출 작은 품목) — 차트 Y축 [-50%, 100%] 클램핑됨, 실제 값은 hover 확인</span>
+                      <MetricInfo id="bcg_outlier_clamping" variant="compact" currentValue={overallSummary.outlierCount} />
                     </div>
                   )}
                   {overallSummary.missingCostCount > 0 && (
-                    <div className="text-red-700 dark:text-red-400">
-                      🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요
+                    <div className="text-red-700 dark:text-red-400 inline-flex items-start gap-0.5">
+                      <span>🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요</span>
+                      <MetricInfo id="bcg_missing_cost" variant="compact" currentValue={overallSummary.missingCostCount} />
                     </div>
                   )}
                   {overallSummary.excludedNegativeCostItems > 0 && (
                     <div className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded p-1.5 -mx-1 space-y-0.5">
-                      <div>🚨 <strong>음수 원가 {overallSummary.excludedNegativeCostItems}건 분석에서 제외</strong> (환입·조정 분개 누적)</div>
+                      <div className="flex items-start gap-1">
+                        <span>🚨 <strong>음수 원가 {overallSummary.excludedNegativeCostItems}건 분석에서 제외</strong> (환입·조정 분개 누적)</span>
+                        <MetricInfo id="bcg_negative_cost" variant="heavy" currentValue={overallSummary.excludedNegativeCostItems} />
+                      </div>
                       <div className="text-[10px] opacity-90">
                         매출원가 음수는 회계 데이터 이상 — 산식 (매출 - 매출원가)으로 계산하면 매출총이익이 매출보다 커지는 비현실적 결과 발생.
                         수학상 a − (−b) = a + b는 정확하나 비즈니스 의미 없음 → 차트에서 제외 + 별도 카운트만 표시. 회계팀에서 분개 검토 필요.
@@ -197,7 +225,8 @@ function KpiBox({ label, value, positive, highlight, tooltip, metricId }: {
   highlight?: boolean;
   tooltip?: string;
   /** glossary metricId — 지정 시 라벨 옆에 ⓘ 아이콘 표시 (hover 시 BCG 용어 정의) */
-  metricId?: "bcg_weighted_margin" | "bcg_arithmetic_margin" | "bcg_pareto_80" | "bcg_dynamic_arrow" | "bcg_segment_4way";
+  metricId?: "bcg_weighted_margin" | "bcg_arithmetic_margin" | "bcg_pareto_80" | "bcg_dynamic_arrow" | "bcg_segment_4way"
+           | "bcg_total_sales" | "bcg_total_op_profit";
 }) {
   return (
     <div
@@ -360,7 +389,27 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
     >
       <ChartCard
         title={`${segment} (${entries.length}건) · 매출 ${formatCurrency(totalSales)} · 가중 영업이익율 ${safeFixed(weightedMarginRate, 1)}%`}
+        action={<MetricInfo id="bcg_segment_4way" variant="inline" />}
       >
+        {/* C6-C7: 차트 위 chip row — 축 + 임계선 의미 명시 */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-1 pb-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-0.5">
+            X축 매출액 <MetricInfo id="bcg_x_axis_sales" variant="inline" />
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            · Y축 영업이익율 <MetricInfo id="bcg_y_axis_margin" variant="inline" />
+          </span>
+          <span className="inline-flex items-center gap-0.5 ml-auto">
+            X 임계선:
+            <span className="font-mono text-foreground">{formatCurrency(thresholds.salesThreshold)}</span>
+            <MetricInfo id="bcg_ref_line_sales" variant="inline" />
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            · Y 임계선:
+            <span className="font-mono text-foreground">{safeFixed(thresholds.marginThreshold, 1)}%</span>
+            <MetricInfo id="bcg_ref_line_margin" variant="inline" />
+          </span>
+        </div>
         <ChartContainer height="h-72">
           <ScatterChart margin={{ top: 10, right: 20, left: 10, bottom: 30 }}>
             <CartesianGrid {...GRID_PROPS} />
@@ -442,12 +491,14 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
           <div className="px-3 pb-1 text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
             <Info className="h-3 w-3 shrink-0" />
             <span>outlier {outlierCount}건 (|마진|&gt;{Y_MAX}% 또는 &lt;{Y_MIN}%) — 경계 라인에 표시 + 검은 outline. 실제 값은 hover 시 확인</span>
+            <MetricInfo id="bcg_outlier_clamping" variant="inline" />
           </div>
         )}
         {missingCostCount > 0 && (
           <div className="px-3 pb-1 text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
             <Info className="h-3 w-3 shrink-0" />
             <span>🚨 원가 미계상 의심 {missingCostCount}건 (마진 90%+ + 원가 0원) — hover 시 품목 확인</span>
+            <MetricInfo id="bcg_missing_cost" variant="inline" />
           </div>
         )}
         {/* 사분면별 미니 통계 — hover 시 BCG 사분면 정의 표시 */}
@@ -503,6 +554,15 @@ function SegmentDetail({ matrix }: { matrix: SegmentMatrix }) {
               </div>
               <div className="text-[10px] text-muted-foreground mb-1.5 italic">
                 {getQuadrantAction(q)}
+              </div>
+              {/* C11-C12: 단일 mini-legend (각 cell마다 ⓘ 추가하지 않고 한 번만) */}
+              <div className="text-[9px] text-muted-foreground/80 mb-1 flex items-center gap-2 border-b border-border/20 pb-0.5">
+                <span className="inline-flex items-center gap-0.5">
+                  ⭐ Top 20% <MetricInfo id="bcg_pareto_80" variant="inline" />
+                </span>
+                <span className="inline-flex items-center gap-0.5">
+                  · 추세 ↗→↘ <MetricInfo id="bcg_dynamic_arrow" variant="inline" />
+                </span>
               </div>
               <div className="space-y-1">
                 {byQuadrant(q).length === 0 && (
