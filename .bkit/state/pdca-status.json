@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-05-07T04:34:24.512989Z",
+  "lastUpdated": "2026-05-07T06:13:35.034812Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -21,10 +21,9 @@
     "analysis",
     "metrics",
     "glossary",
-    "scripts",
-    "portfolio-matrix-v4-world-class"
+    "scripts"
   ],
-  "primaryFeature": "portfolio-matrix-v4-world-class",
+  "primaryFeature": null,
   "features": {
     "저가수주-상계효과-개선": {
       "phase": "archived",
@@ -60,7 +59,7 @@
       "phaseNumber": 3,
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\productPortfolioMatrix.test.ts",
       "timestamps": {
-        "lastUpdated": "2026-05-07T04:28:53.541Z"
+        "lastUpdated": "2026-05-07T06:07:58.859Z"
       }
     },
     "인프라 대시보드": {
@@ -85,7 +84,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:04.073Z",
-        "lastUpdated": "2026-05-07T04:31:37.690Z"
+        "lastUpdated": "2026-05-07T06:08:49.588Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\tabs\\PortfolioMatrixTab.tsx"
     },
@@ -176,7 +175,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T05:01:01.900Z",
-        "lastUpdated": "2026-05-07T04:29:52.987Z"
+        "lastUpdated": "2026-05-07T05:57:53.795Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\page.tsx"
     },
@@ -290,7 +289,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-22T06:10:52.470Z",
-        "lastUpdated": "2026-05-07T04:32:42.672Z"
+        "lastUpdated": "2026-05-07T06:09:21.813Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\metrics\\glossary-portfolio.ts"
     },
@@ -368,15 +367,13 @@
       "note": "Phase B baseline (BCG 4-way SQA) — v2/v3와 통합 archive"
     },
     "portfolio-matrix-v4-world-class": {
-      "phase": "do",
-      "matchRate": null,
+      "phase": "archived",
+      "matchRate": 100,
       "iterationCount": 0,
       "startedAt": "2026-05-07T02:28:02.863520Z",
-      "timestamps": {
-        "lastUpdated": "2026-05-07T04:34:24.512989Z"
-      },
-      "currentPhase": "P1-2 completed",
-      "designDocument": "docs/02-design/features/portfolio-matrix-v4-world-class-p1-2.design.md"
+      "archivedAt": "2026-05-07T06:13:35.034812Z",
+      "archivedTo": "docs/archive/2026-05/portfolio-matrix-v4-world-class/",
+      "note": "v4 3-Tier 6 phases 완료. Excel 활용률 22%→65%, McKinsey/BCG/Bain 5 패턴 추가, 4 신규 분석 모듈, +3,019 LOC, +72 tests, 8 commits"
     }
   },
   "pipeline": {
@@ -387,7 +384,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-05-07T04:32:42.676Z"
+    "lastActivity": "2026-05-07T06:09:21.814Z"
   },
   "history": [
     {
@@ -14978,6 +14975,336 @@
     },
     {
       "timestamp": "2026-05-07T04:32:42.672Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:36:39.483Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:37:13.286Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:37:47.419Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:37:57.557Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:38:09.585Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:38:25.269Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:39:02.143Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:40:00.944Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:42:05.225Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:42:45.107Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:43:04.192Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:43:28.448Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:43:45.468Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:44:18.220Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:44:43.607Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:45:01.794Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:47:31.491Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:48:19.238Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:48:42.662Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:48:53.005Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:49:04.134Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:49:47.853Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:50:16.971Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:53:31.409Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:54:18.255Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:54:58.639Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:55:20.588Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:55:32.084Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:55:42.273Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:55:57.363Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:56:51.367Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:57:15.269Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T05:57:53.795Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:00:22.254Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:00:59.978Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:01:20.390Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:01:30.659Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:01:41.133Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:02:24.093Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:02:50.830Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:04:46.971Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:04:58.230Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:05:53.378Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:06:04.802Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:06:11.876Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:06:30.375Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:06:43.572Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:06:57.695Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:07:05.489Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:07:17.032Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:07:27.640Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:07:58.859Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:08:34.137Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:08:49.588Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-07T06:09:21.813Z",
       "feature": "metrics",
       "phase": "do",
       "action": "updated"
