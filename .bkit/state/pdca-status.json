@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-04-28T23:41:35.578Z",
+  "lastUpdated": "2026-05-07T01:16:14.156138Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -57,9 +57,9 @@
       "archivedAt": "2026-03-23T12:00:00.000Z",
       "archivedTo": "docs/archive/2026-03/analysis/",
       "phaseNumber": 3,
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\autoReport.p1.test.ts",
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\analysis\\productPortfolioMatrix.test.ts",
       "timestamps": {
-        "lastUpdated": "2026-04-28T23:11:05.637Z"
+        "lastUpdated": "2026-04-30T08:50:44.215Z"
       }
     },
     "인프라 대시보드": {
@@ -84,9 +84,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:11:04.073Z",
-        "lastUpdated": "2026-04-28T22:46:02.856Z"
+        "lastUpdated": "2026-05-06T23:21:02.673Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\receivables\\tabs\\NegotiationPriorityTab.tsx"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\tabs\\PortfolioMatrixTab.tsx"
     },
     "sales": {
       "phase": "do",
@@ -123,7 +123,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T04:37:14.025Z",
-        "lastUpdated": "2026-04-17T01:10:39.538Z"
+        "lastUpdated": "2026-04-30T05:19:58.712Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\excel\\parser.ts"
     },
@@ -175,7 +175,7 @@
       "documents": {},
       "timestamps": {
         "started": "2026-03-06T05:01:01.900Z",
-        "lastUpdated": "2026-04-20T03:07:13.801Z"
+        "lastUpdated": "2026-04-30T06:41:05.566Z"
       },
       "lastFile": "d:\\분석\\인프라 대시보드\\src\\app\\dashboard\\profitability\\page.tsx"
     },
@@ -289,9 +289,9 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-22T06:10:52.470Z",
-        "lastUpdated": "2026-04-27T01:23:03.709Z"
+        "lastUpdated": "2026-05-06T23:16:27.741Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\metrics\\glossary-profitability.ts"
+      "lastFile": "d:\\분석\\인프라 대시보드\\src\\lib\\metrics\\glossary-portfolio.ts"
     },
     "glossary": {
       "phase": "do",
@@ -335,9 +335,36 @@
       "documents": {},
       "timestamps": {
         "started": "2026-04-27T02:56:51.501Z",
-        "lastUpdated": "2026-04-28T23:41:35.577Z"
+        "lastUpdated": "2026-04-29T07:33:36.614Z"
       },
-      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\generate-bulk-cards.py"
+      "lastFile": "d:\\분석\\인프라 대시보드\\scripts\\dry-run-composite-risk.py"
+    },
+    "product-portfolio-matrix-v2": {
+      "phase": "archived",
+      "matchRate": 100,
+      "iterationCount": 4,
+      "startedAt": "2026-05-01T00:00:00Z",
+      "archivedAt": "2026-05-07T01:16:14.156138Z",
+      "archivedTo": "docs/archive/2026-05/product-portfolio-matrix/",
+      "note": "v2 운영 fix 4건 (Defensive Analytics 원칙 4종 확립) — 진화 archive 통합"
+    },
+    "bcg-tooltip-enrichment-v3": {
+      "phase": "archived",
+      "matchRate": 100,
+      "iterationCount": 1,
+      "startedAt": "2026-05-07T00:00:00Z",
+      "archivedAt": "2026-05-07T01:16:14.156138Z",
+      "archivedTo": "docs/archive/2026-05/product-portfolio-matrix/",
+      "note": "v3 툴팁 강화 (Progressive Disclosure 원칙 4종 추가) — v2와 통합 archive"
+    },
+    "product-portfolio-matrix": {
+      "phase": "archived",
+      "matchRate": 100,
+      "iterationCount": 0,
+      "startedAt": "2026-04-30T00:00:00Z",
+      "archivedAt": "2026-05-07T01:16:14.156138Z",
+      "archivedTo": "docs/archive/2026-05/product-portfolio-matrix/",
+      "note": "Phase B baseline (BCG 4-way SQA) — v2/v3와 통합 archive"
     }
   },
   "pipeline": {
@@ -348,7 +375,7 @@
   "session": {
     "startedAt": "2026-03-06T03:53:44.348Z",
     "onboardingCompleted": false,
-    "lastActivity": "2026-04-28T23:41:35.578Z"
+    "lastActivity": "2026-05-06T23:21:02.674Z"
   },
   "history": [
     {
@@ -14172,6 +14199,582 @@
     {
       "timestamp": "2026-04-28T23:41:35.577Z",
       "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T07:31:58.416Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T07:32:20.573Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T07:32:55.089Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T07:33:36.614Z",
+      "feature": "scripts",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:26:54.035Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:27:24.617Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:28:01.310Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:28:25.714Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:29:38.320Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:29:48.618Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:30:04.004Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:36:49.856Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:38:33.260Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:39:24.994Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:40:01.448Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:40:08.155Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T08:40:33.916Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T09:18:59.194Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-29T23:01:33.214Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T05:19:58.712Z",
+      "feature": "excel",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T05:21:56.421Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T05:23:05.400Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:39:25.471Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:40:27.717Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:40:35.611Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:40:43.216Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:40:58.161Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:41:05.566Z",
+      "feature": "profitability",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:42:16.287Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:42:24.604Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T06:43:18.200Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:31:38.577Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:31:53.264Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:32:15.483Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:32:26.926Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:32:44.563Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:34:54.281Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:35:06.297Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:36:25.279Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:36:49.285Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:37:06.951Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:37:32.689Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:39:07.469Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:49:27.630Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:49:53.778Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:50:07.121Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:50:24.849Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:50:37.512Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:50:47.105Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:50:55.833Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:51:20.157Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:51:30.483Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:52:04.075Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:52:16.343Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:52:28.023Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T07:52:46.482Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:11:36.976Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:11:52.251Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:12:19.218Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:12:28.979Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:12:37.563Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:12:53.805Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:13:20.794Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:13:39.045Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:13:55.369Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:14:07.791Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:14:19.668Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:15:45.970Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:38:29.634Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:38:43.230Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:38:53.234Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:04.109Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:11.817Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:20.732Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:38.921Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:49.571Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:39:58.142Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:40:09.332Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:40:27.941Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:46:59.765Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:47:16.097Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:47:32.889Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:47:40.811Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:47:59.515Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:50:34.677Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:50:44.215Z",
+      "feature": "analysis",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:52:16.635Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-04-30T08:52:24.765Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:14:32.079Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:16:27.741Z",
+      "feature": "metrics",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:18:44.108Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:19:04.016Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:19:33.336Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:20:08.699Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:20:39.914Z",
+      "feature": "tabs",
+      "phase": "do",
+      "action": "updated"
+    },
+    {
+      "timestamp": "2026-05-06T23:21:02.673Z",
+      "feature": "tabs",
       "phase": "do",
       "action": "updated"
     }
