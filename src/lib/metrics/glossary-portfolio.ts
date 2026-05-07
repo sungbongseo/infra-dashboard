@@ -1,13 +1,15 @@
 /**
  * Portfolio Matrix (BCG 4-way SQA) glossary 엔트리.
  *
- * 25 entries:
+ * 29 entries:
  * - 4 사분면 (Star / Cash Cow / Problem Child / Dog)
  * - 2 마진 (가중 / 산술 평균 — outlier 영향)
  * - 2 옵션 (Pareto 80/20 / Dynamic 화살표)
  * - 4 임계 모드 (Median / P75 / 가중평균 / 0%)
  * - 1 개념 (4-way segment)
  * - 12 v3 추가 (KPI 합계 2 / 차트 축 2 / 임계선 2 / 데이터 품질 4 / 원가 경고 2)
+ * - 1 v4 P1-1 (anomaly export)
+ * - 3 v4 P1-2 (대분류 분포 / 매핑 / dominantQuadrant)
  */
 
 import type { MetricEntry } from "./glossary";
@@ -624,5 +626,94 @@ export const portfolioMetrics = {
     ],
     relatedIds: ["bcg_missing_cost", "bcg_negative_cost"],
     source: ["100", "computed"],
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // v4 P1-2: 대분류 × BCG mini-matrix (Nested Matrix Pattern)
+  // ─────────────────────────────────────────────────────────────
+  bcg_category_distribution: {
+    id: "bcg_category_distribution",
+    name: "📊 대분류별 사분면 분포 (Nested Matrix)",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "segment 내 entries를 200 보고서의 대분류별로 sub-aggregate.\n" +
+      "각 대분류: itemCount, totalSales, totalProfit, weightedMargin, 사분면 분포, dominantQuadrant\n" +
+      "정렬: totalSales 내림차순",
+    beginner:
+      "📊 같은 segment 안에서 어느 대분류(도막재/발포재/시공 등)가 효자인지 한눈에.\n" +
+      "막대바 색상으로 사분면 비중 (초록=Star/파랑=Cash Cow/노랑=Q.Mark/빨강=Dog).",
+    intermediate:
+      "McKinsey/BCG 컨설팅의 nested matrix 패턴 — 단일 4-segment BCG가 '내수×제품 적자'를 보여준다면, 본 분석은 '어느 대분류가 적자 driver인지' 즉시 식별.\n" +
+      "막대바: 4 사분면 비중 stacked horizontal bar. 우측: 매출 비중 % + 가중 영업이익율.\n" +
+      "default-hidden (collapsible) — 시각적 노이즈 최소화 (8 원칙 #8).",
+    expert:
+      "calcCategoryDistribution() in productPortfolioMatrix.ts. " +
+      "200 보고서 미전달 시 모든 entries `_unmapped`로 단일 row. " +
+      "tie-breaking (사분면 동수): star > cash_cow > problem_child > dog 우선순위. " +
+      "salesShare는 segment 매출 대비 비중 (전사 대비 아님).",
+    benchmark: "Top 3 대분류가 segment 매출 80%+ 차지 권장 (집중 관리)",
+    relatedIds: ["bcg_category_mapping", "bcg_dominant_quadrant", "bcg_segment_4way"],
+    source: ["100", "200", "computed"],
+  },
+  bcg_category_mapping: {
+    id: "bcg_category_mapping",
+    name: "100 ↔ 200 대분류 매핑",
+    category: "profitability",
+    unit: "percent",
+    formula:
+      "3-level fallback:\n" +
+      "  1. Exact: 100.itemCode === 200.품목\n" +
+      "  2. [CODE] prefix: 100.code === 200의 [CODE] 부분\n" +
+      "  3. 역방향 [CODE]: 100이 [CODE] 형식 → 추출 후 매칭\n" +
+      "실패 시 _unmapped",
+    beginner:
+      "🔗 100 보고서의 품목과 200 보고서의 대분류를 자동 연결.\n" +
+      "코드 형식이 달라 100% 매칭 어려움 — 매핑률이 매개변수.",
+    intermediate:
+      "100 보고서는 거래처×품목 단위 (품목 코드만), 200 보고서는 품목 마스터 (대분류·중분류·소분류 계층 + 품목명 포함).\n" +
+      "두 보고서의 품목 식별자 형식이 다를 수 있음 (`CHMJ4229997` vs `[CHMJ4229997] R-AA`) → 3-level fallback으로 매칭률 최대화.\n" +
+      "매핑률 < 80% 시 데이터 품질 점검 필요 (200 업로드 누락 또는 품목 마스터 비동기).",
+    expert:
+      "buildCategoryMap() + lookupCategory() in productPortfolioMatrix.ts. " +
+      "exactMap (전체 키), prefixMap ([CODE] 추출본) 2개 사전 빌드 → O(1) lookup × 3 fallback. " +
+      "매핑 실패 품목은 UNMAPPED_CATEGORY sentinel로 표시되어 categoryDistribution에 별도 row로 등장.",
+    benchmark: "매핑률 80%+ 정상 / 50~80% 점검 / <50% 데이터 이슈",
+    contextBranches: [
+      {
+        when: (rate: number) => rate < 0.5,
+        message: "🚨 매핑률 50% 미만 — 200 보고서 업로드 또는 품목 마스터 동기화 점검 필요",
+        tone: "danger" as const,
+      },
+      {
+        when: (rate: number) => rate >= 0.5 && rate < 0.8,
+        message: "⚠ 매핑률 80% 미만 — 미매칭 품목 추가 매핑 검토",
+        tone: "warning" as const,
+      },
+    ],
+    relatedIds: ["bcg_category_distribution"],
+    source: ["100", "200", "computed"],
+  },
+  bcg_dominant_quadrant: {
+    id: "bcg_dominant_quadrant",
+    name: "대분류별 dominantQuadrant",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "각 대분류 그룹의 4 사분면 중 품목 수 최대인 사분면.\n" +
+      "Tie 시: star > cash_cow > problem_child > dog 우선순위",
+    beginner:
+      "🎯 이 대분류는 주로 어느 사분면? — 가장 많은 사분면 1개 자동 식별.\n" +
+      "Star 우세면 효자, Dog 우세면 정리 후보.",
+    intermediate:
+      "행 좌측 아이콘으로 표시 (★●◆▼). 동수 시 우선순위 적용 — Star가 최우선이라 '잘하는 segment' 위주로 강조.\n" +
+      "단점: itemCount 기준이라 큰 매출 1건이 작은 매출 10건보다 가벼움 → totalSales 기준 dominant 별도 검토 가능 (P3+).",
+    expert:
+      "QUADRANT_PRIORITY = ['star', 'cash_cow', 'problem_child', 'dog']. " +
+      "calcCategoryDistribution() 내부 산출. " +
+      "weightedMarginRate (우측 표시)와 함께 보면 더 정확 — dominantQuadrant=Star + 가중 마진 음수면 데이터 이상.",
+    benchmark: "Star/Cash Cow 우세 = 건전 / Dog 우세 = 재검토 필요",
+    relatedIds: ["bcg_category_distribution"],
+    source: ["100", "200", "computed"],
   },
 } as const satisfies Record<string, MetricEntry>;

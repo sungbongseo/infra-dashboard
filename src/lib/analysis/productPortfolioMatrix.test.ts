@@ -1,11 +1,15 @@
 import { describe, it, expect } from "vitest";
-import type { CustomerItemDetailRecord } from "@/types";
+import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import {
   calcPortfolioMatrix,
   classifySegmentType,
   classifyQuadrant,
   getQuadrantKoreanName,
   getQuadrantAction,
+  buildCategoryMap,
+  lookupCategory,
+  calcCategoryDistribution,
+  UNMAPPED_CATEGORY,
 } from "./productPortfolioMatrix";
 
 // ─── 헬퍼 ────────────────────────────────────────────
@@ -592,5 +596,135 @@ describe("calcPortfolioMatrix — v4 P1-1 anomaly export", () => {
     // 정상 품목 1건만 entries 진입 (음수는 제외, 미계상은 포함됨)
     const allEntries = Object.values(result.matrices).flatMap(m => m.entries);
     expect(allEntries).toHaveLength(2); // 정상 + 미계상
+  });
+});
+
+// ─── v4 P1-2: 대분류 BCG mini-matrix (Nested Matrix) ─────
+function makeItem200(품목: string, 대분류: string): ItemProfitabilityRecord {
+  return {
+    판매사업부: "건자재",
+    영업조직팀: "건자재팀",
+    대분류,
+    중분류: "",
+    소분류: "",
+    품목계정그룹: "",
+    품목,
+    기준단위: "KG",
+    계정구분: "제품",
+    매출수량: 0, 매출액: 0, 매출단가: 0,
+    표준매출원가: 0, 실적매출원가: 0, 매출원가율: 0,
+    매출총이익: 0, 매출총이익율: 0,
+    영업이익: 0, 직접판매운반비: 0, 판매관리비: 0, 영업이익율: 0,
+  } as ItemProfitabilityRecord;
+}
+
+describe("buildCategoryMap & lookupCategory — v4 P1-2", () => {
+  it("itemProfitability 미전달 → 빈 map + lookup 실패", () => {
+    const maps = buildCategoryMap(undefined);
+    expect(maps.exactMap.size).toBe(0);
+    expect(maps.prefixMap.size).toBe(0);
+    expect(lookupCategory("ANY", maps)).toBe(UNMAPPED_CATEGORY);
+  });
+
+  it("Exact match — 100.itemCode === 200.품목", () => {
+    const maps = buildCategoryMap([
+      makeItem200("R-AA", "도막재"),
+      makeItem200("HD-40", "수출"),
+    ]);
+    expect(lookupCategory("R-AA", maps)).toBe("도막재");
+    expect(lookupCategory("HD-40", maps)).toBe("수출");
+    expect(lookupCategory("UNKNOWN", maps)).toBe(UNMAPPED_CATEGORY);
+  });
+
+  it("[CODE] prefix match — 100.itemCode == 200의 [CODE] 부분", () => {
+    // 200: "[CHMJ4229997] R-AA" → exactMap에는 전체, prefixMap에는 CHMJ4229997만
+    const maps = buildCategoryMap([
+      makeItem200("[CHMJ4229997] R-AA", "도막재"),
+    ]);
+    // 100에서 코드만 들어온 경우 → prefixMap으로 매칭
+    expect(lookupCategory("CHMJ4229997", maps)).toBe("도막재");
+    // 전체 형식도 exactMap으로 매칭
+    expect(lookupCategory("[CHMJ4229997] R-AA", maps)).toBe("도막재");
+  });
+
+  it("역방향 [CODE] match — 100.itemCode가 [CODE] 형식", () => {
+    // 200에는 코드만, 100에서 [CODE] 형식으로 옴
+    const maps = buildCategoryMap([
+      makeItem200("CHMJ4229997", "도막재"),
+    ]);
+    expect(lookupCategory("[CHMJ4229997] R-AA", maps)).toBe("도막재");
+  });
+});
+
+describe("calcCategoryDistribution — v4 P1-2", () => {
+  it("빈 entries → 빈 배열", () => {
+    expect(calcCategoryDistribution([])).toHaveLength(0);
+  });
+
+  it("dominantQuadrant tie-break — star > cash_cow > problem_child > dog 우선순위", () => {
+    // 1 segment, 1 대분류, 4 entries 각 사분면 1개씩 → tie → star 우선
+    const entries: any[] = [
+      { sales: 1000, operatingProfit: 100, quadrant: "star", majorCategory: "도막재" },
+      { sales: 1000, operatingProfit: 50, quadrant: "cash_cow", majorCategory: "도막재" },
+      { sales: 100, operatingProfit: 30, quadrant: "problem_child", majorCategory: "도막재" },
+      { sales: 100, operatingProfit: -10, quadrant: "dog", majorCategory: "도막재" },
+    ];
+    const stats = calcCategoryDistribution(entries);
+    expect(stats).toHaveLength(1);
+    expect(stats[0].dominantQuadrant).toBe("star");
+    expect(stats[0].itemCount).toBe(4);
+  });
+
+  it("totalSales 내림차순 정렬 + salesShare 합 = 1.0", () => {
+    const entries: any[] = [
+      { sales: 1000, operatingProfit: 100, quadrant: "star", majorCategory: "A" },
+      { sales: 5000, operatingProfit: 500, quadrant: "star", majorCategory: "B" },
+      { sales: 3000, operatingProfit: 200, quadrant: "cash_cow", majorCategory: "C" },
+    ];
+    const stats = calcCategoryDistribution(entries);
+    expect(stats.map(s => s.majorCategory)).toEqual(["B", "C", "A"]); // 매출 5000 > 3000 > 1000
+    const totalShare = stats.reduce((s, e) => s + e.salesShare, 0);
+    expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+});
+
+describe("calcPortfolioMatrix — v4 P1-2 통합", () => {
+  it("itemProfitability 미전달 시 모든 entries UNMAPPED + categoryMappingStats 0%", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "정상", 1000, 100),
+      makeRec("제품", "일반매출", "P002", "정상2", 2000, 200),
+    ];
+    const result = calcPortfolioMatrix(data); // 200 미전달
+    const m = result.matrices["내수×제품"];
+    expect(m.entries.every(e => e.majorCategory === UNMAPPED_CATEGORY)).toBe(true);
+    expect(m.categoryDistribution).toHaveLength(1); // _unmapped 1개
+    expect(m.categoryDistribution[0].majorCategory).toBe(UNMAPPED_CATEGORY);
+    expect(result.categoryMappingStats.mappingRate).toBe(0);
+    expect(result.categoryMappingStats.unmappedItems).toBe(2);
+    expect(result.categoryMappingStats.mappedItems).toBe(0);
+  });
+
+  it("일부 매핑 — 매핑 + 미매핑 분리 + categoryDistribution 정렬", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "도막재 품목", 5000, 500),
+      makeRec("제품", "일반매출", "P002", "발포재 품목", 3000, 300),
+      makeRec("제품", "일반매출", "UNKNOWN", "미매핑 품목", 1000, 100),
+    ];
+    const item200 = [
+      makeItem200("P001", "도막재"),
+      makeItem200("P002", "발포재"),
+    ];
+    const result = calcPortfolioMatrix(data, {}, item200);
+    const m = result.matrices["내수×제품"];
+    expect(m.entries).toHaveLength(3);
+    expect(m.categoryDistribution.length).toBeGreaterThanOrEqual(2);
+    // totalSales 내림차순
+    const top = m.categoryDistribution[0];
+    expect(top.majorCategory).toBe("도막재"); // 5000 매출
+    expect(top.totalSales).toBe(5000);
+    // mapping stats
+    expect(result.categoryMappingStats.mappingRate).toBeCloseTo(2 / 3, 2);
+    expect(result.categoryMappingStats.mappedItems).toBe(2);
+    expect(result.categoryMappingStats.unmappedItems).toBe(1);
   });
 });

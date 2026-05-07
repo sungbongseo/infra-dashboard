@@ -19,8 +19,11 @@
  *   PortfolioMatrixResult — 4 segment × {entries, stats, thresholds}
  */
 
-import type { CustomerItemDetailRecord } from "@/types";
+import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { safeDivide } from "@/lib/utils";
+
+/** P1-2: 대분류 미매칭 sentinel — "_unmapped" 사용으로 일반 한글 대분류명과 충돌 방지 */
+export const UNMAPPED_CATEGORY = "_unmapped";
 
 // ─── Types ───────────────────────────────────────────────
 
@@ -62,6 +65,27 @@ export interface BCGMatrixEntry {
   currProfit?: number;
   currMargin?: number;
   trendDirection: TrendDirection;
+
+  /** P1-2: 200 itemProfitability 보고서 대분류 (매칭 실패 시 UNMAPPED_CATEGORY) */
+  majorCategory: string;
+}
+
+/**
+ * P1-2: 대분류별 segment 내 sub-aggregation.
+ * Nested matrix 패턴 (McKinsey/BCG 컨설팅 메모) — segment 내 어느 대분류가 driver인지 즉시 식별.
+ */
+export interface CategoryStats {
+  majorCategory: string;       // "도막재", "발포재", UNMAPPED_CATEGORY 등
+  itemCount: number;
+  totalSales: number;
+  totalProfit: number;
+  weightedMarginRate: number;  // = totalProfit / totalSales × 100
+  /** segment 내 매출 비중 (0-1) */
+  salesShare: number;
+  /** 사분면별 품목 수 */
+  quadrantDist: Record<Quadrant, number>;
+  /** 가장 큰 사분면 (UI 강조용). Tie-break: star > cash_cow > problem_child > dog */
+  dominantQuadrant: Quadrant;
 }
 
 export interface QuadrantStats {
@@ -92,6 +116,9 @@ export interface SegmentMatrix {
     marginThreshold: number;
     salesP75: number;     // Pareto 강조용 (참고)
   };
+
+  /** P1-2: 대분류별 사분면 분포 (totalSales 내림차순). 200 데이터 미전달 시 빈 배열. */
+  categoryDistribution: CategoryStats[];
 }
 
 /**
@@ -136,6 +163,13 @@ export interface PortfolioMatrixResult {
   };
   /** P1-1: 회계팀 검증용 anomaly 통합 리스트 (missing_cost + negative_cost) */
   anomalies: AnomalyExportEntry[];
+  /** P1-2: 100↔200 대분류 매핑 통계 (미흡 시 UI 경고용) */
+  categoryMappingStats: {
+    totalItems: number;        // BCG entries 총 품목 수
+    mappedItems: number;       // 200 보고서로 대분류 매칭 성공
+    unmappedItems: number;     // 매칭 실패 (UNMAPPED_CATEGORY)
+    mappingRate: number;       // 0-1 (mappedItems / totalItems)
+  };
 }
 
 /** Outlier 임계 — 산술 평균 계산 시 |마진| > 이 값 인 품목 제외 */
@@ -179,6 +213,135 @@ export function classifySegmentType(매출유형: string): "내수" | "해외" |
 }
 
 /**
+ * P1-2: 200 itemProfitability 보고서로부터 (품목코드 → 대분류) Map 빌드.
+ *
+ * 100과 200의 품목 식별자 형식 차이로 3-level 매칭 fallback 필요:
+ * 1. Exact match — itemCode 완전 일치
+ * 2. [CODE] prefix 추출 — `[CHMJ4229997] R-AA` 형식에서 CODE 만 사용
+ * 3. Fuzzy contains — 양방향 substring (lookupCategory 호출 시점 처리)
+ *
+ * @returns { exactMap, prefixMap } — exactMap은 원본 품목 그대로, prefixMap은 [CODE] 추출본
+ */
+export function buildCategoryMap(items?: ItemProfitabilityRecord[]): {
+  exactMap: Map<string, string>;
+  prefixMap: Map<string, string>;
+} {
+  const exactMap = new Map<string, string>();
+  const prefixMap = new Map<string, string>();
+  if (!items || items.length === 0) return { exactMap, prefixMap };
+
+  for (const r of items) {
+    const item = (r.품목 || "").trim();
+    const cat = (r.대분류 || "").trim();
+    if (!item || !cat) continue;
+    // exact key
+    exactMap.set(item, cat);
+    // [CODE] prefix 추출 — 예: "[CHMJ4229997] R-AA" → "CHMJ4229997"
+    const m = item.match(/^\[([^\]]+)\]/);
+    if (m && m[1]) {
+      const code = m[1].trim();
+      if (code) prefixMap.set(code, cat);
+    }
+  }
+  return { exactMap, prefixMap };
+}
+
+/**
+ * P1-2: 품목코드 → 대분류 lookup (3-level fallback).
+ *
+ * 1. exact: itemCode 완전 일치
+ * 2. prefix: 100.itemCode === 200의 [CODE] 부분
+ * 3. reverse prefix: 100.itemCode 안에 [CODE]가 포함됨
+ * 4. 실패 → UNMAPPED_CATEGORY
+ */
+export function lookupCategory(
+  itemCode: string,
+  maps: { exactMap: Map<string, string>; prefixMap: Map<string, string> },
+): string {
+  const code = (itemCode || "").trim();
+  if (!code) return UNMAPPED_CATEGORY;
+  const { exactMap, prefixMap } = maps;
+  // 1. exact
+  const exact = exactMap.get(code);
+  if (exact) return exact;
+  // 2. 100의 itemCode === 200의 prefix code (예: 100="CHMJ4229997", 200=[CHMJ4229997]...)
+  const prefix = prefixMap.get(code);
+  if (prefix) return prefix;
+  // 3. 역방향 — 100.itemCode가 [CODE] 형식 → CODE 추출 후 다시 검색
+  const m = code.match(/^\[([^\]]+)\]/);
+  if (m && m[1]) {
+    const inner = m[1].trim();
+    const innerExact = exactMap.get(inner);
+    if (innerExact) return innerExact;
+    const innerPrefix = prefixMap.get(inner);
+    if (innerPrefix) return innerPrefix;
+  }
+  return UNMAPPED_CATEGORY;
+}
+
+/**
+ * P1-2: segment 내 entries를 대분류별로 sub-aggregate.
+ *
+ * @returns CategoryStats[] — totalSales 내림차순. 빈 entries 입력 시 빈 배열.
+ */
+export function calcCategoryDistribution(entries: BCGMatrixEntry[]): CategoryStats[] {
+  if (entries.length === 0) return [];
+
+  const segmentTotalSales = entries.reduce((s, e) => s + e.sales, 0);
+
+  // 대분류별 그룹핑
+  type Agg = {
+    itemCount: number;
+    totalSales: number;
+    totalProfit: number;
+    quadrantDist: Record<Quadrant, number>;
+  };
+  const map = new Map<string, Agg>();
+  for (const e of entries) {
+    let agg = map.get(e.majorCategory);
+    if (!agg) {
+      agg = {
+        itemCount: 0, totalSales: 0, totalProfit: 0,
+        quadrantDist: { star: 0, cash_cow: 0, problem_child: 0, dog: 0 },
+      };
+      map.set(e.majorCategory, agg);
+    }
+    agg.itemCount++;
+    agg.totalSales += e.sales;
+    agg.totalProfit += e.operatingProfit;
+    agg.quadrantDist[e.quadrant]++;
+  }
+
+  // CategoryStats[] 변환
+  const QUADRANT_PRIORITY: Quadrant[] = ["star", "cash_cow", "problem_child", "dog"];
+  const stats: CategoryStats[] = Array.from(map.entries()).map(([majorCategory, agg]) => {
+    // dominantQuadrant — count 최대값, tie 시 priority 우선
+    let dominantQuadrant: Quadrant = "dog";
+    let maxCount = -1;
+    for (const q of QUADRANT_PRIORITY) {
+      if (agg.quadrantDist[q] > maxCount) {
+        maxCount = agg.quadrantDist[q];
+        dominantQuadrant = q;
+      }
+    }
+    return {
+      majorCategory,
+      itemCount: agg.itemCount,
+      totalSales: agg.totalSales,
+      totalProfit: agg.totalProfit,
+      weightedMarginRate: safeDivide(agg.totalProfit, agg.totalSales) * 100,
+      salesShare: safeDivide(agg.totalSales, segmentTotalSales),
+      quadrantDist: agg.quadrantDist,
+      dominantQuadrant,
+    };
+  });
+
+  // totalSales 내림차순 정렬
+  stats.sort((a, b) => b.totalSales - a.totalSales);
+  return stats;
+}
+
+/**
  * 사분면 분류 (X: 매출, Y: 마진율).
  *
  * Star: 대매출 + 고마진 (성장 핵심 — 투자 강화)
@@ -207,6 +370,8 @@ export function classifyQuadrant(
 export function calcPortfolioMatrix(
   data: CustomerItemDetailRecord[],
   options: PortfolioMatrixOptions = {},
+  /** P1-2: 200 itemProfitability 데이터 (옵션) — 대분류 매핑용. 미전달 시 모든 entries UNMAPPED_CATEGORY. */
+  itemProfitability?: ItemProfitabilityRecord[],
 ): PortfolioMatrixResult {
   const {
     salesThresholdMode = "median",
@@ -219,6 +384,8 @@ export function calcPortfolioMatrix(
   // 0. 사전 필터 + 통계
   let excludedZeroSales = 0;
   let excludedReturns = 0;
+  // P1-2: 대분류 매핑 빌드 (200 보고서 기반, 미전달 시 빈 Map)
+  const categoryMaps = buildCategoryMap(itemProfitability);
 
   // 1. 품목별 집계 (segment × itemCode)
   type ItemAgg = {
@@ -397,6 +564,9 @@ export function calcPortfolioMatrix(
         });
       }
 
+      // P1-2: 대분류 매핑 (실패 시 UNMAPPED_CATEGORY)
+      const majorCategory = lookupCategory(agg.itemCode, categoryMaps);
+
       segEntries.push({
         segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
         sales, operatingProfit: profit, marginRate, cost: agg.totalCost,
@@ -408,6 +578,7 @@ export function calcPortfolioMatrix(
         monthCount,
         prevSales, prevProfit, prevMargin, currSales, currProfit, currMargin,
         trendDirection,
+        majorCategory,
       });
     }
 
@@ -462,6 +633,9 @@ export function calcPortfolioMatrix(
       q.salesShare = safeDivide(q.sales, totalSales);
     }
 
+    // P1-2: 대분류별 분포 사후 집계 (사분면 분류 + Pareto 마킹 완료 후)
+    const categoryDistribution = calcCategoryDistribution(segEntries);
+
     matrices[segment] = {
       segment,
       entries: segEntries,
@@ -470,6 +644,7 @@ export function calcPortfolioMatrix(
       arithmeticMarginExOutlier, outlierCount,
       quadrantStats,
       thresholds: { salesThreshold, marginThreshold, salesP75 },
+      categoryDistribution,
     };
   }
 
@@ -483,6 +658,9 @@ export function calcPortfolioMatrix(
   let overallOutlierCount = 0;
   let overallMissingCost = 0;
   let overallNegativeCost = 0;
+  // P1-2: 대분류 매핑 통계
+  let mappedItems = 0;
+  let unmappedItems = 0;
   for (const m of Object.values(matrices)) {
     overallSales += m.totalSales;
     overallProfit += m.totalProfit;
@@ -497,6 +675,9 @@ export function calcPortfolioMatrix(
       }
       if (e.hasMissingCost) overallMissingCost++;
       if (e.hasNegativeCost) overallNegativeCost++;
+      // P1-2: majorCategory 매핑 카운트
+      if (e.majorCategory === UNMAPPED_CATEGORY) unmappedItems++;
+      else mappedItems++;
     }
   }
 
@@ -517,6 +698,12 @@ export function calcPortfolioMatrix(
       insufficientDataItems,
     },
     anomalies,
+    categoryMappingStats: {
+      totalItems: overallEntryCount,
+      mappedItems,
+      unmappedItems,
+      mappingRate: overallEntryCount > 0 ? mappedItems / overallEntryCount : 0,
+    },
   };
 }
 

@@ -742,6 +742,7 @@ export default function ProfitabilityPage() {
           <ErrorBoundary>
             <PortfolioMatrixTab
               filteredCustomerItemDetail={filteredCustItemDetailRaw}
+              itemProfitability={filteredItemProfitability}
             />
           </ErrorBoundary>
           </Suspense>

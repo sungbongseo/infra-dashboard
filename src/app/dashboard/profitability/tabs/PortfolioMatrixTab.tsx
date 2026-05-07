@@ -17,12 +17,14 @@ import {
   calcPortfolioMatrix,
   getQuadrantKoreanName,
   getQuadrantAction,
+  UNMAPPED_CATEGORY,
   type Segment,
   type Quadrant,
   type SegmentMatrix,
+  type CategoryStats,
   type AnomalyExportEntry,
 } from "@/lib/analysis/productPortfolioMatrix";
-import type { CustomerItemDetailRecord } from "@/types";
+import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
 
 const QUADRANT_COLORS: Record<Quadrant, string> = {
@@ -43,9 +45,11 @@ const ALL_SEGMENTS: Segment[] = ["내수×제품", "내수×상품", "해외×�
 
 interface PortfolioMatrixTabProps {
   filteredCustomerItemDetail: CustomerItemDetailRecord[];
+  /** P1-2: 200 itemProfitability (대분류 매핑용, 옵션) */
+  itemProfitability?: ItemProfitabilityRecord[];
 }
 
-export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatrixTabProps) {
+export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitability }: PortfolioMatrixTabProps) {
   // UI 옵션
   const [salesMode, setSalesMode] = useState<"median" | "p75" | "weighted_avg">("median");
   const [marginMode, setMarginMode] = useState<"median" | "weighted_avg" | "zero">("median");
@@ -59,15 +63,15 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
       salesThresholdMode: salesMode,
       marginThresholdMode: marginMode,
       enableDynamic, enablePareto,
-    }),
-    [filteredCustomerItemDetail, salesMode, marginMode, enableDynamic, enablePareto]
+    }, itemProfitability),
+    [filteredCustomerItemDetail, salesMode, marginMode, enableDynamic, enablePareto, itemProfitability]
   );
 
   if (filteredCustomerItemDetail.length === 0) {
     return <EmptyState message="100 거래처별 품목별 손익 데이터를 업로드해 주세요" />;
   }
 
-  const { overallSummary, matrices, anomalies } = matrixResult;
+  const { overallSummary, matrices, anomalies, categoryMappingStats } = matrixResult;
   const selectedMatrix = matrices[selectedSegment];
 
   /** P1-1: 회계팀 검증용 anomaly CSV export — 음수 원가 + 원가 미계상 통합 */
@@ -189,6 +193,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                       <span className="inline-flex items-center gap-0.5">
                         · 거래월 6개 미만 {overallSummary.insufficientDataItems}건 (Dynamic 미적용)
                         <MetricInfo id="bcg_insufficient_data" variant="inline" />
+                      </span>
+                    )}
+                    {categoryMappingStats.totalItems > 0 && categoryMappingStats.unmappedItems > 0 && (
+                      <span className={`inline-flex items-center gap-0.5 ${categoryMappingStats.mappingRate < 0.8 ? "text-amber-700 dark:text-amber-400" : ""}`}>
+                        · 대분류 매핑 {(categoryMappingStats.mappingRate * 100).toFixed(0)}% ({categoryMappingStats.unmappedItems}건 미매칭)
+                        <MetricInfo id="bcg_category_mapping" variant="inline" />
                       </span>
                     )}
                   </div>
@@ -659,7 +669,73 @@ function SegmentDetail({ matrix }: { matrix: SegmentMatrix }) {
             </div>
           ))}
         </div>
+
+        {/* P1-2: 대분류별 사분면 분포 (collapsible, default-hidden) */}
+        {matrix.categoryDistribution.length > 0 && (
+          <details className="mt-3 border-t border-border/40 pt-2">
+            <summary className="text-xs font-semibold cursor-pointer flex items-center gap-1 hover:text-primary transition-colors">
+              📊 대분류별 사분면 분포 ({matrix.categoryDistribution.length}개)
+              <MetricInfo id="bcg_category_distribution" variant="inline" />
+            </summary>
+            <div className="mt-2 space-y-1">
+              {matrix.categoryDistribution.map(cat => (
+                <CategoryRow key={cat.majorCategory} stats={cat} />
+              ))}
+            </div>
+          </details>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * P1-2: 대분류별 stat row — stacked horizontal bar (사분면 분포) + 매출비중 + 가중 마진율.
+ * dominantQuadrant 아이콘으로 한눈에 segment driver 식별 가능.
+ */
+function CategoryRow({ stats }: { stats: CategoryStats }) {
+  const isUnmapped = stats.majorCategory === UNMAPPED_CATEGORY;
+  const dominantColor = QUADRANT_COLORS[stats.dominantQuadrant];
+  // 사분면 분포 — stacked bar 너비 비율
+  const total = stats.itemCount;
+  const widths = (["star", "cash_cow", "problem_child", "dog"] as Quadrant[]).map(q => ({
+    q,
+    width: total > 0 ? (stats.quadrantDist[q] / total) * 100 : 0,
+  }));
+
+  return (
+    <div className="flex items-center gap-2 text-[10px] py-0.5">
+      {/* 좌: 대분류명 + dominant 아이콘 */}
+      <div className="flex items-center gap-1 w-32 shrink-0 min-w-0">
+        <span style={{ color: dominantColor }} className="shrink-0">
+          {QUADRANT_ICONS[stats.dominantQuadrant]}
+        </span>
+        <span
+          className={`truncate ${isUnmapped ? "italic text-muted-foreground" : "font-medium"}`}
+          title={isUnmapped ? "대분류 미매칭 (200 보고서 매핑 실패)" : stats.majorCategory}
+        >
+          {isUnmapped ? "(미매칭)" : stats.majorCategory}
+        </span>
+        <MetricInfo id="bcg_dominant_quadrant" variant="inline" />
+      </div>
+      {/* 중: stacked horizontal bar (4 사분면 분포) */}
+      <div className="flex-1 h-3 rounded overflow-hidden bg-muted/40 flex min-w-[60px]">
+        {widths.map(({ q, width }) => width > 0 && (
+          <div
+            key={q}
+            style={{ width: `${width}%`, backgroundColor: QUADRANT_COLORS[q] }}
+            title={`${getQuadrantKoreanName(q)}: ${stats.quadrantDist[q]}건`}
+          />
+        ))}
+      </div>
+      {/* 우: 매출 비중 + 가중 마진율 + 품목 수 */}
+      <div className="text-right shrink-0 font-mono w-32">
+        <span className="text-muted-foreground">{(stats.salesShare * 100).toFixed(1)}%</span>
+        <span className={`ml-1.5 ${stats.weightedMarginRate < 0 ? "text-red-600" : "text-green-600"}`}>
+          {safeFixed(stats.weightedMarginRate, 1)}%
+        </span>
+        <span className="ml-1.5 text-muted-foreground/80">({stats.itemCount})</span>
+      </div>
+    </div>
   );
 }
