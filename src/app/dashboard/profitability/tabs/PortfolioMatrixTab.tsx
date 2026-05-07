@@ -17,6 +17,7 @@ import {
   calcPortfolioMatrix,
   getQuadrantKoreanName,
   getQuadrantAction,
+  getBepStatusLabel,
   UNMAPPED_CATEGORY,
   type Segment,
   type Quadrant,
@@ -266,6 +267,19 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
                       <span className={`inline-flex items-center gap-0.5 ${categoryMappingStats.mappingRate < 0.8 ? "text-amber-700 dark:text-amber-400" : ""}`}>
                         · 대분류 매핑 {(categoryMappingStats.mappingRate * 100).toFixed(0)}% ({categoryMappingStats.unmappedItems}건 미매칭)
                         <MetricInfo id="bcg_category_mapping" variant="inline" />
+                      </span>
+                    )}
+                    {/* P3-3: BEP 상태 통계 */}
+                    {(overallSummary.aboveBepCount + overallSummary.belowBepCount + overallSummary.atBepCount > 0) && (
+                      <span className="inline-flex items-center gap-0.5">
+                        · BEP 상태:
+                        <span className="text-green-600 dark:text-green-400">🟢 {overallSummary.aboveBepCount}</span>
+                        <span className="text-amber-600 dark:text-amber-400">🟡 {overallSummary.atBepCount}</span>
+                        <span className="text-red-600 dark:text-red-400">🔴 {overallSummary.belowBepCount}</span>
+                        {overallSummary.bepInsufficientCount > 0 && (
+                          <span className="text-muted-foreground">⚪ {overallSummary.bepInsufficientCount}</span>
+                        )}
+                        <MetricInfo id="bcg_bep_status" variant="inline" />
                       </span>
                     )}
                   </div>

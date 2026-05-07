@@ -6,6 +6,7 @@ import {
   classifyQuadrant,
   getQuadrantKoreanName,
   getQuadrantAction,
+  getBepStatusLabel,
   buildCategoryMap,
   lookupCategory,
   calcCategoryDistribution,
@@ -685,6 +686,59 @@ describe("calcCategoryDistribution — v4 P1-2", () => {
     expect(stats.map(s => s.majorCategory)).toEqual(["B", "C", "A"]); // 매출 5000 > 3000 > 1000
     const totalShare = stats.reduce((s, e) => s + e.salesShare, 0);
     expect(totalShare).toBeCloseTo(1.0, 5);
+  });
+});
+
+// ─── v4 P3-3: BEP (손익분기점) 통합 ─────────────────────
+describe("calcPortfolioMatrix — v4 P3-3 BEP 상태", () => {
+  it("매출총이익 > 판관비 → above_bep (흑자)", () => {
+    const r = makeRec("제품", "일반매출", "P001", "흑자", 10000, 1000);
+    r.실적매출원가 = { 계획: 0, 실적: 7000, 차이: 0 }; // gross = 3000
+    r.판매관리비 = { 계획: 0, 실적: 1000, 차이: 0 }; // gross > sga
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.bepStatus).toBe("above_bep");
+    expect(e.bepMargin).toBe(2000);
+    expect(e.sga).toBe(1000);
+    expect(result.overallSummary.aboveBepCount).toBe(1);
+  });
+
+  it("매출총이익 < 판관비 → below_bep (적자)", () => {
+    const r = makeRec("제품", "일반매출", "P001", "적자", 10000, -500);
+    r.실적매출원가 = { 계획: 0, 실적: 9500, 차이: 0 }; // gross = 500
+    r.판매관리비 = { 계획: 0, 실적: 1500, 차이: 0 }; // gross < sga
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.bepStatus).toBe("below_bep");
+    expect(e.bepMargin).toBe(-1000);
+    expect(result.overallSummary.belowBepCount).toBe(1);
+  });
+
+  it("매출총이익 ≈ 판관비 (5% 이내) → at_bep", () => {
+    const r = makeRec("제품", "일반매출", "P001", "임박", 10000, 0);
+    r.실적매출원가 = { 계획: 0, 실적: 9000, 차이: 0 }; // gross = 1000
+    r.판매관리비 = { 계획: 0, 실적: 1010, 차이: 0 }; // gap=-10, |10|/10000 = 0.1% < 5%
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.bepStatus).toBe("at_bep");
+    expect(result.overallSummary.atBepCount).toBe(1);
+  });
+
+  it("판관비 0원 + 매출총이익 양수 → insufficient (판관비 누락)", () => {
+    const r = makeRec("제품", "일반매출", "P001", "판관비누락", 10000, 0);
+    r.실적매출원가 = { 계획: 0, 실적: 7000, 차이: 0 }; // gross = 3000
+    r.판매관리비 = { 계획: 0, 실적: 0, 차이: 0 };
+    const result = calcPortfolioMatrix([r]);
+    const e = result.matrices["내수×제품"].entries[0];
+    expect(e.bepStatus).toBe("insufficient");
+    expect(result.overallSummary.bepInsufficientCount).toBe(1);
+  });
+
+  it("BEP 한국어 라벨 (4 상태)", () => {
+    expect(getBepStatusLabel("above_bep")).toContain("흑자");
+    expect(getBepStatusLabel("below_bep")).toContain("적자");
+    expect(getBepStatusLabel("at_bep")).toContain("임박");
+    expect(getBepStatusLabel("insufficient")).toContain("산출 불가");
   });
 });
 

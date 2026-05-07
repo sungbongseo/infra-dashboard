@@ -880,6 +880,44 @@ export const portfolioMetrics = {
   // ─────────────────────────────────────────────────────────────
   // v4 P3-2: 공장별 포트폴리오
   // ─────────────────────────────────────────────────────────────
+  // ─────────────────────────────────────────────────────────────
+  // v4 P3-3: 손익분기점 (BEP) 상태
+  // ─────────────────────────────────────────────────────────────
+  bcg_bep_status: {
+    id: "bcg_bep_status",
+    name: "💹 BEP 상태 (손익분기점)",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "BEP 마진 = 매출총이익 - 판매관리비\n" +
+      "분류:\n" +
+      "  🟢 above_bep: 매출총이익 > 판관비 (영업이익 양수, 흑자)\n" +
+      "  🟡 at_bep: |마진| / 매출 < 5% (손익분기 임박)\n" +
+      "  🔴 below_bep: 매출총이익 < 판관비 (영업이익 음수, 적자)\n" +
+      "  ⚪ insufficient: 판관비 0원 + 매출총이익 양수 (판관비 누락 의심)",
+    beginner:
+      "💹 품목별로 손익분기점을 넘었는지 자동 판별.\n" +
+      "초록 = 흑자, 노랑 = 임박, 빨강 = 적자, 회색 = 데이터 부족.",
+    intermediate:
+      "BCG 사분면(매출×마진율)과 별도로 절대 손익 관점 추가.\n" +
+      "Star여도 적자 가능 (대매출+고마진율이지만 판관비 큼) → 영업이익율과 함께 BEP 상태 검토 권장.\n" +
+      "임박(at_bep) 5% 임계는 매출 변동 1~2% 시 흑/적자 전환 가능 의미.",
+    expert:
+      "calcPortfolioMatrix() in productPortfolioMatrix.ts. " +
+      "BEP_THRESHOLD = 0.05 (5% — at_bep 판정 범위, 실증 분석 기준). " +
+      "insufficient: 판관비.실적 = 0 AND 매출총이익 > 0 (행 단위 sga 미집계). " +
+      "위 케이스는 hasMissingCost와는 다름 (cost는 정상이나 sga만 누락).",
+    benchmark: "above_bep 비중 60%+ 권장 / below_bep 30%+ 시 정리 검토",
+    contextBranches: [
+      {
+        when: (n: number) => n >= 1,
+        message: "🔴 적자 품목 발견 — 단가 인상 / 비용 절감 / 거래 정리 검토",
+        tone: "warning" as const,
+      },
+    ],
+    relatedIds: ["bcg_dog", "bcg_cash_cow"],
+    source: ["100", "computed"],
+  },
   bcg_factory_portfolio: {
     id: "bcg_factory_portfolio",
     name: "🏭 공장별 포트폴리오",

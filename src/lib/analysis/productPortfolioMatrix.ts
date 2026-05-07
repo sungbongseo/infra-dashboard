@@ -25,6 +25,17 @@ import { safeDivide } from "@/lib/utils";
 /** P1-2: 대분류 미매칭 sentinel — "_unmapped" 사용으로 일반 한글 대분류명과 충돌 방지 */
 export const UNMAPPED_CATEGORY = "_unmapped";
 
+/**
+ * P3-3: 품목별 손익분기점(BEP) 상태.
+ * - above_bep: 매출총이익 > 판매관리비 (영업이익 양수, 흑자)
+ * - at_bep: 매출총이익 ≈ 판매관리비 (±5% 이내, 손익분기 임박)
+ * - below_bep: 매출총이익 < 판매관리비 (영업이익 음수, 적자)
+ * - insufficient: 판관비 누락 등 산출 불가
+ */
+export type BepStatus = "above_bep" | "at_bep" | "below_bep" | "insufficient";
+
+const BEP_THRESHOLD = 0.05; // 5% — at_bep 판정 범위
+
 // ─── Types ───────────────────────────────────────────────
 
 export type Segment = "내수×제품" | "내수×상품" | "해외×제품" | "해외×상품";
@@ -68,6 +79,13 @@ export interface BCGMatrixEntry {
 
   /** P1-2: 200 itemProfitability 보고서 대분류 (매칭 실패 시 UNMAPPED_CATEGORY) */
   majorCategory: string;
+
+  /** P3-3: 손익분기점 상태 — 매출총이익 vs 판매관리비 */
+  bepStatus: BepStatus;
+  /** P3-3: BEP 마진 (= grossProfit - sga, 양수면 흑자) */
+  bepMargin: number;
+  /** P3-3: 판매관리비 합 */
+  sga: number;
 }
 
 /**
@@ -160,6 +178,11 @@ export interface PortfolioMatrixResult {
     excludedZeroSales: number;   // 제외된 0 매출 행 수
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
+    /** P3-3: BEP 상태별 카운트 */
+    aboveBepCount: number;
+    atBepCount: number;
+    belowBepCount: number;
+    bepInsufficientCount: number;
   };
   /** P1-1: 회계팀 검증용 anomaly 통합 리스트 (missing_cost + negative_cost) */
   anomalies: AnomalyExportEntry[];
@@ -394,6 +417,8 @@ export function calcPortfolioMatrix(
     category: string;
     segment: Segment;
     totalCost: number;
+    /** P3-3: 판매관리비 합 (BEP 산출용) */
+    totalSga: number;
     monthlyData: Map<string, { sales: number; profit: number }>;
   };
   const itemMap = new Map<string, ItemAgg>(); // key = `${segment}|${itemCode}`
@@ -413,6 +438,7 @@ export function calcPortfolioMatrix(
     const sales = rec.매출액?.실적 || 0;
     const profit = rec.영업이익?.실적 || 0;
     const cost = rec.실적매출원가?.실적 || 0;
+    const sga = rec.판매관리비?.실적 || 0; // P3-3: BEP 산출용
 
     // 0 매출 또는 음수 제외
     if (sales <= 0) {
@@ -433,11 +459,13 @@ export function calcPortfolioMatrix(
       agg = {
         itemCode, itemName, category, segment,
         totalCost: 0,
+        totalSga: 0,
         monthlyData: new Map(),
       };
       itemMap.set(key, agg);
     }
     agg.totalCost += cost;
+    agg.totalSga += sga;
 
     if (month) {
       const m = agg.monthlyData.get(month) || { sales: 0, profit: 0 };
@@ -567,6 +595,25 @@ export function calcPortfolioMatrix(
       // P1-2: 대분류 매핑 (실패 시 UNMAPPED_CATEGORY)
       const majorCategory = lookupCategory(agg.itemCode, categoryMaps);
 
+      // P3-3: BEP 상태 산출
+      const sgaTotal = agg.totalSga;
+      const bepMargin = grossProfit - sgaTotal;
+      let bepStatus: BepStatus;
+      if (sgaTotal === 0 && grossProfit > 0) {
+        bepStatus = "insufficient"; // 판관비 누락
+      } else if (sales === 0) {
+        bepStatus = "insufficient";
+      } else {
+        const bepRate = safeDivide(Math.abs(bepMargin), sales);
+        if (bepRate < BEP_THRESHOLD) {
+          bepStatus = "at_bep";
+        } else if (bepMargin > 0) {
+          bepStatus = "above_bep";
+        } else {
+          bepStatus = "below_bep";
+        }
+      }
+
       segEntries.push({
         segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
         sales, operatingProfit: profit, marginRate, cost: agg.totalCost,
@@ -579,6 +626,7 @@ export function calcPortfolioMatrix(
         prevSales, prevProfit, prevMargin, currSales, currProfit, currMargin,
         trendDirection,
         majorCategory,
+        bepStatus, bepMargin, sga: sgaTotal,
       });
     }
 
@@ -661,6 +709,11 @@ export function calcPortfolioMatrix(
   // P1-2: 대분류 매핑 통계
   let mappedItems = 0;
   let unmappedItems = 0;
+  // P3-3: BEP 통계
+  let aboveBepCount = 0;
+  let atBepCount = 0;
+  let belowBepCount = 0;
+  let bepInsufficientCount = 0;
   for (const m of Object.values(matrices)) {
     overallSales += m.totalSales;
     overallProfit += m.totalProfit;
@@ -678,6 +731,11 @@ export function calcPortfolioMatrix(
       // P1-2: majorCategory 매핑 카운트
       if (e.majorCategory === UNMAPPED_CATEGORY) unmappedItems++;
       else mappedItems++;
+      // P3-3: BEP 카운트
+      if (e.bepStatus === "above_bep") aboveBepCount++;
+      else if (e.bepStatus === "at_bep") atBepCount++;
+      else if (e.bepStatus === "below_bep") belowBepCount++;
+      else bepInsufficientCount++;
     }
   }
 
@@ -696,6 +754,10 @@ export function calcPortfolioMatrix(
       excludedZeroSales,
       excludedReturns,
       insufficientDataItems,
+      aboveBepCount,
+      atBepCount,
+      belowBepCount,
+      bepInsufficientCount,
     },
     anomalies,
     categoryMappingStats: {
@@ -755,6 +817,18 @@ export function getQuadrantKoreanName(q: Quadrant): string {
     case "cash_cow": return "캐시카우 🐄";
     case "problem_child": return "문제아동 ❓";
     case "dog": return "낙오자 🐕";
+  }
+}
+
+/**
+ * P3-3: BEP 상태 한국어 라벨 (UI 표시용)
+ */
+export function getBepStatusLabel(status: BepStatus): string {
+  switch (status) {
+    case "above_bep": return "🟢 흑자 (BEP 초과)";
+    case "at_bep": return "🟡 손익분기 임박 (±5%)";
+    case "below_bep": return "🔴 적자 (BEP 미달)";
+    case "insufficient": return "⚪ 산출 불가 (판관비 누락)";
   }
 }
 
