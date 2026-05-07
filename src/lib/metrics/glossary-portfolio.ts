@@ -877,6 +877,41 @@ export const portfolioMetrics = {
     relatedIds: ["bcg_anomaly_export"],
     source: ["100", "303", "304", "computed"],
   },
+  // ─────────────────────────────────────────────────────────────
+  // v4 P3-2: 공장별 포트폴리오
+  // ─────────────────────────────────────────────────────────────
+  bcg_factory_portfolio: {
+    id: "bcg_factory_portfolio",
+    name: "🏭 공장별 포트폴리오",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "공장별 매출/이익 합산 + segment 분포 (4 segment 매출 비중)\n" +
+      "마진율 격차 = max(공장별 마진) - min(공장별 마진) %p\n" +
+      "임계: 격차 >10%p → 운영 표준 차이 의심",
+    beginner:
+      "🏭 공장별로 어느 segment가 강한지, 마진은 얼마나 차이나는지.\n" +
+      "공장간 격차 크면 운영 효율화 여지.",
+    intermediate:
+      "100 보고서 공장 컬럼 (지금까지 미활용) 활용. 공장 빈값은 '(공장 미지정)' 별도 카운트.\n" +
+      "각 공장의 (1) 매출/마진 (2) segment 분포 (3) 거래처/품목 unique count.\n" +
+      "공장간 마진 격차 >10%p 시 자동 경고 — 동일 segment에서 격차면 원가/공정 효율 차이.",
+    expert:
+      "calcFactoryPortfolio() in factoryPortfolio.ts. " +
+      "0매출/반품/원자재 사전 제외 (productPortfolioMatrix와 동일). " +
+      "marginGap 계산 시 UNKNOWN_FACTORY 제외 — 미지정은 공장 비교 의미 없음. " +
+      "B2B 건자재: 공장간 정상 격차 ±3~5%p, 10%+ 시 표준원가/배합비 점검 필요.",
+    benchmark: "마진 격차 ≤5%p 정상 / 5~10%p 주의 / >10%p 즉시 점검",
+    contextBranches: [
+      {
+        when: (gap: number) => gap > 10,
+        message: "⚠ 공장간 마진 격차 큼 — 표준원가/공정 효율 차이 점검 권장",
+        tone: "warning" as const,
+      },
+    ],
+    relatedIds: ["bcg_segment_4way"],
+    source: ["100", "computed"],
+  },
   bcg_volatility_quadrant: {
     id: "bcg_volatility_quadrant",
     name: "Volatility Quadrant (Bain 패턴)",

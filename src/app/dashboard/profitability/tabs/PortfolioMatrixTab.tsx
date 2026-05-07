@@ -41,6 +41,11 @@ import {
   type CrossValidationResult,
   type CrossValidationDiscrepancy,
 } from "@/lib/analysis/crossReportValidation";
+import {
+  calcFactoryPortfolio,
+  UNKNOWN_FACTORY,
+  type FactoryPortfolioResult,
+} from "@/lib/analysis/factoryPortfolio";
 import type { OrgCustomerProfitRecord, HqCustomerItemProfitRecord } from "@/types";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
@@ -107,6 +112,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
   const crossValidationResult = useMemo(
     () => calcCrossReportValidation(filteredCustomerItemDetail, orgCustomerProfit || [], hqCustomerItemProfit || []),
     [filteredCustomerItemDetail, orgCustomerProfit, hqCustomerItemProfit]
+  );
+
+  // P3-2: 공장별 포트폴리오
+  const factoryResult = useMemo(
+    () => calcFactoryPortfolio(filteredCustomerItemDetail),
+    [filteredCustomerItemDetail]
   );
 
   if (filteredCustomerItemDetail.length === 0) {
@@ -349,6 +360,11 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
           || crossValidationResult.summary.onlyIn100Count > 0
           || crossValidationResult.summary.onlyInOtherCount > 0) && (
           <CrossValidationCard result={crossValidationResult} />
+        )}
+
+        {/* P3-2: 공장별 포트폴리오 — 공장간 마진율 격차 + segment 분포 */}
+        {factoryResult.factories.length >= 2 && (
+          <FactoryPortfolioCard result={factoryResult} />
         )}
 
         {/* 선택 segment 상세 — 사분면별 Top 품목 */}
@@ -1133,6 +1149,83 @@ function DiscrepancyRow({ d, rank }: { d: CrossValidationDiscrepancy; rank: numb
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * P3-2: 공장별 포트폴리오 — 공장간 매출/마진율 격차 + segment 분포 비교.
+ */
+function FactoryPortfolioCard({ result }: { result: FactoryPortfolioResult }) {
+  const { factories, unknownFactoryCount, marginGap, hasSignificantGap } = result;
+  const SEGMENT_COLORS: Record<Segment, string> = {
+    "내수×제품": "hsl(142.1, 76.2%, 36.3%)",
+    "내수×상품": "hsl(221.2, 83.2%, 53.3%)",
+    "해외×제품": "hsl(43.3, 96.4%, 56.3%)",
+    "해외×상품": "hsl(346.8, 77.2%, 49.8%)",
+  };
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="text-sm font-semibold flex items-center gap-2">
+          🏭 공장별 포트폴리오
+          <MetricInfo id="bcg_factory_portfolio" variant="compact" />
+          {hasSignificantGap && (
+            <span className="ml-auto text-[11px] text-amber-700 dark:text-amber-400 font-normal">
+              ⚠ 마진율 격차 {marginGap.toFixed(1)}%p (운영 표준 차이)
+            </span>
+          )}
+        </div>
+        <div className="text-[11px] text-muted-foreground">
+          공장 {factories.length}개 ·
+          {unknownFactoryCount > 0 && ` 공장 미지정 ${unknownFactoryCount}건 ·`}
+          마진율 격차 (최대-최소): <span className="font-mono text-foreground">{marginGap.toFixed(1)}%p</span>
+        </div>
+        <div className="space-y-1.5">
+          {factories.map(f => {
+            const isUnknown = f.factory === UNKNOWN_FACTORY;
+            const segmentSlices = (["내수×제품", "내수×상품", "해외×제품", "해외×상품"] as Segment[]).map(s => ({
+              s, share: f.segmentDist[s].salesShare,
+            }));
+            return (
+              <div key={f.factory} className="border rounded p-2 text-[10px]">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`font-semibold text-xs ${isUnknown ? "italic text-muted-foreground" : ""}`}>
+                    {f.factory}
+                  </span>
+                  <span className="text-muted-foreground">
+                    품목 {f.itemCount}건 · 거래처 {f.customerCount}건
+                  </span>
+                  <span className="ml-auto font-mono">
+                    {formatCurrency(f.totalSales)}
+                  </span>
+                  <span className={`font-mono w-16 text-right font-semibold ${f.weightedMarginRate < 0 ? "text-red-600" : f.weightedMarginRate >= 5 ? "text-green-600" : "text-foreground"}`}>
+                    {safeFixed(f.weightedMarginRate, 1)}%
+                  </span>
+                </div>
+                {/* segment 분포 stacked bar */}
+                <div className="flex h-2 rounded overflow-hidden bg-muted/40">
+                  {segmentSlices.map(({ s, share }) =>
+                    share > 0 ? (
+                      <div key={s} style={{ width: `${share * 100}%`, backgroundColor: SEGMENT_COLORS[s] }}
+                        title={`${s}: ${formatCurrency(f.segmentDist[s].sales)} (${(share * 100).toFixed(1)}%)`} />
+                    ) : null
+                  )}
+                </div>
+                <div className="flex items-center gap-2 mt-1 text-[9px] text-muted-foreground/80">
+                  {segmentSlices.filter(x => x.share > 0).map(({ s, share }) => (
+                    <span key={s} className="inline-flex items-center gap-0.5">
+                      <span style={{ backgroundColor: SEGMENT_COLORS[s] }} className="w-1.5 h-1.5 rounded-full" />
+                      {s} {(share * 100).toFixed(0)}%
+                    </span>
+                  ))}
+                  <span className="ml-auto">dominant: {f.dominantSegment}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
