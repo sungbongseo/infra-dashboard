@@ -24,6 +24,11 @@ import {
   type CategoryStats,
   type AnomalyExportEntry,
 } from "@/lib/analysis/productPortfolioMatrix";
+import {
+  calcCustomerConcentration,
+  getHHILevelLabel,
+  type SegmentConcentration,
+} from "@/lib/analysis/customerConcentration";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
 
@@ -65,6 +70,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
       enableDynamic, enablePareto,
     }, itemProfitability),
     [filteredCustomerItemDetail, salesMode, marginMode, enableDynamic, enablePareto, itemProfitability]
+  );
+
+  // P2-1: 거래처 집중도 (HHI) 계산
+  const concentrationResult = useMemo(
+    () => calcCustomerConcentration(filteredCustomerItemDetail),
+    [filteredCustomerItemDetail]
   );
 
   if (filteredCustomerItemDetail.length === 0) {
@@ -276,9 +287,14 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
           ))}
         </div>
 
+        {/* P2-1: 거래처 집중도 (HHI) — 4 segment grid */}
+        {concentrationResult.highRiskSegments > 0 || ALL_SEGMENTS.some(s => concentrationResult.segments[s].totalCustomers > 0) ? (
+          <ConcentrationGrid result={concentrationResult} />
+        ) : null}
+
         {/* 선택 segment 상세 — 사분면별 Top 품목 */}
         {selectedMatrix && selectedMatrix.entries.length > 0 && (
-          <SegmentDetail matrix={selectedMatrix} />
+          <SegmentDetail matrix={selectedMatrix} concentration={concentrationResult.segments[selectedMatrix.segment]} />
         )}
       </div>
     </ErrorBoundary>
@@ -590,7 +606,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   );
 }
 
-function SegmentDetail({ matrix }: { matrix: SegmentMatrix }) {
+function SegmentDetail({ matrix, concentration }: { matrix: SegmentMatrix; concentration?: SegmentConcentration }) {
   const { segment, entries, quadrantStats } = matrix;
 
   // 사분면별 Top 5
@@ -684,6 +700,101 @@ function SegmentDetail({ matrix }: { matrix: SegmentMatrix }) {
             </div>
           </details>
         )}
+
+        {/* P2-1: 선택 segment 거래처 집중도 (HHI Top 10) */}
+        {concentration && concentration.totalCustomers > 0 && (
+          <details className="mt-3 border-t border-border/40 pt-2">
+            <summary className="text-xs font-semibold cursor-pointer flex items-center gap-1 hover:text-primary transition-colors">
+              🎯 거래처 집중도 — HHI {Math.round(concentration.hhi).toLocaleString()} {getHHILevelLabel(concentration.level)}
+              <MetricInfo id="bcg_hhi" variant="inline" currentValue={concentration.hhi} />
+            </summary>
+            <div className="mt-2 space-y-1">
+              <div className="text-[10px] text-muted-foreground flex items-center gap-2 pb-0.5 border-b border-border/30">
+                <span>총 거래처 {concentration.totalCustomers}건</span>
+                <span>· Top 5 비중 <span className="font-mono text-foreground">{(concentration.top5Share * 100).toFixed(1)}%</span></span>
+                <span>· Top 10 비중 <span className="font-mono text-foreground">{(concentration.top10Share * 100).toFixed(1)}%</span></span>
+                {concentration.excludedCustomers > 0 && (
+                  <span>· 0/음수 매출 {concentration.excludedCustomers}건 제외</span>
+                )}
+                <MetricInfo id="bcg_concentration_topshare" variant="inline" />
+              </div>
+              {concentration.topCustomers.map(c => (
+                <div key={c.customerCode} className="flex items-center gap-2 text-[10px]">
+                  <span className="w-5 text-right text-muted-foreground font-mono">{c.rank}.</span>
+                  <span className="flex-1 truncate font-medium" title={c.customerName}>{c.customerName}</span>
+                  <span className="font-mono text-muted-foreground">{formatCurrency(c.sales)}</span>
+                  <span className={`font-mono w-12 text-right ${c.salesShare >= 0.2 ? "text-red-600 dark:text-red-400" : ""}`}>
+                    {(c.salesShare * 100).toFixed(1)}%
+                  </span>
+                  <span className="font-mono w-14 text-right text-muted-foreground">
+                    누적 {(c.cumulativeShare * 100).toFixed(0)}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * P2-1: 거래처 집중도 4-segment grid — 각 segment HHI + level + Top 5 share.
+ * 위험(HHI > 2500) segment는 자동 강조.
+ */
+function ConcentrationGrid({ result }: { result: ReturnType<typeof calcCustomerConcentration> }) {
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="text-sm font-semibold flex items-center gap-2">
+          🎯 거래처 집중도 (Herfindahl-Hirschman Index)
+          <MetricInfo id="bcg_hhi" variant="compact" />
+          {result.highRiskSegments > 0 && (
+            <span className="ml-auto text-[11px] text-red-600 dark:text-red-400 font-normal">
+              🚨 위험 segment {result.highRiskSegments}건
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {ALL_SEGMENTS.map(seg => {
+            const c = result.segments[seg];
+            if (c.totalCustomers === 0) {
+              return (
+                <div key={seg} className="border rounded p-2 bg-muted/20 text-[10px] text-muted-foreground">
+                  <div className="font-semibold text-xs text-foreground">{seg}</div>
+                  <div className="mt-1">데이터 없음</div>
+                </div>
+              );
+            }
+            const isRisk = c.level === "concentrated";
+            const isModerate = c.level === "moderate";
+            const bg = isRisk ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800"
+                     : isModerate ? "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800"
+                     : "bg-green-50/50 dark:bg-green-950/20 border-green-300/50 dark:border-green-800/50";
+            return (
+              <div key={seg} className={`border rounded p-2 text-[10px] ${bg}`}>
+                <div className="font-semibold text-xs text-foreground">{seg}</div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-muted-foreground">HHI:</span>
+                  <span className="font-mono font-semibold">{Math.round(c.hhi).toLocaleString()}</span>
+                </div>
+                <div className="text-[10px]">{getHHILevelLabel(c.level)}</div>
+                <div className="mt-1 flex items-center justify-between text-muted-foreground">
+                  <span>거래처</span>
+                  <span className="font-mono">{c.totalCustomers}건</span>
+                </div>
+                <div className="flex items-center justify-between text-muted-foreground">
+                  <span>Top 5</span>
+                  <span className="font-mono">{(c.top5Share * 100).toFixed(0)}%</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="text-[10px] text-muted-foreground">
+          기준 (US DOJ Horizontal Merger Guidelines): HHI &lt;1500 분산 / 1500~2500 적정 / &gt;2500 집중. 자세한 Top 10 거래처는 segment 클릭 후 SegmentDetail 하단 확인.
+        </div>
       </CardContent>
     </Card>
   );

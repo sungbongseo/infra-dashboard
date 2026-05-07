@@ -716,4 +716,71 @@ export const portfolioMetrics = {
     relatedIds: ["bcg_category_distribution"],
     source: ["100", "200", "computed"],
   },
+
+  // ─────────────────────────────────────────────────────────────
+  // v4 P2-1: 거래처 집중도 (HHI)
+  // ─────────────────────────────────────────────────────────────
+  bcg_hhi: {
+    id: "bcg_hhi",
+    name: "🎯 HHI (Herfindahl-Hirschman Index)",
+    category: "profitability",
+    unit: "number",
+    formula:
+      "HHI = Σ(거래처 매출 비중)² × 10000\n" +
+      "범위: 0 (완전 분산) ~ 10000 (독점)\n" +
+      "기준: <1500 분산 / 1500~2500 적정 / >2500 집중 (US DOJ 2010)",
+    beginner:
+      "🎯 매출이 몇 거래처에 몰려 있는지 측정.\n" +
+      "낮으면 분산 (위험 ↓), 높으면 집중 (한 거래처 잃으면 큰 타격).",
+    intermediate:
+      "각 거래처 매출 비중을 제곱해 합산 — 큰 거래처일수록 큰 영향.\n" +
+      "HHI < 1500: 분산 (건전, 100 거래처 1%씩 = HHI 100)\n" +
+      "HHI 1500~2500: 적정 (예: Top 5가 50% 차지)\n" +
+      "HHI > 2500: 집중 (예: Top 1이 50% → HHI 2500+)\n" +
+      "10000 = 단일 거래처 100% (독점)",
+    expert:
+      "출처: customerConcentration.ts. " +
+      "기준: US Department of Justice Horizontal Merger Guidelines (2010 개정). " +
+      "원래 시장점유율 측정용이지만 거래처 매출 분포 분석에도 동일 적용. " +
+      "한계: 거래처 수 매우 적을 때 (예: 3거래처) HHI 자연스럽게 높음 → totalCustomers와 함께 해석 필요.",
+    benchmark: "<1500 정상 / 1500~2500 점검 / >2500 즉시 대응 (이탈 시 매출 영향 ↑)",
+    commonMistakes: ["HHI 단독 해석 — 거래처 수와 함께 봐야 정확"],
+    contextBranches: [
+      {
+        when: (h: number) => h > 2500,
+        message: "🚨 집중 위험 — 상위 거래처 이탈 시 매출 큰 타격. 거래처 다변화 검토",
+        tone: "danger" as const,
+      },
+      {
+        when: (h: number) => h >= 1500 && h <= 2500,
+        message: "⚠ 적정 수준이나 Top 5 비중 50%+ 시 점검 필요",
+        tone: "warning" as const,
+      },
+    ],
+    relatedIds: ["bcg_concentration_topshare"],
+    source: ["100", "computed"],
+  },
+  bcg_concentration_topshare: {
+    id: "bcg_concentration_topshare",
+    name: "Top N 거래처 매출 비중",
+    category: "profitability",
+    unit: "percent",
+    formula:
+      "Top N share = Σ(상위 N 거래처 매출) / 전체 매출 × 100\n" +
+      "누적 비중: Top 1 + Top 2 + ... + Top N",
+    beginner:
+      "📊 상위 5 또는 10 거래처가 전체 매출 몇 % 차지하는지.\n" +
+      "Pareto 80/20처럼 Top 20%가 매출 80% 차지하면 적정.",
+    intermediate:
+      "Top 5 비중 50%+ 또는 Top 10 비중 80%+ = 집중 위험 신호.\n" +
+      "단일 거래처 비중 ≥ 20%일 때 빨간색 강조 (이탈 위험 큼).\n" +
+      "누적 비중으로 '몇 거래처까지 80% 차지하나' 즉시 식별.",
+    expert:
+      "calcCustomerConcentration() in customerConcentration.ts. " +
+      "0매출/음수 거래처는 사전 제외 (excludedCustomers 카운터). " +
+      "B2B 건자재 평균: Top 10 비중 60-75% (산업 일반).",
+    benchmark: "Top 5 < 40% 분산 / 40~60% 적정 / >60% 집중",
+    relatedIds: ["bcg_hhi"],
+    source: ["100", "computed"],
+  },
 } as const satisfies Record<string, MetricEntry>;
