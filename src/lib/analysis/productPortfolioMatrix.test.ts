@@ -519,3 +519,78 @@ describe("calcPortfolioMatrix — 실데이터 시뮬레이션", () => {
     expect(m.weightedMarginRate).toBeLessThan(20);
   });
 });
+
+// ─── v4 P1-1: anomaly export 통합 ─────────────────────────
+describe("calcPortfolioMatrix — v4 P1-1 anomaly export", () => {
+  it("anomalies 배열 — 정상 데이터에서 빈 배열", () => {
+    const data = [
+      makeRec("제품", "일반매출", "P001", "정상1", 1000, 100),
+      makeRec("제품", "일반매출", "P002", "정상2", 2000, 200),
+    ];
+    const result = calcPortfolioMatrix(data);
+    expect(result.anomalies).toBeDefined();
+    expect(result.anomalies).toHaveLength(0);
+  });
+
+  it("음수 원가 → anomalies에 'negative_cost' 항목 + 사유 한국어", () => {
+    const r = makeRec("제품", "일반매출", "P001", "음수원가품목", 5310000, 9765048);
+    r.실적매출원가 = { 계획: 0, 실적: -6119344, 차이: 0 };
+    const result = calcPortfolioMatrix([r]);
+    expect(result.anomalies).toHaveLength(1);
+    const a = result.anomalies[0];
+    expect(a.anomalyType).toBe("negative_cost");
+    expect(a.itemCode).toBe("P001");
+    expect(a.itemName).toBe("음수원가품목");
+    expect(a.cost).toBe(-6119344);
+    expect(a.grossMarginRate).toBeCloseTo(215.24, 1);
+    expect(a.reason).toContain("환입");
+    expect(a.reason).toContain("회계팀");
+    // entries 진입 차단 확인
+    expect(result.matrices["내수×제품"].entries).toHaveLength(0);
+  });
+
+  it("원가 미계상 의심 → anomalies에 'missing_cost' 항목 + entries에도 포함", () => {
+    const r = makeRec("제품", "일반매출", "P002", "미계상품목", 10000, 9500); // 95%
+    r.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    const result = calcPortfolioMatrix([r]);
+    // anomalies에 포함
+    expect(result.anomalies).toHaveLength(1);
+    const a = result.anomalies[0];
+    expect(a.anomalyType).toBe("missing_cost");
+    expect(a.cost).toBe(0);
+    expect(a.marginRate).toBeCloseTo(95, 1);
+    expect(a.reason).toContain("미계상");
+    // entries에도 포함 (제외 대상 아님 — 차트에 표시되며 hasMissingCost로 식별)
+    expect(result.matrices["내수×제품"].entries).toHaveLength(1);
+    expect(result.matrices["내수×제품"].entries[0].hasMissingCost).toBe(true);
+  });
+
+  it("음수 원가 + 미계상 혼합 → anomalies 분리 카운트 + 사유 다름", () => {
+    const data: CustomerItemDetailRecord[] = [];
+    // 음수 원가 1건
+    const r1 = makeRec("제품", "일반매출", "P001", "음수1", 1000, 500);
+    r1.실적매출원가 = { 계획: 0, 실적: -200, 차이: 0 };
+    data.push(r1);
+    // 미계상 1건
+    const r2 = makeRec("상품", "해외매출", "P002", "미계상1", 5000, 4800); // 96%
+    r2.실적매출원가 = { 계획: 0, 실적: 0, 차이: 0 };
+    data.push(r2);
+    // 정상 1건
+    data.push(makeRec("제품", "일반매출", "P003", "정상", 1000, 100));
+
+    const result = calcPortfolioMatrix(data);
+    expect(result.anomalies).toHaveLength(2);
+    const negEntry = result.anomalies.find(a => a.anomalyType === "negative_cost");
+    const missEntry = result.anomalies.find(a => a.anomalyType === "missing_cost");
+    expect(negEntry).toBeDefined();
+    expect(missEntry).toBeDefined();
+    expect(negEntry!.segment).toBe("내수×제품");
+    expect(missEntry!.segment).toBe("해외×상품");
+    // 사유 한국어 분기 확인
+    expect(negEntry!.reason).toContain("환입");
+    expect(missEntry!.reason).toContain("미계상");
+    // 정상 품목 1건만 entries 진입 (음수는 제외, 미계상은 포함됨)
+    const allEntries = Object.values(result.matrices).flatMap(m => m.entries);
+    expect(allEntries).toHaveLength(2); // 정상 + 미계상
+  });
+});

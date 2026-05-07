@@ -589,7 +589,40 @@ export const portfolioMetrics = {
         tone: "danger" as const,
       },
     ],
-    relatedIds: ["bcg_missing_cost"],
+    relatedIds: ["bcg_missing_cost", "bcg_anomaly_export"],
+    source: ["100", "computed"],
+  },
+
+  // ─────────────────────────────────────────────────────────────
+  // v4 P1-1: 회계팀 검증용 anomaly CSV export
+  // ─────────────────────────────────────────────────────────────
+  bcg_anomaly_export: {
+    id: "bcg_anomaly_export",
+    name: "📥 회계팀 검증용 anomaly CSV",
+    category: "profitability",
+    unit: "number",
+    formula:
+      "anomaly = 음수 원가 (cost<0) ∪ 원가 미계상 의심 (sales>0 ∧ cost=0 ∧ margin≥90%)\n" +
+      "CSV 컬럼: Segment, 품목코드/명, 제품군, 매출/원가/매출총이익, 매출총이익율, 영업이익율, 거래월수, 이상유형, 사유",
+    beginner:
+      "📥 회계팀에 보낼 검증 자료를 한 번에 다운로드.\n" +
+      "이상한 데이터를 표로 정리해 회계팀이 분개 확인 가능.",
+    intermediate:
+      "회계팀 actionable signal 강화 — UI 경고만 보면 어느 품목인지 추적 어려움. CSV로 거래처/품목/금액/사유 일괄 제공해 분개 검토 즉시 가능.\n" +
+      "필터링: 원가 미계상만 / 음수 원가만 / 통합 (전체) 3가지 다운로드 옵션.",
+    expert:
+      "출처: productPortfolioMatrix.ts:340-373 anomalies 배열. 음수 원가는 entries 진입 차단되지만 anomalies에는 보존되어 export 가능. " +
+      "exportToCSV() utility (src/lib/export.ts:6) 활용 — UTF-8 BOM 포함 한글 Excel 호환. " +
+      "파일명: BCG_anomaly_{유형}_{YYYY-MM-DD}.csv",
+    benchmark: "0건 export = 정상 / 1건+ = 회계팀 검토 트리거",
+    contextBranches: [
+      {
+        when: (n: number) => n >= 1,
+        message: "📥 export 후 회계팀 전달 → 분개 검토 결과 받아 다음 cycle 적용",
+        tone: "info" as const,
+      },
+    ],
+    relatedIds: ["bcg_missing_cost", "bcg_negative_cost"],
     source: ["100", "computed"],
   },
 } as const satisfies Record<string, MetricEntry>;

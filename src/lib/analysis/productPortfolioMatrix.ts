@@ -94,6 +94,30 @@ export interface SegmentMatrix {
   };
 }
 
+/**
+ * 회계팀 검증용 anomaly export entry — CSV/XLSX 다운로드 형식.
+ *
+ * P1-1 (v4 world-class): 음수 원가 + 원가 미계상 품목을 한 번에 export.
+ * 음수 원가는 차트에서 자동 제외되지만(productPortfolioMatrix.ts:340-347),
+ * 본 배열에는 포함되어 회계팀이 환입·조정 분개 검토 가능.
+ */
+export interface AnomalyExportEntry {
+  segment: Segment;
+  itemCode: string;
+  itemName: string;
+  category: string;
+  sales: number;
+  cost: number;
+  grossProfit: number;
+  grossMarginRate: number;
+  marginRate: number;
+  monthCount: number;
+  /** 'missing_cost': 매출>0 + 원가=0 + 마진≥90% / 'negative_cost': 원가<0 (환입·조정) */
+  anomalyType: "missing_cost" | "negative_cost";
+  /** 회계팀 검토 의심 사유 (한국어 설명) */
+  reason: string;
+}
+
 export interface PortfolioMatrixResult {
   matrices: Record<Segment, SegmentMatrix>;
   overallSummary: {
@@ -110,6 +134,8 @@ export interface PortfolioMatrixResult {
     excludedReturns: number;     // 제외된 반품 행 수
     insufficientDataItems: number; // 거래월 6개 미만 (Dynamic 미적용)
   };
+  /** P1-1: 회계팀 검증용 anomaly 통합 리스트 (missing_cost + negative_cost) */
+  anomalies: AnomalyExportEntry[];
 }
 
 /** Outlier 임계 — 산술 평균 계산 시 |마진| > 이 값 인 품목 제외 */
@@ -264,6 +290,8 @@ export function calcPortfolioMatrix(
   const matrices = {} as Record<Segment, SegmentMatrix>;
   let insufficientDataItems = 0;
   let excludedNegativeCostItems = 0;
+  // P1-1: 회계팀 검증용 anomaly 통합 수집 (entries에서 제외되는 음수 원가도 포함)
+  const anomalies: AnomalyExportEntry[] = [];
 
   for (const segment of ALL_SEGMENTS) {
     const segEntries: BCGMatrixEntry[] = [];
@@ -343,12 +371,31 @@ export function calcPortfolioMatrix(
       // 비즈니스 결과 비현실적: 매출 < 영업이익 발생). 차트에서 제외하고 통계만 카운트.
       if (hasNegativeCost) {
         excludedNegativeCostItems++;
+        // P1-1: anomaly export 수집 (entries 진입 차단되지만 회계팀 검증 자료로 보존)
+        const ngGrossProfit = sales - agg.totalCost; // 매출 - (-원가) = 매출 + |원가|
+        const ngGrossMarginRate = safeDivide(ngGrossProfit, sales) * 100;
+        anomalies.push({
+          segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
+          sales, cost: agg.totalCost, grossProfit: ngGrossProfit, grossMarginRate: ngGrossMarginRate,
+          marginRate, monthCount, anomalyType: "negative_cost",
+          reason: `매출원가 음수 (${agg.totalCost.toLocaleString("ko-KR")}원) — 환입·조정 분개 누적 결과 출고 원가 초과. 매출총이익율 ${ngGrossMarginRate.toFixed(1)}%로 100% 초과 (비현실적). 회계팀 분개 검토 필요.`,
+        });
         continue; // 차트 entries에 추가 안 함
       }
 
       // 매출총이익 계산 (= 매출 - 매출원가). 원가 음수 시 매출총이익 > 매출 가능 (이미 제외됨)
       const grossProfit = sales - agg.totalCost;
       const grossMarginRate = safeDivide(grossProfit, sales) * 100;
+
+      // P1-1: 원가 미계상 의심 anomaly 수집 (entries에는 포함되지만 회계팀 검증 자료로도 export)
+      if (hasMissingCost) {
+        anomalies.push({
+          segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
+          sales, cost: agg.totalCost, grossProfit, grossMarginRate,
+          marginRate, monthCount, anomalyType: "missing_cost",
+          reason: `매출원가 0원 + 영업이익율 ${marginRate.toFixed(1)}% (90% 초과) — 회계 ERP 매출원가 미계상 의심. SAP 원가 계산 미실행 또는 BOM 누락 가능성. 회계팀 확인 필요.`,
+        });
+      }
 
       segEntries.push({
         segment, itemCode: agg.itemCode, itemName: agg.itemName, category: agg.category,
@@ -469,6 +516,7 @@ export function calcPortfolioMatrix(
       excludedReturns,
       insufficientDataItems,
     },
+    anomalies,
   };
 }
 

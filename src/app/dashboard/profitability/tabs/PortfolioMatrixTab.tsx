@@ -5,7 +5,7 @@ import {
   ScatterChart, Scatter, Cell, XAxis, YAxis, CartesianGrid,
   Tooltip as RechartsTooltip, ReferenceLine, LabelList,
 } from "recharts";
-import { Star, Shield, AlertTriangle, ShieldAlert, Info } from "lucide-react";
+import { Star, Shield, AlertTriangle, ShieldAlert, Info, Download } from "lucide-react";
 import { ChartCard } from "@/components/dashboard/ChartCard";
 import { EmptyState } from "@/components/dashboard/EmptyState";
 import { ErrorBoundary } from "@/components/dashboard/ErrorBoundary";
@@ -20,8 +20,10 @@ import {
   type Segment,
   type Quadrant,
   type SegmentMatrix,
+  type AnomalyExportEntry,
 } from "@/lib/analysis/productPortfolioMatrix";
 import type { CustomerItemDetailRecord } from "@/types";
+import { exportToCSV } from "@/lib/export";
 
 const QUADRANT_COLORS: Record<Quadrant, string> = {
   star: "hsl(142.1, 76.2%, 36.3%)",          // green
@@ -65,8 +67,32 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
     return <EmptyState message="100 거래처별 품목별 손익 데이터를 업로드해 주세요" />;
   }
 
-  const { overallSummary, matrices } = matrixResult;
+  const { overallSummary, matrices, anomalies } = matrixResult;
   const selectedMatrix = matrices[selectedSegment];
+
+  /** P1-1: 회계팀 검증용 anomaly CSV export — 음수 원가 + 원가 미계상 통합 */
+  const handleAnomalyExport = (filterType?: "missing_cost" | "negative_cost") => {
+    const filtered = filterType ? anomalies.filter(a => a.anomalyType === filterType) : anomalies;
+    if (filtered.length === 0) return;
+    const csvData = filtered.map(a => ({
+      "Segment": a.segment,
+      "품목코드": a.itemCode,
+      "품목명": a.itemName,
+      "제품군": a.category,
+      "매출액": a.sales,
+      "매출원가": a.cost,
+      "매출총이익": a.grossProfit,
+      "매출총이익율(%)": Number(a.grossMarginRate.toFixed(2)),
+      "영업이익율(%)": Number(a.marginRate.toFixed(2)),
+      "거래월수": a.monthCount,
+      "이상유형": a.anomalyType === "missing_cost" ? "원가 미계상 의심" : "음수 원가 (분석 제외)",
+      "회계팀 검토 사유": a.reason,
+    }));
+    const stamp = new Date().toISOString().slice(0, 10);
+    const suffix = filterType === "missing_cost" ? "원가미계상"
+      : filterType === "negative_cost" ? "음수원가" : "전체";
+    exportToCSV(csvData, `BCG_anomaly_${suffix}_${stamp}`);
+  };
 
   return (
     <ErrorBoundary>
@@ -173,21 +199,53 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail }: PortfolioMatr
                     </div>
                   )}
                   {overallSummary.missingCostCount > 0 && (
-                    <div className="text-red-700 dark:text-red-400 inline-flex items-start gap-0.5">
+                    <div className="text-red-700 dark:text-red-400 flex flex-wrap items-center gap-1">
                       <span>🚨 <strong>원가 미계상 의심 {overallSummary.missingCostCount}건</strong> (마진 90%+ + 원가 0원) — 회계 시스템 확인 필요</span>
                       <MetricInfo id="bcg_missing_cost" variant="compact" currentValue={overallSummary.missingCostCount} />
+                      <button
+                        type="button"
+                        onClick={() => handleAnomalyExport("missing_cost")}
+                        className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded bg-red-100 hover:bg-red-200 dark:bg-red-900/40 dark:hover:bg-red-900/60 text-red-800 dark:text-red-300 transition-colors"
+                        title="회계팀 검증용 CSV 다운로드 (원가 미계상 의심 품목)"
+                      >
+                        <Download className="h-3 w-3" />
+                        회계팀 CSV
+                      </button>
                     </div>
                   )}
                   {overallSummary.excludedNegativeCostItems > 0 && (
                     <div className="text-red-700 dark:text-red-400 bg-red-50 dark:bg-red-950/40 rounded p-1.5 -mx-1 space-y-0.5">
-                      <div className="flex items-start gap-1">
+                      <div className="flex flex-wrap items-start gap-1">
                         <span>🚨 <strong>음수 원가 {overallSummary.excludedNegativeCostItems}건 분석에서 제외</strong> (환입·조정 분개 누적)</span>
                         <MetricInfo id="bcg_negative_cost" variant="heavy" currentValue={overallSummary.excludedNegativeCostItems} />
+                        <button
+                          type="button"
+                          onClick={() => handleAnomalyExport("negative_cost")}
+                          className="ml-auto inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] rounded bg-red-200 hover:bg-red-300 dark:bg-red-900/60 dark:hover:bg-red-900/80 text-red-900 dark:text-red-200 transition-colors"
+                          title="회계팀 검증용 CSV 다운로드 (음수 원가 품목)"
+                        >
+                          <Download className="h-3 w-3" />
+                          회계팀 CSV
+                        </button>
                       </div>
                       <div className="text-[10px] opacity-90">
                         매출원가 음수는 회계 데이터 이상 — 산식 (매출 - 매출원가)으로 계산하면 매출총이익이 매출보다 커지는 비현실적 결과 발생.
                         수학상 a − (−b) = a + b는 정확하나 비즈니스 의미 없음 → 차트에서 제외 + 별도 카운트만 표시. 회계팀에서 분개 검토 필요.
                       </div>
+                    </div>
+                  )}
+                  {anomalies.length >= 2 && (
+                    <div className="pt-1 mt-1 border-t border-border/30 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                      <span>📥 회계팀 통합 보고용:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleAnomalyExport()}
+                        className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-muted hover:bg-muted/80 text-foreground transition-colors"
+                        title="원가 미계상 + 음수 원가 통합 CSV 다운로드"
+                      >
+                        <Download className="h-3 w-3" />
+                        전체 anomaly CSV ({anomalies.length}건)
+                      </button>
                     </div>
                   )}
                 </div>
