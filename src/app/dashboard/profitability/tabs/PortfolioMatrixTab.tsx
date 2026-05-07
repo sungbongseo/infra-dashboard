@@ -29,6 +29,12 @@ import {
   getHHILevelLabel,
   type SegmentConcentration,
 } from "@/lib/analysis/customerConcentration";
+import {
+  calcMonthlyVolatility,
+  getVolatilityQuadrantLabel,
+  type VolatilityResult,
+  type VolatilityQuadrant,
+} from "@/lib/analysis/monthlyVolatility";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
 
@@ -77,6 +83,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
   // P2-1: 거래처 집중도 (HHI) 계산
   const concentrationResult = useMemo(
     () => calcCustomerConcentration(filteredCustomerItemDetail),
+    [filteredCustomerItemDetail]
+  );
+
+  // P2-3: 월별 변동성 (CV) 계산
+  const volatilityResult = useMemo(
+    () => calcMonthlyVolatility(filteredCustomerItemDetail),
     [filteredCustomerItemDetail]
   );
 
@@ -308,6 +320,11 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
         {concentrationResult.highRiskSegments > 0 || ALL_SEGMENTS.some(s => concentrationResult.segments[s].totalCustomers > 0) ? (
           <ConcentrationGrid result={concentrationResult} />
         ) : null}
+
+        {/* P2-3: 월별 변동성 — Volatility Quadrant + 위험 품목 */}
+        {volatilityResult.entries.length > 0 && (
+          <VolatilityCard result={volatilityResult} />
+        )}
 
         {/* 선택 segment 상세 — 사분면별 Top 품목 */}
         {selectedMatrix && selectedMatrix.entries.length > 0 && (
@@ -863,6 +880,87 @@ function ConcentrationGrid({ result }: { result: ReturnType<typeof calcCustomerC
         <div className="text-[10px] text-muted-foreground">
           기준 (US DOJ Horizontal Merger Guidelines): HHI &lt;1500 분산 / 1500~2500 적정 / &gt;2500 집중. 자세한 Top 10 거래처는 segment 클릭 후 SegmentDetail 하단 확인.
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * P2-3: 월별 변동성 (Coefficient of Variation) Quadrant + 위험 품목 리스트.
+ * Bain volatility quadrant 패턴 — 평균 매출 × CV로 4분면 (안정/변동 × 큰/작은 매출).
+ */
+function VolatilityCard({ result }: { result: VolatilityResult }) {
+  const { quadrantStats, thresholds, highRiskItems, insufficientDataItems } = result;
+  const VOLATILITY_QUADRANT_COLORS: Record<VolatilityQuadrant, string> = {
+    stable_cash_cow: "hsl(142.1, 76.2%, 36.3%)", // 초록
+    volatile_big: "hsl(43.3, 96.4%, 56.3%)",      // 노랑 — 위험
+    stable_small: "hsl(221.2, 83.2%, 53.3%)",     // 파랑
+    one_shot: "hsl(346.8, 77.2%, 49.8%)",          // 빨강
+    insufficient_data: "hsl(0, 0%, 60%)",          // 회색
+  };
+  const quadrants: VolatilityQuadrant[] = ["stable_cash_cow", "volatile_big", "stable_small", "one_shot"];
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="text-sm font-semibold flex items-center gap-2">
+          📈 월별 변동성 (Coefficient of Variation)
+          <MetricInfo id="bcg_monthly_cv" variant="compact" />
+          {highRiskItems.length > 0 && (
+            <span className="ml-auto text-[11px] text-amber-700 dark:text-amber-400 font-normal">
+              ⚠ 변동성 위험 (큰매출+변동) {highRiskItems.length}건
+            </span>
+          )}
+        </div>
+        {/* 4 사분면 통계 + 임계값 */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+          {quadrants.map(q => {
+            const s = quadrantStats[q];
+            return (
+              <div key={q} className="border rounded p-2 text-[10px]" style={{ borderLeftColor: VOLATILITY_QUADRANT_COLORS[q], borderLeftWidth: 3 }}>
+                <div className="font-semibold text-xs flex items-center gap-1">
+                  <span style={{ color: VOLATILITY_QUADRANT_COLORS[q] }}>●</span>
+                  {getVolatilityQuadrantLabel(q)}
+                </div>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-muted-foreground">품목</span>
+                  <span className="font-mono">{s.count}건</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">매출</span>
+                  <span className="font-mono">{formatCurrency(s.totalSales)}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {/* 임계값 + insufficient data */}
+        <div className="text-[10px] text-muted-foreground flex flex-wrap items-center gap-2">
+          <span>임계값 (median): 평균매출 <span className="font-mono text-foreground">{formatCurrency(thresholds.salesThreshold)}</span> / CV <span className="font-mono text-foreground">{thresholds.cvThreshold.toFixed(2)}</span></span>
+          {insufficientDataItems > 0 && (
+            <span>· 거래월 3개 미만 {insufficientDataItems}건 (CV 산출 불가)</span>
+          )}
+          <MetricInfo id="bcg_volatility_quadrant" variant="inline" />
+        </div>
+        {/* 위험 품목 Top 10 (volatile_big) */}
+        {highRiskItems.length > 0 && (
+          <details className="border-t border-border/40 pt-2">
+            <summary className="text-xs font-semibold cursor-pointer flex items-center gap-1 hover:text-primary transition-colors">
+              ⚠ 변동성 위험 품목 Top {Math.min(10, highRiskItems.length)} (큰 매출 + 변동 큼 — 단발성 주문 의심)
+            </summary>
+            <div className="mt-2 space-y-1">
+              {highRiskItems.slice(0, 10).map((e, i) => (
+                <div key={`${e.segment}-${e.itemCode}`} className="flex items-center gap-2 text-[10px]">
+                  <span className="w-5 text-right text-muted-foreground font-mono">{i + 1}.</span>
+                  <span className="text-muted-foreground shrink-0 w-16">{e.segment}</span>
+                  <span className="flex-1 truncate font-medium" title={e.itemName}>{e.itemName}</span>
+                  <span className="font-mono text-muted-foreground">평균 {formatCurrency(e.meanSales)}</span>
+                  <span className="font-mono w-14 text-right text-amber-700 dark:text-amber-400">CV {e.cv.toFixed(2)}</span>
+                  <span className="font-mono w-10 text-right text-muted-foreground">{e.monthCount}M</span>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
       </CardContent>
     </Card>
   );

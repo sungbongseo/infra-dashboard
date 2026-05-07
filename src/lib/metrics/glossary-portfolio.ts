@@ -810,4 +810,66 @@ export const portfolioMetrics = {
     relatedIds: ["bcg_hhi"],
     source: ["100", "computed"],
   },
+
+  // ─────────────────────────────────────────────────────────────
+  // v4 P2-3: 월별 변동성 (Coefficient of Variation)
+  // ─────────────────────────────────────────────────────────────
+  bcg_monthly_cv: {
+    id: "bcg_monthly_cv",
+    name: "📈 월별 매출 변동계수 (CV)",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "CV = stdev(월별 매출) / mean(월별 매출)\n" +
+      "기준: <0.3 안정 / 0.3~0.5 보통 / >0.5 변동 큼",
+    beginner:
+      "📈 매월 매출이 얼마나 들쭉날쭉한지 측정.\n" +
+      "낮으면 안정적 정기 거래, 높으면 단발성 주문 의심.",
+    intermediate:
+      "표준편차를 평균으로 나눈 비율 — 절대값 무관 비교 가능.\n" +
+      "CV 0.3 미만: 매월 ±30% 이내 변동 → 정기 주문 (계절성 약함).\n" +
+      "CV 0.5 초과: 일부 월 매출 0 + 일부 월 큰 매출 → 단발성/계절성 의심.\n" +
+      "거래월 3개 미만 시 산출 불가 (insufficient_data).",
+    expert:
+      "calcMonthlyVolatility() in monthlyVolatility.ts. " +
+      "모집단 표준편차 (ddof=0) — 12 months 데이터 기준 충분. " +
+      "0매출 행은 사전 필터됨 (productPortfolioMatrix와 동일). " +
+      "임계 0.3/0.5는 실증 분석 기준 — 사용자 데이터로 재조정 가능.",
+    benchmark: "B2B 정기 거래: CV 0.2~0.4 / 프로젝트성 거래: CV 0.6~1.0",
+    relatedIds: ["bcg_volatility_quadrant", "bcg_dynamic_arrow"],
+    source: ["100", "computed"],
+  },
+  bcg_volatility_quadrant: {
+    id: "bcg_volatility_quadrant",
+    name: "Volatility Quadrant (Bain 패턴)",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "X: 평균 매출 (median 임계) / Y: CV (median 임계)\n" +
+      "  안정+큰매출 = 효자 (stable_cash_cow)\n" +
+      "  변동+큰매출 = 위험 (volatile_big) — 단발성 주문 의심\n" +
+      "  안정+작은매출 = 정기 (stable_small)\n" +
+      "  변동+작은매출 = 일회성 (one_shot)",
+    beginner:
+      "🎯 매출 크기 + 변동성으로 4사분면 분류.\n" +
+      "위험: 큰 매출인데 변동 큼 — 잘 안 나가다 한 번 크게 나오는 패턴.",
+    intermediate:
+      "Bain Volatility Quadrant 패턴 — BCG 매트릭스의 보완 분석.\n" +
+      "BCG는 매출×마진 단일 시점, 본 분석은 매출×변동성 시계열.\n" +
+      "위험 품목(volatile_big): 단발성 주문 1~2건이 평균 매출을 끌어올린 경우 → 안정성 확보 필요.",
+    expert:
+      "classifyVolatilityQuadrant() in monthlyVolatility.ts. " +
+      "Tie-break 없음 (≥ 임계로 결정론적). " +
+      "highRiskItems = volatile_big 품목 totalSales 내림차순 → Top 10 표시.",
+    benchmark: "stable_cash_cow 30%+ 비중 권장 / volatile_big 10%+ 시 점검",
+    contextBranches: [
+      {
+        when: (n: number) => n >= 1,
+        message: "⚠ 변동성 위험 품목 발견 — 주문 패턴 분석 권장",
+        tone: "warning" as const,
+      },
+    ],
+    relatedIds: ["bcg_monthly_cv"],
+    source: ["100", "computed"],
+  },
 } as const satisfies Record<string, MetricEntry>;
