@@ -35,6 +35,13 @@ import {
   type VolatilityResult,
   type VolatilityQuadrant,
 } from "@/lib/analysis/monthlyVolatility";
+import {
+  calcCrossReportValidation,
+  getDiffLevelLabel,
+  type CrossValidationResult,
+  type CrossValidationDiscrepancy,
+} from "@/lib/analysis/crossReportValidation";
+import type { OrgCustomerProfitRecord, HqCustomerItemProfitRecord } from "@/types";
 import type { CustomerItemDetailRecord, ItemProfitabilityRecord } from "@/types";
 import { exportToCSV } from "@/lib/export";
 
@@ -58,9 +65,13 @@ interface PortfolioMatrixTabProps {
   filteredCustomerItemDetail: CustomerItemDetailRecord[];
   /** P1-2: 200 itemProfitability (대분류 매핑용, 옵션) */
   itemProfitability?: ItemProfitabilityRecord[];
+  /** P3-1: 303 조직×거래처 손익 (cross-validation 옵션) */
+  orgCustomerProfit?: OrgCustomerProfitRecord[];
+  /** P3-1: 304 본부×거래처×품목 손익 (cross-validation 옵션) */
+  hqCustomerItemProfit?: HqCustomerItemProfitRecord[];
 }
 
-export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitability }: PortfolioMatrixTabProps) {
+export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitability, orgCustomerProfit, hqCustomerItemProfit }: PortfolioMatrixTabProps) {
   // UI 옵션
   const [salesMode, setSalesMode] = useState<"median" | "p75" | "weighted_avg">("median");
   const [marginMode, setMarginMode] = useState<"median" | "weighted_avg" | "zero">("median");
@@ -90,6 +101,12 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
   const volatilityResult = useMemo(
     () => calcMonthlyVolatility(filteredCustomerItemDetail),
     [filteredCustomerItemDetail]
+  );
+
+  // P3-1: 100 ↔ 303/304 cross-validation
+  const crossValidationResult = useMemo(
+    () => calcCrossReportValidation(filteredCustomerItemDetail, orgCustomerProfit || [], hqCustomerItemProfit || []),
+    [filteredCustomerItemDetail, orgCustomerProfit, hqCustomerItemProfit]
   );
 
   if (filteredCustomerItemDetail.length === 0) {
@@ -324,6 +341,14 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
         {/* P2-3: 월별 변동성 — Volatility Quadrant + 위험 품목 */}
         {volatilityResult.entries.length > 0 && (
           <VolatilityCard result={volatilityResult} />
+        )}
+
+        {/* P3-1: 303/304 Cross-Validation — 데이터 무결성 검증 */}
+        {(crossValidationResult.summary.matched_100_304 > 0
+          || crossValidationResult.summary.matched_100_303 > 0
+          || crossValidationResult.summary.onlyIn100Count > 0
+          || crossValidationResult.summary.onlyInOtherCount > 0) && (
+          <CrossValidationCard result={crossValidationResult} />
         )}
 
         {/* 선택 segment 상세 — 사분면별 Top 품목 */}
@@ -963,6 +988,151 @@ function VolatilityCard({ result }: { result: VolatilityResult }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+/**
+ * P3-1: 100 ↔ 303/304 Cross-Report Validation — 데이터 무결성 검증.
+ * 차이율 5% 초과 거래처/품목 자동 highlight + CSV export.
+ */
+function CrossValidationCard({ result }: { result: CrossValidationResult }) {
+  const { pair_100_vs_304, pair_100_vs_303, summary } = result;
+  const totalDiscrepancies = pair_100_vs_304.length + pair_100_vs_303.length;
+
+  const handleExport = () => {
+    const all = [...pair_100_vs_304, ...pair_100_vs_303];
+    if (all.length === 0) return;
+    const csvData = all.map(d => ({
+      "비교쌍": d.pair === "100_vs_304" ? "100 vs 304" : "100 vs 303",
+      "거래처코드": d.customerCode,
+      "거래처명": d.customerName,
+      "품목코드": d.itemCode || "",
+      "품목명": d.itemName || "",
+      "100_매출": d.sales100,
+      "타보고서_매출": d.salesOther,
+      "매출_차이": d.salesDiff,
+      "매출_차이율(%)": (d.salesDiffRate * 100).toFixed(2),
+      "100_영업이익": d.profit100,
+      "타보고서_영업이익": d.profitOther,
+      "이익_차이": d.profitDiff,
+      "이익_차이율(%)": (d.profitDiffRate * 100).toFixed(2),
+      "차이수준": getDiffLevelLabel(d.level),
+      "존재여부": d.presence === "both" ? "양쪽" : d.presence === "only_100" ? "100만" : "303-4만",
+    }));
+    const stamp = new Date().toISOString().slice(0, 10);
+    exportToCSV(csvData, `BCG_cross_validation_${stamp}`);
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="text-sm font-semibold flex items-center gap-2">
+          🔗 데이터 무결성 검증 (100 ↔ 303/304)
+          <MetricInfo id="bcg_cross_validation" variant="compact" currentValue={totalDiscrepancies} />
+          {totalDiscrepancies > 0 && (
+            <button
+              type="button"
+              onClick={handleExport}
+              className="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 text-[11px] rounded bg-amber-100 hover:bg-amber-200 dark:bg-amber-900/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 transition-colors"
+              title="회계팀 검증용 CSV 다운로드"
+            >
+              <Download className="h-3 w-3" />
+              회계팀 CSV ({totalDiscrepancies}건)
+            </button>
+          )}
+        </div>
+        {/* 통계 요약 */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-[11px]">
+          <div className="border rounded p-2">
+            <div className="text-muted-foreground">100 ↔ 304 매칭</div>
+            <div className="font-mono text-sm">{summary.matched_100_304}건</div>
+            <div className="text-muted-foreground text-[10px]">거래처+품목 단위</div>
+          </div>
+          <div className="border rounded p-2">
+            <div className="text-muted-foreground">100 ↔ 303 매칭</div>
+            <div className="font-mono text-sm">{summary.matched_100_303}건</div>
+            <div className="text-muted-foreground text-[10px]">거래처 단위</div>
+          </div>
+          <div className={`border rounded p-2 ${summary.significantDiffCount > 0 ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20" : ""}`}>
+            <div className="text-muted-foreground">차이율 &gt;20%</div>
+            <div className="font-mono text-sm">{summary.significantDiffCount}건</div>
+            <div className="text-muted-foreground text-[10px]">유의 차이 (회계 검토)</div>
+          </div>
+          <div className={`border rounded p-2 ${summary.criticalDiffCount + summary.onlyIn100Count + summary.onlyInOtherCount > 0 ? "border-red-400 bg-red-50 dark:bg-red-950/20" : ""}`}>
+            <div className="text-muted-foreground">심각 / 누락</div>
+            <div className="font-mono text-sm">
+              {summary.criticalDiffCount}건 / {summary.onlyIn100Count + summary.onlyInOtherCount}건
+            </div>
+            <div className="text-muted-foreground text-[10px]">
+              {summary.onlyIn100Count > 0 && `100→ ${summary.onlyIn100Count}`}
+              {summary.onlyIn100Count > 0 && summary.onlyInOtherCount > 0 && " / "}
+              {summary.onlyInOtherCount > 0 && `303-4→ ${summary.onlyInOtherCount}`}
+            </div>
+          </div>
+        </div>
+
+        {/* Top 10 차이 (100 vs 304 우선, 100 vs 303 보조) */}
+        {pair_100_vs_304.length > 0 && (
+          <details className="border-t border-border/40 pt-2">
+            <summary className="text-xs font-semibold cursor-pointer flex items-center gap-1 hover:text-primary transition-colors">
+              📋 100 ↔ 304 차이 Top 10 (거래처+품목 단위)
+            </summary>
+            <div className="mt-2 space-y-1">
+              {pair_100_vs_304.slice(0, 10).map((d, i) => (
+                <DiscrepancyRow key={`${d.key}-304`} d={d} rank={i + 1} />
+              ))}
+            </div>
+          </details>
+        )}
+        {pair_100_vs_303.length > 0 && (
+          <details className="border-t border-border/40 pt-2">
+            <summary className="text-xs font-semibold cursor-pointer flex items-center gap-1 hover:text-primary transition-colors">
+              📋 100 ↔ 303 차이 Top 10 (거래처 단위)
+            </summary>
+            <div className="mt-2 space-y-1">
+              {pair_100_vs_303.slice(0, 10).map((d, i) => (
+                <DiscrepancyRow key={`${d.key}-303`} d={d} rank={i + 1} />
+              ))}
+            </div>
+          </details>
+        )}
+
+        {totalDiscrepancies === 0 && summary.matched_100_304 + summary.matched_100_303 > 0 && (
+          <div className="text-[11px] text-green-700 dark:text-green-400">
+            ✅ 차이율 5% 미만 — 100/303/304 모두 일관된 데이터 (검증 통과)
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function DiscrepancyRow({ d, rank }: { d: CrossValidationDiscrepancy; rank: number }) {
+  const levelColor = d.level === "critical" ? "text-red-600 dark:text-red-400"
+    : d.level === "significant" ? "text-orange-600 dark:text-orange-400"
+    : "text-amber-600 dark:text-amber-400";
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <span className="w-5 text-right text-muted-foreground font-mono">{rank}.</span>
+      <span className="flex-1 truncate font-medium" title={`${d.customerName}${d.itemName ? ` / ${d.itemName}` : ""}`}>
+        {d.customerName}{d.itemName ? ` / ${d.itemName}` : ""}
+      </span>
+      <span className="font-mono w-24 text-right text-muted-foreground" title="100 보고서">
+        {formatCurrency(d.sales100)}
+      </span>
+      <span className="text-muted-foreground">↔</span>
+      <span className="font-mono w-24 text-right text-muted-foreground" title={d.pair === "100_vs_304" ? "304 보고서" : "303 보고서"}>
+        {formatCurrency(d.salesOther)}
+      </span>
+      <span className={`font-mono w-14 text-right font-semibold ${levelColor}`}>
+        {(d.salesDiffRate * 100).toFixed(0)}%
+      </span>
+      {d.presence !== "both" && (
+        <span className="text-[9px] text-red-600 font-mono w-12 text-right">
+          {d.presence === "only_100" ? "100만" : "303-4만"}
+        </span>
+      )}
+    </div>
   );
 }
 

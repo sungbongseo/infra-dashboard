@@ -743,6 +743,8 @@ export default function ProfitabilityPage() {
             <PortfolioMatrixTab
               filteredCustomerItemDetail={filteredCustItemDetailRaw}
               itemProfitability={filteredItemProfitability}
+              orgCustomerProfit={filteredOrgCustProfit}
+              hqCustomerItemProfit={filteredHqCustItemProfit}
             />
           </ErrorBoundary>
           </Suspense>

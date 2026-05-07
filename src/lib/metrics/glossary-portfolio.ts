@@ -839,6 +839,44 @@ export const portfolioMetrics = {
     relatedIds: ["bcg_volatility_quadrant", "bcg_dynamic_arrow"],
     source: ["100", "computed"],
   },
+  // ─────────────────────────────────────────────────────────────
+  // v4 P3-1: 100 ↔ 303/304 Cross-Report Validation
+  // ─────────────────────────────────────────────────────────────
+  bcg_cross_validation: {
+    id: "bcg_cross_validation",
+    name: "🔗 데이터 무결성 검증 (100 ↔ 303/304)",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "비교 키:\n" +
+      "  100 vs 304: 거래처+품목 단위 매출/이익 합 비교\n" +
+      "  100 vs 303: 거래처 단위 매출/이익 합 비교\n" +
+      "차이율 = |a-b| / max(|a|, |b|)\n" +
+      "분류: <5% 일치 / 5~20% 경미 / 20~100% 유의 / >100% (또는 누락) 심각",
+    beginner:
+      "🔗 같은 거래처/품목이 보고서마다 다른 값으로 나오면 회계 데이터 이상.\n" +
+      "5% 넘으면 회계팀이 확인해야 할 신호.",
+    intermediate:
+      "100 (거래처×품목 row 명세) vs 304 (거래처+품목 소계) — 직접 비교\n" +
+      "100 vs 303 (거래처 소계) — 거래처 단위 합산 후 비교\n" +
+      "차이 5% 이상: SAP CO-PA 판관비 배부 방식 차이 또는 데이터 누락 의심.\n" +
+      "차이 100% 이상 (한쪽 누락): 데이터 업로드 누락 또는 분개 미반영.",
+    expert:
+      "calcCrossReportValidation() in crossReportValidation.ts. " +
+      "차이율 분모는 max(|a|, |b|) — 한쪽 0일 때 정규화 안정. " +
+      "중복 카운트 방지: matched_100_304는 양쪽 존재 키만, only_*는 별도 카운터. " +
+      "Export CSV: 회계팀이 분개 검토하는 데 필요한 컬럼 15개 포함.",
+    benchmark: "차이율 <5% 모두 정상 / 5~20% 점검 / 20%+ 즉시 회계 확인",
+    contextBranches: [
+      {
+        when: (n: number) => n >= 1,
+        message: "🚨 회계팀 알림 필요 — 100/303/304 데이터 정합성 검증",
+        tone: "danger" as const,
+      },
+    ],
+    relatedIds: ["bcg_anomaly_export"],
+    source: ["100", "303", "304", "computed"],
+  },
   bcg_volatility_quadrant: {
     id: "bcg_volatility_quadrant",
     name: "Volatility Quadrant (Bain 패턴)",
