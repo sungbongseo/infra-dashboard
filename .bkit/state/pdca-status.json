@@ -1,6 +1,6 @@
 {
   "version": "2.0",
-  "lastUpdated": "2026-05-07T02:39:29.635Z",
+  "lastUpdated": "2026-05-07T02:46:38.391755Z",
   "activeFeatures": [
     "인프라 대시보드",
     "tabs",
@@ -368,13 +368,15 @@
       "note": "Phase B baseline (BCG 4-way SQA) — v2/v3와 통합 archive"
     },
     "portfolio-matrix-v4-world-class": {
-      "phase": "plan",
+      "phase": "design",
       "matchRate": null,
       "iterationCount": 0,
       "startedAt": "2026-05-07T02:28:02.863520Z",
       "timestamps": {
-        "lastUpdated": "2026-05-07T02:28:02.863520Z"
-      }
+        "lastUpdated": "2026-05-07T02:46:38.391755Z"
+      },
+      "currentPhase": "P1-2",
+      "designDocument": "docs/02-design/features/portfolio-matrix-v4-world-class-p1-2.design.md"
     }
   },
   "pipeline": {
