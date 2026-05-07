@@ -61,6 +61,8 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
   const [enableDynamic, setEnableDynamic] = useState(true);
   const [enablePareto, setEnablePareto] = useState(true);
   const [selectedSegment, setSelectedSegment] = useState<Segment>("내수×제품");
+  // P2-2: cell 색상 모드 — 사분면 (default) / 제품군 / 대분류
+  const [colorMode, setColorMode] = useState<"quadrant" | "productGroup" | "majorCategory">("quadrant");
 
   // 매트릭스 계산
   const matrixResult = useMemo(
@@ -153,6 +155,20 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
                 <span>Pareto 80/20</span>
                 <MetricInfo id="bcg_pareto_80" variant="inline" />
               </label>
+              {/* P2-2: cell 색상 모드 (사분면 / 제품군 / 대분류) */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-muted-foreground">색상:</span>
+                <select
+                  value={colorMode}
+                  onChange={(e) => setColorMode(e.target.value as any)}
+                  className="px-2 py-1 border rounded bg-background"
+                >
+                  <option value="quadrant">사분면 (기본)</option>
+                  <option value="productGroup">제품군</option>
+                  <option value="majorCategory">대분류 (200)</option>
+                </select>
+                <MetricInfo id="bcg_color_mode" variant="inline" />
+              </div>
             </div>
 
             {/* 전체 KPI — 모든 마진은 영업이익율 (영업이익 ÷ 매출) */}
@@ -283,6 +299,7 @@ export function PortfolioMatrixTab({ filteredCustomerItemDetail, itemProfitabili
               matrix={matrices[segment]}
               isSelected={segment === selectedSegment}
               onClick={() => setSelectedSegment(segment)}
+              colorMode={colorMode}
             />
           ))}
         </div>
@@ -417,10 +434,28 @@ function PortfolioTooltip({ active, payload }: any) {
   );
 }
 
-function SegmentMatrixCard({ matrix, isSelected, onClick }: {
+/**
+ * P2-2: 제품군/대분류 색상 팔레트 — 결정론적(deterministic) 색상 매핑.
+ * 같은 key는 항상 같은 색상으로 (사용자 학습 가능).
+ */
+function buildColorPalette(keys: string[]): Map<string, string> {
+  // 안정 정렬 후 HSL 균등 분할
+  const sorted = Array.from(new Set(keys.filter(k => k))).sort();
+  const palette = new Map<string, string>();
+  const N = sorted.length;
+  for (let i = 0; i < N; i++) {
+    const hue = Math.round((i * 360) / Math.max(N, 1));
+    palette.set(sorted[i], `hsl(${hue}, 65%, 50%)`);
+  }
+  return palette;
+}
+
+function SegmentMatrixCard({ matrix, isSelected, onClick, colorMode = "quadrant" }: {
   matrix: SegmentMatrix;
   isSelected: boolean;
   onClick: () => void;
+  /** P2-2: cell 색상 모드 — 사분면 기본, 제품군 또는 대분류로 전환 가능 */
+  colorMode?: "quadrant" | "productGroup" | "majorCategory";
 }) {
   const { segment, entries, weightedMarginRate, totalSales, thresholds, quadrantStats } = matrix;
 
@@ -438,8 +473,18 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
   // Y축 클램핑 [-50, 100] — outlier 1% (|마진|>100%) 처리
   const Y_MIN = -50;
   const Y_MAX = 100;
+  // P2-2: 색상 모드별 팔레트 (결정론적)
+  const colorKey = (e: typeof entries[0]) =>
+    colorMode === "productGroup" ? (e.category || "(미분류)")
+    : colorMode === "majorCategory" ? e.majorCategory
+    : "";
+  const palette = colorMode !== "quadrant"
+    ? buildColorPalette(entries.map(colorKey))
+    : null;
+
   const chartData = entries.map(e => {
     const isOutlier = e.marginRate > Y_MAX || e.marginRate < Y_MIN;
+    const cKey = colorKey(e);
     return {
       x: e.sales,
       // 클램핑된 표시 값 (실제 marginRate는 별도)
@@ -448,6 +493,7 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       name: e.itemName,
       itemCode: e.itemCode,
       itemCategory: e.category,
+      majorCategory: e.majorCategory,
       quadrant: e.quadrant,
       isPareto80: e.isPareto80,
       isOutlier,
@@ -459,6 +505,9 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
       operatingProfit: e.operatingProfit,
       monthCount: e.monthCount,
       trendDirection: e.trendDirection,
+      /** P2-2: 색상 모드 활성 시 사용할 색상 (사분면 모드 시 null → 기본 사분면 색상 사용) */
+      modeColor: palette ? palette.get(cKey) || null : null,
+      colorKey: cKey,
     };
   });
   const outlierCount = chartData.filter(d => d.isOutlier).length;
@@ -526,7 +575,8 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
                 const q = payload.quadrant as Quadrant;
                 const isOL = payload.isOutlier;
                 const isPareto = payload.isPareto80;
-                const fill = QUADRANT_COLORS[q];
+                // P2-2: 색상 모드에 따른 fill — modeColor가 있으면 사용 (제품군/대분류 모드), 없으면 사분면 색상 (default)
+                const fill = payload.modeColor || QUADRANT_COLORS[q];
                 const stroke = isOL ? "hsl(0, 0%, 10%)" : (isPareto ? "hsl(0, 0%, 0%)" : "transparent");
                 const strokeWidth = isOL ? 2 : (isPareto ? 1.5 : 0);
                 const size = 5;
@@ -570,6 +620,24 @@ function SegmentMatrixCard({ matrix, isSelected, onClick }: {
             </Scatter>
           </ScatterChart>
         </ChartContainer>
+        {/* P2-2: 색상 모드 활성 시 legend (제품군/대분류 색상 매핑) */}
+        {palette && palette.size > 0 && (
+          <div className="px-3 pb-1 text-[10px] text-muted-foreground">
+            <div className="flex items-center gap-1 mb-0.5">
+              <span>색상: {colorMode === "productGroup" ? "제품군" : "대분류"}</span>
+              <MetricInfo id="bcg_color_mode" variant="inline" />
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {Array.from(palette.entries()).slice(0, 16).map(([key, color]) => (
+                <span key={key} className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-muted/40">
+                  <span style={{ backgroundColor: color }} className="inline-block w-2 h-2 rounded-full" />
+                  <span className="truncate max-w-[80px]" title={key}>{key || "(미분류)"}</span>
+                </span>
+              ))}
+              {palette.size > 16 && <span className="opacity-70">… +{palette.size - 16}개</span>}
+            </div>
+          </div>
+        )}
         {/* outlier + missing cost warning */}
         {outlierCount > 0 && (
           <div className="px-3 pb-1 text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">

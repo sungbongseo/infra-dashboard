@@ -760,6 +760,33 @@ export const portfolioMetrics = {
     relatedIds: ["bcg_concentration_topshare"],
     source: ["100", "computed"],
   },
+  // ─────────────────────────────────────────────────────────────
+  // v4 P2-2: 차트 색상 모드 (사분면 / 제품군 / 대분류)
+  // ─────────────────────────────────────────────────────────────
+  bcg_color_mode: {
+    id: "bcg_color_mode",
+    name: "차트 색상 모드",
+    category: "profitability",
+    unit: "ratio",
+    formula:
+      "사분면 (기본): Star=초록, Cash Cow=파랑, Question=노랑, Dog=빨강\n" +
+      "제품군: 100 보고서 제품군 컬럼 단위 색상 (HSL 균등 분할, deterministic)\n" +
+      "대분류: 200 보고서 대분류 단위 색상",
+    beginner:
+      "🎨 차트 점 색상을 사분면 대신 제품군이나 대분류로 표시.\n" +
+      "어느 제품군이 매트릭스 어디에 분포하는지 한눈에.",
+    intermediate:
+      "사분면 색상은 위치(매출×마진) 기반 — 같은 사분면이면 동일 색상.\n" +
+      "제품군/대분류 색상은 분류 기반 — 어느 그룹이 Star/Dog에 흩어져 있는지 패턴 식별 가능.\n" +
+      "deterministic palette: 동일 키 → 항상 동일 색상 (Hue 균등 분할, 학습 가능).",
+    expert:
+      "buildColorPalette() in PortfolioMatrixTab.tsx. " +
+      "alphabetical sort 후 HSL hue 360°/N 균등 분할 — 16개 이상 시 색상 인접 어려움. " +
+      "16개 초과 그룹은 legend에 '... +N개' 축약.",
+    benchmark: "사분면 색상은 의사결정용 / 제품군·대분류는 패턴 분석용",
+    relatedIds: ["bcg_segment_4way"],
+    source: ["100", "200", "computed"],
+  },
   bcg_concentration_topshare: {
     id: "bcg_concentration_topshare",
     name: "Top N 거래처 매출 비중",
